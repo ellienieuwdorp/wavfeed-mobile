@@ -1,0 +1,15 @@
+# OS
+.DS_Store
+
+# Node / pnpm (future workspaces)
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets: cookie encryption keys and credentials live in env files, never in git (ADR-0003)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
