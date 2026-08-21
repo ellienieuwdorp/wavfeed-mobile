@@ -119,9 +119,20 @@ _Avoid_: social proof, trending
 Per-user, per-Feed-Item flag. Views show everything and mark Unseen with the
 accent dot; marking Seen is the core triage gesture (proven in bcfeed). An
 unseen-only filter is already wired up but unused, waiting on the filter bar.
+(Paused on screen since 2026-08-21 behind a feature switch, DESIGN-UI
+section 12; the state and routes stay.)
 _Avoid_: read/unread
 
 **Starred**:
 Per-user, per-Feed-Item bookmark for releases worth returning to. (Hidden in
 the UI since 2026-08-21 behind a feature switch; the state and routes stay.)
-_Avoid_: favorite, like, save
+Local to wavfeed; never leaves our database.
+_Avoid_: favorite, like, save, wishlist
+
+**Wishlist**:
+Bandcamp's own save-for-later list on a Fan's account. The one thing wavfeed
+writes to Bandcamp (ADR-0016): a press on the heart adds a Release or a Track
+to the signed-in Fan's own wishlist, or removes it, through a **Wishlist
+Action** the worker carries out. "Wishlisted" is the state Bandcamp confirmed,
+never a guess.
+_Avoid_: starred, favorite, like, save, collect (Bandcamp's wire verb)
