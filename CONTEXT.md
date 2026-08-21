@@ -23,6 +23,13 @@ An album or single track published by a Page, Bandcamp's "tralbum" (`item_type`
 album/track + `item_id`). The primary unit of our feed.
 _Avoid_: tralbum, item, record
 
+**Track**:
+One entry in a Release's tracklist, a row of the release page's `trackinfo[]`
+(`track_id`, `track_num`). What the player actually plays; its preview streams
+as a signed mp3-128 URL that lives 24 hours (ADR-0015). A Release with
+`item_type` track has exactly one.
+_Avoid_: song, trackinfo entry (outside parser code)
+
 **Identity Cookie**:
 The `identity` session cookie from a logged-in bandcamp.com browser session. An
 unscoped bearer credential for a Fan's account; the only auth Bandcamp's
