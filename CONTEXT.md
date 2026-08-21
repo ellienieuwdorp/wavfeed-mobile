@@ -67,7 +67,8 @@ _Avoid_: event (overloaded), activity item, post
 The unit the UI renders: one Release with all its attached Stories aggregated
 (who bought it, whether it's new, how many followed Fans engaged). Stories are
 ingredients; Feed Items are the dish.
-_Avoid_: card, entry, row
+_Avoid_: card, entry, row (as names for the concept; a UI element rendering
+one may of course be a row or a card)
 
 **Burst**:
 Many Stories by one Fan in a short window (a buying spree). Collapsed into a single
@@ -100,10 +101,12 @@ _Avoid_: social proof, trending
 ### Item state
 
 **Seen / Unseen**:
-Per-user, per-Feed-Item flag; the default view shows Unseen. Marking Seen is the
-core triage gesture (proven in bcfeed).
+Per-user, per-Feed-Item flag. Views show everything and mark Unseen with the
+accent dot; marking Seen is the core triage gesture (proven in bcfeed). An
+unseen-only filter exists as dormant plumbing for the planned filter bar.
 _Avoid_: read/unread
 
 **Starred**:
-Per-user, per-Feed-Item bookmark for releases worth returning to.
+Per-user, per-Feed-Item bookmark for releases worth returning to. (Hidden in
+the UI since 2026-08-21 behind a feature switch; the state and routes stay.)
 _Avoid_: favorite, like, save
