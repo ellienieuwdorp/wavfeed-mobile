@@ -1,8 +1,8 @@
 # wavfeed
 
-A tool that ingests a Bandcamp fan's activity feed and re-presents it as a filterable,
-de-noised, release-centric discovery view. This glossary is the ubiquitous language:
-use these terms in code, docs, and UI copy.
+wavfeed ingests a Bandcamp fan's activity feed and re-presents it as a de-noised,
+release-centric view you can filter. This glossary is the ubiquitous language: use
+these terms in code, docs, and UI copy.
 
 ## Language
 
@@ -14,12 +14,12 @@ people they follow are Fans.
 _Avoid_: user (reserved for our own accounts), buyer, collector
 
 **Page**:
-An artist or label presence on Bandcamp — what a Fan follows. Bandcamp's internal
-name is "band" (`band_id`); we say Page because labels aren't bands.
+An artist or label presence on Bandcamp, the thing a Fan follows. Bandcamp's
+internal name is "band" (`band_id`); we say Page because labels aren't bands.
 _Avoid_: band, artist account, label account
 
 **Release**:
-An album or single track published by a Page — Bandcamp's "tralbum" (`item_type`
+An album or single track published by a Page, Bandcamp's "tralbum" (`item_type`
 album/track + `item_id`). The primary unit of our feed.
 _Avoid_: tralbum, item, record
 
@@ -90,18 +90,18 @@ _Avoid_: playlist, folder, tag (tags are Bandcamp's genre labels)
 **Curated Feed**:
 The server-curated view ("Feed" in the sidebar): editorial modules built from
 accumulated Stories (multi-buyer Releases, fresh Page releases, review quotes).
-The playground where new signals are tried before they earn structure.
+Where a new signal gets tried out before it earns a view of its own.
 _Avoid_: home, for-you, discover
 
 **Timeline**:
 The date-spine presentation of a collection: Stories grouped by calendar week
-(Mon–Sun), single Stories at their action date, aggregates anchored at release
-date (ADR-0011).
+(Mon to Sun), single Stories at their action date, aggregates anchored at their
+release date (ADR-0011).
 _Avoid_: history, activity log
 
 **Network Overlap**:
-The count of followed Fans who engaged with the same Release in a time window —
-the v2 discovery signal ("4 people you follow bought this this month"). Computed
+The count of followed Fans who engaged with the same Release in a time window.
+The v2 discovery signal ("4 people you follow bought this this month"), computed
 from the user's own accumulated Stories.
 _Avoid_: social proof, trending
 
@@ -110,7 +110,7 @@ _Avoid_: social proof, trending
 **Seen / Unseen**:
 Per-user, per-Feed-Item flag. Views show everything and mark Unseen with the
 accent dot; marking Seen is the core triage gesture (proven in bcfeed). An
-unseen-only filter exists as dormant plumbing for the planned filter bar.
+unseen-only filter is already wired up but unused, waiting on the filter bar.
 _Avoid_: read/unread
 
 **Starred**:
