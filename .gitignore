@@ -1,10 +1,21 @@
 # OS
 .DS_Store
 
+# Editors: personal settings stay personal
+.vscode/
+.idea/
+
 # Node / pnpm (future workspaces)
 node_modules/
 dist/
 *.tsbuildinfo
+coverage/
+
+# Test-runner artifacts (also in server/apps/web/.gitignore, kept here so any
+# future workspace that grows Playwright or vitest output is covered from day
+# one)
+test-results/
+playwright-report/
 
 # Secrets: cookie encryption keys and credentials live in env files, never in git (ADR-0003)
 .env
