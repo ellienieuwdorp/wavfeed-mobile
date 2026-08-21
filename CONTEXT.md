@@ -84,7 +84,8 @@ _Avoid_: spam, flood
 
 **Group**:
 A user-curated, named set of Pages ("minimal house labels") used as a feed filter.
-Manual membership in v1.
+Manual membership in v1. (The sidebar block that named them is hidden since
+2026-08-21 behind a feature switch; nothing behind it is built yet.)
 _Avoid_: playlist, folder, tag (tags are Bandcamp's genre labels)
 
 **Curated Feed**:
