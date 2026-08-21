@@ -56,6 +56,13 @@ The process (and result) of parsing Raw Documents into the normalized entities t
 app queries. Re-runnable from scratch at any time.
 _Avoid_: ETL, sync
 
+**Sync Run**:
+The tracked record of one user's initial catch-up: the deep feed walk plus
+release-date enrichment the Poller runs after signup, with live counters the app
+reads for progress. One open Sync Run per user at most; `sync_runs` in the schema.
+On screen it is never named: the UI says things like "gathering your history".
+_Avoid_: onboarding job, backfill task, import
+
 ### Feed concepts
 
 **Story**:
