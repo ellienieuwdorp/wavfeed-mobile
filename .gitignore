@@ -13,3 +13,7 @@ dist/
 
 # Logs
 *.log
+
+# What dev/e2e.sh leaves while it runs: pids, service logs, and a cookie jar
+# holding a live session token. Nothing here is ever worth committing (ADR-0003).
+server/dev/.e2e/
