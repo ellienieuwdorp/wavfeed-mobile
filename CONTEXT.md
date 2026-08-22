@@ -136,3 +136,9 @@ to the signed-in Fan's own wishlist, or removes it, through a **Wishlist
 Action** the worker carries out. "Wishlisted" is the state Bandcamp confirmed,
 never a guess.
 _Avoid_: starred, favorite, like, save, collect (Bandcamp's wire verb)
+
+**Wishlist Action**:
+One press of the heart on its way to Bandcamp: a row in `wishlist_actions`
+the API queues and the worker carries out, holding the outcome it came back
+with (ADR-0016). It is the press, not the item.
+_Avoid_: job, task, queue entry, mutation
