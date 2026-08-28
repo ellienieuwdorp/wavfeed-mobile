@@ -89,6 +89,16 @@ Many Stories by one Fan in a short window (a buying spree). Collapsed into a sin
 expandable element so it can't drown the feed.
 _Avoid_: spam, flood
 
+**Upcoming**:
+A Release wavfeed holds whose release date is still ahead: announced, usually
+pre-orderable, not out. Found by the band details sweep (catalog truth,
+ADR-0017) or through a pre-order purchase in the feed; being Upcoming needs no
+Story and has no actor. On screen it is the Upcoming band at the top of New
+releases, and a Release stops being Upcoming the day its release date arrives.
+_Avoid_: pre-release, coming soon, future release, announcement, preorder as a
+synonym (`is_preorder` is Bandcamp's buyable state, which an Upcoming Release
+usually but not always has)
+
 **Group**:
 A user-curated, named set of Pages ("minimal house labels") used as a feed filter.
 Manual membership in v1. (The sidebar block that named them is hidden since
