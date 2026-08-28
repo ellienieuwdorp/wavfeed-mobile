@@ -52,6 +52,15 @@ _Avoid_: cron job, scheduler (those are mechanisms, not the component)
 The planned browser-extension Fetcher that runs on the user's own machine, so the
 server never holds their Identity Cookie. Gates the public launch.
 
+**Sweep**:
+The band details sweep: one shared component that reads each followed Page's
+whole discography from a public endpoint and keeps a single queue keyed on band
+(ADR-0017). It owns catalog truth in `releases` where the feed owns social truth
+in `stories`, which is how wavfeed knows about a release nobody has bought yet.
+Not a Fetcher: it carries no Identity Cookie, makes no authenticated request,
+and runs once for everyone rather than on any one user's behalf.
+_Avoid_: crawler, scraper, spider
+
 **Raw Document**:
 A verbatim Bandcamp API response stored at ingest time (endpoint name, payload,
 fetched-at). Never deleted, never mutated; the source of truth everything else is
