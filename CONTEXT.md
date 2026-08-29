@@ -104,6 +104,9 @@ pre-orderable, not out. Found by the band details sweep (catalog truth,
 ADR-0017) or through a pre-order purchase in the feed; being Upcoming needs no
 Story and has no actor. On screen it is the Upcoming band at the top of New
 releases, and a Release stops being Upcoming the day its release date arrives.
+That day is a GMT day, because Bandcamp writes every release date at midnight
+GMT and that is when the record becomes buyable (ADR-0017, amended 2026-08-29);
+it is the day the row and its week header name too.
 _Avoid_: pre-release, coming soon, future release, announcement, preorder as a
 synonym (`is_preorder` is Bandcamp's buyable state, which an Upcoming Release
 usually but not always has)
