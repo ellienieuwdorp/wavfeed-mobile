@@ -49,8 +49,10 @@ using their stored Identity Cookie.
 _Avoid_: cron job, scheduler (those are mechanisms, not the component)
 
 **Extension**:
-The planned browser-extension Fetcher that runs on the user's own machine, so the
-server never holds their Identity Cookie. Gates the public launch.
+The browser-extension Fetcher (ADR-0018) that runs on the user's own machine and
+fetches with the browser's own session, so the server never sees that user's
+Identity Cookie. Built for Chrome and Firefox; its store release gates the
+public launch.
 
 **Sweep**:
 The band details sweep: one shared component that reads each followed Page's
