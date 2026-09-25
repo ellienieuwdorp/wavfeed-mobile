@@ -14,7 +14,7 @@ import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/tu
 import { readKv } from '@/store';
 
 import { useAppState, type AppState } from './appState';
-import { createGatherSink, GATHER_KEY, readStoredIdentity } from './gatherSink';
+import { createGatherSink, GATHER_KEY, readStoredIdentity, WALK_KEY } from './gatherSink';
 
 export const BUDGET_MS: Readonly<Record<GatherReason, number>> = { open: 60_000, timer: 60_000, refresh: 120_000 };
 
@@ -54,7 +54,11 @@ export function turnRunning(): Promise<TurnSummary> | null {
 /** Mounted once under the app state; renders nothing. */
 export function GatherSchedule() {
   const { db, runGather, gather } = useAppState();
-  const readLastTurnAt = useCallback(async () => (await readKv<Partial<GatherState>>(db, GATHER_KEY))?.lastTurnAt ?? null, [db]);
+  // A walk still holding its cursor resumes on every open; the fifteen-minute rule is for a caught-up feed.
+  const readLastTurnAt = useCallback(async () => {
+    if ((await readKv(db, WALK_KEY)) !== null) return null;
+    return (await readKv<Partial<GatherState>>(db, GATHER_KEY))?.lastTurnAt ?? null;
+  }, [db]);
   useGatherSchedule(runGather, readLastTurnAt);
   // iOS suspends a locked phone, so the screen stays on while a turn runs and the first walk is still pending.
   const busy = gather.phase !== 'idle';
