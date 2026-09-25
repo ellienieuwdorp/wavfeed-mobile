@@ -3,6 +3,7 @@
  * backoff after failures and the endpoint's breaker. Ported from server/apps/poller/src/sweep.ts,
  * circuitBreaker.ts and config.ts (task 0036, decision 4).
  */
+import { parseWireDate } from '../domain/wire';
 import { asRecord } from '../domain/wire';
 import type { SweepTier } from './sink';
 
@@ -40,8 +41,7 @@ export function tierFor(releaseDatesMs: readonly number[], nowMs: number): Sweep
 function readDateMs(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value * 1000;
   if (typeof value !== 'string' || value.trim() === '') return undefined;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return parseWireDate(value)?.getTime();
 }
 
 /** Only `discography[].release_date`: the Projection does the real parse. */

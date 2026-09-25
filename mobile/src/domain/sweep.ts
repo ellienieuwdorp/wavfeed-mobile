@@ -3,6 +3,7 @@
  * Ported from server/apps/poller/src/sweep.ts and config.ts (task 0036).
  */
 import { asRecord } from './wire';
+import { parseWireDate } from './wire';
 
 export type SweepTier = 'hot' | 'warm' | 'cold';
 
@@ -37,8 +38,7 @@ export function tierFor(releaseDates: readonly Date[], now: Date): SweepTier {
 function readWireDate(value: unknown): Date | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return new Date(value * 1000);
   if (typeof value !== 'string' || value.trim() === '') return undefined;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  return parseWireDate(value);
 }
 
 /** Every release date a `band_details` body names, read forgivingly: a bad field costs a tier, never a document. */

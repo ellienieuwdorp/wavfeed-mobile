@@ -12,8 +12,10 @@ export {
   type RawDocumentInput,
 } from './rawDocuments';
 export {
+  ensureProjectionVersion,
   FOLD_BATCH_SIZE,
   fold,
+  PROJECTION_VERSION,
   type FoldSummary,
   type ProjectDocumentOutcome,
   type ProjectDocumentResult,

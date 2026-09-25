@@ -153,7 +153,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
     async afterDocuments() {
       try {
         const summary = await fold(db);
-        console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories');
+        console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
       } catch (error) {
         console.warn('fold failed:', error instanceof Error ? error.message : String(error));
         throw error;

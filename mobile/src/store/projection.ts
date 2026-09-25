@@ -21,6 +21,22 @@ import { listForProjection, type RawDocument } from './rawDocuments';
 
 export const FOLD_BATCH_SIZE = 50;
 
+/** Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). */
+export const PROJECTION_VERSION = 2;
+export const PROJECTION_VERSION_KEY = 'projectionVersion';
+
+export async function ensureProjectionVersion(db: SQLiteDatabase): Promise<boolean> {
+  const row = await db.getFirstAsync<{ value: string }>('select value from kv where key = ?', [PROJECTION_VERSION_KEY]);
+  const held = row === null || row === undefined ? null : Number(JSON.parse(row.value));
+  if (held === PROJECTION_VERSION) return false;
+  await rebuild(db);
+  await db.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [
+    PROJECTION_VERSION_KEY,
+    JSON.stringify(PROJECTION_VERSION),
+  ]);
+  return true;
+}
+
 /** `per-user` may open a shared row and fill empty detail; only `catalog` (band_details) overwrites name, url and band (ADR-0018). */
 type Source = 'per-user' | 'catalog';
 

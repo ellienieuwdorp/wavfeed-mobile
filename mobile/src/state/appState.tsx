@@ -12,7 +12,7 @@ import { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
-import { fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
+import { ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
 
 import { loadGatherState } from './gatherSink';
 
@@ -43,6 +43,9 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   useEffect(() => {
     let alive = true;
     void openStore().then(async (store) => {
+      await ensureProjectionVersion(store.db).catch((error: unknown) => {
+        console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
+      });
       await loadGatherState({ db: store.db, setGather, invalidate: () => undefined }).catch(() => undefined);
       if (alive) setDb(store.db);
     });
