@@ -1,21 +1,27 @@
 /**
- * Settings in the canvas order: account, Bandcamp on this device, connected
- * devices, the one notification switch, appearance, password, Log out, and
- * Delete my account alone (the v2 client canvas). The switch and the appearance
- * picker respond, appearance overriding the system scheme, and the sign-in row
- * opens Connect Bandcamp.
+ * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
+ * sign out), connected devices (this one only until the v2 server knows the others), the one notification switch,
+ * appearance, and removing everything gathered here. The wavfeed account rows (email, password, log out, delete) wait
+ * for the account this slice does not have (task 0036).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Device from 'expo-device';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import { Appearance, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Appearance, Platform, ScrollView, Switch, Text, View } from 'react-native';
 
+import { SignOutWebView } from '@/bandcamp/SignInWebView';
 import { useDockClearance } from '@/components/player/Dock';
 import { Segmented } from '@/components/Segmented';
 import { Cell, Group, GroupFoot, GroupHead } from '@/components/SettingsList';
 import { copy, sep } from '@/copy';
-import { ACCOUNT, DEVICES, type DeviceKind } from '@/mock/data';
+import { fanInitials } from '@/lib/format';
+import { useNow } from '@/lib/useNow';
+import { useAppState, useLiveQuery } from '@/state/appState';
+import { turnRunning } from '@/state/gather';
+import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
+import { readKv } from '@/store';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -23,28 +29,82 @@ const s = copy.settings;
 
 type Scheme = 'light' | 'dark' | 'system';
 
-const DEVICE_ICON: Record<DeviceKind, ComponentProps<typeof Ionicons>['name']> = {
-  phone: 'phone-portrait-outline',
-  laptop: 'laptop-outline',
-  browser: 'globe-outline',
-};
-
 function Chevron() {
   const { c } = useTokens();
   return ios ? <Ionicons name="chevron-forward" size={16} color={c.faint} /> : null;
 }
 
+function Dot({ colour }: { colour: string }) {
+  return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colour }} />;
+}
+
+function Avatar({ url, initials }: { url: string | null; initials: string }) {
+  const { c } = useTokens();
+  const size = ios ? 36 : 40;
+  if (url !== null) return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg }} />;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 13, fontWeight: '600', color: c.avatarInk }}>{initials}</Text>
+    </View>
+  );
+}
+
 export default function Settings() {
   const { c } = useTokens();
+  const app = useAppState();
+  const { gather } = app;
+  const now = useNow();
+  const clearance = useDockClearance();
   const [announces, setAnnounces] = useState(true);
   const [scheme, setScheme] = useState<Scheme>('system');
-  const clearance = useDockClearance();
+  const [signingOut, setSigningOut] = useState(false);
+  const [gathering, setGathering] = useState(false);
+  const held = useLiveQuery(async (db) => ({
+    identity: await readStoredIdentity(db),
+    addedAt: await readKv<number>(db, DEVICE_ADDED_KEY),
+  }));
+  const identity = held?.identity ?? null;
   const connect = () => router.push('/connect');
+
+  const status: 'connected' | 'signedOut' | 'notConnected' =
+    identity === null || gather.pausedReason === 'not_connected' ? 'notConnected' : gather.pausedReason === 'logged_out' ? 'signedOut' : 'connected';
+  const handle = identity === null ? '' : identity.username || identity.name || String(identity.fanId);
+  const busy = gathering || gather.phase !== 'idle';
+  const gatheredAgo = gather.lastSuccessAt === null ? s.notGatheredYet : s.gathered(gather.lastSuccessAt, now);
 
   const pickScheme = (next: Scheme) => {
     setScheme(next);
     Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
   };
+
+  const gatherNow = () => {
+    setGathering(true);
+    void app
+      .runGather('refresh')
+      .catch(() => undefined)
+      .finally(() => setGathering(false));
+  };
+
+  const finishSignOut = async () => {
+    await app.session.signOut();
+    await patchGather(app, { pausedReason: 'not_connected' });
+    setSigningOut(false);
+  };
+
+  const removeAll = () =>
+    Alert.alert(s.removeAllTitle, s.removeAllBody, [
+      { text: s.cancel, style: 'cancel' },
+      {
+        text: s.removeAllConfirm,
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            await turnRunning()?.catch(() => undefined);
+            await app.removeStore();
+          })();
+        },
+      },
+    ]);
 
   const appearance = (
     <Segmented
@@ -58,67 +118,69 @@ export default function Settings() {
     />
   );
 
+  const statusCell =
+    status === 'connected' ? (
+      <Cell
+        leading={<Dot colour={c.online} />}
+        title={s.signedInAs(handle)}
+        sub={ios ? undefined : gatheredAgo}
+        trailing={ios ? <Text style={{ fontSize: 15, color: c.sub }}>{gatheredAgo}</Text> : undefined}
+      />
+    ) : status === 'signedOut' ? (
+      <Cell
+        leading={<Dot colour={c.wishlist} />}
+        title={s.signedOut}
+        sub={gather.lastSuccessAt === null ? undefined : s.lastGathered(gather.lastSuccessAt, now)}
+        trailing={<Chevron />}
+        onPress={connect}
+      />
+    ) : (
+      <Cell leading={<Dot colour={c.faint} />} title={s.notConnected} sub={s.notGathering} />
+    );
+
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 8 : 0, paddingBottom: 40 + clearance }}>
-      <Group>
-        <Cell
-          leading={
-            <View style={{ width: ios ? 36 : 40, height: ios ? 36 : 40, borderRadius: 20, backgroundColor: c.avatarBg, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: c.avatarInk }}>{ACCOUNT.initials}</Text>
-            </View>
-          }
-          title={ACCOUNT.name}
-          sub={ACCOUNT.email + sep + s.bandcampLabel + ACCOUNT.bandcamp}
-        />
-      </Group>
+      {identity !== null ? (
+        <Group>
+          <Cell
+            leading={<Avatar url={identity.avatarUrl} initials={fanInitials(identity.name ?? handle)} />}
+            title={identity.name ?? handle}
+            sub={s.bandcampLabel + handle}
+          />
+        </Group>
+      ) : null}
 
       <GroupHead label={s.thisDeviceHead} />
       <Group>
-        <Cell
-          leading={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.online }} />}
-          title={s.signedInAs(ACCOUNT.bandcamp)}
-          sub={ios ? undefined : ACCOUNT.gathered}
-          trailing={
-            ios ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 15, color: c.sub }}>{ACCOUNT.gathered}</Text>
-                <Chevron />
-              </View>
-            ) : undefined
-          }
-          onPress={connect}
-        />
-        <Cell title={s.gatherNow} tone="accent" />
-        <Cell title={s.signOut} tone="accent" />
+        {statusCell}
+        {status === 'connected' ? (
+          <Cell
+            title={s.gatherNow}
+            tone="accent"
+            sub={busy ? s.phase(gather.phase) || undefined : undefined}
+            trailing={busy ? <ActivityIndicator size="small" /> : undefined}
+            onPress={busy ? undefined : gatherNow}
+          />
+        ) : (
+          <Cell title={s.signIn} tone="accent" onPress={connect} />
+        )}
+        {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
       </Group>
       <GroupFoot text={s.custody} />
+      {signingOut ? <SignOutWebView onDone={() => void finishSignOut()} /> : null}
 
       <GroupHead label={s.devicesHead} />
       <Group>
-        {DEVICES.map((d) => (
-          <Cell
-            key={d.name}
-            leading={<Ionicons name={DEVICE_ICON[d.kind]} size={ios ? 18 : 20} color={c.sub} />}
-            title={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, color: c.ink }}>{d.name}</Text>
-                {d.current ? (
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: c.accent, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
-                ) : null}
-              </View>
-            }
-            sub={d.facts}
-            trailing={
-              d.current ? undefined : ios ? (
-                <Chevron />
-              ) : (
-                <Pressable accessibilityRole="button" hitSlop={8}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: c.accent }}>{s.disconnect}</Text>
-                </Pressable>
-              )
-            }
-          />
-        ))}
+        <Cell
+          leading={<Ionicons name="phone-portrait-outline" size={ios ? 18 : 20} color={c.sub} />}
+          title={
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: c.accent, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
+            </View>
+          }
+          sub={[held?.addedAt != null ? s.added(new Date(held.addedAt), now) : null, gather.lastSuccessAt === null ? null : gatheredAgo].filter(Boolean).join(sep) || undefined}
+        />
       </Group>
 
       <GroupHead label={s.notificationsHead} />
@@ -139,12 +201,7 @@ export default function Settings() {
       )}
 
       <Group gapAbove>
-        <Cell title={s.changePassword} trailing={<Chevron />} />
-        <Cell title={s.logOut} tone="danger" />
-      </Group>
-
-      <Group gapAbove>
-        <Cell title={s.deleteAccount} sub={ios ? undefined : s.deleteAccountNote} tone="danger" />
+        <Cell title={s.removeAll} tone="danger" onPress={busy ? undefined : removeAll} />
       </Group>
     </ScrollView>
   );
