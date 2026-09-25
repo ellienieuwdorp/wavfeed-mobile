@@ -11,7 +11,7 @@ import { useAppState } from '@/state/appState';
 export type { PlayableRelease, PlayerStatus } from '@/player/transport';
 export type { PlayerClock } from '@/player/useTransport';
 export type Player = Transport;
-export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek'>;
+export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek' | 'playAt'>;
 
 const PlayerContext = createContext<Player | null>(null);
 const ActionsContext = createContext<PlayerActions | null>(null);
@@ -20,8 +20,8 @@ const ClockContext = createContext<PlayerClock>({ position: 0, duration: 0 });
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const { transport, clock } = useTransport(useAppState());
-  const { play, toggle, next, previous, seek, current } = transport;
-  const actions = useMemo<PlayerActions>(() => ({ play, toggle, next, previous, seek }), [play, toggle, next, previous, seek]);
+  const { play, toggle, next, previous, seek, playAt, current } = transport;
+  const actions = useMemo<PlayerActions>(() => ({ play, toggle, next, previous, seek, playAt }), [play, toggle, next, previous, seek, playAt]);
   const tree = createElement(ClockContext.Provider, { value: clock }, children);
   return createElement(
     ActionsContext.Provider,

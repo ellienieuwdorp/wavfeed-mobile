@@ -1,9 +1,10 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), connected devices (this one only until the v2 server knows the others), the one notification switch,
- * appearance, and removing everything gathered here. Android draws the status as one list item and its actions as
- * Material buttons under the custody line, as the canvas's Settings board does. The wavfeed account rows (email, password, log out, delete) wait
- * for the account this slice does not have (task 0036).
+ * sign out), connected devices (held back until a server knows the others), the one notification switch, appearance,
+ * and removing everything gathered here. Android draws the status as one list item and its actions as Material buttons
+ * under the custody line, as the canvas's Settings board does. A development build adds the store's facts under the
+ * custody line. The wavfeed account rows (email, password, log out, delete) wait for the account this slice does not
+ * have (task 0036).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
@@ -21,6 +22,7 @@ import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/comp
 import { copy, sep } from '@/copy';
 import { fanInitials } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
+import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
@@ -29,6 +31,8 @@ import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const s = copy.settings;
+/** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices (task 0036). */
+const SHOW_DEVICES = false;
 
 type Scheme = 'light' | 'dark' | 'system';
 
@@ -108,6 +112,9 @@ export default function Settings() {
     setSigningOut(false);
   };
 
+  // The rig's sample Fan has no Bandcamp session to end, so its sign out skips the logout page (ADR-0001).
+  const signOut = () => (SAMPLE_MODE ? void finishSignOut() : setSigningOut(true));
+
   const removeAll = () =>
     Alert.alert(s.removeAllTitle, s.removeAllBody, [
       { text: s.cancel, style: 'cancel' },
@@ -184,7 +191,7 @@ export default function Settings() {
             ) : (
               <Cell title={s.signIn} tone="accent" onPress={connect} />
             )}
-            {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
+            {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : signOut} />}
           </Group>
           <GroupFoot text={s.custody} />
         </>
@@ -198,26 +205,30 @@ export default function Settings() {
             ) : (
               <ListButton label={s.signIn} kind="filled" onPress={connect} />
             )}
-            {status === 'notConnected' ? null : <ListButton label={s.signOut} kind="outlined" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
+            {status === 'notConnected' ? null : <ListButton label={s.signOut} kind="outlined" onPress={signingOut ? undefined : signOut} />}
           </ButtonRow>
         </>
       )}
       <GroupFoot text={heldLine(facts, gather.lastError)} />
       {signingOut ? <SignOutWebView onDone={() => void finishSignOut()} /> : null}
 
-      <GroupHead label={s.devicesHead} />
-      <Group>
-        <Cell
-          leading={<Glyph name="phone" size={ios ? 20 : 24} weight="regular" colour={c.sub} />}
-          title={
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: c.accent, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
-            </View>
-          }
-          sub={[held?.addedAt != null ? s.added(new Date(held.addedAt), now) : null, gather.lastSuccessAt === null ? null : gatheredAgo].filter(Boolean).join(sep) || undefined}
-        />
-      </Group>
+      {SHOW_DEVICES ? (
+        <>
+          <GroupHead label={s.devicesHead} />
+          <Group>
+            <Cell
+              leading={<Glyph name="phone" size={ios ? 20 : 24} weight="regular" colour={c.sub} />}
+              title={
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: c.accent, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
+                </View>
+              }
+              sub={[held?.addedAt != null ? s.added(new Date(held.addedAt), now) : null, gather.lastSuccessAt === null ? null : gatheredAgo].filter(Boolean).join(sep) || undefined}
+            />
+          </Group>
+        </>
+      ) : null}
 
       <GroupHead label={s.notificationsHead} />
       <Group>

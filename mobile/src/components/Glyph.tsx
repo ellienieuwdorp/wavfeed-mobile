@@ -22,7 +22,8 @@ export type GlyphName =
   | 'dismiss'
   | 'chevron'
   | 'dropDown'
-  | 'phone';
+  | 'phone'
+  | 'external';
 
 const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion: IonName }>> = {
   play: { sf: 'play.fill', md: 'play_arrow', ion: 'play' },
@@ -34,6 +35,7 @@ const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion:
   chevron: { sf: 'chevron.right', md: 'chevron_right', ion: 'chevron-forward' },
   dropDown: { sf: 'chevron.up.chevron.down', md: 'arrow_drop_down', ion: 'caret-down' },
   phone: { sf: 'iphone', md: 'smartphone', ion: 'phone-portrait-outline' },
+  external: { sf: 'arrow.up.right', md: 'open_in_new', ion: 'open-outline' },
 };
 
 type Props = { name: GlyphName; size: number; colour: string; weight?: SymbolWeight };

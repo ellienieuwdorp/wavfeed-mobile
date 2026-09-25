@@ -1,10 +1,11 @@
 /**
  * The one context every screen reads: the open store, the Bandcamp session, the
- * gather state and a version that moves whenever the Projection folds, so a
+ * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
  * screen re-reads its query (task 0036). `putRaw` is the only way a response
  * enters the phone: verbatim into raw_documents, then folded (ADR-0004). `removeStore` deletes the store file and
  * opens a fresh one, which remounts everything under the provider.
  */
+import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -30,6 +31,11 @@ export type AppState = {
 
 const AppStateContext = createContext<AppState | null>(null);
 
+/** The fastest the version moves, so a long first walk re-reads each screen every two seconds, not every fold. */
+export const INVALIDATE_EVERY_MS = 2_000;
+/** A screen out of view follows the version once it has held still this long, or at once when it comes back into view. */
+export const UNFOCUSED_SETTLE_MS = 10_000;
+
 type Runner = (reason: GatherReason, app: AppState) => Promise<void>;
 
 export function AppStateProvider({ children, runner }: { children: ReactNode; runner?: Runner }) {
@@ -54,7 +60,26 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
     };
   }, [generation]);
 
-  const invalidate = useCallback(() => setVersion((v) => v + 1), []);
+  const lastBump = useRef(0);
+  const trailing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (trailing.current !== null) clearTimeout(trailing.current);
+    },
+    [],
+  );
+  // A walk folds every five pages; screens re-read at most once per window, and once more after the last fold.
+  const invalidate = useCallback(() => {
+    if (trailing.current !== null) return;
+    const bump = () => {
+      trailing.current = null;
+      lastBump.current = Date.now();
+      setVersion((v) => v + 1);
+    };
+    const wait = lastBump.current + INVALIDATE_EVERY_MS - Date.now();
+    if (wait <= 0) bump();
+    else trailing.current = setTimeout(bump, wait);
+  }, []);
 
   const putRaw = useCallback(
     async (doc: BandcampDocument) => {
@@ -107,9 +132,26 @@ export function useAppState(): AppState {
   return state;
 }
 
-/** Re-runs `read` whenever the Projection folds; `null` until the first answer. */
+/** The version a screen reads at: the live one while it is in view, else the live one once it settles or the screen returns. */
+function useFollowedVersion(version: number): number {
+  const focused = useIsFocused();
+  const [followed, setFollowed] = useState(version);
+  useEffect(() => {
+    if (followed === version) return;
+    if (focused) {
+      setFollowed(version);
+      return;
+    }
+    const timer = setTimeout(() => setFollowed(version), UNFOCUSED_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [version, focused, followed]);
+  return followed;
+}
+
+/** Re-runs `read` whenever the Projection folds, and at once when `deps` change; `null` until the first answer. */
 export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, deps: readonly unknown[] = []): T | null {
-  const { db, version } = useAppState();
+  const { db, version: live } = useAppState();
+  const version = useFollowedVersion(live);
   const [value, setValue] = useState<T | null>(null);
   useEffect(() => {
     let alive = true;

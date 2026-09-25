@@ -2,11 +2,13 @@
  * One gather turn in the foreground (task 0036, decision 4): probe; the wishlist and the follow list when six hours
  * old; while the first walk is pending a small band details sweep of due followed Pages (ADR-0017), so hearts and
  * Upcoming hold truth while the history fills; the feed walk or poll with the Extension's rules (extension/lib/poll.ts)
- * plus the server's stop line (feed.ts); then the rest of the sweep. A list that fails is noted and the walk still
- * runs. The cursor is written after every page, so a turn out of budget or killed with the app resumes for free, and
- * the store folds after every batch while the walk runs.
+ * plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011), a few while the walk is
+ * pending, with budget held back from the walk for them; then the rest of the sweep. A list that fails is noted and
+ * the walk still runs. The cursor is written after every page, so a turn out of budget or killed with the app resumes
+ * for free, and the store folds after every batch while the walk runs.
  */
 import type { BandcampSession } from '../bandcamp/session';
+import { parseReleasePage } from '../domain/parseReleasePage';
 import type { BandcampAnswer, BandcampDocument, Identity } from '../bandcamp/wire';
 import type { GatherFailure, GatherSink, GatherState, SweepTier, WalkState } from './sink';
 import {
@@ -26,6 +28,7 @@ export type GatherSession = Pick<
   | 'fetchFollowingBands'
   | 'fetchWishlistItems'
   | 'fetchBandDetails'
+  | 'fetchReleasePage'
 >;
 
 export type GatherReason = 'open' | 'refresh' | 'timer';
@@ -53,6 +56,11 @@ export const POLL_MAX_PAGES = 10;
 export const LIST_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Due Pages swept before the feed while the first walk is pending; the rest of `SWEEP_TURN_MAX` follows the feed. */
 export const PRE_WALK_SWEEP = 6;
+/** Release pages per turn while the first walk is pending, and once it is done. */
+export const RELEASE_PAGES_WALKING = 5;
+export const RELEASE_PAGES_CAUGHT_UP = 25;
+/** Held back from the walk per queued release page: the pacing gap and a slow answer. */
+export const RELEASE_PAGE_RESERVE_MS = 2_000;
 
 type Ctx = {
   readonly session: GatherSession;
@@ -93,6 +101,8 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
   let summary: TurnSummary;
   try {
     const outcome = await gather(ctx);
+    const counts = await sink.readReleaseDateCounts();
+    await sink.patchGatherState({ releasesDated: counts.dated, releasesUndated: counts.undated });
     const after = await sink.readGatherState();
     summary = { reason: options.reason, outcome, walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null };
     await sink.patchGatherState({ phase: 'idle' });
@@ -105,11 +115,14 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
   return summary;
 }
 
-/** iOS freezes JS in the background, so a turn can wake long past its deadline: its budget restarts from the wake. */
-function outOfBudget(ctx: Ctx): boolean {
+/**
+ * iOS freezes JS in the background, so a turn can wake long past its deadline: its budget restarts from the wake.
+ * `reserveMs` ends a step early, keeping that much for the steps after it.
+ */
+function outOfBudget(ctx: Ctx, reserveMs = 0): boolean {
   const at = ctx.now();
   if (at - ctx.deadline > ctx.budgetMs) ctx.deadline = at + ctx.budgetMs;
-  return at >= ctx.deadline;
+  return at >= ctx.deadline - reserveMs;
 }
 
 async function note(ctx: Ctx, failure: GatherFailure): Promise<void> {
@@ -170,10 +183,14 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   const walkPending = !state.initialWalkDone || held?.kind === 'feed_walk';
   const swept = walkPending && !outOfBudget(ctx) ? await runSweep(ctx, PRE_WALK_SWEEP) : 0;
 
-  const feed = await runFeed(ctx, identity);
+  // A poll is a few pages, so only a walk, which spends the whole budget, holds time back for release pages.
+  const dating = walkPending ? RELEASE_PAGES_WALKING : RELEASE_PAGES_CAUGHT_UP;
+  const queued = walkPending ? (await sink.readUndatedReleases(ctx.now(), dating)).length : 0;
+  const feed = await runFeed(ctx, identity, queued * RELEASE_PAGE_RESERVE_MS);
   if (feed === 'paused') return 'paused';
   if (feed === 'unreachable') return 'failed';
 
+  if (!outOfBudget(ctx)) await runReleasePages(ctx, dating);
   if (!outOfBudget(ctx)) await runSweep(ctx, SWEEP_TURN_MAX - swept);
   return feed === 'pending' || outOfBudget(ctx) ? 'out_of_budget' : 'done';
 }
@@ -195,7 +212,7 @@ function planWalk(state: GatherState, identity: Identity, nowMs: number): WalkSt
   };
 }
 
-async function runFeed(ctx: Ctx, identity: Identity): Promise<FeedEnd> {
+async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise<FeedEnd> {
   const { session, sink } = ctx;
   const state = await sink.readGatherState();
   const resumed = await sink.readWalk();
@@ -208,7 +225,7 @@ async function runFeed(ctx: Ctx, identity: Identity): Promise<FeedEnd> {
 
   if (!walk.poked) {
     if (walk.username !== null) {
-      if (outOfBudget(ctx)) return 'pending';
+      if (outOfBudget(ctx, reserveMs)) return 'pending';
       const poke = await session.pokeFeedPage(walk.username);
       if (poke.kind !== 'ok') return await settle(ctx, poke);
       await store(ctx, poke.value);
@@ -228,7 +245,7 @@ async function runFeed(ctx: Ctx, identity: Identity): Promise<FeedEnd> {
       }
       return await finishWalk(ctx, walk);
     }
-    if (outOfBudget(ctx)) {
+    if (outOfBudget(ctx, reserveMs)) {
       await sink.afterDocuments();
       return 'pending';
     }
@@ -330,6 +347,49 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
 async function finishLists(ctx: Ctx, wrote: boolean, step: Step): Promise<Step> {
   if (wrote) await ctx.sink.afterDocuments();
   return step;
+}
+
+function namesReleaseDate(payload: unknown): boolean {
+  try {
+    return parseReleasePage(payload).releaseDate !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Up to `quota` public release pages of undated Releases, each stored before it is read; the Projection folds the date
+ * in. One failed request ends the pass, as the server's enrichment does (ADR-0001).
+ */
+async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
+  const { session, sink } = ctx;
+  const due = await sink.readUndatedReleases(ctx.now(), quota);
+  if (due.length === 0) return;
+  await sink.patchGatherState({ phase: 'dating' });
+  let wrote = false;
+
+  for (const release of due) {
+    if (outOfBudget(ctx)) break;
+    const key = { itemType: release.itemType, itemId: release.itemId };
+    const answer = await session.fetchReleasePage(release.url, key);
+    if (answer.kind !== 'ok') {
+      // An offline phone, a 429 or a 5xx says nothing about the page, so only its own answers count against it.
+      if (answer.kind === 'error' && answer.status < 500 && answer.status !== 429) {
+        await sink.markReleasePageAttempt(key, 'failed', ctx.now());
+      }
+      console.warn(`release page answered ${answer.kind}${answer.kind === 'error' ? ` ${answer.status}` : ''}`);
+      break;
+    }
+    const page = answer.value;
+    if (page.kind !== 'page') {
+      await sink.markReleasePageAttempt(key, page.kind, ctx.now());
+      continue;
+    }
+    await store(ctx, page.document);
+    wrote = true;
+    await sink.markReleasePageAttempt(key, namesReleaseDate(page.document.payload) ? 'dated' : 'undated', ctx.now());
+  }
+  if (wrote) await sink.afterDocuments();
 }
 
 /** Up to `quota` due followed Pages; answers how many were asked, so the turn can spend the rest later. */

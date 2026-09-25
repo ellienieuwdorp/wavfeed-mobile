@@ -16,7 +16,7 @@ import { FollowingBandsPayloadError, parseFollowingBands } from '../domain/parse
 import { parseReleasePage, ReleasePagePayloadError } from '../domain/parseReleasePage';
 import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWishlistItems';
 import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
-import { BUSY_TIMEOUT_MS } from './schema';
+import { BUSY_TIMEOUT_MS } from './migrations';
 import { listForProjection, type RawDocument } from './rawDocuments';
 
 export const FOLD_BATCH_SIZE = 50;

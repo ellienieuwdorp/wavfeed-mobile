@@ -9,6 +9,7 @@
 import { setAudioModeAsync, useAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { SAMPLE_MODE } from '@/dev/sampleMode';
 import type { ApiReleaseTrack } from '@/domain/apiTypes';
 
 import {
@@ -39,6 +40,9 @@ export type Transport = {
   readonly status: PlayerStatus;
   /** The Track in the transport; null while loading, when nothing can play, and at rest after the last one. */
   readonly track: ApiReleaseTrack | null;
+  /** The Release's tracklist, empty while it first loads and when it failed; kept through a reload of the same Release. */
+  readonly tracks: readonly ApiReleaseTrack[];
+  readonly index: number | null;
   readonly playing: boolean;
   /** The Page the playing Release belongs to, which a wishlist write for its Track has to name (ADR-0016). */
   readonly bandId: string | null;
@@ -49,6 +53,8 @@ export type Transport = {
   readonly next: () => void;
   readonly previous: () => void;
   readonly seek: (seconds: number) => void;
+  /** Starts the Track at `index`; the Track already in the transport toggles pause instead. */
+  readonly playAt: (index: number) => void;
 };
 
 export type PlayerClock = { readonly position: number; readonly duration: number };
@@ -111,8 +117,11 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       const track = from.tracks[index];
       if (from.current === null || track === undefined || track.streamUrl === null) return;
       quiet();
-      audio.replace({ uri: track.streamUrl });
-      audio.play();
+      // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
+      if (!SAMPLE_MODE) {
+        audio.replace({ uri: track.streamUrl });
+        audio.play();
+      }
       apply({ ...from, status: 'ready', index, playing: true });
       setClock({ position: 0, duration: durationOf(null, track) });
       showOnLockScreen(audio, lockActive, from.current, track);
@@ -124,9 +133,11 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
     async (release: PlayableRelease, wantedTrackId: string | null, force: boolean) => {
       loadRef.current += 1;
       const token = loadRef.current;
+      const before = stateRef.current;
+      const kept = force && before.current !== null && isSameRelease(before.current, release) ? before.tracks : [];
       quiet();
       audio.pause();
-      apply({ ...IDLE, current: release, status: 'loading' });
+      apply({ ...IDLE, current: release, status: 'loading', tracks: kept });
       setClock(ZERO);
       const tracklist = await loadTracklist(depsRef.current, release, force).catch(() => null);
       if (loadRef.current !== token) return;
@@ -193,6 +204,16 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
     [loadAndStart, toggle],
   );
 
+  const playAt = useCallback(
+    (index: number) => {
+      const from = stateRef.current;
+      if (from.status !== 'ready') return;
+      if (from.index === index) toggle();
+      else startTrack(index);
+    },
+    [startTrack, toggle],
+  );
+
   const next = useCallback(() => {
     const from = stateRef.current;
     const to = from.index === null ? null : nextStreamableIndex(from.tracks, from.index);
@@ -249,6 +270,8 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       current: state.current,
       status: state.status,
       track,
+      tracks: state.tracks,
+      index: state.index,
       playing: state.playing,
       bandId: state.bandId,
       canPrevious: state.index !== null && previousStreamableIndex(state.tracks, state.index) !== null,
@@ -258,8 +281,9 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       next,
       previous,
       seek,
+      playAt,
     }),
-    [state, track, play, toggle, next, previous, seek],
+    [state, track, play, toggle, next, previous, seek, playAt],
   );
   return { transport, clock };
 }

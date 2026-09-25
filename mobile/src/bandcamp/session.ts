@@ -14,7 +14,10 @@ import {
   type ReleaseKey,
   WISHLIST_ITEMS_ENDPOINT,
 } from '../domain/endpoints';
+import { Platform } from 'react-native';
+
 import { asRecord } from '../domain/wire';
+import { SAMPLE_MODE } from '../dev/sampleMode';
 import { readJsonAttribute } from './htmlBlob';
 import {
   meansAlreadyThere,
@@ -22,13 +25,16 @@ import {
   readErrorText,
   readReplayCrumb,
   toDetail,
+  toSaid,
   MAX_CRUMB_REPLAYS,
   type WishlistEnd,
   type WishlistItem,
   type WishlistWire,
   type WishlistWriteKind,
   type WishlistWriteOutcome,
+  wishlistHeaders,
   wishlistRequestBody,
+  withholdsCrumb,
 } from './wishlist';
 import {
   BAND_DETAILS_PATH,
@@ -59,6 +65,18 @@ import {
 export const PACING_MIN_MS = 500;
 export const PACING_MAX_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * The browser identity the sign-in WebView already gave this session, so every
+ * request looks like it came from the same browser (task 0036, decision 1).
+ * React Native's own User-Agent names CFNetwork or okhttp, and Bandcamp
+ * answered the wishlist write from it with a bare error and no reason.
+ */
+const USER_AGENT = Platform.select({
+  ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+  android: 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+  default: 'Mozilla/5.0 AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+});
 
 export const FOLLOWING_BANDS_PAGE_SIZE = 500;
 export const FOLLOWING_BANDS_MAX_PAGES = 20;
@@ -167,6 +185,8 @@ export class BandcampSession {
   }
 
   private async sendNow(url: string, spec: SendSpec): Promise<Wire | null> {
+    // The rig's sample Fan and items never reach Bandcamp: every call answers as unreachable (ADR-0001, ADR-0016).
+    if (SAMPLE_MODE) return null;
     if (this.lastDoneAt !== null) {
       const gap = PACING_MIN_MS + Math.floor(Math.random() * (PACING_MAX_MS - PACING_MIN_MS));
       const wait = this.lastDoneAt + gap - Date.now();
@@ -177,7 +197,7 @@ export class BandcampSession {
     try {
       const response = await fetch(url, {
         method: spec.method ?? 'GET',
-        headers: spec.headers,
+        headers: { 'User-Agent': USER_AGENT, ...spec.headers },
         body: spec.body,
         // The whole custody design in one option (task 0036, decision 1).
         credentials: spec.credentials,
@@ -428,17 +448,26 @@ export class BandcampSession {
   private async writeWishlist(action: WishlistWriteKind, item: WishlistItem): Promise<WishlistWriteOutcome> {
     const endpoint = action === 'add' ? COLLECT_ITEM_ENDPOINT : UNCOLLECT_ITEM_ENDPOINT;
     const url = `${this.baseUrl}${action === 'add' ? COLLECT_ITEM_PATH : UNCOLLECT_ITEM_PATH}`;
+    const headers = wishlistHeaders(JSON_ACCEPT);
     const documents: BandcampDocument[] = [];
     let crumb: string | null = null;
     let status: number | null = null;
     let answer: WishlistWire['answer'] = null;
-    const seen = (end: WishlistEnd): WishlistWire => ({ status, requests: documents.length, answer, end });
+    let said: string | null = null;
+    const seen = (end: WishlistEnd): WishlistWire => ({ status, requests: documents.length, answer, end, said });
+    const rejected = (end: WishlistEnd, detail: string): WishlistWriteOutcome => ({
+      ok: false,
+      failure: 'bandcamp_rejected',
+      detail,
+      wire: seen(end),
+      documents,
+    });
 
     for (let attempt = 0; attempt <= MAX_CRUMB_REPLAYS; attempt += 1) {
       const fetchedAt = nowIso();
       const wire = await this.send(url, {
         method: 'POST',
-        headers: { Accept: JSON_ACCEPT, 'Content-Type': FORM_CONTENT_TYPE, 'X-Requested-With': 'XMLHttpRequest' },
+        headers,
         body: wishlistRequestBody(item, crumb),
         credentials: 'include',
       });
@@ -456,6 +485,8 @@ export class BandcampSession {
       const isHtml = wire.contentType.includes('html');
       status = wire.status;
       answer = body !== undefined ? 'json' : isHtml ? 'html' : 'text';
+      const errorText = body === undefined ? undefined : readErrorText(body);
+      said = toSaid(body);
       documents.push({ endpoint, payload: body === undefined ? notJsonPayload(wire.text, isHtml) : parsed, fetchedAt });
 
       if (wire.status >= 500 || wire.status === 429) {
@@ -472,27 +503,20 @@ export class BandcampSession {
         crumb = replay;
         continue;
       }
-      if (replay !== null) {
-        return { ok: false, failure: 'bandcamp_rejected', detail: 'invalid_crumb', wire: seen('crumb_replays_spent'), documents };
-      }
+      if (replay !== null) return rejected('crumb_replays_spent', 'invalid_crumb');
+      if (withholdsCrumb(body)) return rejected('crumb_withheld', 'invalid_crumb, with no crumb to replay');
       if (body === undefined || wire.status === 401) {
         return await this.classifyByProbe(wire.status, documents, seen(body === undefined ? 'not_json' : 'http_401'));
       }
       if (body.ok === true) return { ok: true, alreadyThere: false, wire: seen('ok'), documents };
-
-      const errorText = readErrorText(body);
-      if (errorText !== undefined && meansAlreadyThere(errorText)) {
+      if (errorText !== undefined && meansAlreadyThere(errorText, action)) {
         return { ok: true, alreadyThere: true, wire: seen('already_there'), documents };
       }
-      return {
-        ok: false,
-        failure: 'bandcamp_rejected',
-        detail: toDetail(errorText ?? `HTTP ${wire.status}, a JSON body with neither ok nor an error in it`),
-        wire: seen(errorText === undefined ? 'no_ok_field' : 'error_text'),
-        documents,
-      };
+      return errorText === undefined
+        ? rejected('no_ok_field', `HTTP ${wire.status}, a JSON body with neither ok nor an error in it`)
+        : rejected('error_text', toDetail(errorText));
     }
-    return { ok: false, failure: 'bandcamp_rejected', detail: 'invalid_crumb', wire: seen('crumb_replays_spent'), documents };
+    return rejected('crumb_replays_spent', 'invalid_crumb');
   }
 
   /** A login page or a bare 401 could mean signed out or Bandcamp being strange; the probe decides. */

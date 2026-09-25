@@ -13,6 +13,9 @@ export type RowRelease = {
   readonly artist: string;
   readonly itemUrl: string;
   readonly artId: string | null;
+  /** Null is self-released, absent is not known, as the player reads them. */
+  readonly label?: string | null | undefined;
+  readonly releaseDate?: string | null | undefined;
 };
 
 export function playableItemType(itemType: ApiItemType): PlayableRelease['itemType'] {
@@ -28,6 +31,8 @@ export function toPlayable(item: RowRelease): PlayableRelease {
     url: item.itemUrl,
     artUrl: releaseArtUrl(item.artId, ART_SIZE_LARGE),
     hue: hueFor(item.itemId),
+    label: item.label,
+    releaseDate: item.releaseDate,
   };
 }
 

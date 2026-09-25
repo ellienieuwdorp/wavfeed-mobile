@@ -4,6 +4,8 @@
  * everything the screen shows about gathering is a field of `GatherState`.
  */
 import type { BandcampDocument, Identity } from '../bandcamp/wire';
+import type { ReleaseKey } from '../domain/endpoints';
+import type { ReleaseDateCounts, ReleasePageOutcome, UndatedRelease } from '../store/enrichment';
 
 export type WalkKind = 'feed_walk' | 'feed_poll';
 
@@ -30,7 +32,7 @@ export type PausedReason = 'logged_out' | 'not_connected';
 /** A code, never a message (ADR-0003). */
 export type GatherFailure = 'bandcamp_unreachable' | 'bandcamp_error' | 'store_error';
 
-export type GatherPhase = 'idle' | 'probing' | 'walking' | 'lists' | 'sweeping';
+export type GatherPhase = 'idle' | 'probing' | 'walking' | 'lists' | 'sweeping' | 'dating';
 
 /** Epoch milliseconds, but `newestStoryDate` is unix seconds. `not_connected` means no probe has answered as a Fan. */
 export type GatherState = {
@@ -47,6 +49,9 @@ export type GatherState = {
   readonly wishlistFetchedAt: number | null;
   /** When the wishlist was last asked, whatever it answered; hearts take presses from the first ask on. */
   readonly wishlistAskedAt: number | null;
+  /** Releases a Story or a wishlist item reaches, with and without a release date, as the last turn left them. */
+  readonly releasesDated: number;
+  readonly releasesUndated: number;
 };
 
 export const EMPTY_GATHER_STATE: GatherState = {
@@ -62,6 +67,8 @@ export const EMPTY_GATHER_STATE: GatherState = {
   followsFetchedAt: null,
   wishlistFetchedAt: null,
   wishlistAskedAt: null,
+  releasesDated: 0,
+  releasesUndated: 0,
 };
 
 export type SweepTier = 'hot' | 'warm' | 'cold';
@@ -84,4 +91,8 @@ export type GatherSink = {
   readSweepDue(nowMs: number, limit: number): Promise<{ bandId: number; failures?: number }[]>;
   markSwept(bandId: number, nowMs: number, ok: boolean, booking: SweepBooking): Promise<void>;
   afterDocuments(): Promise<void>;
+  /** Undated Releases whose page is due a visit, newest Story first (ADR-0011). */
+  readUndatedReleases(nowMs: number, limit: number): Promise<readonly UndatedRelease[]>;
+  markReleasePageAttempt(key: ReleaseKey, outcome: ReleasePageOutcome, nowMs: number): Promise<void>;
+  readReleaseDateCounts(): Promise<ReleaseDateCounts>;
 };

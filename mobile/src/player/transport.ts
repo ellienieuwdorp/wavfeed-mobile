@@ -21,6 +21,10 @@ export type PlayableRelease = {
   url: string;
   artUrl: string | null;
   hue: number;
+  /** The label as the row that pressed play held it; null is self-released, absent is not known. */
+  label?: string | null | undefined;
+  /** The release day as the row held it, an ISO string read with `releaseDay`; absent or null is not known. */
+  releaseDate?: string | null | undefined;
 };
 
 export type PlayerStatus = 'idle' | 'loading' | 'ready' | 'unplayable' | 'error';

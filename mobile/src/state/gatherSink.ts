@@ -24,6 +24,7 @@ import {
   type StoredIdentity,
   writeKv,
 } from '@/store';
+import { markReleasePageAttempt, readReleaseDateCounts, readUndatedReleases } from '@/store/enrichment';
 
 export const WALK_KEY = 'walk';
 export const GATHER_KEY = 'gather';
@@ -160,5 +161,8 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       }
       invalidate();
     },
+    readUndatedReleases: (nowMs, limit) => readUndatedReleases(db, limit, new Date(nowMs)),
+    markReleasePageAttempt: (key, outcome, nowMs) => markReleasePageAttempt(db, key, outcome, new Date(nowMs)),
+    readReleaseDateCounts: () => readReleaseDateCounts(db),
   };
 }

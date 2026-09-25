@@ -1,10 +1,11 @@
 /**
  * Bought on the store (DESIGN-UI section 3): "By release date" is the weekly chart, top three a week with "Show all N";
  * "By recently purchased" lists every Release in the week it reached the chosen number of buyers you follow, picked in
- * the menu beside the mode picker. Rows carry the buyer faces and the label; quiet runs say their dates and stop.
+ * the menu under the mode picker in that mode only. Rows carry the faces of who bought it, which open the Bought by
+ * sheet, and the label; quiet runs say their dates and stop.
  */
 import { useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { AvatarStack } from '@/components/AvatarStack';
 import { useAppBar } from '@/components/AppBar';
@@ -51,7 +52,7 @@ const THRESHOLD_OPTIONS = BOUGHT_THRESHOLDS.map((n) => ({ value: n, label: thres
 
 function Header({ mode, setMode, threshold, setThreshold }: { mode: BoughtMode; setMode: (m: BoughtMode) => void; threshold: number; setThreshold: (n: number) => void }) {
   const { type } = useTokens();
-  const menu = <MenuSelect options={THRESHOLD_OPTIONS} value={threshold} onChange={setThreshold} enabled={mode === 'crossed'} label={copy.bought.thresholdLabel} />;
+  const menu = <MenuSelect options={THRESHOLD_OPTIONS} value={threshold} onChange={setThreshold} enabled label={copy.bought.thresholdLabel} />;
   const segmented = (
     <Segmented
       segments={[
@@ -62,23 +63,12 @@ function Header({ mode, setMode, threshold, setThreshold }: { mode: BoughtMode; 
       onChange={setMode}
     />
   );
-  // Android keeps the group full width and shows the dropdown chip only in the mode it serves (the canvas's Bought board).
-  if (Platform.OS === 'android') {
-    return (
-      <View>
-        <ScreenHeader />
-        <View style={{ paddingHorizontal: type.gutter, paddingBottom: 8 }}>{segmented}</View>
-        {mode === 'crossed' ? <View style={{ flexDirection: 'row', paddingHorizontal: type.gutter, paddingBottom: 8 }}>{menu}</View> : null}
-      </View>
-    );
-  }
+  // Both platforms keep the group full width and show the menu only in the mode it serves (the canvas's Bought boards).
   return (
     <View>
       <ScreenHeader />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: type.gutter, paddingBottom: 8 }}>
-        <View style={{ flex: 1 }}>{segmented}</View>
-        {menu}
-      </View>
+      <View style={{ paddingHorizontal: type.gutter, paddingBottom: 8 }}>{segmented}</View>
+      {mode === 'crossed' ? <View style={{ flexDirection: 'row', paddingHorizontal: type.gutter, paddingBottom: 8 }}>{menu}</View> : null}
     </View>
   );
 }
@@ -87,7 +77,7 @@ function Buyers({ release }: { release: ApiFeedItem }) {
   const { c, type } = useTokens();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <AvatarStack fans={release.buyers} />
+      <AvatarStack fans={release.buyers} opens />
       <Text numberOfLines={1} style={{ flex: 1, fontSize: type.fact, color: c.sub }}>{release.label ?? SELF_RELEASED}</Text>
     </View>
   );

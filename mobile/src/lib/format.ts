@@ -32,3 +32,13 @@ export function hueFor(itemId: string): number {
   for (let i = 0; i < itemId.length; i += 1) hash = (hash * 31 + itemId.charCodeAt(i)) % 360;
   return hash;
 }
+
+/** A Fan's page on Bandcamp, their username as the path, as the web's lib/format.ts builds it (ADR-0009). */
+export function fanPageUrl(fan: Pick<ApiFanRef, 'username'>): string {
+  return `https://bandcamp.com/${encodeURIComponent(fan.username)}`;
+}
+
+/** Only an https address from the wire leaves the app for the browser or the share sheet. */
+export function webUrl(url: string): string | null {
+  return /^https:\/\/[^\s/]+/i.test(url) ? url : null;
+}

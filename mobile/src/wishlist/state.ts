@@ -6,8 +6,8 @@
  * the wishlist walk and never a collect answer. A rebuild therefore forgets a press until the next walk brings it back.
  * Pending belongs to the item, never the control, so the bar's heart does not carry a press across a track change.
  * Membership is not asked yet until a wishlist walk has been asked once (`GatherState.wishlistAskedAt`), whatever it
- * answered, so a wishlist that keeps erroring still leaves every heart pressable, as off. Each press
- * logs one line of codes and counts, never a body or a header (task 0036, decision 1).
+ * answered, so a wishlist that keeps erroring still leaves every heart pressable, as off. Each press logs one line of
+ * codes, counts and the answer's field names and flags, never a body or a header (task 0036, decision 1).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { router } from 'expo-router';
@@ -105,11 +105,10 @@ export function usePendingAction(itemType: ItemType, itemId: string): WishlistWr
   return map.get(keyOf(itemType, itemId)) ?? null;
 }
 
+type Band = { id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null };
+
 /** The server's order (api wishlist.ts): the stored page's `current.band_id`, a fresh page when none is held, the row. */
-async function readBand(
-  app: AppState,
-  release: WishlistTarget['release'],
-): Promise<{ id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null } | null> {
+async function readBand(app: AppState, release: WishlistTarget['release']): Promise<Band | null> {
   const itemId = Number(release.itemId);
   if (!Number.isSafeInteger(itemId)) return null;
   const stored = await readTracklist(app.db, release.itemType, itemId);
@@ -126,6 +125,12 @@ async function readBand(
     if (fetched !== null) return { id: fetched.bandId, from: 'fetched_page', tracklist: fetched };
   }
   return { id: String(row.band_id), from: 'row', tracklist: null };
+}
+
+/** Bandcamp writes ids as numbers or digit strings; both sides are compared as canonical digits. */
+function sameId(left: string, right: string): boolean {
+  const canonical = (id: string) => id.trim().replace(/^0+(?=\d)/, '');
+  return canonical(left) === canonical(right);
 }
 
 async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandId: string, on: boolean) {
@@ -152,10 +157,10 @@ async function send(app: AppState, target: WishlistTarget, action: WishlistWrite
   if (found === null) return { failure: 'unknown_item', band: null, wire: null };
   const band = { id: found.id, from: found.from };
   const tracks = found.tracklist?.tracks ?? [];
-  if (target.itemType === 't' && target.itemId !== target.release.itemId && tracks.length > 0) {
-    if (!tracks.some((track) => track.trackId === target.itemId)) return { failure: 'not_on_release', band, wire: null };
+  if (target.itemType === 't' && !sameId(target.itemId, target.release.itemId) && tracks.length > 0) {
+    if (!tracks.some((track) => sameId(track.trackId, target.itemId))) return { failure: 'not_on_release', band, wire: null };
   }
-  const item = { fanId: identity.fanId, itemType: target.itemType, itemId: target.itemId, bandId: band.id };
+  const item = { fanId: identity.fanId, itemType: target.itemType, itemId: target.itemId.trim(), bandId: band.id };
   const outcome = action === 'add' ? await app.session.collectItem(item) : await app.session.uncollectItem(item);
   for (const document of outcome.documents) await app.putRaw(document);
   if (!outcome.ok) return { failure: outcome.failure, band, wire: outcome.wire };
@@ -163,13 +168,14 @@ async function send(app: AppState, target: WishlistTarget, action: WishlistWrite
   return { failure: null, band, wire: outcome.wire };
 }
 
-/** One line per press for the Metro log: codes, counts and ids, nothing Bandcamp wrote. */
+/** One line per press for the Metro log: codes, counts, ids and the answer's shape, never a value named like a secret. */
 function logPress(action: WishlistWriteKind, key: string, sent: Sent) {
   const facts = [
     `wishlist ${action} ${key}`,
     sent.failure ?? 'ok',
     sent.wire === null ? 'no write sent' : `end=${sent.wire.end} status=${sent.wire.status ?? 'none'}`,
     ...(sent.wire === null ? [] : [`requests=${sent.wire.requests} answer=${sent.wire.answer ?? 'none'}`]),
+    ...(sent.wire?.said == null ? [] : [`shape="${sent.wire.said}"`]),
     sent.band === null ? 'band=none' : `band=${sent.band.id} from=${sent.band.from}`,
   ].join(' ');
   if (sent.failure === null) console.log(facts);

@@ -46,7 +46,7 @@ function render({ item }: { item: Item }) {
     case 'gap':
       return <GapRow text={item.text} />;
     case 'release':
-      return <ReleaseRow release={item.release} detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, actorSentence(item.release), item.day]} />} />;
+      return <ReleaseRow release={item.release} detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, actorSentence(item.release)]} trailing={item.day} />} />;
   }
 }
 

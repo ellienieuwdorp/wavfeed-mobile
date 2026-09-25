@@ -8,8 +8,9 @@
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Animated, Platform, Pressable } from 'react-native';
+import { Animated, Platform, Pressable } from 'react-native';
 
+import { useReduceMotion } from '@/player/motion';
 import { storeItemType, type PlayableRelease } from '@/player/transport';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
@@ -26,22 +27,6 @@ type HeartProps = {
   box?: number;
   icon?: number;
 };
-
-function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((on) => {
-      if (alive) setReduce(on);
-    });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => {
-      alive = false;
-      subscription.remove();
-    };
-  }, []);
-  return reduce;
-}
 
 function usePulse(active: boolean): Animated.Value {
   const reduce = useReduceMotion();

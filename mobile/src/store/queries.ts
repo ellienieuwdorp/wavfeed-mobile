@@ -1,8 +1,9 @@
 /**
  * The read side: the web's view response shapes built on the phone from the Projection by the ported feed rules, plus the sweep
- * queue's reads and writes (task 0036). Every judgement is the domain's; this file only hands it flat rows.
+ * queue's reads and writes (task 0036). Every judgement is the domain's; this file only hands it flat rows, and each view
+ * only the Releases its rules could pick, each with all its Stories, so it answers as over the whole store (perf.check.ts).
  */
-import type { SQLiteDatabase } from 'expo-sqlite';
+import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 import type {
   ApiBoughtCrossedResponse,
   ApiBoughtResponse,
@@ -15,7 +16,13 @@ import type {
 import { assembleFeed, itemKey } from '../domain/assemble';
 import { buildBoughtChart } from '../domain/boughtChart';
 import { buildCrossedList, CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD } from '../domain/boughtCrossed';
-import { buildCurated } from '../domain/curate';
+import {
+  buildCurated,
+  CURATED_MIN_BUYERS,
+  CURATED_NEW_MAX,
+  CURATED_QUOTES_MAX,
+  CURATED_WINDOW_DAYS,
+} from '../domain/curate';
 import { buildNewReleases, type NewReleasesView } from '../domain/newReleases';
 import { storedBandId, storedTralbum } from '../domain/releasePage';
 import type { FeedStoryRow, UpcomingReleaseRow } from '../domain/rows';
@@ -26,10 +33,12 @@ import { aheadFrom, buildUpcoming, handoffFloor, UPCOMING_MAX_RELEASES } from '.
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
-/** A ceiling, not a page size: the phone reads the whole history and the rules fold it in memory, as the server does (ADR-0005). */
+/** A ceiling on one read's Stories, not a page size: the rules fold what a view needs in memory, as the server does (ADR-0005). */
 export const FEED_MAX_STORY_ROWS = 50_000;
 
-export const STREAM_URL_TTL_MS = 24 * 60 * 60_000;
+const DAY_MS = 24 * 60 * 60_000;
+
+export const STREAM_URL_TTL_MS = DAY_MS;
 
 function asItemType(value: string): ItemType | null {
   return value === 'a' || value === 't' ? value : null;
@@ -45,15 +54,17 @@ function asDate(value: string | null): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-type StoryRowRecord = {
+type StoryRecord = {
   story_id: number;
   story_type: string;
   story_date: string;
   review_text: string | null;
   fan_id: number | null;
-  fan_username: string | null;
-  fan_name: string | null;
-  fan_image_id: number | null;
+  item_type: string;
+  item_id: number;
+};
+
+type ReleaseRecord = {
   item_type: string;
   item_id: number;
   band_id: number;
@@ -69,20 +80,34 @@ type StoryRowRecord = {
   artist: string;
 };
 
-function toStoryRow(row: StoryRowRecord): FeedStoryRow | null {
-  const storyType = asStoryType(row.story_type);
-  const itemType = asItemType(row.item_type);
-  const storyDate = asDate(row.story_date);
-  if (storyType === null || itemType === null || storyDate === null) return null;
+type FanRecord = { fan_id: number; username: string; name: string | null; image_id: number | null };
+
+type ReleasePart = Omit<FeedStoryRow, 'storyId' | 'storyType' | 'storyDate' | 'reviewText' | 'fanId' | 'fanUsername' | 'fanName' | 'fanImageId'>;
+
+/** A Story reaches the views only with its Release and that Release's Page held, as the server's inner joins say. */
+const STORY_JOIN = `stories s
+  join releases r on r.item_type = s.item_type and r.item_id = s.item_id
+  join pages p on p.band_id = r.band_id`;
+
+/** Which Stories a view loads: a `where` over `stories s`, and its values. */
+type StoryScope = { readonly where: string; readonly params: readonly SQLiteBindValue[] };
+
+const ALL_STORIES: StoryScope = { where: '1 = 1', params: [] };
+
+type ItemPair = readonly [ItemType, number];
+
+/** Every Story of the listed Releases; a view that judges whole Releases loads only its candidates this way. */
+function storiesOfItems(items: readonly ItemPair[]): StoryScope {
   return {
-    storyId: row.story_id,
-    storyType,
-    storyDate,
-    reviewText: row.review_text,
-    fanId: row.fan_id,
-    fanUsername: row.fan_username,
-    fanName: row.fan_name,
-    fanImageId: row.fan_image_id,
+    where: `(s.item_type, s.item_id) in (select json_extract(value, '$[0]'), json_extract(value, '$[1]') from json_each(?))`,
+    params: [JSON.stringify(items)],
+  };
+}
+
+function toReleasePart(row: ReleaseRecord): ReleasePart | null {
+  const itemType = asItemType(row.item_type);
+  if (itemType === null) return null;
+  return {
     itemType,
     itemId: row.item_id,
     bandId: row.band_id,
@@ -99,23 +124,84 @@ function toStoryRow(row: StoryRowRecord): FeedStoryRow | null {
   };
 }
 
-/** Every Story, newest action first, with its Release, that Release's Page and the acting Fan joined on. */
-export async function listStoryRows(db: SQLiteDatabase, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
-  const rows = await db.getAllAsync<StoryRowRecord>(
-    `select s.id as story_id, s.story_type, s.story_date, s.review_text,
-            f.fan_id, f.username as fan_username, f.name as fan_name, f.image_id as fan_image_id,
-            r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
-            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks,
-            p.name as artist
+/**
+ * The Stories in `scope`, newest action first, as the flat rows the feed rules read. Stories cross narrow and each
+ * Release and Fan crosses once, however many Stories share it: the wide join repeated every Release column per Story.
+ */
+async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
+  const stories = await db.getAllAsync<StoryRecord>(
+    `select s.id as story_id, s.story_type, s.story_date, s.review_text, s.fan_id, s.item_type, s.item_id
      from stories s
-     join releases r on r.item_type = s.item_type and r.item_id = s.item_id
-     join pages p on p.band_id = r.band_id
-     left join fans f on f.fan_id = s.fan_id
+     where ${scope.where}
      order by s.story_date desc, s.id desc
      limit ?`,
-    [limit],
+    [...scope.params, limit],
   );
-  return rows.flatMap((row) => toStoryRow(row) ?? []);
+  const items = new Map<string, ItemPair>();
+  const fanIds = new Set<number>();
+  for (const story of stories) {
+    const itemType = asItemType(story.item_type);
+    if (itemType !== null) items.set(`${itemType}:${story.item_id}`, [itemType, story.item_id]);
+    if (story.fan_id !== null) fanIds.add(story.fan_id);
+  }
+  const releaseRows = await db.getAllAsync<ReleaseRecord>(
+    `select r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
+            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks,
+            p.name as artist
+     from json_each(?) k
+     join releases r on r.item_type = json_extract(k.value, '$[0]') and r.item_id = json_extract(k.value, '$[1]')
+     join pages p on p.band_id = r.band_id`,
+    [JSON.stringify([...items.values()])],
+  );
+  const fanRows = await db.getAllAsync<FanRecord>(
+    'select fan_id, username, name, image_id from fans where fan_id in (select value from json_each(?))',
+    [JSON.stringify([...fanIds])],
+  );
+  const releases = new Map<string, ReleasePart>();
+  for (const row of releaseRows) {
+    const part = toReleasePart(row);
+    if (part !== null) releases.set(`${part.itemType}:${part.itemId}`, part);
+  }
+  const fans = new Map(fanRows.map((fan) => [fan.fan_id, fan]));
+
+  const rows: FeedStoryRow[] = [];
+  for (const story of stories) {
+    const storyType = asStoryType(story.story_type);
+    const storyDate = asDate(story.story_date);
+    // No Release or Page held leaves the Story out, as the inner join did; a rebuild between the reads does the same.
+    const release = releases.get(`${story.item_type}:${story.item_id}`);
+    if (storyType === null || storyDate === null || release === undefined) continue;
+    const fan = story.fan_id === null ? undefined : fans.get(story.fan_id);
+    rows.push({
+      storyId: story.story_id,
+      storyType,
+      storyDate,
+      reviewText: story.review_text,
+      fanId: fan?.fan_id ?? null,
+      fanUsername: fan?.username ?? null,
+      fanName: fan?.name ?? null,
+      fanImageId: fan?.image_id ?? null,
+      itemType: release.itemType,
+      itemId: release.itemId,
+      bandId: release.bandId,
+      title: release.title,
+      url: release.url,
+      artId: release.artId,
+      releaseDate: release.releaseDate,
+      label: release.label,
+      featuredTrackId: release.featuredTrackId,
+      featuredTrackTitle: release.featuredTrackTitle,
+      featuredTrackDuration: release.featuredTrackDuration,
+      numStreamableTracks: release.numStreamableTracks,
+      artist: release.artist,
+    });
+  }
+  return rows;
+}
+
+/** Every Story, newest action first, with its Release, that Release's Page and the acting Fan joined on. */
+export async function listStoryRows(db: SQLiteDatabase, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
+  return loadStoryRows(db, ALL_STORIES, limit);
 }
 
 type UpcomingRecord = {
@@ -218,9 +304,14 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
  * GMT day, and the new-release Feed Items (everything, anchor sort) filed into weeks.
  */
 export async function readNewReleases(db: SQLiteDatabase, options: { readonly now: Date }): Promise<NewReleasesView> {
-  const rows = await listStoryRows(db);
-  const { elements } = assembleFeed(rows, { view: 'everything', types: ['new_release'], sort: 'anchor' });
   const releases = await listUpcomingReleases(db, options.now);
+  const upcomingItems = storiesOfItems(releases.map((release) => [release.itemType, release.itemId]));
+  // The new-release filter drops every other type before Bursts, so the view's elements need only those Stories.
+  const rows = await loadStoryRows(db, {
+    where: `s.story_type = 'new_release' or ${upcomingItems.where}`,
+    params: upcomingItems.params,
+  });
+  const { elements } = assembleFeed(rows, { view: 'everything', types: ['new_release'], sort: 'anchor' });
   const wanted = new Set(releases.map(itemKey));
   const upcoming = buildUpcoming(releases, rows.filter((row) => wanted.has(itemKey(row))));
   return buildNewReleases(elements, upcoming, options.now);
@@ -230,22 +321,78 @@ export type BoughtOptions =
   | { readonly mode: 'released'; readonly now?: Date }
   | { readonly mode: 'crossed'; readonly threshold: number; readonly now?: Date };
 
-/** Every week or crossing at once: the phone has no page boundary, so `nextCursor` is always null. */
+/** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
+const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
+
+/**
+ * Every week or crossing at once: the phone has no page boundary, so `nextCursor` is always null. Only a Release the
+ * rules could place is loaded, each with all its Stories, so the domain judges exactly what it judged over the whole store.
+ */
 export async function readBought(db: SQLiteDatabase, options: { readonly mode: 'released'; readonly now?: Date }): Promise<ApiBoughtResponse>;
 export async function readBought(
   db: SQLiteDatabase,
   options: { readonly mode: 'crossed'; readonly threshold: number; readonly now?: Date },
 ): Promise<ApiBoughtCrossedResponse>;
 export async function readBought(db: SQLiteDatabase, options: BoughtOptions): Promise<ApiBoughtResponse | ApiBoughtCrossedResponse> {
-  const rows = await listStoryRows(db);
-  if (options.mode === 'released') return { weeks: buildBoughtChart(rows), nextCursor: null };
+  // ceiling: Bought still loads most Stories (43 ms at 10,000 on the Mac); a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
+  if (options.mode === 'released') {
+    const rows = await loadStoryRows(db, {
+      where: `(s.item_type, s.item_id) in (
+        select b.item_type, b.item_id from ${NAMED_PURCHASES}
+          and exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))`,
+      params: [],
+    });
+    return { weeks: buildBoughtChart(rows), nextCursor: null };
+  }
   const threshold = Math.min(CROSSED_MAX_THRESHOLD, Math.max(CROSSED_MIN_THRESHOLD, Math.trunc(options.threshold)));
+  const rows = await loadStoryRows(db, {
+    where: `(s.item_type, s.item_id) in (
+      select b.item_type, b.item_id from ${NAMED_PURCHASES}
+      group by b.item_type, b.item_id having count(distinct b.fan_id) >= ?)`,
+    params: [threshold],
+  });
   return { entries: buildCrossedList(rows, threshold), nextCursor: null };
+}
+
+/**
+ * The Releases each Curated module could pick, as a superset: the newest Story's (the window's clock), those with two
+ * windowed buyers, the newest announcements down to the fifth date with its ties, and the newest reviews.
+ */
+async function curatedCandidates(db: SQLiteDatabase): Promise<readonly ItemPair[] | null> {
+  const newest = await db.getFirstAsync<{ at: string | null }>(`select max(s.story_date) as at from ${STORY_JOIN}`);
+  const newestAt = asDate(newest?.at ?? null);
+  if (newestAt === null) return null;
+  const since = new Date(newestAt.getTime() - CURATED_WINDOW_DAYS * DAY_MS).toISOString();
+  const rows = await db.getAllAsync<{ item_type: string; item_id: number }>(
+    `with announced as (
+       select s.item_type, s.item_id, max(s.story_date) as at from ${STORY_JOIN}
+       where s.story_type = 'new_release' group by s.item_type, s.item_id
+     )
+     select item_type, item_id from (select s.item_type, s.item_id from ${STORY_JOIN} order by s.story_date desc, s.id desc limit 1)
+     union
+     select b.item_type, b.item_id from ${NAMED_PURCHASES} and b.story_date >= ?
+       group by b.item_type, b.item_id having count(distinct b.fan_id) >= ?
+     union
+     select item_type, item_id from announced
+       where at >= coalesce((select at from announced order by at desc limit 1 offset ?), '')
+     union
+     select item_type, item_id from (
+       select s.item_type, s.item_id from ${STORY_JOIN} join fans f on f.fan_id = s.fan_id
+       where s.story_type = 'purchase' and s.review_text is not null
+       order by s.story_date desc, s.id desc limit ?
+     )`,
+    [since, CURATED_MIN_BUYERS, CURATED_NEW_MAX - 1, CURATED_QUOTES_MAX],
+  );
+  return rows.flatMap((row) => {
+    const itemType = asItemType(row.item_type);
+    return itemType === null ? [] : [[itemType, row.item_id] as const];
+  });
 }
 
 /** The Curated rules keep their own clock, the newest Story held, so `now` is accepted and not read. */
 export async function readCurated(db: SQLiteDatabase, _options: { readonly now?: Date } = {}): Promise<ApiCuratedResponse> {
-  return buildCurated(await listStoryRows(db));
+  const candidates = await curatedCandidates(db);
+  return buildCurated(candidates === null ? [] : await loadStoryRows(db, storiesOfItems(candidates)));
 }
 
 export type WishlistKey = { readonly itemType: ApiItemType; readonly itemId: string };

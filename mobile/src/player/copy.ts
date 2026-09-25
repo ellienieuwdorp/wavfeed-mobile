@@ -15,4 +15,11 @@ export const playerCopy = {
   seekIdle: 'Position in the track',
   unplayable: 'No preview on Bandcamp',
   error: "Can't play this right now",
+  tracks: 'Tracks',
+  noPreview: 'no preview',
+  preview: 'preview',
+  playTrack: (n: number, title: string) => `Play ${n}. ${title}`,
+  pauseTrack: (n: number, title: string) => `Pause ${n}. ${title}`,
+  silentTrack: (n: number, title: string) => `${n}. ${title}, no preview`,
+  previewTail: 'a short preview',
 } as const;

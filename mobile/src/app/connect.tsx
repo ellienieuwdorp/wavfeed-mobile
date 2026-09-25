@@ -2,7 +2,8 @@
  * Connect Bandcamp (the v2 client canvas, task 0036 decision 1): the lead, the custody paragraph and two buttons; the
  * sign-in press swaps in Bandcamp's own login page full-bleed under a bar with Cancel. Each time the page leaves
  * /login the probe asks who is signed in: a Fan this phone's feed does not belong to gets the refusal line and the page
- * stays; otherwise the identity is written, the modal closes and a turn starts.
+ * stays; otherwise the identity is written, the modal closes and a turn starts. The rig's sample bundle never opens the
+ * login page (ADR-0001).
  */
 import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
+import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState } from '@/state/appState';
 import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
 import { Glyph } from '@/components/Glyph';
@@ -115,7 +117,7 @@ export default function Connect() {
       <Stack.Screen options={{ title: copy.connect.title, headerLargeTitle: ios, headerLeft: undefined }} />
       <Text style={{ fontSize: 16, lineHeight: 22, color: c.ink }}>{copy.connect.lead}</Text>
       <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.sub }}>{copy.connect.custody}</Text>
-      <Button label={copy.connect.signIn} filled onPress={() => setSigningIn(true)} />
+      <Button label={copy.connect.signIn} filled onPress={SAMPLE_MODE ? close : () => setSigningIn(true)} />
       <Button label={copy.connect.notNow} filled={false} onPress={close} />
     </ScrollView>
   );

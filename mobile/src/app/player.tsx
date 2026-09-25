@@ -1,24 +1,30 @@
 /**
- * The player sheet (DESIGN-UI section 10, ADR-0015, the v2 client canvas's player sheets): artwork, "N. Track title"
- * linking out with the Page and Release under it, the seek slider with its m:ss times, the transport, the heart for the
- * playing Track and "Buy on Bandcamp ↗". On iOS it is a page sheet with a close chevron, on Android a standard bottom
- * sheet that fits its contents, with Compose's Material 3 slider and the ripple on every control. Every block has a fixed height and the artwork is sized from the window before the first frame, so
- * nothing moves when a Track changes and the whole face takes the pull-down (task 0036 decision 5).
+ * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
+ * scroll in Apple Music's shape: artwork, "N. Track title" linking out, the Page and Release, the label and release day,
+ * the seek line with its m:ss times, the transport, the heart for the playing Track and "Buy on Bandcamp ↗", then the
+ * Release's tracklist. On iOS it is a page sheet with its grabber and close chevron over a plain face, so the pull-down
+ * dismisses from the art and from the top of the scroll; on Android a bottom sheet with 28dp corners at full height,
+ * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist has a fixed height, so
+ * nothing moves when a Track changes.
  */
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Host as ComposeHost, Slider as ComposeSlider } from '@expo/ui/jetpack-compose';
 import Slider from '@react-native-community/slider';
 import { openURL } from 'expo-linking';
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
 import { Glyph, type GlyphName } from '@/components/Glyph';
 import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
-import { sep } from '@/copy';
+import { Tracklist } from '@/components/player/Tracklist';
+import { SELF_RELEASED, sep } from '@/copy';
+import { SAMPLE_MODE } from '@/dev/sampleMode';
+import { useSampleStart } from '@/dev/useSampleData';
+import { formatDatePart, releaseDay } from '@/lib/dates';
 import { playerCopy } from '@/player/copy';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -29,22 +35,25 @@ const GAP = 18;
 const HEAD = ios ? 52 : 48;
 const TITLE = ios ? 25 : 28;
 const SUBTITLE = 21;
+const FACTS = 18;
 const SEEK = 62;
 const MAIN = ios ? 72 : 80;
 const ACTIONS = ios ? 44 : 48;
-/** Where the sheet's top edge sits below the status bar: UIKit's page sheet inset, or Material's top gap. */
-const SHEET_TOP = ios ? 10 : 24;
+const ART_RADIUS = ios ? 14 : 24;
+/** Where Material's full-height sheet stops below the status bar. */
+const SHEET_TOP = 24;
 
 function open(release: PlayableRelease) {
   openURL(release.url).catch(() => undefined);
 }
 
-function useArtSize(): number {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const rest = HEAD + TITLE + SUBTITLE + SEEK + MAIN + ACTIONS + GAP * 5 + insets.bottom + 16;
-  const room = height - insets.top - SHEET_TOP - rest - 16;
-  return Math.max(120, Math.min(width - SIDE * 2, room));
+/** The label, "self-released" when the row knew there was none, and the release day, each only when the row held it. */
+function factsLine(release: PlayableRelease): string {
+  const parts: string[] = [];
+  if (release.label !== undefined) parts.push(release.label ?? SELF_RELEASED);
+  const day = release.releaseDate ? releaseDay(release.releaseDate) : null;
+  if (day !== null && !Number.isNaN(day.getTime())) parts.push(formatDatePart(day, { year: true }));
+  return parts.join(sep);
 }
 
 function Head() {
@@ -62,7 +71,7 @@ function Head() {
     );
   }
   return (
-    <View style={{ height: HEAD, justifyContent: 'flex-end' }}>
+    <View style={{ height: HEAD, paddingHorizontal: SIDE, justifyContent: 'flex-end' }}>
       <View style={{ position: 'absolute', top: 6, alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: c.border }} />
       <Pressable
         onPress={() => router.back()}
@@ -238,13 +247,16 @@ function Titles({ release }: { release: PlayableRelease }) {
   const player = usePlayer();
   const title = trackLine(player, release);
   return (
-    <Pressable onPress={() => open(release)} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-      <View style={{ height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
-        <Text style={{ fontSize: 16, color: c.accent }}>{playerCopy.linkOut}</Text>
-      </View>
-      <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{release.artist + sep + release.title}</Text>
-    </Pressable>
+    <View>
+      <Pressable onPress={() => open(release)} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+        <View style={{ height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
+          <Text style={{ fontSize: 16, color: c.accent }}>{playerCopy.linkOut}</Text>
+        </View>
+        <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{release.artist + sep + release.title}</Text>
+      </Pressable>
+      <Text numberOfLines={1} style={{ height: FACTS, marginTop: 4, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Text>
+    </View>
   );
 }
 
@@ -269,21 +281,47 @@ function Actions({ release }: { release: PlayableRelease }) {
 export default function PlayerSheet() {
   const { c } = useTokens();
   const insets = useSafeAreaInsets();
-  const art = useArtSize();
+  const { width, height } = useWindowDimensions();
   const current = usePlayerRelease();
   const player = usePlayer();
-  if (!current) return null;
+  const { sample } = useLocalSearchParams<{ sample?: string }>();
+  const starting = SAMPLE_MODE && sample !== undefined;
+  useSampleStart(starting);
+  // A deep link or a stale history entry with nothing playing closes the sheet, so it never stands empty.
+  useEffect(() => {
+    if (!current && !starting && router.canGoBack()) router.back();
+  }, [current, starting]);
+  if (!current) {
+    return (
+      <View style={{ flex: ios ? 1 : undefined, backgroundColor: c.surface }}>
+        <Head />
+      </View>
+    );
+  }
+  const art = Math.round(width - SIDE * 2);
   const note = playerNote(player);
   return (
-    <View onAccessibilityEscape={() => router.back()} style={{ flex: ios ? 1 : undefined, paddingHorizontal: SIDE, paddingBottom: insets.bottom + 16, gap: GAP, backgroundColor: c.surface }}>
+    <View
+      onAccessibilityEscape={() => router.back()}
+      style={ios ? { flex: 1, backgroundColor: c.surface } : { height: height - insets.top - SHEET_TOP, backgroundColor: c.surface }}
+    >
       <Head />
-      <View style={{ alignSelf: 'center', width: art, height: art, borderRadius: ios ? 14 : 24, backgroundColor: c.surface, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
-        <Artwork hue={current.hue} url={current.artUrl} size={art} radius={ios ? 14 : 24} />
-      </View>
-      <Titles release={current} />
-      {note === null ? <SeekLine key={player.track?.trackId ?? 'none'} /> : <Note text={note} />}
-      <Transport />
-      <Actions release={current} />
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: SIDE, paddingTop: ios ? 4 : 8, paddingBottom: (ios ? 0 : insets.bottom) + 32, gap: GAP }}
+      >
+        <View style={{ alignSelf: 'center', width: art, height: art, borderRadius: ART_RADIUS, backgroundColor: c.surface, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
+          <Artwork hue={current.hue} url={current.artUrl} size={art} radius={ART_RADIUS} />
+        </View>
+        <Titles release={current} />
+        {note === null ? <SeekLine key={player.track?.trackId ?? 'none'} /> : <Note text={note} />}
+        <Transport />
+        <Actions release={current} />
+        <Tracklist release={current} side={SIDE} />
+      </ScrollView>
     </View>
   );
 }

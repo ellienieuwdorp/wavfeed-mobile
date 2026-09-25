@@ -283,6 +283,7 @@ const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   walking: 'gathering your feed',
   lists: 'gathering your follows and wishlist',
   sweeping: 'checking pages you follow for releases',
+  dating: 'adding release dates',
 };
 
 export const copy = {
@@ -331,6 +332,22 @@ export const copy = {
   heart: {
     add: (title: string) => `Add ${title} to your Bandcamp wishlist`,
     remove: (title: string) => `Remove ${title} from your Bandcamp wishlist`,
+  },
+  /** The long-press menu on a row, the canvas's four items (sections 6, 7 and 8). */
+  rowMenu: {
+    play: 'Play',
+    add: 'Add to your Bandcamp wishlist',
+    remove: 'Remove from your Bandcamp wishlist',
+    open: 'Open on Bandcamp',
+    share: 'Share',
+    cancel: 'Cancel',
+  },
+  boughtBy: {
+    title: 'Bought by',
+    stack: (names: string) => `Bought by ${names}`,
+    hint: 'Shows who bought it',
+    fanPage: (username: string) => `Open ${username} on Bandcamp`,
+    close: 'Close',
   },
   settings: {
     bandcampLabel: 'Bandcamp: ',
@@ -386,10 +403,10 @@ export const copy = {
       lastError: string | null,
     ) =>
       joinMiddot([
-        `${held.documents} documents`,
-        `${held.stories} stories`,
-        `${held.releases} releases`,
-        `${held.follows} pages followed`,
+        `${held.documents.toLocaleString('en-GB')} documents`,
+        `${held.stories.toLocaleString('en-GB')} items gathered`,
+        `${held.releases.toLocaleString('en-GB')} releases`,
+        `${held.follows.toLocaleString('en-GB')} pages you follow`,
         lastError === null ? null : `last error ${lastError.replaceAll('_', ' ')}`,
       ]),
   },
