@@ -21,7 +21,7 @@ import { useNow } from '@/lib/useNow';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
-import { readKv } from '@/store';
+import { countRawDocuments, readKv, readOverview } from '@/store';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -49,9 +49,21 @@ function Avatar({ url, initials }: { url: string | null; initials: string }) {
   );
 }
 
+type Held = { documents: number; stories: number; releases: number; follows: number };
+
+function heldLine(held: Held | null, lastError: string | null): string {
+  if (held === null) return '';
+  const facts = `${held.documents} pages held · ${held.stories} stories · ${held.releases} releases · ${held.follows} pages followed`;
+  return lastError === null ? facts : `${facts} · last problem: ${lastError.replace('_', ' ')}`;
+}
+
 export default function Settings() {
   const { c } = useTokens();
   const app = useAppState();
+  const facts = useLiveQuery<Held>(async (db) => {
+    const o = await readOverview(db);
+    return { documents: await countRawDocuments(db), stories: o.storyCount, releases: o.releaseCount, follows: o.followCount };
+  });
   const { gather } = app;
   const now = useNow();
   const clearance = useDockClearance();
@@ -167,6 +179,7 @@ export default function Settings() {
         {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
       </Group>
       <GroupFoot text={s.custody} />
+      <GroupFoot text={heldLine(facts, gather.lastError)} />
       {signingOut ? <SignOutWebView onDone={() => void finishSignOut()} /> : null}
 
       <GroupHead label={s.devicesHead} />

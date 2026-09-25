@@ -5,7 +5,8 @@
  * signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot turn
  * the person's own sign-out into Bandcamp's.
  */
-import { useCallback } from 'react';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { useCallback, useEffect } from 'react';
 
 import { useGatherSchedule } from '@/fetcher/schedule';
 import type { GatherState } from '@/fetcher/sink';
@@ -52,8 +53,19 @@ export function turnRunning(): Promise<TurnSummary> | null {
 
 /** Mounted once under the app state; renders nothing. */
 export function GatherSchedule() {
-  const { db, runGather } = useAppState();
+  const { db, runGather, gather } = useAppState();
   const readLastTurnAt = useCallback(async () => (await readKv<Partial<GatherState>>(db, GATHER_KEY))?.lastTurnAt ?? null, [db]);
   useGatherSchedule(runGather, readLastTurnAt);
+  // iOS suspends a locked phone, so the screen stays on while a turn runs and the first walk is still pending.
+  const busy = gather.phase !== 'idle';
+  useEffect(() => {
+    if (!busy) return;
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG);
+    return () => {
+      void deactivateKeepAwake(KEEP_AWAKE_TAG);
+    };
+  }, [busy]);
   return null;
 }
+
+const KEEP_AWAKE_TAG = 'wavfeed-gather';

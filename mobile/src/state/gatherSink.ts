@@ -151,7 +151,13 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       }
     },
     async afterDocuments() {
-      await fold(db);
+      try {
+        const summary = await fold(db);
+        console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories');
+      } catch (error) {
+        console.warn('fold failed:', error instanceof Error ? error.message : String(error));
+        throw error;
+      }
       invalidate();
     },
   };

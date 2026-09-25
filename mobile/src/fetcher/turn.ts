@@ -89,8 +89,9 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     const outcome = await gather(ctx);
     summary = { reason: options.reason, outcome, walkPending: (await sink.readWalk()) !== null };
     await sink.patchGatherState({ phase: 'idle' });
-  } catch {
-    // The sink threw: nothing about Bandcamp, and nothing of it is kept but the code.
+  } catch (error) {
+    // The sink threw: a store message, never a Bandcamp body (the session returns values).
+    console.warn('gather turn stopped on the store:', error instanceof Error ? error.message : String(error));
     await sink.patchGatherState({ lastError: 'store_error', phase: 'idle' }).catch(() => undefined);
     summary = { reason: options.reason, outcome: 'failed', walkPending: false };
   }
