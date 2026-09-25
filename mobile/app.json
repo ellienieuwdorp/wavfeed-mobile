@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "wavfeed",
+    "slug": "wavfeed",
+    "scheme": "wavfeed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.wavfeed.app",
+      "icon": "./assets/expo.icon"
+    },
+    "android": {
+      "package": "com.wavfeed.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#e2ecfb",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0687f5",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
