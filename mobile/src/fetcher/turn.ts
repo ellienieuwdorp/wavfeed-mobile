@@ -1,8 +1,10 @@
 /**
- * One gather turn in the foreground (task 0036, decision 4): probe, the feed walk or poll with the Extension's rules
- * (extension/lib/poll.ts) plus the server's stop line (feed.ts), the follow list and wishlist every six hours, then
- * a band details sweep of due followed Pages (ADR-0017). The cursor is written after every page, so a turn out of
- * budget or killed with the app resumes for free, and the store folds after every batch while the walk runs.
+ * One gather turn in the foreground (task 0036, decision 4): probe; the wishlist and the follow list when six hours
+ * old; while the first walk is pending a small band details sweep of due followed Pages (ADR-0017), so hearts and
+ * Upcoming hold truth while the history fills; the feed walk or poll with the Extension's rules (extension/lib/poll.ts)
+ * plus the server's stop line (feed.ts); then the rest of the sweep. A list that fails is noted and the walk still
+ * runs. The cursor is written after every page, so a turn out of budget or killed with the app resumes for free, and
+ * the store folds after every batch while the walk runs.
  */
 import type { BandcampSession } from '../bandcamp/session';
 import type { BandcampAnswer, BandcampDocument, Identity } from '../bandcamp/wire';
@@ -49,12 +51,15 @@ export const DEDUP_STOP_RUN = 2;
 export const WALK_MAX_PAGES = 500;
 export const POLL_MAX_PAGES = 10;
 export const LIST_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/** Due Pages swept before the feed while the first walk is pending; the rest of `SWEEP_TURN_MAX` follows the feed. */
+export const PRE_WALK_SWEEP = 6;
 
 type Ctx = {
   readonly session: GatherSession;
   readonly sink: GatherSink;
   readonly now: () => number;
-  readonly deadline: number;
+  readonly budgetMs: number;
+  deadline: number;
   readonly random: () => number;
 };
 
@@ -81,13 +86,15 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     session,
     sink,
     now: options.now,
+    budgetMs: options.budgetMs,
     deadline: options.now() + options.budgetMs,
     random: options.random ?? Math.random,
   };
   let summary: TurnSummary;
   try {
     const outcome = await gather(ctx);
-    summary = { reason: options.reason, outcome, walkPending: (await sink.readWalk()) !== null };
+    const after = await sink.readGatherState();
+    summary = { reason: options.reason, outcome, walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null };
     await sink.patchGatherState({ phase: 'idle' });
   } catch (error) {
     // The sink threw: a store message, never a Bandcamp body (the session returns values).
@@ -98,8 +105,11 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
   return summary;
 }
 
+/** iOS freezes JS in the background, so a turn can wake long past its deadline: its budget restarts from the wake. */
 function outOfBudget(ctx: Ctx): boolean {
-  return ctx.now() >= ctx.deadline;
+  const at = ctx.now();
+  if (at - ctx.deadline > ctx.budgetMs) ctx.deadline = at + ctx.budgetMs;
+  return at >= ctx.deadline;
 }
 
 async function note(ctx: Ctx, failure: GatherFailure): Promise<void> {
@@ -148,21 +158,23 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
     lastError: null,
     // A different Fan signed in: nothing gathered for the last one speaks for this one.
     ...(otherFan
-      ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, wishlistFetchedAt: null }
+      ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, wishlistFetchedAt: null, wishlistAskedAt: null }
       : {}),
   });
+
+  // An unreachable list is noted and left for the next turn; the walk behind it still runs.
+  if ((await runLists(ctx, identity)) === 'paused') return 'paused';
+
+  const state = await sink.readGatherState();
+  const held = await sink.readWalk();
+  const walkPending = !state.initialWalkDone || held?.kind === 'feed_walk';
+  const swept = walkPending && !outOfBudget(ctx) ? await runSweep(ctx, PRE_WALK_SWEEP) : 0;
 
   const feed = await runFeed(ctx, identity);
   if (feed === 'paused') return 'paused';
   if (feed === 'unreachable') return 'failed';
 
-  if (outOfBudget(ctx)) return 'out_of_budget';
-  const lists = await runLists(ctx, identity);
-  if (lists === 'paused') return 'paused';
-  if (lists === 'unreachable') return 'failed';
-
-  if (outOfBudget(ctx)) return 'out_of_budget';
-  await runSweep(ctx);
+  if (!outOfBudget(ctx)) await runSweep(ctx, SWEEP_TURN_MAX - swept);
   return feed === 'pending' || outOfBudget(ctx) ? 'out_of_budget' : 'done';
 }
 
@@ -293,20 +305,24 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   };
   await sink.patchGatherState({ phase: 'lists' });
 
+  // The wishlist first: until it answers once, every heart is not asked yet.
+  if (isDue(state.wishlistFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
+    const wishlist = await session.fetchWishlistItems(identity.fanId, onDocument);
+    if (wishlist.kind === 'ok') await sink.patchGatherState({ wishlistFetchedAt: ctx.now(), wishlistAskedAt: ctx.now() });
+    else {
+      console.warn(`wishlist walk answered ${wishlist.kind}${wishlist.kind === 'error' ? ` ${wishlist.status}` : ''}`);
+      const end = await settle(ctx, wishlist);
+      if (end === 'paused') return finishLists(ctx, wrote, end);
+      await sink.patchGatherState({ wishlistAskedAt: ctx.now() });
+      if (end === 'unreachable') return finishLists(ctx, wrote, end);
+    }
+  }
+
   // The follow page is addressed by handle; a Fan Bandcamp did not name waits for one.
   if (identity.username !== null && isDue(state.followsFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
     const follows = await session.fetchFollowingBands(identity.fanId, identity.username, onDocument);
     if (follows.kind === 'ok') await sink.patchGatherState({ followsFetchedAt: ctx.now() });
     else if ((await settle(ctx, follows)) === 'unreachable') return finishLists(ctx, wrote, 'unreachable');
-  }
-
-  if (isDue(state.wishlistFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
-    const wishlist = await session.fetchWishlistItems(identity.fanId, onDocument);
-    if (wishlist.kind === 'ok') await sink.patchGatherState({ wishlistFetchedAt: ctx.now() });
-    else {
-      const end = await settle(ctx, wishlist);
-      if (end === 'paused' || end === 'unreachable') return finishLists(ctx, wrote, end);
-    }
   }
   return finishLists(ctx, wrote, 'go');
 }
@@ -316,20 +332,23 @@ async function finishLists(ctx: Ctx, wrote: boolean, step: Step): Promise<Step> 
   return step;
 }
 
-async function runSweep(ctx: Ctx): Promise<void> {
+/** Up to `quota` due followed Pages; answers how many were asked, so the turn can spend the rest later. */
+async function runSweep(ctx: Ctx, quota: number): Promise<number> {
   const { session, sink } = ctx;
-  if (bandDetailsBreaker.isOpen(ctx.now())) return;
+  if (quota <= 0 || bandDetailsBreaker.isOpen(ctx.now())) return 0;
   await sink.patchGatherState({ phase: 'sweeping' });
 
   // Only Pages the Fan follows are swept (ADR-0017), whatever the queue holds.
   const followed = new Set((await sink.readFollowedBands()).map((band) => band.bandId));
   const due = (await sink.readSweepDue(ctx.now(), SWEEP_TURN_MAX))
     .filter((band) => followed.has(band.bandId))
-    .slice(0, SWEEP_TURN_MAX);
+    .slice(0, quota);
   let wrote = false;
+  let asked = 0;
 
   for (const band of due) {
     if (outOfBudget(ctx) || bandDetailsBreaker.isOpen(ctx.now())) break;
+    asked += 1;
     const answer = await session.fetchBandDetails(band.bandId);
     const at = ctx.now();
 
@@ -354,4 +373,5 @@ async function runSweep(ctx: Ctx): Promise<void> {
     }
   }
   if (wrote) await sink.afterDocuments();
+  return asked;
 }

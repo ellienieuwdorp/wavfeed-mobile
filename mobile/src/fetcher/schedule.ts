@@ -1,6 +1,9 @@
 /**
- * When a gather turn runs in the foreground (task 0036, decision 4): as the app becomes active if the last turn is
- * fifteen minutes old, and every fifteen minutes while it stays active. Pull to refresh calls the turn directly.
+ * When a gather turn runs in the foreground (task 0036, decision 4): on mount, on every return to active and every
+ * fifteen minutes while active, the stored state is asked whether a turn is due. A pending first walk always is, cursor
+ * or not, so it resumes on every open and after a turn that failed before writing one; a caught-up feed waits fifteen
+ * minutes. iOS freezes JS in the background without
+ * restarting it, so nothing here remembers when it last ran: the store answers. Pull to refresh calls the turn directly.
  */
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
@@ -9,33 +12,33 @@ export const GATHER_INTERVAL_MS = 15 * 60 * 1000;
 
 export type ScheduledReason = 'open' | 'timer';
 
-export function shouldRun(lastTurnAt: number | null, now: number): boolean {
-  return lastTurnAt === null || now - lastTurnAt >= GATHER_INTERVAL_MS;
+/** `walk`: a walk is pending; `due`: the last turn is fifteen minutes old or none ran; `no`: neither. */
+export type Due = 'walk' | 'due' | 'no';
+
+export function dueFrom(walkPending: boolean, lastTurnAt: number | null, now: number): Due {
+  if (walkPending) return 'walk';
+  return lastTurnAt === null || now - lastTurnAt >= GATHER_INTERVAL_MS ? 'due' : 'no';
 }
 
-/** `readLastTurnAt` reads the stored `GatherState.lastTurnAt`, so a turn started elsewhere counts. */
 export function useGatherSchedule(
   run: (reason: ScheduledReason) => unknown,
-  readLastTurnAt?: () => Promise<number | null>,
+  readDue: (now: number) => Promise<Due>,
 ): void {
   const runRef = useRef(run);
-  const readRef = useRef(readLastTurnAt);
-  const startedAt = useRef<number | null>(null);
+  const readRef = useRef(readDue);
 
   useEffect(() => {
     runRef.current = run;
-    readRef.current = readLastTurnAt;
-  }, [run, readLastTurnAt]);
+    readRef.current = readDue;
+  }, [run, readDue]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     let live = true;
 
     const maybeRun = async (reason: ScheduledReason): Promise<void> => {
-      const stored = (await readRef.current?.().catch(() => null)) ?? null;
-      const known = [stored, startedAt.current].filter((at): at is number => at !== null);
-      if (!live || !shouldRun(known.length === 0 ? null : Math.max(...known), Date.now())) return;
-      startedAt.current = Date.now();
+      const due = await readRef.current(Date.now()).catch((): Due => 'no');
+      if (!live || due === 'no') return;
       await Promise.resolve(runRef.current(reason)).catch(() => undefined);
     };
     const wake = (): void => {

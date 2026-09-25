@@ -22,13 +22,39 @@ export type WishlistItem = {
 
 export type WishlistFailure = 'logged_out' | 'bandcamp_rejected' | 'bandcamp_unreachable';
 
+/** Which rule decided the outcome, a fixed word the press log can carry without any of the body. */
+export type WishlistEnd =
+  | 'ok'
+  | 'already_there'
+  | 'no_answer'
+  | 'server_status'
+  | 'crumb_replays_spent'
+  | 'not_json'
+  | 'http_401'
+  | 'error_text'
+  | 'no_ok_field';
+
+/** What the exchange looked like on the wire: the last write's status, the writes sent and the last body's kind. */
+export type WishlistWire = {
+  readonly status: number | null;
+  readonly requests: number;
+  readonly answer: 'json' | 'html' | 'text' | null;
+  readonly end: WishlistEnd;
+};
+
 /** Every response comes back with the outcome, for the caller to store before acting on it (ADR-0004). */
 export type WishlistWriteOutcome =
-  | { readonly ok: true; readonly alreadyThere: boolean; readonly documents: readonly BandcampDocument[] }
+  | {
+      readonly ok: true;
+      readonly alreadyThere: boolean;
+      readonly wire: WishlistWire;
+      readonly documents: readonly BandcampDocument[];
+    }
   | {
       readonly ok: false;
       readonly failure: WishlistFailure;
       readonly detail: string;
+      readonly wire: WishlistWire;
       readonly documents: readonly BandcampDocument[];
     };
 

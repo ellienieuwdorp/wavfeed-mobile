@@ -3,9 +3,10 @@
  * Native has no oklch, so every colour is an sRGB hex approximation of the oklch
  * value in DESIGN-UI section 6; `online` is the canvas's signed-in dot and
  * `track` its segmented-control track (ink at 8 percent). Type sizes follow the
- * v2 client canvas: SF on iOS, Roboto on Android, no web font.
+ * v2 client canvas: SF on iOS, the system Roboto on Android at Material's body-large
+ * and body-medium, no web font. A pressed row takes the platform's own highlight.
  */
-import { Platform, useColorScheme } from 'react-native';
+import { Platform, PlatformColor, useColorScheme, type ColorValue } from 'react-native';
 
 export type Palette = {
   bg: string;
@@ -72,14 +73,35 @@ const ios = Platform.OS === 'ios';
 export const type = {
   rowTitle: ios ? 15 : 16,
   fact: ios ? 13 : 14,
-  sectionHead: 15,
-  moduleHead: 20,
-  upcomingHead: 20,
-  viewTitle: ios ? 32 : 22,
+  sectionHead: ios ? 15 : 14,
+  moduleHead: ios ? 20 : 18,
+  upcomingHead: ios ? 20 : 16,
+  viewTitle: ios ? 32 : 28,
   sub: ios ? 13 : 14,
   body: 16,
   gutter: ios ? 20 : 16,
+  /** Android's body-large and body-medium line heights; iOS keeps the font's own. */
+  rowTitleLine: ios ? undefined : 24,
+  factLine: ios ? undefined : 20,
 } as const;
+
+/** A Material state layer's ripple for a bounded surface, or for an icon button's 40dp circle when `radius` is given. */
+export function ripple(colour: string, radius?: number) {
+  return radius === undefined ? { color: colour, foreground: true } : { color: colour, borderless: true, radius };
+}
+
+/** A pressed row's fill: the system grey flash on iOS; Android draws the ripple instead. */
+export const PRESS_FLASH: ColorValue | undefined = ios ? PlatformColor('systemGray4') : undefined;
+/** A pressed control's opacity on iOS, UIKit's highlighted button; Android shows the ripple and keeps its opacity. */
+export const PRESS_DIM = 0.5;
+
+/** `base` times the iOS press dim, for a Pressable's style function; `base` carries a disabled or dead control's fade. */
+export function pressedOpacity(pressed: boolean, base = 1): number {
+  return (ios && pressed ? PRESS_DIM : 1) * base;
+}
+
+/** How long a row in a scrolling list waits before it lights, so a drag that starts on it scrolls without a flash. */
+export const SCROLL_PRESS_DELAY_MS = 120;
 
 export type Tokens = { dark: boolean; c: Palette; type: typeof type };
 

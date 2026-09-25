@@ -23,7 +23,9 @@ import {
   readReplayCrumb,
   toDetail,
   MAX_CRUMB_REPLAYS,
+  type WishlistEnd,
   type WishlistItem,
+  type WishlistWire,
   type WishlistWriteKind,
   type WishlistWriteOutcome,
   wishlistRequestBody,
@@ -428,6 +430,9 @@ export class BandcampSession {
     const url = `${this.baseUrl}${action === 'add' ? COLLECT_ITEM_PATH : UNCOLLECT_ITEM_PATH}`;
     const documents: BandcampDocument[] = [];
     let crumb: string | null = null;
+    let status: number | null = null;
+    let answer: WishlistWire['answer'] = null;
+    const seen = (end: WishlistEnd): WishlistWire => ({ status, requests: documents.length, answer, end });
 
     for (let attempt = 0; attempt <= MAX_CRUMB_REPLAYS; attempt += 1) {
       const fetchedAt = nowIso();
@@ -438,55 +443,76 @@ export class BandcampSession {
         credentials: 'include',
       });
       if (wire === null) {
-        return { ok: false, failure: 'bandcamp_unreachable', detail: 'the request did not come back', documents };
+        return {
+          ok: false,
+          failure: 'bandcamp_unreachable',
+          detail: 'the request did not come back',
+          wire: seen('no_answer'),
+          documents,
+        };
       }
       const parsed = parseJson(wire.text);
       const body = asRecord(parsed);
-      documents.push({
-        endpoint,
-        payload: body === undefined ? notJsonPayload(wire.text, wire.contentType.includes('html')) : parsed,
-        fetchedAt,
-      });
+      const isHtml = wire.contentType.includes('html');
+      status = wire.status;
+      answer = body !== undefined ? 'json' : isHtml ? 'html' : 'text';
+      documents.push({ endpoint, payload: body === undefined ? notJsonPayload(wire.text, isHtml) : parsed, fetchedAt });
 
       if (wire.status >= 500 || wire.status === 429) {
-        return { ok: false, failure: 'bandcamp_unreachable', detail: `HTTP ${wire.status}`, documents };
+        return {
+          ok: false,
+          failure: 'bandcamp_unreachable',
+          detail: `HTTP ${wire.status}`,
+          wire: seen('server_status'),
+          documents,
+        };
       }
       const replay = readReplayCrumb(wire.status, body);
       if (replay !== null && attempt < MAX_CRUMB_REPLAYS) {
         crumb = replay;
         continue;
       }
-      if (body === undefined || wire.status === 401) return await this.classifyByProbe(wire.status, documents);
-      if (body.ok === true) return { ok: true, alreadyThere: false, documents };
+      if (replay !== null) {
+        return { ok: false, failure: 'bandcamp_rejected', detail: 'invalid_crumb', wire: seen('crumb_replays_spent'), documents };
+      }
+      if (body === undefined || wire.status === 401) {
+        return await this.classifyByProbe(wire.status, documents, seen(body === undefined ? 'not_json' : 'http_401'));
+      }
+      if (body.ok === true) return { ok: true, alreadyThere: false, wire: seen('ok'), documents };
 
       const errorText = readErrorText(body);
-      if (errorText !== undefined && meansAlreadyThere(errorText)) return { ok: true, alreadyThere: true, documents };
+      if (errorText !== undefined && meansAlreadyThere(errorText)) {
+        return { ok: true, alreadyThere: true, wire: seen('already_there'), documents };
+      }
       return {
         ok: false,
         failure: 'bandcamp_rejected',
         detail: toDetail(errorText ?? `HTTP ${wire.status}, a JSON body with neither ok nor an error in it`),
+        wire: seen(errorText === undefined ? 'no_ok_field' : 'error_text'),
         documents,
       };
     }
-    return { ok: false, failure: 'bandcamp_rejected', detail: 'invalid_crumb', documents };
+    return { ok: false, failure: 'bandcamp_rejected', detail: 'invalid_crumb', wire: seen('crumb_replays_spent'), documents };
   }
 
   /** A login page or a bare 401 could mean signed out or Bandcamp being strange; the probe decides. */
   private async classifyByProbe(
     status: number,
     documents: readonly BandcampDocument[],
+    wire: WishlistWire,
   ): Promise<WishlistWriteOutcome> {
     const probe = await this.probeIdentity();
     if (probe.kind === 'logged_out') {
-      return { ok: false, failure: 'logged_out', detail: 'Bandcamp is not signed in on this device', documents };
+      return { ok: false, failure: 'logged_out', detail: 'Bandcamp is not signed in on this device', wire, documents };
     }
     if (probe.kind === 'ok') {
-      return { ok: false, failure: 'bandcamp_rejected', detail: `HTTP ${status}, non-JSON body`, documents };
+      return { ok: false, failure: 'bandcamp_rejected', detail: `HTTP ${status}, non-JSON body`, wire, documents };
     }
     return {
       ok: false,
       failure: 'bandcamp_unreachable',
       detail: `HTTP ${status}, and the sign-in check could not be completed`,
+      wire,
       documents,
     };
   }

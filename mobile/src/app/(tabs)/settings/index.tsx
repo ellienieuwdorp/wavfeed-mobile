@@ -1,20 +1,23 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
  * sign out), connected devices (this one only until the v2 server knows the others), the one notification switch,
- * appearance, and removing everything gathered here. The wavfeed account rows (email, password, log out, delete) wait
+ * appearance, and removing everything gathered here. Android draws the status as one list item and its actions as
+ * Material buttons under the custody line, as the canvas's Settings board does. The wavfeed account rows (email, password, log out, delete) wait
  * for the account this slice does not have (task 0036).
  */
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Appearance, Platform, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Appearance, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
+import { AppBarTitle, useAppBar } from '@/components/AppBar';
+import { Glyph } from '@/components/Glyph';
+import { NativeSwitch } from '@/components/NativeSwitch';
 import { useDockClearance } from '@/components/player/Dock';
 import { Segmented } from '@/components/Segmented';
-import { Cell, Group, GroupFoot, GroupHead } from '@/components/SettingsList';
+import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { copy, sep } from '@/copy';
 import { fanInitials } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
@@ -29,13 +32,14 @@ const s = copy.settings;
 
 type Scheme = 'light' | 'dark' | 'system';
 
-function Chevron() {
-  const { c } = useTokens();
-  return ios ? <Ionicons name="chevron-forward" size={16} color={c.faint} /> : null;
-}
-
+/** On Android the dot sits in a 24dp icon slot, so its row's text starts at 56dp with the device row's. */
 function Dot({ colour }: { colour: string }) {
-  return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colour }} />;
+  const slot = ios ? 8 : 24;
+  return (
+    <View style={{ width: slot, height: slot, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colour }} />
+    </View>
+  );
 }
 
 function Avatar({ url, initials }: { url: string | null; initials: string }) {
@@ -51,10 +55,10 @@ function Avatar({ url, initials }: { url: string | null; initials: string }) {
 
 type Held = { documents: number; stories: number; releases: number; follows: number };
 
+/** What the store holds, for the author's dev build only (task 0036); a release build draws nothing here. */
 function heldLine(held: Held | null, lastError: string | null): string {
-  if (held === null) return '';
-  const facts = `${held.documents} pages held · ${held.stories} stories · ${held.releases} releases · ${held.follows} pages followed`;
-  return lastError === null ? facts : `${facts} · last problem: ${lastError.replace('_', ' ')}`;
+  if (!__DEV__ || held === null) return '';
+  return copy.dev.held(held, lastError);
 }
 
 export default function Settings() {
@@ -67,6 +71,7 @@ export default function Settings() {
   const { gather } = app;
   const now = useNow();
   const clearance = useDockClearance();
+  const appBar = useAppBar();
   const [announces, setAnnounces] = useState(true);
   const [scheme, setScheme] = useState<Scheme>('system');
   const [signingOut, setSigningOut] = useState(false);
@@ -135,7 +140,7 @@ export default function Settings() {
       <Cell
         leading={<Dot colour={c.online} />}
         title={s.signedInAs(handle)}
-        sub={ios ? undefined : gatheredAgo}
+        sub={ios ? undefined : (busy && s.phase(gather.phase)) || gatheredAgo}
         trailing={ios ? <Text style={{ fontSize: 15, color: c.sub }}>{gatheredAgo}</Text> : undefined}
       />
     ) : status === 'signedOut' ? (
@@ -143,7 +148,7 @@ export default function Settings() {
         leading={<Dot colour={c.wishlist} />}
         title={s.signedOut}
         sub={gather.lastSuccessAt === null ? undefined : s.lastGathered(gather.lastSuccessAt, now)}
-        trailing={<Chevron />}
+        navigates
         onPress={connect}
       />
     ) : (
@@ -151,7 +156,8 @@ export default function Settings() {
     );
 
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 8 : 0, paddingBottom: 40 + clearance }}>
+    <ScrollView {...appBar.scroll} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 16 : 0, paddingBottom: 40 + clearance }}>
+      {ios ? null : <AppBarTitle subtitle={null} />}
       {identity !== null ? (
         <Group>
           <Cell
@@ -163,32 +169,49 @@ export default function Settings() {
       ) : null}
 
       <GroupHead label={s.thisDeviceHead} />
-      <Group>
-        {statusCell}
-        {status === 'connected' ? (
-          <Cell
-            title={s.gatherNow}
-            tone="accent"
-            sub={busy ? s.phase(gather.phase) || undefined : undefined}
-            trailing={busy ? <ActivityIndicator size="small" /> : undefined}
-            onPress={busy ? undefined : gatherNow}
-          />
-        ) : (
-          <Cell title={s.signIn} tone="accent" onPress={connect} />
-        )}
-        {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
-      </Group>
-      <GroupFoot text={s.custody} />
+      {ios ? (
+        <>
+          <Group>
+            {statusCell}
+            {status === 'connected' ? (
+              <Cell
+                title={s.gatherNow}
+                tone="accent"
+                sub={busy ? s.phase(gather.phase) || undefined : undefined}
+                trailing={busy ? <ActivityIndicator size="small" /> : undefined}
+                onPress={busy ? undefined : gatherNow}
+              />
+            ) : (
+              <Cell title={s.signIn} tone="accent" onPress={connect} />
+            )}
+            {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
+          </Group>
+          <GroupFoot text={s.custody} />
+        </>
+      ) : (
+        <>
+          <Group>{statusCell}</Group>
+          <GroupFoot text={s.custody} />
+          <ButtonRow>
+            {status === 'connected' ? (
+              <ListButton label={s.gatherNow} kind="tonal" busy={busy} onPress={gatherNow} />
+            ) : (
+              <ListButton label={s.signIn} kind="filled" onPress={connect} />
+            )}
+            {status === 'notConnected' ? null : <ListButton label={s.signOut} kind="outlined" onPress={signingOut ? undefined : () => setSigningOut(true)} />}
+          </ButtonRow>
+        </>
+      )}
       <GroupFoot text={heldLine(facts, gather.lastError)} />
       {signingOut ? <SignOutWebView onDone={() => void finishSignOut()} /> : null}
 
       <GroupHead label={s.devicesHead} />
       <Group>
         <Cell
-          leading={<Ionicons name="phone-portrait-outline" size={ios ? 18 : 20} color={c.sub} />}
+          leading={<Glyph name="phone" size={ios ? 20 : 24} weight="regular" colour={c.sub} />}
           title={
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
+              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
               <Text style={{ fontSize: 11, fontWeight: '600', color: c.accent, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
             </View>
           }
@@ -200,14 +223,17 @@ export default function Settings() {
       <Group>
         <Cell
           title={s.announces}
-          trailing={<Switch value={announces} onValueChange={setAnnounces} trackColor={ios ? undefined : { true: c.accent, false: c.border }} />}
+          role={ios ? undefined : 'switch'}
+          checked={ios ? undefined : announces}
+          onPress={ios ? undefined : () => setAnnounces(!announces)}
+          trailing={<NativeSwitch value={announces} onChange={setAnnounces} label={s.announces} />}
         />
       </Group>
 
       <GroupHead label={s.appearanceHead} />
       {ios ? (
         <Group>
-          <View style={{ padding: 8 }}>{appearance}</View>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>{appearance}</View>
         </Group>
       ) : (
         <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>{appearance}</View>

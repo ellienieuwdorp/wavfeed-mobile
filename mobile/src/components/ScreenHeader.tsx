@@ -1,53 +1,21 @@
 /**
- * The in-scroll half of a view's header, under the native large title: "Updated 12 min ago", or while the first walk
- * runs the catch-up pair, the count in ink over the work in sub with a moving hairline (DESIGN-UI section 9, the v2
- * client canvas's first gather board). Nothing before the first gather.
+ * The in-scroll half of a view's header (DESIGN-UI section 9, the v2 client canvas): under the native large title on
+ * iOS, "Updated 12 min ago" as one quiet line; on Android the medium app bar's title with that line as its subtitle
+ * (see AppBar). The catch-up leaves the list for the tab bar's accessory or the strip above the mini player (see
+ * CatchUp). No line before the first gather.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
-import { copy } from '@/copy';
 import { useGatherStatus } from '@/state/status';
 import { useTokens } from '@/theme/tokens';
 
-const SWEEP_MS = 1400;
-
-function Hairline() {
-  const { c } = useTokens();
-  const [width, setWidth] = useState(0);
-  const x = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
-    loop.start();
-    return () => loop.stop();
-  }, [x]);
-  const segment = width / 3;
-  return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ height: 2, marginTop: 6, backgroundColor: c.track, overflow: 'hidden', borderRadius: 1 }}>
-      <Animated.View
-        style={{
-          width: segment,
-          height: 2,
-          backgroundColor: c.accent,
-          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-segment, width] }) }],
-        }}
-      />
-    </View>
-  );
-}
+import { AppBarTitle } from './AppBar';
 
 export function ScreenHeader() {
   const { c, type } = useTokens();
   const { line } = useGatherStatus();
-  if (line === null) return <View style={{ height: 12 }} />;
-  if (line.kind === 'updated') {
-    return <Text style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{line.text}</Text>;
-  }
-  return (
-    <View accessibilityLabel={copy.catchUp.label} accessibilityLiveRegion="polite" style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>
-      <Text style={{ fontSize: type.sub, color: c.ink, fontVariant: ['tabular-nums'] }}>{line.primary}</Text>
-      {line.secondary ? <Text style={{ fontSize: type.sub - 1, color: c.sub }}>{line.secondary}</Text> : null}
-      <Hairline />
-    </View>
-  );
+  const text = line?.kind === 'updated' ? line.text : null;
+  if (Platform.OS === 'android') return <AppBarTitle subtitle={text} />;
+  if (text === null) return <View style={{ height: 8 }} />;
+  return <Text style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{text}</Text>;
 }

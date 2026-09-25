@@ -1,41 +1,45 @@
 /**
- * The four tabs on Android and the web, in canvas order, Feed first and initial,
- * with Ionicons outline when inactive and filled when active, tinted with the
- * accent (the v2 client canvas, section 7). iOS uses `_layout.ios.tsx`, the native
- * tabs of task 0036 decision 5. Each tab owns a stack for its native header.
+ * The four tabs on Android as native tabs (task 0036 decision 5, the v2 client canvas, section 7): Material's bottom
+ * navigation with the pill indicator behind the active icon, Material Symbols in canvas order, labels always shown,
+ * tinted with the accent. iOS uses `_layout.ios.tsx`. Each tab owns a stack for its app bar; the catch-up strip and
+ * the floating player ride inside the tab's stack, above this bar (see TabStack).
  */
-import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ComponentProps } from 'react';
-import Tabs from 'expo-router/js-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
-
-type IconName = ComponentProps<typeof Ionicons>['name'];
-
-const TABS: { name: string; title: string; icon: IconName; iconOn: IconName }[] = [
-  { name: '(feed)', title: copy.views.feed, icon: 'sparkles-outline', iconOn: 'sparkles' },
-  { name: 'releases', title: copy.views.releases, icon: 'disc-outline', iconOn: 'disc' },
-  { name: 'bought', title: copy.views.bought, icon: 'bag-outline', iconOn: 'bag' },
-  { name: 'settings', title: copy.views.settings, icon: 'settings-outline', iconOn: 'settings' },
-];
 
 export const unstable_settings = { initialRouteName: '(feed)' };
 
 export default function TabsLayout() {
   const { c } = useTokens();
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: c.accent, tabBarInactiveTintColor: c.sub }}>
-      {TABS.map((t) => (
-        <Tabs.Screen
-          key={t.name}
-          name={t.name}
-          options={{
-            title: t.title,
-            tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? t.iconOn : t.icon} color={color} size={size} />,
-          }}
-        />
-      ))}
-    </Tabs>
+    <NativeTabs
+      tintColor={c.accent}
+      backgroundColor={c.raised}
+      indicatorColor={c.tint}
+      iconColor={{ default: c.sub, selected: c.ink }}
+      labelStyle={{ default: { color: c.sub, fontSize: 12, fontWeight: '500' }, selected: { color: c.ink, fontSize: 12, fontWeight: '500' } }}
+      labelVisibilityMode="labeled"
+      rippleColor={c.track}
+      backBehavior="initialRoute"
+    >
+      <NativeTabs.Trigger name="(feed)">
+        <NativeTabs.Trigger.Icon md="auto_awesome" />
+        <NativeTabs.Trigger.Label>{copy.views.feed}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="releases">
+        <NativeTabs.Trigger.Icon md="album" />
+        <NativeTabs.Trigger.Label>{copy.views.releases}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="bought">
+        <NativeTabs.Trigger.Icon md="shopping_bag" />
+        <NativeTabs.Trigger.Label>{copy.views.bought}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon md="settings" />
+        <NativeTabs.Trigger.Label>{copy.views.settings}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

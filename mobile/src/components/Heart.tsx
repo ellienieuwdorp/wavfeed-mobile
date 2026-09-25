@@ -3,14 +3,15 @@
  * state the section names. Not asked yet is the off outline taking no press; off is the faint outline; pending keeps
  * the last confirmed shape in the wishlist colour at reduced opacity, pulsing unless reduce motion is on; on is filled.
  * A failure puts the heart back on the truth and raises one notice line. With `trackId` it acts on that Track of the
- * Release, which is how the player's heart works; its title then names the Track.
+ * Release, which is how the player's heart works; its title then names the Track. On Android it is a 48dp icon
+ * button whose ripple is the 40dp state layer.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Platform, Pressable } from 'react-native';
 
 import { storeItemType, type PlayableRelease } from '@/player/transport';
-import { useTokens } from '@/theme/tokens';
+import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
 import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
 
@@ -89,12 +90,13 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon }: 
       }}
       accessibilityRole="button"
       accessibilityLabel={label}
+      android_ripple={takesPress ? ripple(c.track, 20) : undefined}
       accessibilityState={{
         ...(membership.known ? { selected: wishlisted } : {}),
         busy: pending !== null,
         disabled: !takesPress,
       }}
-      style={{ width: Math.max(box, 44), height: Math.max(box, 44), alignItems: 'center', justifyContent: 'center' }}
+      style={({ pressed }) => ({ width: Math.max(box, 44), height: Math.max(box, 44), alignItems: 'center', justifyContent: 'center', opacity: pressedOpacity(pressed && takesPress) })}
     >
       <Animated.View style={{ opacity }}>
         <Ionicons

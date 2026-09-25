@@ -1,41 +1,80 @@
 /**
- * A two- or three-way mode picker drawn with our tokens: on iOS a grey track
- * with a raised selected pill, on Android a Material connected button group
- * whose selected segment goes round and filled (the v2 client canvas).
+ * A two- or three-way mode picker (task 0036 decision 5): on iOS the system segmented control, SwiftUI's segmented
+ * Picker through @expo/ui; on Android a Material 3 Expressive connected button group drawn with our tokens as the
+ * canvas's `.and-btngroup` draws it (raised segments in a border outline, 6dp inner corners, the chosen one round on
+ * the accent), because @expo/ui's Compose layer has only the older segmented button. It fills its parent's width;
+ * `a11y` names a shortened segment.
  */
+import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
+import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { Platform, Pressable, Text, View } from 'react-native';
 
 import { useTokens } from '@/theme/tokens';
 
-const ios = Platform.OS === 'ios';
+export type Segment<K extends string> = { key: K; label: string; a11y?: string };
 
-export type Segment<K extends string> = { key: K; label: string };
+type Props<K extends string> = { segments: Segment<K>[]; value: K; onChange: (key: K) => void };
 
-export function Segmented<K extends string>({ segments, value, onChange }: { segments: Segment<K>[]; value: K; onChange: (key: K) => void }) {
+const GROUP_HEIGHT = 40;
+const INNER_RADIUS = 6;
+
+function SystemSegmented<K extends string>({ segments, value, onChange }: Props<K>) {
+  const { dark } = useTokens();
+  return (
+    <Host matchContents={{ vertical: true }} colorScheme={dark ? 'dark' : 'light'}>
+      <Picker<K> selection={value} onSelectionChange={onChange} modifiers={[pickerStyle('segmented')]}>
+        {segments.map((s) => (
+          <SwiftText key={s.key} modifiers={s.a11y ? [tag(s.key), accessibilityLabel(s.a11y)] : [tag(s.key)]}>
+            {s.label}
+          </SwiftText>
+        ))}
+      </Picker>
+    </Host>
+  );
+}
+
+function ConnectedGroup<K extends string>({ segments, value, onChange }: Props<K>) {
   const { c } = useTokens();
   const last = segments.length - 1;
+  const round = GROUP_HEIGHT / 2;
   return (
-    <View style={ios ? { flexDirection: 'row', backgroundColor: c.track, borderRadius: 9, padding: 2 } : { flexDirection: 'row', gap: 2 }}>
+    <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 2 }}>
       {segments.map((s, n) => {
         const on = s.key === value;
-        const shape = ios
-          ? { borderRadius: 7, paddingVertical: 6, backgroundColor: on ? c.surface : 'transparent', boxShadow: on ? '0 2px 6px rgba(0,0,0,0.12)' : undefined }
-          : {
-              paddingVertical: 10,
-              borderWidth: 1,
-              borderColor: on ? c.accent : c.border,
-              backgroundColor: on ? c.accent : c.raised,
-              borderTopLeftRadius: on || n === 0 ? 20 : 6,
-              borderBottomLeftRadius: on || n === 0 ? 20 : 6,
-              borderTopRightRadius: on || n === last ? 20 : 6,
-              borderBottomRightRadius: on || n === last ? 20 : 6,
-            };
+        const start = on || n === 0 ? round : INNER_RADIUS;
+        const end = on || n === last ? round : INNER_RADIUS;
         return (
-          <Pressable key={s.key} onPress={() => onChange(s.key)} accessibilityRole="button" accessibilityState={{ selected: on }} style={[{ flex: 1, alignItems: 'center' }, shape]}>
-            <Text style={{ fontSize: ios ? 13 : 14, fontWeight: on && ios ? '600' : '500', color: on && !ios ? c.onAccent : c.ink }}>{s.label}</Text>
+          <Pressable
+            key={s.key}
+            onPress={() => onChange(s.key)}
+            accessibilityRole="radio"
+            accessibilityLabel={s.a11y}
+            accessibilityState={{ checked: on }}
+            android_ripple={{ color: c.track }}
+            hitSlop={{ top: 4, bottom: 4 }}
+            style={{
+              flex: 1,
+              height: GROUP_HEIGHT,
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              backgroundColor: on ? c.accent : c.raised,
+              borderWidth: on ? 0 : 1,
+              borderColor: c.border,
+              borderTopLeftRadius: start,
+              borderBottomLeftRadius: start,
+              borderTopRightRadius: end,
+              borderBottomRightRadius: end,
+            }}
+          >
+            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '500', color: on ? c.onAccent : c.ink }}>{s.label}</Text>
           </Pressable>
         );
       })}
     </View>
   );
+}
+
+export function Segmented<K extends string>(props: Props<K>) {
+  return Platform.OS === 'ios' ? <SystemSegmented {...props} /> : <ConnectedGroup {...props} />;
 }

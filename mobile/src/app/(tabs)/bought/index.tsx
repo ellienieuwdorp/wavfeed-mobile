@@ -1,14 +1,16 @@
 /**
  * Bought on the store (DESIGN-UI section 3): "By release date" is the weekly chart, top three a week with "Show all N";
- * "By recently purchased" lists every Release in the week it reached the chosen number of buyers you follow, picked
- * under the mode. Rows carry the buyer faces and the label; quiet runs say their dates and stop.
+ * "By recently purchased" lists every Release in the week it reached the chosen number of buyers you follow, picked in
+ * the menu beside the mode picker. Rows carry the buyer faces and the label; quiet runs say their dates and stop.
  */
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { AvatarStack } from '@/components/AvatarStack';
+import { useAppBar } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
+import { MenuSelect } from '@/components/MenuSelect';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -31,7 +33,7 @@ import { buildSectionsFromWeeks, buildWeekSections } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
 import { readBought } from '@/store';
-import { useTokens } from '@/theme/tokens';
+import { PRESS_FLASH, useTokens } from '@/theme/tokens';
 
 const NO_GAP_TAIL = '';
 
@@ -45,38 +47,37 @@ type Item =
   | { key: string; kind: 'all'; week: string; expanded: boolean; total: number }
   | { key: string; kind: 'gap'; text: string };
 
+const THRESHOLD_OPTIONS = BOUGHT_THRESHOLDS.map((n) => ({ value: n, label: thresholdOptionLabel(n) }));
+
 function Header({ mode, setMode, threshold, setThreshold }: { mode: BoughtMode; setMode: (m: BoughtMode) => void; threshold: number; setThreshold: (n: number) => void }) {
-  const { c, type } = useTokens();
+  const { type } = useTokens();
+  const menu = <MenuSelect options={THRESHOLD_OPTIONS} value={threshold} onChange={setThreshold} enabled={mode === 'crossed'} label={copy.bought.thresholdLabel} />;
+  const segmented = (
+    <Segmented
+      segments={[
+        { key: 'released', label: copy.bought.released, a11y: copy.bought.byReleaseDate },
+        { key: 'crossed', label: copy.bought.purchased, a11y: copy.bought.byPurchased },
+      ]}
+      value={mode}
+      onChange={setMode}
+    />
+  );
+  // Android keeps the group full width and shows the dropdown chip only in the mode it serves (the canvas's Bought board).
+  if (Platform.OS === 'android') {
+    return (
+      <View>
+        <ScreenHeader />
+        <View style={{ paddingHorizontal: type.gutter, paddingBottom: 8 }}>{segmented}</View>
+        {mode === 'crossed' ? <View style={{ flexDirection: 'row', paddingHorizontal: type.gutter, paddingBottom: 8 }}>{menu}</View> : null}
+      </View>
+    );
+  }
   return (
     <View>
       <ScreenHeader />
-      <View style={{ paddingHorizontal: type.gutter, paddingBottom: 4, gap: 8 }}>
-        <Segmented
-          segments={[
-            { key: 'released', label: copy.bought.byReleaseDate },
-            { key: 'crossed', label: copy.bought.byPurchased },
-          ]}
-          value={mode}
-          onChange={setMode}
-        />
-        {mode === 'crossed' ? (
-          <View accessibilityLabel={copy.bought.thresholdLabel} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {BOUGHT_THRESHOLDS.map((n) => {
-              const on = n === threshold;
-              return (
-                <Pressable
-                  key={n}
-                  onPress={() => setThreshold(n)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  style={{ minHeight: 32, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: on ? c.accent : c.border, backgroundColor: on ? c.tint : undefined }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: on ? '600' : '400', color: on ? c.accent : c.ink }}>{thresholdOptionLabel(n)}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: type.gutter, paddingBottom: 8 }}>
+        <View style={{ flex: 1 }}>{segmented}</View>
+        {menu}
       </View>
     </View>
   );
@@ -95,13 +96,19 @@ function Buyers({ release }: { release: ApiFeedItem }) {
 function ShowAll({ label, onPress }: { label: string; onPress: () => void }) {
   const { c, type } = useTokens();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: type.gutter }}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      android_ripple={{ color: c.track }}
+      style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', paddingHorizontal: type.gutter, backgroundColor: pressed ? PRESS_FLASH : undefined })}
+    >
       <Text style={{ fontSize: 15, color: c.accent }}>{label}</Text>
     </Pressable>
   );
 }
 
 export default function Bought() {
+  const { c } = useTokens();
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
@@ -109,6 +116,7 @@ export default function Bought() {
   const [threshold, setThreshold] = useState(DEFAULT_BOUGHT_THRESHOLD);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const { refreshing, onRefresh } = useRefresh();
+  const appBar = useAppBar();
 
   const answer = useLiveQuery<Answer>(
     async (db) =>
@@ -187,9 +195,10 @@ export default function Bought() {
       keyExtractor={(i) => i.key}
       renderItem={render}
       extraData={[mode, threshold]}
+      {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[c.accent]} progressBackgroundColor={c.surface} progressViewOffset={appBar.refreshOffset} />}
     />
   );
 }

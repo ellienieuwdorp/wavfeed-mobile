@@ -6,6 +6,7 @@
 import { RefreshControl, ScrollView, View } from 'react-native';
 
 import { CoverTile, ModuleHead, OverlapPanel, QuoteLine } from '@/components/Curated';
+import { useAppBar } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -17,19 +18,21 @@ import { readCurated } from '@/store';
 import { useTokens } from '@/theme/tokens';
 
 export default function Feed() {
-  const { type } = useTokens();
+  const { c, type } = useTokens();
   const clearance = useDockClearance();
   const now = useNow();
   const curated = useLiveQuery((db) => readCurated(db));
   const { refreshing, onRefresh } = useRefresh();
+  const appBar = useAppBar();
   const empty =
     curated !== null && curated.newFromPages.length === 0 && curated.boughtByFollowed.length === 0 && curated.inTheirOwnWords.length === 0;
 
   return (
     <ScrollView
+      {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[c.accent]} progressBackgroundColor={c.surface} progressViewOffset={appBar.refreshOffset} />}
     >
       <ScreenHeader />
       {empty ? <EmptyState filling={copy.empty.fillingCurated} nothing={copy.empty.curated} /> : null}

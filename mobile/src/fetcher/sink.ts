@@ -45,6 +45,8 @@ export type GatherState = {
   readonly newestStoryDate: number | null;
   readonly followsFetchedAt: number | null;
   readonly wishlistFetchedAt: number | null;
+  /** When the wishlist was last asked, whatever it answered; hearts take presses from the first ask on. */
+  readonly wishlistAskedAt: number | null;
 };
 
 export const EMPTY_GATHER_STATE: GatherState = {
@@ -59,6 +61,7 @@ export const EMPTY_GATHER_STATE: GatherState = {
   newestStoryDate: null,
   followsFetchedAt: null,
   wishlistFetchedAt: null,
+  wishlistAskedAt: null,
 };
 
 export type SweepTier = 'hot' | 'warm' | 'cold';

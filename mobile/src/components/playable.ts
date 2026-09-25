@@ -2,7 +2,7 @@
  * The hand-off from a row to the player and the heart: a Release as the player lane's `PlayableRelease`, with the large
  * art and the hue its colour block falls back to.
  */
-import { usePlayer, type PlayableRelease } from '@/components/player/playerState';
+import { usePlayerActions, type PlayableRelease } from '@/components/player/playerState';
 import type { ApiItemType } from '@/domain/apiTypes';
 import { ART_SIZE_LARGE, hueFor, releaseArtUrl } from '@/lib/format';
 
@@ -32,6 +32,6 @@ export function toPlayable(item: RowRelease): PlayableRelease {
 }
 
 export function usePlay(): (item: RowRelease) => void {
-  const { play } = usePlayer();
+  const { play } = usePlayerActions();
   return (item) => play(toPlayable(item));
 }

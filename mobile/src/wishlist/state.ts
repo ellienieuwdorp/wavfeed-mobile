@@ -5,14 +5,18 @@
  * is acted on (ADR-0004), then the item written into or out of `wishlist_items` here, because the Projection folds only
  * the wishlist walk and never a collect answer. A rebuild therefore forgets a press until the next walk brings it back.
  * Pending belongs to the item, never the control, so the bar's heart does not carry a press across a track change.
+ * Membership is not asked yet until a wishlist walk has been asked once (`GatherState.wishlistAskedAt`), whatever it
+ * answered, so a wishlist that keeps erroring still leaves every heart pressable, as off. Each press
+ * logs one line of codes and counts, never a body or a header (task 0036, decision 1).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
-import type { WishlistFailure, WishlistWriteKind } from '@/bandcamp/wishlist';
+import type { WishlistFailure, WishlistWire, WishlistWriteKind } from '@/bandcamp/wishlist';
 import { useNotice, type NoticeLine } from '@/components/noticeState';
 import { copy } from '@/copy';
+import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { useAppState, type AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
@@ -30,7 +34,13 @@ export type WishlistTarget = {
 export type Membership = { readonly known: false } | { readonly known: true; readonly wishlisted: boolean };
 
 type Held = { readonly db: SQLiteDatabase; readonly version: number; readonly keys: ReadonlySet<string> };
-type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item';
+type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
+type BandSource = 'page' | 'fetched_page' | 'row';
+type Sent = {
+  readonly failure: PressFailure | null;
+  readonly band: { readonly id: string; readonly from: BandSource } | null;
+  readonly wire: WishlistWire | null;
+};
 
 let held: Held | null = null;
 let pending: ReadonlyMap<string, WishlistWriteKind> = new Map();
@@ -82,10 +92,11 @@ function setPending(key: string, action: WishlistWriteKind | null) {
 }
 
 export function useMembership(itemType: ItemType, itemId: string): Membership {
-  const { db, version } = useAppState();
+  const { db, version, gather } = useAppState();
   const snapshot = useSyncExternalStore(subscribe, () => held);
   useEffect(() => load(db, version), [db, version]);
-  if (snapshot === null || snapshot.db !== db) return { known: false };
+  const asked = gather.wishlistFetchedAt !== null || gather.wishlistAskedAt !== null;
+  if (!asked || snapshot === null || snapshot.db !== db) return { known: false };
   return { known: true, wishlisted: snapshot.keys.has(keyOf(itemType, itemId)) };
 }
 
@@ -94,16 +105,27 @@ export function usePendingAction(itemType: ItemType, itemId: string): WishlistWr
   return map.get(keyOf(itemType, itemId)) ?? null;
 }
 
-/** The Release's Page off the catalog, else off its stored release page. */
-async function readBandId(db: SQLiteDatabase, release: WishlistTarget['release']): Promise<string | null> {
+/** The server's order (api wishlist.ts): the stored page's `current.band_id`, a fresh page when none is held, the row. */
+async function readBand(
+  app: AppState,
+  release: WishlistTarget['release'],
+): Promise<{ id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null } | null> {
   const itemId = Number(release.itemId);
   if (!Number.isSafeInteger(itemId)) return null;
-  const row = await db.getFirstAsync<{ band_id: number }>('select band_id from releases where item_type = ? and item_id = ?', [
-    release.itemType,
-    itemId,
-  ]);
-  if (row !== null) return String(row.band_id);
-  return (await readTracklist(db, release.itemType, itemId))?.bandId ?? null;
+  const stored = await readTracklist(app.db, release.itemType, itemId);
+  if (stored !== null) return { id: stored.bandId, from: 'page', tracklist: stored };
+  const row = await app.db.getFirstAsync<{ band_id: number; url: string }>(
+    'select band_id, url from releases where item_type = ? and item_id = ?',
+    [release.itemType, itemId],
+  );
+  if (row === null) return null;
+  const answer = await app.session.fetchReleasePage(row.url, { itemType: release.itemType, itemId });
+  if (answer.kind === 'ok' && answer.value.kind === 'page') {
+    await app.putRaw(answer.value.document);
+    const fetched = await readTracklist(app.db, release.itemType, itemId);
+    if (fetched !== null) return { id: fetched.bandId, from: 'fetched_page', tracklist: fetched };
+  }
+  return { id: String(row.band_id), from: 'row', tracklist: null };
 }
 
 async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandId: string, on: boolean) {
@@ -122,18 +144,36 @@ async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandI
   );
 }
 
-/** Ok, or the reason it did not reach Bandcamp; the documents are already stored by the time this answers. */
-async function send(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<PressFailure | null> {
+/** The documents are already stored by the time this answers. A Track press names a Track its Release holds. */
+async function send(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<Sent> {
   const identity = await readKv<StoredIdentity>(app.db, IDENTITY_KEY);
-  if (identity === null) return 'not_signed_in';
-  const bandId = await readBandId(app.db, target.release);
-  if (bandId === null) return 'unknown_item';
-  const item = { fanId: identity.fanId, itemType: target.itemType, itemId: target.itemId, bandId };
+  if (identity === null) return { failure: 'not_signed_in', band: null, wire: null };
+  const found = await readBand(app, target.release);
+  if (found === null) return { failure: 'unknown_item', band: null, wire: null };
+  const band = { id: found.id, from: found.from };
+  const tracks = found.tracklist?.tracks ?? [];
+  if (target.itemType === 't' && target.itemId !== target.release.itemId && tracks.length > 0) {
+    if (!tracks.some((track) => track.trackId === target.itemId)) return { failure: 'not_on_release', band, wire: null };
+  }
+  const item = { fanId: identity.fanId, itemType: target.itemType, itemId: target.itemId, bandId: band.id };
   const outcome = action === 'add' ? await app.session.collectItem(item) : await app.session.uncollectItem(item);
   for (const document of outcome.documents) await app.putRaw(document);
-  if (!outcome.ok) return outcome.failure;
-  await writeMembership(app.db, target, bandId, action === 'add');
-  return null;
+  if (!outcome.ok) return { failure: outcome.failure, band, wire: outcome.wire };
+  await writeMembership(app.db, target, band.id, action === 'add');
+  return { failure: null, band, wire: outcome.wire };
+}
+
+/** One line per press for the Metro log: codes, counts and ids, nothing Bandcamp wrote. */
+function logPress(action: WishlistWriteKind, key: string, sent: Sent) {
+  const facts = [
+    `wishlist ${action} ${key}`,
+    sent.failure ?? 'ok',
+    sent.wire === null ? 'no write sent' : `end=${sent.wire.end} status=${sent.wire.status ?? 'none'}`,
+    ...(sent.wire === null ? [] : [`requests=${sent.wire.requests} answer=${sent.wire.answer ?? 'none'}`]),
+    sent.band === null ? 'band=none' : `band=${sent.band.id} from=${sent.band.from}`,
+  ].join(' ');
+  if (sent.failure === null) console.log(facts);
+  else console.warn(facts);
 }
 
 function noticeFor(failure: PressFailure | 'other'): NoticeLine {
@@ -162,14 +202,18 @@ export function useWishlistPress(): (target: WishlistTarget, action: WishlistWri
       if (pending.has(key)) return;
       setPending(key, action);
       send(app, target, action)
-        .then((failure) => {
-          if (failure !== null) show(noticeFor(failure));
+        .then((sent) => {
+          logPress(action, key, sent);
+          if (sent.failure !== null) show(noticeFor(sent.failure));
           else {
             patch(key, action === 'add');
             app.invalidate();
           }
         })
-        .catch(() => show(noticeFor('other')))
+        .catch((error: unknown) => {
+          console.warn(`wishlist ${action} ${key} threw:`, error instanceof Error ? error.message : String(error));
+          show(noticeFor('other'));
+        })
         .finally(() => setPending(key, null));
     },
     [app, show],

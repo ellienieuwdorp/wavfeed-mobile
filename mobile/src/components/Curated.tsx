@@ -1,31 +1,35 @@
 /**
  * The Curated Feed's three modules (DESIGN-UI section 5, the v2 client canvas): the cover strip of new Releases from
  * pages you follow, the one-up Bought-by cards with their play disc and heart, and the review quotes, each under a
- * module head whose "View more" opens the full view.
+ * module head whose "View more" opens the full view. Android takes the canvas's Expressive shapes: 12dp covers, 16dp
+ * cards, the rounded-square play button, and the ripple on everything that plays.
  */
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, type Href } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
 import { ART_SIZE_LARGE, ART_SIZE_ROW, hueFor, releaseArtUrl } from '@/lib/format';
-import { useTokens } from '@/theme/tokens';
+import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { Artwork } from './Artwork';
 import { AvatarStack } from './AvatarStack';
+import { Glyph } from './Glyph';
 import { Heart } from './Heart';
 import { usePlay } from './playable';
 import { heartFor } from './ReleaseRow';
+
+const ios = Platform.OS === 'ios';
+const COVER = ios ? 132 : 136;
 
 export function ModuleHead({ title, more }: { title: string; more?: Href }) {
   const { c, type } = useTokens();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: type.gutter, marginBottom: 12 }}>
-      <Text style={{ fontSize: type.moduleHead, fontWeight: '700', color: c.ink }}>{title}</Text>
+      <Text accessibilityRole="header" style={{ fontSize: type.moduleHead, fontWeight: ios ? '700' : '600', color: c.ink }}>{title}</Text>
       {more ? (
-        <Pressable accessibilityRole="link" hitSlop={12} onPress={() => router.navigate(more)}>
-          <Text style={{ fontSize: 15, fontWeight: '500', color: c.accent }}>{copy.feed.viewMore}</Text>
+        <Pressable accessibilityRole="link" hitSlop={12} android_ripple={ripple(c.track, 40)} onPress={() => router.navigate(more)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+          <Text style={{ fontSize: ios ? 15 : 14, fontWeight: '500', color: c.accent }}>{copy.feed.viewMore}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -36,11 +40,17 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { c } = useTokens();
   const play = usePlay();
   return (
-    <Pressable onPress={() => play(item)} accessibilityRole="button" accessibilityLabel={copy.play(item.title)} style={{ width: 132, gap: 2 }}>
+    <Pressable
+      onPress={() => play(item)}
+      accessibilityRole="button"
+      accessibilityLabel={copy.play(item.title)}
+      android_ripple={ripple(c.track)}
+      style={({ pressed }) => ({ width: COVER, gap: 2, opacity: pressedOpacity(pressed) })}
+    >
       <View style={{ marginBottom: 6 }}>
-        <Artwork hue={hueFor(item.itemId)} url={releaseArtUrl(item.artId, ART_SIZE_LARGE)} size={132} />
+        <Artwork hue={hueFor(item.itemId)} url={releaseArtUrl(item.artId, ART_SIZE_LARGE)} size={COVER} radius={ios ? 6 : 12} />
       </View>
-      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: c.ink }}>{item.title}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
       <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Text>
       <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Text>
     </Pressable>
@@ -50,8 +60,15 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
 function PlayDisc({ title, onPress }: { title: string; onPress: () => void }) {
   const { c } = useTokens();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={copy.play(title)} hitSlop={4} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
-      <Ionicons name="play" size={16} color={c.onAccent} style={{ marginLeft: 2 }} />
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={copy.play(title)}
+      hitSlop={4}
+      android_ripple={ripple(c.onAccent)}
+      style={({ pressed }) => ({ width: ios ? 40 : 44, height: ios ? 40 : 44, borderRadius: ios ? 20 : 14, overflow: ios ? undefined : 'hidden', backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', opacity: pressedOpacity(pressed) })}
+    >
+      <Glyph name="play" size={ios ? 16 : 18} weight="regular" colour={c.onAccent} />
     </Pressable>
   );
 }
@@ -60,11 +77,11 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { c } = useTokens();
   const play = usePlay();
   return (
-    <View style={{ backgroundColor: c.surface, borderRadius: 14, padding: 14, gap: 10 }}>
+    <View style={{ backgroundColor: c.surface, borderRadius: ios ? 14 : 16, padding: 14, gap: 10 }}>
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Artwork hue={hueFor(item.itemId)} url={releaseArtUrl(item.artId, ART_SIZE_LARGE)} size={88} radius={8} />
+        <Artwork hue={hueFor(item.itemId)} url={releaseArtUrl(item.artId, ART_SIZE_LARGE)} size={88} radius={ios ? 8 : 12} />
         <View style={{ flex: 1, gap: 4 }}>
-          <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '600', color: c.ink }}>{item.title}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
           <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.artist, item.label].filter(Boolean).join(sep)}</Text>
           <AvatarStack fans={item.buyers} ring={c.surface} />
         </View>
@@ -86,8 +103,8 @@ export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date })
   const play = usePlay();
   return (
     <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: type.gutter, paddingVertical: 12 }}>
-      <Pressable onPress={() => play(quote.item)} accessibilityRole="button" accessibilityLabel={copy.play(quote.item.title)}>
-        <Artwork hue={hueFor(quote.item.itemId)} url={releaseArtUrl(quote.item.artId, ART_SIZE_ROW)} size={56} radius={4} />
+      <Pressable onPress={() => play(quote.item)} accessibilityRole="button" accessibilityLabel={copy.play(quote.item.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+        <Artwork hue={hueFor(quote.item.itemId)} url={releaseArtUrl(quote.item.artId, ART_SIZE_ROW)} size={56} radius={ios ? 4 : 8} />
       </Pressable>
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ fontSize: 13, color: c.sub }}>

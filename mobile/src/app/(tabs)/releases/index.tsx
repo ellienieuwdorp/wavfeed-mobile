@@ -5,6 +5,7 @@
 import { useMemo } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 
+import { useAppBar } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { useDockClearance } from '@/components/player/Dock';
@@ -20,6 +21,7 @@ import { buildSectionsFromWeeks, buildUpcomingWeekSections } from '@/lib/weekSec
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
 import { readNewReleases } from '@/store';
+import { useTokens } from '@/theme/tokens';
 
 type Row = RowRelease & { readonly label: string | null; readonly buyers: readonly ApiFanRef[]; readonly wishlisters: readonly ApiFanRef[] };
 
@@ -49,11 +51,13 @@ function render({ item }: { item: Item }) {
 }
 
 export default function NewReleases() {
+  const { c } = useTokens();
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), [day]);
   const { refreshing, onRefresh } = useRefresh();
+  const appBar = useAppBar();
 
   const items = useMemo(() => {
     const list: Item[] = [{ key: 'header', kind: 'header' }];
@@ -91,9 +95,10 @@ export default function NewReleases() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
+      {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[c.accent]} progressBackgroundColor={c.surface} progressViewOffset={appBar.refreshOffset} />}
     />
   );
 }

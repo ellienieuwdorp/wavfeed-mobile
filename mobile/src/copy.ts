@@ -317,7 +317,14 @@ export const copy = {
   bought: {
     byReleaseDate: 'By release date',
     byPurchased: 'By recently purchased',
+    /** A phone's pane is under 720px, so the segments take DESIGN-UI section 3's one-word forms. */
+    released: 'Released',
+    purchased: 'Purchased',
     thresholdLabel: 'How many buyers you follow',
+  },
+  menu: {
+    labelled: (label: string, value: string) => `${label}: ${value}`,
+    checked: '\u2713',
   },
   play: (title: string) => `Play ${title}`,
   more: (n: number) => `+${n}`,
@@ -371,6 +378,20 @@ export const copy = {
     signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
+  },
+  /** Dev builds only, never a release screen: the author's view of what the store holds (settings/index.tsx). */
+  dev: {
+    held: (
+      held: { readonly documents: number; readonly stories: number; readonly releases: number; readonly follows: number },
+      lastError: string | null,
+    ) =>
+      joinMiddot([
+        `${held.documents} documents`,
+        `${held.stories} stories`,
+        `${held.releases} releases`,
+        `${held.follows} pages followed`,
+        lastError === null ? null : `last error ${lastError.replaceAll('_', ' ')}`,
+      ]),
   },
   player: {
     open: (title: string) => `Open the player for ${title}`,

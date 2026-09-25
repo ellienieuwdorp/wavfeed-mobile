@@ -8,11 +8,14 @@ import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
 import { useAppState } from '@/state/appState';
 import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
-import { useTokens } from '@/theme/tokens';
+import { Glyph } from '@/components/Glyph';
+import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
@@ -22,7 +25,8 @@ function Button({ label, filled, onPress }: { label: string; filled: boolean; on
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={{ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, backgroundColor: filled ? c.accent : undefined }}
+      android_ripple={ripple(filled ? c.onAccent : c.track)}
+      style={({ pressed }) => ({ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, overflow: ios ? undefined : 'hidden', backgroundColor: filled ? c.accent : undefined, opacity: pressedOpacity(pressed) })}
     >
       <Text style={{ fontSize: ios ? 17 : 15, fontWeight: ios ? '600' : '500', color: filled ? c.onAccent : c.accent }}>{label}</Text>
     </Pressable>
@@ -71,11 +75,22 @@ function SignIn({ onCancel }: { onCancel: () => void }) {
         options={{
           title: copy.connect.host,
           headerLargeTitle: false,
-          headerLeft: () => (
-            <Pressable onPress={onCancel} accessibilityRole="button" hitSlop={10}>
-              <Text style={{ fontSize: 17, color: c.accent }}>{copy.connect.cancel}</Text>
-            </Pressable>
-          ),
+          headerLeft: () =>
+            ios ? (
+              <Pressable onPress={onCancel} accessibilityRole="button" hitSlop={10} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+                <Text style={{ fontSize: 17, color: c.accent }}>{copy.connect.cancel}</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={onCancel}
+                accessibilityRole="button"
+                accessibilityLabel={copy.connect.cancel}
+                android_ripple={ripple(c.track, 20)}
+                style={{ width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Glyph name="dismiss" size={24} colour={c.ink} />
+              </Pressable>
+            ),
         }}
       />
       {line !== null ? (
@@ -92,10 +107,11 @@ function SignIn({ onCancel }: { onCancel: () => void }) {
 
 export default function Connect() {
   const { c, type } = useTokens();
+  const insets = useSafeAreaInsets();
   const [signingIn, setSigningIn] = useState(false);
   if (signingIn) return <SignIn onCancel={() => setSigningIn(false)} />;
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: type.gutter, paddingTop: 8, paddingBottom: 40, gap: 14 }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: type.gutter, paddingTop: 8, paddingBottom: 40 + (ios ? 0 : insets.bottom), gap: 14 }}>
       <Stack.Screen options={{ title: copy.connect.title, headerLargeTitle: ios, headerLeft: undefined }} />
       <Text style={{ fontSize: 16, lineHeight: 22, color: c.ink }}>{copy.connect.lead}</Text>
       <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.sub }}>{copy.connect.custody}</Text>

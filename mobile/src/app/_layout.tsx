@@ -3,10 +3,13 @@
  * light and dark following the system, the app state with its gather runner and
  * schedule (task 0036 decision 4), the player and notice state, and a stack
  * holding the tabs, the player sheet and the Connect Bandcamp modal (task 0036
- * decision 5). The first launch with no Fan held presents Connect once by itself.
+ * decision 5). The first launch with no Fan held presents Connect once by itself. On Android the window behind the
+ * edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows a white edge in dark.
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { setBackgroundColorAsync } from 'expo-system-ui';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { FirstRunConnect } from '@/components/FirstRunConnect';
@@ -21,6 +24,9 @@ const ios = Platform.OS === 'ios';
 
 export default function RootLayout() {
   const { dark, c } = useTokens();
+  useEffect(() => {
+    if (!ios) setBackgroundColorAsync(c.bg).catch(() => undefined);
+  }, [c.bg]);
   const base = dark ? DarkTheme : DefaultTheme;
   const theme: Theme = {
     ...base,
@@ -46,14 +52,11 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="player"
-                options={{
-                  presentation: 'formSheet',
-                  sheetAllowedDetents: [0.55, 1],
-                  sheetInitialDetentIndex: 'last',
-                  sheetGrabberVisible: true,
-                  sheetCornerRadius: ios ? undefined : 28,
-                  contentStyle: { backgroundColor: c.surface },
-                }}
+                options={
+                  ios
+                    ? { presentation: 'modal', gestureEnabled: true, contentStyle: { backgroundColor: c.surface } }
+                    : { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetCornerRadius: 28, contentStyle: { backgroundColor: c.surface } }
+                }
               />
               <Stack.Screen
                 name="connect"
@@ -66,8 +69,8 @@ export default function RootLayout() {
                   headerLargeTitleShadowVisible: false,
                   headerStyle: { backgroundColor: c.bg },
                   headerLargeStyle: { backgroundColor: c.bg },
-                  headerTintColor: c.accent,
-                  headerTitleStyle: ios ? { color: c.ink } : { fontSize: 22, fontWeight: '500', color: c.ink },
+                  headerTintColor: ios ? c.accent : c.ink,
+                  headerTitleStyle: ios ? { color: c.ink } : { fontSize: 22, fontWeight: '400', color: c.ink },
                   headerLargeTitleStyle: { color: c.ink },
                   contentStyle: { backgroundColor: c.bg },
                 }}

@@ -1,7 +1,8 @@
 /**
- * What every view says about gathering (DESIGN-UI section 9, in the phone's places): the line under the large title,
- * either "Updated 12 min ago" or the catch-up pair while the first walk runs, and which empty state a view with no rows
- * draws. The first walk counts as running between turns too, while its cursor is still held.
+ * What every view says about gathering (DESIGN-UI section 9, in the phone's places): "Updated 12 min ago" under the
+ * large title, the catch-up pair while the first walk runs (the tab bar's accessory on iOS 26 until something plays, a
+ * strip above the mini player otherwise), and which empty state a view with no rows draws. The first walk counts as
+ * running between turns too, until it finishes or Bandcamp pauses it; only a turn in flight moves the sweep.
  */
 import { soFar, updatedAgo, copy } from '@/copy';
 import { useNow } from '@/lib/useNow';
@@ -12,7 +13,7 @@ import { readStoredIdentity, WALK_KEY } from './gatherSink';
 
 export type StatusLine =
   | { readonly kind: 'updated'; readonly text: string }
-  | { readonly kind: 'catchUp'; readonly primary: string; readonly secondary: string | null };
+  | { readonly kind: 'catchUp'; readonly primary: string; readonly secondary: string | null; readonly moving: boolean };
 
 export type GatherStatus = {
   /** False until the store has answered; views draw no empty state before it. */
@@ -31,14 +32,17 @@ export function useGatherStatus(): GatherStatus {
     walkPending: (await readKv(db, WALK_KEY)) !== null,
   }));
   const hasIdentity = held?.identity != null || gather.identity !== null;
-  const catchingUp = hasIdentity && !gather.initialWalkDone && (gather.phase !== 'idle' || held?.walkPending === true);
+  const catchingUp =
+    hasIdentity &&
+    !gather.initialWalkDone &&
+    (gather.phase !== 'idle' || held?.walkPending === true || gather.pausedReason === null);
 
   let line: StatusLine | null = null;
   if (catchingUp) {
     line =
       gather.storiesSoFar === 0 && gather.phase === 'probing'
-        ? { kind: 'catchUp', primary: copy.catchUp.settingUp, secondary: null }
-        : { kind: 'catchUp', primary: soFar(gather.storiesSoFar), secondary: copy.catchUp.gathering };
+        ? { kind: 'catchUp', primary: copy.catchUp.settingUp, secondary: null, moving: true }
+        : { kind: 'catchUp', primary: soFar(gather.storiesSoFar), secondary: copy.catchUp.gathering, moving: gather.phase !== 'idle' };
   } else if (gather.lastSuccessAt !== null) {
     line = { kind: 'updated', text: updatedAgo(gather.lastSuccessAt, now) };
   }
