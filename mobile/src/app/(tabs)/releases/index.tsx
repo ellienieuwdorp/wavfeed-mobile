@@ -6,6 +6,7 @@
 import { FlatList } from 'react-native';
 
 import { GapRow } from '@/components/GapRow';
+import { useDockClearance } from '@/components/player/Dock';
 import { FactLine, ReleaseRow } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BandHead, WeekHead } from '@/components/WeekHead';
@@ -45,13 +46,14 @@ function render({ item }: { item: Item }) {
 }
 
 export default function NewReleases() {
+  const clearance = useDockClearance();
   return (
     <FlatList
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: 32 }}
+      contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />
   );
 }

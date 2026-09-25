@@ -11,10 +11,10 @@ import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
-export function Heart({ title, initial = false }: { title: string; initial?: boolean }) {
+export function Heart({ title, initial = false, box: boxSize, icon }: { title: string; initial?: boolean; box?: number; icon?: number }) {
   const { c } = useTokens();
   const [on, setOn] = useState(initial);
-  const box = ios ? 44 : 48;
+  const box = boxSize ?? (ios ? 44 : 48);
   return (
     <Pressable
       onPress={() => setOn(!on)}
@@ -23,7 +23,7 @@ export function Heart({ title, initial = false }: { title: string; initial?: boo
       accessibilityLabel={on ? copy.heart.remove(title) : copy.heart.add(title)}
       style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Ionicons name={on ? 'heart' : 'heart-outline'} size={ios ? 20 : 22} color={on ? c.wishlist : c.faint} />
+      <Ionicons name={on ? 'heart' : 'heart-outline'} size={icon ?? (ios ? 20 : 22)} color={on ? c.wishlist : c.faint} />
     </Pressable>
   );
 }

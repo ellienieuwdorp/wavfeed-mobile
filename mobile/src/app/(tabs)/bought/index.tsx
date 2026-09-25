@@ -8,6 +8,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { AvatarStack } from '@/components/AvatarStack';
 import { GapRow } from '@/components/GapRow';
+import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented } from '@/components/Segmented';
@@ -90,13 +91,14 @@ function render({ item }: { item: Item }) {
 }
 
 export default function Bought() {
+  const clearance = useDockClearance();
   return (
     <FlatList
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: 32 }}
+      contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />
   );
 }

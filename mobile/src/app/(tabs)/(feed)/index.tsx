@@ -6,6 +6,7 @@
 import { ScrollView, View } from 'react-native';
 
 import { CoverTile, ModuleHead, OverlapPanel, QuoteLine } from '@/components/Curated';
+import { useDockClearance } from '@/components/player/Dock';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { copy } from '@/copy';
 import { COVERS, OVERLAP, QUOTES } from '@/mock/data';
@@ -13,8 +14,9 @@ import { useTokens } from '@/theme/tokens';
 
 export default function Feed() {
   const { type } = useTokens();
+  const clearance = useDockClearance();
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 32 + clearance }}>
       <ScreenHeader />
       <View style={{ gap: 24, paddingTop: 4 }}>
         <View>

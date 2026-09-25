@@ -4,7 +4,7 @@
  * with accent section heads (the v2 client canvas, sections 6 and 7).
  */
 import { Children, type ReactNode } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTokens } from '@/theme/tokens';
 
@@ -41,17 +41,36 @@ export function Group({ children, gapAbove = false }: { children: ReactNode; gap
 
 export type Tone = 'ink' | 'accent' | 'danger';
 
-export function Cell({ title, sub, leading, trailing, tone = 'ink' }: { title: ReactNode; sub?: string; leading?: ReactNode; trailing?: ReactNode; tone?: Tone }) {
+export function Cell({
+  title,
+  sub,
+  leading,
+  trailing,
+  tone = 'ink',
+  onPress,
+}: {
+  title: ReactNode;
+  sub?: string;
+  leading?: ReactNode;
+  trailing?: ReactNode;
+  tone?: Tone;
+  onPress?: () => void;
+}) {
   const { c } = useTokens();
   const colour = tone === 'accent' ? c.accent : tone === 'danger' ? c.danger : c.ink;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ios ? 12 : 16, minHeight: ios ? 46 : 56, paddingVertical: 6, paddingHorizontal: 16 }}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: ios ? 12 : 16, minHeight: ios ? 46 : 56, paddingVertical: 6, paddingHorizontal: 16, backgroundColor: pressed ? c.track : undefined })}
+    >
       {leading}
       <View style={{ flex: 1, gap: 2 }}>
         {typeof title === 'string' ? <Text style={{ fontSize: 16, color: colour }}>{title}</Text> : title}
         {sub ? <Text style={{ fontSize: ios ? 13 : 14, color: c.sub }}>{sub}</Text> : null}
       </View>
       {trailing}
-    </View>
+    </Pressable>
   );
 }

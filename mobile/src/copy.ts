@@ -45,9 +45,7 @@ export const copy = {
     signedInAs: (name: string) => `Signed in as ${name}`,
     gatherNow: 'Gather now',
     signOut: ios ? 'Sign out of Bandcamp on this iPhone' : 'Sign out of Bandcamp on this phone',
-    custody: ios
-      ? "This iPhone gathers your feed with its own Bandcamp sign-in, kept in this phone's keychain. wavfeed never receives it."
-      : 'This phone gathers your feed with its own Bandcamp sign-in, kept in the Android keystore. wavfeed never receives it.',
+    custody: `${ios ? 'This iPhone' : 'This phone'} gathers your feed with its own Bandcamp sign-in, kept on ${thisDevice}. wavfeed never receives it.`,
     devicesHead: 'Connected devices',
     thisDevice,
     disconnect: 'Disconnect',
@@ -59,5 +57,29 @@ export const copy = {
     logOut: 'Log out',
     deleteAccount: 'Delete my account',
     deleteAccountNote: 'Removes your account and everything gathered for it.',
+  },
+  connect: {
+    title: 'Connect Bandcamp',
+    lead: `Your feed is already here. To keep it fresh from ${thisDevice}, sign in to Bandcamp once.`,
+    custody:
+      "The sign-in stays on this phone and is used only to read your own feed and to add or remove wishlist items you press. wavfeed's server never receives it. Signing out of Bandcamp on this phone removes it.",
+    signIn: 'Sign in to Bandcamp',
+    notNow: 'Not now',
+  },
+  notice: {
+    signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,
+    signInAgain: 'Sign in again',
+    dismiss: 'Dismiss',
+  },
+  player: {
+    open: (title: string) => `Open the player for ${title}`,
+    play: 'Play',
+    pause: 'Pause',
+    previous: 'Previous track',
+    next: 'Next track',
+    buy: 'Buy on Bandcamp \u2197',
+    buyLabel: 'Buy on Bandcamp',
+    trackTitle: (n: number, title: string) => `${n}. ${title}`,
+    openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
   },
 } as const;

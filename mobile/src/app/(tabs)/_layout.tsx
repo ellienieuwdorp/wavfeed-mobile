@@ -1,7 +1,8 @@
 /**
- * The four tabs in canvas order, Feed first and initial, with Ionicons outline
- * when inactive and filled when active, tinted with the accent (the v2 client
- * canvas, sections 6 and 7). Each tab owns a stack for its native header.
+ * The four tabs on Android and the web, in canvas order, Feed first and initial,
+ * with Ionicons outline when inactive and filled when active, tinted with the
+ * accent (the v2 client canvas, section 7). iOS uses `_layout.ios.tsx`, the native
+ * tabs of task 0036 decision 5. Each tab owns a stack for its native header.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';

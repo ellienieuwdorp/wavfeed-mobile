@@ -1,0 +1,138 @@
+/**
+ * The Projection's vocabulary: normalized Fans, Pages, Releases and Stories as plain values (ADR-0004).
+ * Ported from server/packages/projection/src/types.ts (task 0036).
+ */
+
+export type StoryType = 'purchase' | 'new_release' | 'wishlist';
+
+/** Bandcamp's tralbum discriminator: "a" album, "t" track. */
+export type ItemType = 'a' | 't';
+
+export type ReleaseTag = {
+  readonly name: string;
+  readonly normName: string;
+  readonly isLoc: boolean;
+};
+
+export type ParsedFan = {
+  readonly fanId: number;
+  readonly username: string;
+  readonly name: string | null;
+  readonly location: string | null;
+  readonly imageId: number | null;
+};
+
+export type ParsedPage = {
+  readonly bandId: number;
+  readonly name: string;
+  readonly url: string | null;
+  readonly imageId: number | null;
+  readonly genreId: number | null;
+};
+
+export type ParsedRelease = {
+  readonly itemType: ItemType;
+  readonly itemId: number;
+  readonly bandId: number;
+  readonly title: string;
+  readonly url: string;
+  readonly albumId: number | null;
+  readonly albumTitle: string | null;
+  readonly artId: number | null;
+  /** Only new-release Stories carry one (ADR-0011). */
+  readonly releaseDate: Date | null;
+  readonly label: string | null;
+  readonly labelId: number | null;
+  readonly price: number | null;
+  readonly currency: string | null;
+  readonly featuredTrackId: number | null;
+  readonly featuredTrackTitle: string | null;
+  readonly featuredTrackDuration: number | null;
+  readonly numStreamableTracks: number | null;
+  readonly alsoCollectedCount: number | null;
+  readonly isPreorder: boolean;
+  readonly tags: readonly ReleaseTag[];
+};
+
+/** `fanId` is null for new releases: nobody acted. */
+export type ParsedStory = {
+  readonly storyType: StoryType;
+  readonly fanId: number | null;
+  readonly itemType: ItemType;
+  readonly itemId: number;
+  readonly storyDate: Date;
+  readonly reviewText: string | null;
+};
+
+export type ParsedReleasePage = {
+  readonly itemType: ItemType;
+  readonly itemId: number;
+  readonly releaseDate: Date | null;
+  /** Only album pages state this. */
+  readonly isPreorder: boolean | null;
+  readonly numStreamableTracks: number | null;
+};
+
+export type ParsedCatalogRelease = {
+  readonly itemType: ItemType;
+  readonly itemId: number;
+  readonly bandId: number;
+  readonly title: string;
+  /** Null when the item carried no link; such an item can only enrich a held Release. */
+  readonly url: string | null;
+  readonly artId: number | null;
+  readonly releaseDate: Date | null;
+  readonly isPreorder: boolean | null;
+};
+
+export type ParsedBandDetails = {
+  readonly bandId: number;
+  readonly pages: readonly ParsedPage[];
+  readonly releases: readonly ParsedCatalogRelease[];
+  readonly skipped: SkippedCounts;
+};
+
+export type ParsedFollowingBands = {
+  readonly fanId: number | null;
+  readonly page: number | null;
+  /** The walk's start; null on a document that folds additively and sweeps nothing. */
+  readonly snapshotStartedAt: Date | null;
+  readonly bandIds: readonly number[];
+  readonly terminal: boolean;
+  readonly skipped: SkippedCounts;
+};
+
+export type ParsedWishlistItem = {
+  readonly itemType: ItemType;
+  readonly itemId: number;
+  readonly bandId: number | null;
+  readonly addedAt: Date | null;
+};
+
+export type ParsedWishlistItems = {
+  readonly snapshotStartedAt: Date;
+  readonly items: readonly ParsedWishlistItem[];
+  /** Only a page Bandcamp said ended the wishlist may sweep. */
+  readonly terminal: boolean;
+  readonly skipped: SkippedCounts;
+};
+
+export type SkippedCounts = {
+  readonly unknownStoryType: number;
+  readonly unparsable: number;
+  readonly missingFanInfo: number;
+};
+
+export type MutableSkippedCounts = { -readonly [K in keyof SkippedCounts]: SkippedCounts[K] };
+
+export function noSkips(): MutableSkippedCounts {
+  return { unknownStoryType: 0, unparsable: 0, missingFanInfo: 0 };
+}
+
+export type ParsedFeedUpdates = {
+  readonly fans: readonly ParsedFan[];
+  readonly pages: readonly ParsedPage[];
+  readonly releases: readonly ParsedRelease[];
+  readonly stories: readonly ParsedStory[];
+  readonly skipped: SkippedCounts;
+};

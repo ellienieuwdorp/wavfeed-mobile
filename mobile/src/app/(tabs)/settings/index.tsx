@@ -1,14 +1,17 @@
 /**
  * Settings in the canvas order: account, Bandcamp on this device, connected
  * devices, the one notification switch, appearance, password, Log out, and
- * Delete my account alone (the v2 client canvas). Only the switch and the
- * appearance picker respond; appearance overrides the system scheme.
+ * Delete my account alone (the v2 client canvas). The switch and the appearance
+ * picker respond, appearance overriding the system scheme, and the sign-in row
+ * opens Connect Bandcamp.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
 import { Appearance, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
+import { useDockClearance } from '@/components/player/Dock';
 import { Segmented } from '@/components/Segmented';
 import { Cell, Group, GroupFoot, GroupHead } from '@/components/SettingsList';
 import { copy, sep } from '@/copy';
@@ -35,6 +38,8 @@ export default function Settings() {
   const { c } = useTokens();
   const [announces, setAnnounces] = useState(true);
   const [scheme, setScheme] = useState<Scheme>('system');
+  const clearance = useDockClearance();
+  const connect = () => router.push('/connect');
 
   const pickScheme = (next: Scheme) => {
     setScheme(next);
@@ -54,7 +59,7 @@ export default function Settings() {
   );
 
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 8 : 0, paddingBottom: 40 }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 8 : 0, paddingBottom: 40 + clearance }}>
       <Group>
         <Cell
           leading={
@@ -73,7 +78,15 @@ export default function Settings() {
           leading={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.online }} />}
           title={s.signedInAs(ACCOUNT.bandcamp)}
           sub={ios ? undefined : ACCOUNT.gathered}
-          trailing={ios ? <Text style={{ fontSize: 15, color: c.sub }}>{ACCOUNT.gathered}</Text> : undefined}
+          trailing={
+            ios ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 15, color: c.sub }}>{ACCOUNT.gathered}</Text>
+                <Chevron />
+              </View>
+            ) : undefined
+          }
+          onPress={connect}
         />
         <Cell title={s.gatherNow} tone="accent" />
         <Cell title={s.signOut} tone="accent" />
