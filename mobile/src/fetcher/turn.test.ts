@@ -151,6 +151,30 @@ describe('the feed walk', () => {
     assert.equal(releasePages.length, 5);
     assert.equal(gather.releasesDated, 5);
   });
+
+  test('the last success moves when the turn ends, not on its first answer', async () => {
+    feed = stories(3, 1000, 86_400);
+    await turn();
+    const before = gather.lastSuccessAt;
+    assert.notEqual(before, null);
+
+    clock += 15 * 60_000;
+    feed = [...stories(2, 2000, 60), ...feed];
+    const midTurn: (number | null)[] = [];
+    sink = createGatherSink({
+      db,
+      setGather: (state) => {
+        gather = state;
+        if (state.phase !== 'idle') midTurn.push(state.lastSuccessAt);
+      },
+      invalidate: () => undefined,
+    });
+    await turn(600_000, 'refresh');
+    assert.ok(midTurn.length > 0);
+    assert.ok(midTurn.every((at) => at === before), 'the Updated line holds while the spinner turns');
+    assert.equal(gather.phase, 'idle');
+    assert.ok(gather.lastSuccessAt !== null && before !== null && gather.lastSuccessAt > before);
+  });
 });
 
 describe('the probe', () => {
