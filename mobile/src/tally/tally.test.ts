@@ -9,7 +9,7 @@ import { join, relative, sep } from 'node:path';
 import { describe, test } from 'node:test';
 
 import { SCREENS, WIRE } from './catalogue';
-import { buildContext, countBucket, durationBucket, gateOpen, isLocalTallyUrl, screenFor, sendEnv, type BuildFacts } from './tally';
+import { buildContext, countBucket, durationBucket, gateOpen, isLocalTallyUrl, screenFor, screenForRoute, sendEnv, type BuildFacts } from './tally';
 
 describe('buckets', () => {
   test('counts fall into their bucket at each edge', () => {
@@ -59,6 +59,18 @@ describe('screenFor', () => {
     assert.equal(screenFor('/releases/upcoming/?item=4102938475#x'), 'releases_upcoming');
     assert.equal(screenFor('/bought-by?fans=[2214537]'), 'bought_by');
     assert.equal(screenFor('/ellie/feed'), 'other');
+  });
+
+  test("a route file's module id, as a tab's boundary sees it, is its pathname's screen", () => {
+    const cases = [
+      ['./(tabs)/(feed)/index.tsx', 'feed'],
+      ['./(tabs)/releases/upcoming.tsx', 'releases_upcoming'],
+      ['./(tabs)/bought/index.tsx', 'bought'],
+      ['./(tabs)/settings/index.tsx', 'settings'],
+      ['./player.tsx', 'player'],
+      ['./(tabs)/_layout.ios.tsx', 'other'],
+    ] as const;
+    for (const [file, screen] of cases) assert.equal(screenForRoute(file), screen, file);
   });
 });
 

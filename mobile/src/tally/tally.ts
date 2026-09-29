@@ -69,6 +69,12 @@ export function screenFor(pathname: string): Screen {
   return SCREEN_PATHS[trimmed] ?? 'other';
 }
 
+/** A route file's screen, `./(tabs)/releases/upcoming.tsx` read as the pathname `/releases/upcoming` it serves. */
+export function screenForRoute(file: string): Screen {
+  const parts = file.replace(/^\.?\//, '').replace(/(\.(ios|android))?\.[jt]sx?$/, '').split('/');
+  return screenFor(`/${parts.filter((part) => part !== 'index' && !/^\(.*\)$/.test(part)).join('/')}`);
+}
+
 /** The Install's handle shown in Settings and quoted for erasure: the Install id's first six characters. */
 export function sharingCode(install: string): string {
   return install.slice(0, 6);
