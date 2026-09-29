@@ -76,7 +76,7 @@ describe('sharing', () => {
 
   test('turning off drops the queue, the counts and the Install id, and a new yes mints a new id', async () => {
     await turnSharingOn(db, INSTALL, NOW);
-    assert.equal((await turnSharingOn(db, 'another-id', NOW)).install, INSTALL, 'a yes already held keeps its id');
+    assert.equal((await turnSharingOn(db, newId(), NOW)).install, INSTALL, 'a yes already held keeps its id');
     await queue(3);
     await settleBatch(db, (await takeBatch(db, newId, NOW))?.batch ?? '', 'refused');
     assert.ok((await readDropped(db)).refused > 0);
@@ -87,6 +87,15 @@ describe('sharing', () => {
     assert.deepEqual(await readDropped(db), { full: 0, old: 0, refused: 0 });
     const again = await turnSharingOn(db, 'd4e5f6a7-0000-4000-8000-000000000001', NOW + 1);
     assert.notEqual(again.install, INSTALL);
+  });
+
+  test('two presses of yes in flight keep one Install id, and an id that is not a UUID is refused', async () => {
+    const [a, b] = await Promise.all([turnSharingOn(db, INSTALL, NOW), turnSharingOn(db, newId(), NOW)]);
+    assert.equal(a.install, b.install);
+    assert.equal((await readSharing(db))?.install, a.install);
+    await turnSharingOff(db);
+    await assert.rejects(turnSharingOn(db, 'abc', NOW));
+    assert.equal(await readSharing(db), null);
   });
 });
 
@@ -140,6 +149,13 @@ describe('caps', () => {
     const newest = await db.getFirstAsync<{ t: number }>("select max(created_at) as t from tally_outbox where kind = 'error'");
     assert.equal(newest?.t, NOW + 409, 'the sixth launch wrote nothing');
     assert.equal((await readDropped(db)).full, 11);
+  });
+
+  test('an Error Report that cannot be written is lost without a throw', async () => {
+    const { db: closing, close } = await openTestStore();
+    await turnSharingOn(closing, INSTALL, NOW);
+    close();
+    assert.equal(enqueueErrorSync(closing, { errorsWritten: 0 }, report(NOW)), false);
   });
 
   test('rows older than 30 days are dropped before a send and counted as old', async () => {

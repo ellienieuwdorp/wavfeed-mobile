@@ -7,7 +7,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { deleteKv, readKv, writeKv } from '@/store/kv';
+import { readKv } from '@/store/kv';
 
 import { WIRE, type Tally } from './catalogue';
 import type { ErrorReport } from './errorReport';
@@ -21,10 +21,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** ceiling: 2,000 Tallies and 30 days queued offline, oldest dropped first; raise with the Worker's 31-day clock window. */
 export const MAX_TALLY_ROWS = 2_000;
 export const MAX_AGE_MS = 30 * DAY_MS;
-/** ceiling: the first 50 Error Reports are kept, since they sit closest to the cause; a crash loop adds no more. */
+/** ceiling: the first 50 Error Reports held and 10 written a launch, whatever the fault; a per-fingerprint cap is next. */
 export const MAX_ERROR_ROWS = 50;
 export const MAX_ERRORS_PER_LAUNCH = 10;
-/** ceiling: a batch stops at 60,000 bytes of rows, under the Worker's 64 KB cap with room for the envelope. */
+/** ceiling: 60,000 bytes of rows a batch, under the Worker's 64 KB with room for the envelope; gzip once Hermes can. */
 export const BATCH_BYTES = 60_000;
 
 const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)`;
@@ -34,13 +34,16 @@ export async function readSharing(db: SQLiteDatabase): Promise<Sharing | null> {
   return sharing?.on === true ? sharing : null;
 }
 
-/** A yes already held keeps its Install id; a new yes stores the id the caller minted. */
+/** A yes already held keeps its Install id, even against a second press in flight; a new yes stores the minted id. */
 export async function turnSharingOn(db: SQLiteDatabase, install: string, now: number): Promise<Sharing> {
-  const held = await readSharing(db);
-  if (held !== null) return held;
+  if (!WIRE.uuidPattern.test(install)) throw new Error('an Install id is a UUID');
   const sharing: Sharing = { on: true, install, since: now };
-  await writeKv(db, SHARING_KEY, sharing);
-  return sharing;
+  await db.runAsync(
+    `insert into kv (key, value) values (?1, ?2)
+     on conflict (key) do update set value = excluded.value where json_extract(kv.value, '$.on') is not 1`,
+    [SHARING_KEY, JSON.stringify(sharing)],
+  );
+  return (await readSharing(db)) ?? sharing;
 }
 
 /** The yes, the Install id, the drop counter and every queued row go together; the dropped Sharing is returned. */
@@ -63,9 +66,14 @@ async function bump(db: SQLiteDatabase, reason: DropReason, n: number): Promise<
   if (n > 0) await db.runAsync(BUMP, [reason, n]);
 }
 
-export async function readDropped(db: SQLiteDatabase): Promise<Dropped> {
-  const held = (await readKv<Partial<Dropped>>(db, DROPPED_KEY)) ?? {};
+function dropped(value: string | undefined): Dropped {
+  const held = value === undefined ? {} : (JSON.parse(value) as Partial<Dropped>);
   return { full: held.full ?? 0, old: held.old ?? 0, refused: held.refused ?? 0 };
+}
+
+export async function readDropped(db: SQLiteDatabase): Promise<Dropped> {
+  const row = await db.getFirstAsync<{ value: string }>('select value from kv where key = ?', [DROPPED_KEY]);
+  return dropped(row?.value);
 }
 
 /** Queues a Tally unless sharing is off; the oldest Tallies past the cap are dropped and counted. */
@@ -177,14 +185,14 @@ export function retryAfterMs(header: string | null): number {
   return header !== null && /^\d+$/.test(header.trim()) ? Number(header.trim()) * 1000 : 0;
 }
 
-/** After a flush: one `tallies_dropped` per reason with drops, then the counter starts again. */
+/** After a flush: one `tallies_dropped` per reason with drops. The counter is read and cleared in one statement. */
 export async function enqueueDropped(db: SQLiteDatabase, at: TallyAt): Promise<number> {
-  const dropped = await readDropped(db);
-  await deleteKv(db, DROPPED_KEY);
+  const row = await db.getFirstAsync<{ value: string }>('delete from kv where key = ? returning value', [DROPPED_KEY]);
+  const counts = dropped(row?.value);
   let queued = 0;
   for (const reason of ['full', 'old', 'refused'] as const) {
-    if (dropped[reason] === 0) continue;
-    const tally: Tally = { name: 'tallies_dropped', props: { reason, dropped: countBucket(dropped[reason]) } };
+    if (counts[reason] === 0) continue;
+    const tally: Tally = { name: 'tallies_dropped', props: { reason, dropped: countBucket(counts[reason]) } };
     if (await enqueueTally(db, tally, at)) queued += 1;
   }
   return queued;
