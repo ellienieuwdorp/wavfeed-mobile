@@ -167,7 +167,8 @@ export function fetchPost(send: typeof fetch): Post {
       const response = await send(url, {
         method: 'POST',
         credentials: 'omit',
-        headers: { 'content-type': 'application/json' },
+        // Named so the platform adds none of its own: iOS would send the phone's languages and its Darwin build.
+        headers: { 'content-type': 'application/json', 'accept-language': '*', 'user-agent': 'wavfeed' },
         body,
         signal: controller.signal,
       });

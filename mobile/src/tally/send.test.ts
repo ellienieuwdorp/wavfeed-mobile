@@ -259,6 +259,16 @@ describe('fetchPost', () => {
     return { calls, post: fetchPost(send) };
   }
 
+  test('posts the body with no cookies and only headers it names itself', async () => {
+    const { calls, post } = recorder();
+    assert.deepEqual(await post('http://localhost:8787/v1/batch', '{}', live()), { status: 200, retryAfter: '60' });
+    assert.equal(calls.length, 1);
+    const init = calls[0]?.init;
+    assert.equal(init?.method, 'POST');
+    assert.equal(init?.credentials, 'omit');
+    assert.deepEqual(init?.headers, { 'content-type': 'application/json', 'accept-language': '*', 'user-agent': 'wavfeed' });
+  });
+
   test('a signal that fired before the call sends nothing', async () => {
     const { calls, post } = recorder();
     const controller = new AbortController();
