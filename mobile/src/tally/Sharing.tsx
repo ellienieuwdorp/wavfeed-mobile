@@ -88,22 +88,6 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     gather.current = app.gather;
   });
 
-  useEffect(() => {
-    if (ENV === null) return;
-    let alive = true;
-    readSharing(db)
-      .then((answer) => {
-        if (!alive) return;
-        held.current = answer?.install ?? null;
-        setSharing(answer);
-      })
-      .catch(() => undefined)
-      .finally(() => alive && setLoaded(true));
-    return () => {
-      alive = false;
-    };
-  }, [db]);
-
   const enqueue = useCallback(
     async (tally: Tally): Promise<void> => {
       if (held.current === null) return;
@@ -126,6 +110,24 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const track = useCallback((tally: Tally) => void later(() => enqueue(tally)).catch(() => undefined), [later, enqueue]);
+
+  // The answer is read on the chain, queued in a layout effect ahead of every child's effect, so a Tally tracked before
+  // it lands waits for it and is not dropped.
+  useLayoutEffect(() => {
+    if (ENV === null) return;
+    let alive = true;
+    later(async () => {
+      const answer = await readSharing(db);
+      if (alive) held.current = answer?.install ?? null;
+      return answer;
+    })
+      .then((answer) => alive && setSharing(answer))
+      .catch(() => undefined)
+      .finally(() => alive && setLoaded(true));
+    return () => {
+      alive = false;
+    };
+  }, [db, later]);
 
   // The gather runner sits above this provider, in the app state, and reaches `track` through the binding.
   const { bindTally } = app;

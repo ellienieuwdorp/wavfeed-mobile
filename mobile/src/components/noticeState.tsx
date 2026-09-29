@@ -34,7 +34,7 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   const [line, setLine] = useState<NoticeLine | null>(null);
   const [signedOutDismissed, setSignedOutDismissed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { track, loaded } = useSharing();
+  const { track } = useSharing();
   // A dismiss lasts until the phone is signed in again; set during render, so the reset lands before anything commits.
   if (!signedOut && signedOutDismissed) setSignedOutDismissed(false);
 
@@ -53,15 +53,15 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   );
 
   const notice = line ?? (signedOut && !signedOutDismissed ? SIGNED_OUT : null);
-  // Once per sign-out, however often a raised line covers it, and only once the stored answer has been read.
+  // Once per sign-out, however often a raised line covers it.
   const signedOutShown = notice === SIGNED_OUT;
   const counted = useRef(false);
   useEffect(() => {
     if (!signedOut) counted.current = false;
-    if (!signedOutShown || !loaded || counted.current) return;
+    if (!signedOutShown || counted.current) return;
     counted.current = true;
     track({ name: 'notice_shown', props: { code: 'signed_out' } });
-  }, [signedOut, signedOutShown, loaded, track]);
+  }, [signedOut, signedOutShown, track]);
   const dismiss = useCallback(() => {
     if (line) setLine(null);
     else setSignedOutDismissed(true);
