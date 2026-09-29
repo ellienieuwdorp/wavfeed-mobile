@@ -81,6 +81,11 @@ reads for progress. One open Sync Run per user at most; `sync_runs` in the schem
 On screen it is never named: the UI says things like "gathering your history".
 _Avoid_: onboarding job, backfill task, import
 
+**gather**:
+One turn of the phone's fetching, whatever started it (open, refresh, timer).
+The first walk is a chain of gathers that ends the Sync Run.
+_Avoid_: sync, poll, fetch run
+
 ### Feed concepts
 
 **Story**:
@@ -167,3 +172,23 @@ One press of the heart on its way to Bandcamp: a row in `wishlist_actions`
 the API queues and the worker carries out, holding the outcome it came back
 with (ADR-0016). It is the press, not the item.
 _Avoid_: job, task, queue entry, mutation
+
+### Usage concepts
+
+**Tally**:
+One coded note that something happened in the app, with only closed codes and
+bucketed counts as properties, sent to wavfeed's own backend only after the Fan
+says yes (ADR-0021).
+_Avoid_: event, record, signal, hit, ping, metric, telemetry
+
+**Error Report**:
+A scrubbed note of a thrown error: its name, a message with URLs, quoted strings
+and long digit runs removed, minified frames, the screen code and a fingerprint.
+Native crashes are not Error Reports; the stores hold those.
+_Avoid_: crash report, exception, log
+
+**Install**:
+One copy of the app on one phone, known by a random id minted when sharing is
+turned on and dropped when it is turned off or the store is removed. Shown to
+the Fan as a six-character code.
+_Avoid_: user, visitor, client, device id
