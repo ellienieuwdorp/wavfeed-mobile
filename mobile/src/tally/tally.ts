@@ -111,13 +111,23 @@ export function isLocalTallyUrl(url: string): boolean {
   return tailnet !== null && Number(tailnet[1]) >= 64 && Number(tailnet[1]) <= 127;
 }
 
+/** The URL names the ingest route itself; a bare host would answer 404, which the sender drops as refused. */
+function isIngestEndpoint(url: string): boolean {
+  try {
+    return new URL(url).pathname === '/v1/batch';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The environment this build sends under, or null when it can never send: a development bundle only with the
  * override and only to a local Worker, a release build only outside Expo Go, only to a remote Worker and only as
- * preview or production. The ask and the Settings group show only when this is not null.
+ * preview or production, and always only to the ingest route. The ask and the Settings group show only when this is
+ * not null.
  */
 export function sendEnv(build: BuildFacts): Env | null {
-  if (!build.url || !build.key) return null;
+  if (!build.url || !build.key || !isIngestEndpoint(build.url)) return null;
   const local = isLocalTallyUrl(build.url);
   if (build.dev) return build.devOverride && local ? 'development' : null;
   if (build.expoGo || local) return null;

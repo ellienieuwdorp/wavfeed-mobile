@@ -98,6 +98,8 @@ describe('the sharing gate', () => {
       ['release build claiming development', { ...RELEASE, appEnv: 'development' }, null],
       ['release build with no key (a self-build)', { ...RELEASE, key: undefined }, null],
       ['release build with no URL', { ...RELEASE, url: '' }, null],
+      ['release build with the bare Worker host', { ...RELEASE, url: 'https://tallies-ingest.example.workers.dev' }, null],
+      ['release build with another route', { ...RELEASE, url: 'https://tallies-ingest.example.workers.dev/v1/health' }, null],
       ['dev bundle with the override, local', DEV, 'development'],
       ['dev bundle with the override in Expo Go, local', { ...DEV, expoGo: true }, 'development'],
       ['dev bundle with the override and a workers.dev URL', { ...DEV, url: RELEASE.url }, null],
