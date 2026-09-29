@@ -2,7 +2,8 @@
 /**
  * Error capture (task 0038 decision 10) over the real outbox on `node:sqlite`, with stand-ins for RN's `ErrorUtils`
  * and `HermesInternal`: the report is on disk before the previous handler runs, echoes of a fatal are not written,
- * the rejection tracker is release-only, and reports wait for the store and are kept only where it holds the yes.
+ * the rejection tracker is release-only, and reports wait for the store, and for a fold's write lock, and are kept
+ * only where the store holds the yes.
  */
 import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
@@ -10,6 +11,7 @@ import { beforeEach, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { openTestStore } from '../../test/nodeDb';
+import { withFoldLock } from '../store/foldLock';
 import type { ErrorReport } from './errorReport';
 import { createErrorReports, installErrorCapture, type ErrorReports, type ErrorUtilsLike, type HermesLike } from './errors';
 import { turnSharingOn } from './outbox';
@@ -148,6 +150,33 @@ describe('before the store opens', () => {
     early.report(new Error('after'), 'global', false);
     assert.deepEqual((await written()).map((r) => r.message), ['after']);
   });
+});
+
+test("a report made while a fold holds the write lock is written once the fold lets go, and not before", async () => {
+  await withFoldLock(db, async () => {
+    reports.report(new Error('during the fold'), 'promise', false);
+    assert.equal(writtenNow(), 0);
+  });
+  assert.deepEqual((await written()).map((r) => r.message), ['during the fold']);
+});
+
+test('a store removed during a fold takes nothing the fold held back', async () => {
+  await withFoldLock(db, async () => {
+    reports.report(new Error('during the fold'), 'promise', false);
+    reports.setSink(null);
+  });
+  reports.setSink(db);
+  assert.equal(writtenNow(), 0);
+});
+
+test('a boundary that knows its screen names it, whatever screen shows', async () => {
+  reports.setScreen('feed');
+  reports.reportCaught(new Error('out of view'), 'settings');
+  reports.reportCaught(new Error('in view'));
+  assert.deepEqual((await written()).map((r) => [r.message, r.screen]), [
+    ['out of view', 'settings'],
+    ['in view', 'feed'],
+  ]);
 });
 
 test('a boundary writes an error React hands it twice once', async () => {

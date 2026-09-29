@@ -18,6 +18,7 @@ import { parseReleasePage, ReleasePagePayloadError } from '../domain/parseReleas
 import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWishlistItems';
 import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
 import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
+import { withFoldLock } from './foldLock';
 import { BUSY_TIMEOUT_MS } from './migrations';
 import { listForProjection, type RawDocument } from './rawDocuments';
 
@@ -517,7 +518,7 @@ function tallyDocument(tally: Tally, outcome: ProjectDocumentResult): void {
  */
 async function foldDocument(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
   let outcome: ProjectDocumentResult = result('skipped');
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await withFoldLock(db, async (txn) => {
     await txn.execAsync(`pragma busy_timeout = ${BUSY_TIMEOUT_MS}`);
     outcome = await projectRawDocument(txn, doc);
     await txn.runAsync(
@@ -541,7 +542,7 @@ export async function fold(db: SQLiteDatabase): Promise<FoldSummary> {
 
 /** `band_sweeps` and `kv` are the Fetcher's own state, which no Raw Document could bring back, so they stay. */
 export async function rebuild(db: SQLiteDatabase): Promise<FoldSummary> {
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await withFoldLock(db, async (txn) => {
     await txn.execAsync(`
       pragma busy_timeout = ${BUSY_TIMEOUT_MS};
       delete from stories;
