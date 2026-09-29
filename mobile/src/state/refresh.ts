@@ -3,9 +3,12 @@
  * feed step lands (the turn moves `lastSuccessAt`, so "Updated just now" and the spinner change in one render), the
  * turn returns, or a ceiling passes. Release pages and the sweep after the feed run on without it. A refresh during
  * the first walk joins a chain of turns that can run for minutes, and the catch-up line already says so, so the
- * spinner lets go after a beat there.
+ * spinner lets go after a beat there. The spinner reads as stopped while its tab is out of view and as refreshing again
+ * on return: iOS stills a UIRefreshControl that leaves the window, and React Native's only restart is `refreshing`
+ * turning true on a control that has ended.
  */
-import { useCallback, useState } from 'react';
+import { useIsFocused } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useAppState } from './appState';
 
@@ -25,5 +28,17 @@ export function useRefresh(): { refreshing: boolean; onRefresh: () => void } {
     // Only this pull's own end clears it, so an earlier pull's ceiling cannot cut a later one short.
     void Promise.race([runGather('refresh').catch(() => undefined), ceiling]).finally(() => setPull((held) => (held === mine ? null : held)));
   }, [runGather, walkDone, lastSuccessAt]);
-  return { refreshing: pull !== null && lastSuccessAt === pull.from, onRefresh };
+  const inView = useInView();
+  return { refreshing: inView && pull !== null && lastSuccessAt === pull.from, onRefresh };
+}
+
+/** Focus, but a frame late on the way in: focus lands before the screen is back in the window, where begin is lost. */
+function useInView(): boolean {
+  const focused = useIsFocused();
+  const [settled, setSettled] = useState(focused);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSettled(focused));
+    return () => cancelAnimationFrame(frame);
+  }, [focused]);
+  return focused && settled;
 }
