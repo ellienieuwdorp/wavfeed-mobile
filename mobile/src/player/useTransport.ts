@@ -26,7 +26,7 @@ import {
 } from './transport';
 
 type TransportState = {
-  readonly current: PlayableRelease | null;
+  readonly release: PlayableRelease | null;
   readonly status: PlayerStatus;
   readonly tracks: readonly ApiReleaseTrack[];
   readonly index: number | null;
@@ -36,7 +36,7 @@ type TransportState = {
 };
 
 export type Transport = {
-  readonly current: PlayableRelease | null;
+  readonly release: PlayableRelease | null;
   readonly status: PlayerStatus;
   /** The Track in the transport; null while loading, when nothing can play, and at rest after the last one. */
   readonly track: ApiReleaseTrack | null;
@@ -59,7 +59,7 @@ export type Transport = {
 
 export type PlayerClock = { readonly position: number; readonly duration: number };
 
-const IDLE: TransportState = { current: null, status: 'idle', tracks: [], index: null, playing: false, expiresAt: 0, bandId: null };
+const IDLE: TransportState = { release: null, status: 'idle', tracks: [], index: null, playing: false, expiresAt: 0, bandId: null };
 const ZERO: PlayerClock = { position: 0, duration: 0 };
 const UPDATE_INTERVAL_MS = 250;
 /** Status events already queued when a control is pressed still describe the moment before it. */
@@ -120,7 +120,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const beginPlayback = useCallback(
     (from: TransportState, index: number) => {
       const track = from.tracks[index];
-      if (from.current === null || track === undefined || track.streamUrl === null) return;
+      if (from.release === null || track === undefined || track.streamUrl === null) return;
       quiet();
       seekingTo.current = null;
       // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
@@ -130,7 +130,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       }
       apply({ ...from, status: 'ready', index, playing: true });
       setClock({ position: 0, duration: durationOf(null, track) });
-      showOnLockScreen(audio, lockActive, from.current, track);
+      showOnLockScreen(audio, lockActive, from.release, track);
     },
     [apply, audio, quiet],
   );
@@ -140,22 +140,22 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       loadRef.current += 1;
       const token = loadRef.current;
       const before = stateRef.current;
-      const kept = force && before.current !== null && isSameRelease(before.current, release) ? before.tracks : [];
+      const kept = force && before.release !== null && isSameRelease(before.release, release) ? before.tracks : [];
       quiet();
       audio.pause();
-      apply({ ...IDLE, current: release, status: 'loading', tracks: kept });
+      apply({ ...IDLE, release, status: 'loading', tracks: kept });
       setClock(ZERO);
       const tracklist = await loadTracklist(depsRef.current, release, force).catch(() => null);
       if (loadRef.current !== token) return;
       if (tracklist === null) {
-        apply({ ...IDLE, current: release, status: 'error' });
+        apply({ ...IDLE, release, status: 'error' });
         return;
       }
       const wanted = tracklist.tracks.findIndex((track) => track.trackId === wantedTrackId && isStreamable(track));
       const index = wanted === -1 ? firstStreamableIndex(tracklist.tracks) : wanted;
       const expiresAt = Date.parse(tracklist.expiresAt);
       const loaded: TransportState = {
-        current: release,
+        release,
         status: 'ready',
         tracks: tracklist.tracks,
         index: null,
@@ -173,8 +173,8 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
     (index: number) => {
       const from = stateRef.current;
       const track = from.tracks[index];
-      if (from.current === null || track === undefined || track.streamUrl === null) return;
-      if (expired(from)) void loadAndStart(from.current, track.trackId, true);
+      if (from.release === null || track === undefined || track.streamUrl === null) return;
+      if (expired(from)) void loadAndStart(from.release, track.trackId, true);
       else beginPlayback(from, index);
     },
     [beginPlayback, loadAndStart],
@@ -182,7 +182,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
 
   const toggle = useCallback(() => {
     const from = stateRef.current;
-    if (from.status !== 'ready' || from.current === null) return;
+    if (from.status !== 'ready' || from.release === null) return;
     quiet();
     if (from.playing) {
       audio.pause();
@@ -201,7 +201,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const play = useCallback(
     (release: PlayableRelease) => {
       const from = stateRef.current;
-      if (from.current !== null && isSameRelease(from.current, release) && (from.status === 'ready' || from.status === 'loading')) {
+      if (from.release !== null && isSameRelease(from.release, release) && (from.status === 'ready' || from.status === 'loading')) {
         toggle();
         return;
       }
@@ -280,7 +280,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const track = state.index === null ? null : (state.tracks[state.index] ?? null);
   const transport = useMemo<Transport>(
     () => ({
-      current: state.current,
+      release: state.release,
       status: state.status,
       track,
       tracks: state.tracks,

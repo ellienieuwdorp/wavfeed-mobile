@@ -38,14 +38,16 @@ export const INVALIDATE_EVERY_MS = 2_000;
 /** A screen out of view follows the version once it has held still this long, or at once when it comes back into view. */
 export const UNFOCUSED_SETTLE_MS = 10_000;
 
-type Runner = (reason: GatherReason, app: AppState) => Promise<void>;
+/** What a gather turn needs from the app state: the store, the session and the two ways it reports back. */
+export type RunnerDeps = Pick<AppState, 'db' | 'session' | 'setGather' | 'invalidate'>;
+
+type Runner = (reason: GatherReason, app: RunnerDeps) => Promise<void>;
 
 export function AppStateProvider({ children, runner }: { children: ReactNode; runner?: Runner }) {
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [gather, setGather] = useState<GatherState>(EMPTY_GATHER_STATE);
   const [version, setVersion] = useState(0);
   const session = useMemo(() => new BandcampSession(), []);
-  const self = useRef<AppState | null>(null);
   const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
@@ -100,9 +102,9 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
 
   const runGather = useCallback(
     async (reason: GatherReason) => {
-      if (runner && self.current) await runner(reason, self.current);
+      if (runner && db) await runner(reason, { db, session, setGather, invalidate });
     },
-    [runner],
+    [runner, db, session, invalidate],
   );
 
   const removeStore = useCallback(async () => {
@@ -123,7 +125,6 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
 
   if (!db) return null;
   const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore };
-  self.current = value;
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
@@ -137,12 +138,10 @@ export function useAppState(): AppState {
 function useFollowedVersion(version: number): number {
   const focused = useIsFocused();
   const [followed, setFollowed] = useState(version);
+  // In view it follows at once, set during render so the screen never paints the old version first.
+  if (focused && followed !== version) setFollowed(version);
   useEffect(() => {
-    if (followed === version) return;
-    if (focused) {
-      setFollowed(version);
-      return;
-    }
+    if (focused || followed === version) return;
     const timer = setTimeout(() => setFollowed(version), UNFOCUSED_SETTLE_MS);
     return () => clearTimeout(timer);
   }, [version, focused, followed]);

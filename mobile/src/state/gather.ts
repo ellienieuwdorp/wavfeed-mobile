@@ -14,7 +14,7 @@ import type { GatherState } from '@/fetcher/sink';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
 import { readKv } from '@/store';
 
-import { useAppState, type AppState } from './appState';
+import { useAppState, type AppState, type RunnerDeps } from './appState';
 import { createGatherSink, GATHER_KEY, readStoredIdentity, WALK_KEY } from './gatherSink';
 
 export const BUDGET_MS: Readonly<Record<GatherReason, number>> = { open: 60_000, timer: 60_000, refresh: 120_000 };
@@ -22,7 +22,7 @@ export const BUDGET_MS: Readonly<Record<GatherReason, number>> = { open: 60_000,
 let running: Promise<TurnSummary> | null = null;
 let chain: Promise<void> | null = null;
 
-async function signedOutHere(app: AppState): Promise<boolean> {
+async function signedOutHere(app: RunnerDeps): Promise<boolean> {
   const state = await readKv<Partial<GatherState>>(app.db, GATHER_KEY);
   return state?.pausedReason === 'not_connected' && (await readStoredIdentity(app.db)) !== null;
 }
@@ -36,7 +36,7 @@ export const MAX_CHAINED_TURNS = 12;
 export const FAILED_RETRIES = 2;
 export const RETRY_AFTER_MS = 10_000;
 
-export async function runner(reason: GatherReason, app: AppState): Promise<void> {
+export async function runner(reason: GatherReason, app: RunnerDeps): Promise<void> {
   // A caller arriving mid-chain waits for the turn on the wire, not the whole chain, then re-reads the store.
   if (chain !== null) {
     await running?.catch(() => undefined);
@@ -49,7 +49,7 @@ export async function runner(reason: GatherReason, app: AppState): Promise<void>
   await chain;
 }
 
-async function runChain(reason: GatherReason, app: AppState): Promise<void> {
+async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
   if (await signedOutHere(app)) return;
   const sink = createGatherSink(app);
   let retries = 0;

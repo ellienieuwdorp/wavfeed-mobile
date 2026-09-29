@@ -20,13 +20,13 @@ const ClockContext = createContext<PlayerClock>({ position: 0, duration: 0 });
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const { transport, clock } = useTransport(useAppState());
-  const { play, toggle, next, previous, seek, playAt, current } = transport;
+  const { play, toggle, next, previous, seek, playAt, release } = transport;
   const actions = useMemo<PlayerActions>(() => ({ play, toggle, next, previous, seek, playAt }), [play, toggle, next, previous, seek, playAt]);
   const tree = createElement(ClockContext.Provider, { value: clock }, children);
   return createElement(
     ActionsContext.Provider,
     { value: actions },
-    createElement(ReleaseContext.Provider, { value: current }, createElement(PlayerContext.Provider, { value: transport }, tree)),
+    createElement(ReleaseContext.Provider, { value: release }, createElement(PlayerContext.Provider, { value: transport }, tree)),
   );
 }
 

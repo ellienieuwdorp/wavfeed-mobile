@@ -5,7 +5,7 @@
  * always carries the page tone or the bar's. iOS draws its large title natively (see TabStack), so every hook here is
  * inert there.
  */
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Animated, Platform, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -66,7 +66,7 @@ function CollapsedBar({ collapsed, background }: { collapsed: boolean; backgroun
   const { c } = useTokens();
   const insets = useSafeAreaInsets();
   const frame = useContext(FrameContext);
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [opacity] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(opacity, { toValue: collapsed ? 1 : 0, duration: FADE_MS, useNativeDriver: true }).start();
   }, [collapsed, opacity]);

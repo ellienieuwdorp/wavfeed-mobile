@@ -8,7 +8,7 @@
 import { LinearProgressIndicator, Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Easing, Platform, Text, View } from 'react-native';
 
 import { copy } from '@/copy';
@@ -31,7 +31,7 @@ export function useCatchUpLine(): CatchUpLine | null {
 function Sweep({ moving }: { moving: boolean }) {
   const { c } = useTokens();
   const [width, setWidth] = useState(0);
-  const at = useRef(new Animated.Value(0)).current;
+  const [at] = useState(() => new Animated.Value(0));
   useEffect(() => {
     at.setValue(0);
     if (!moving) return;

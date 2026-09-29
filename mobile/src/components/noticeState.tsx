@@ -5,7 +5,7 @@
  * dismiss lasts the session.
  */
 import { router } from 'expo-router';
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { copy } from '@/copy';
 import { useAppState } from '@/state/appState';
@@ -29,10 +29,9 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   const [line, setLine] = useState<NoticeLine | null>(null);
   const [signedOutDismissed, setSignedOutDismissed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A dismiss lasts until the phone is signed in again; set during render, so the reset lands before anything commits.
+  if (!signedOut && signedOutDismissed) setSignedOutDismissed(false);
 
-  useEffect(() => {
-    if (!signedOut) setSignedOutDismissed(false);
-  }, [signedOut]);
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
@@ -50,7 +49,7 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   }, [line]);
 
   const value = useMemo<Notices>(() => ({ notice, show, dismiss }), [notice, show, dismiss]);
-  return createElement(NoticeContext.Provider, { value }, children);
+  return <NoticeContext.Provider value={value}>{children}</NoticeContext.Provider>;
 }
 
 export function useNotice(): Notices {
