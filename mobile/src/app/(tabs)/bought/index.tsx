@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { MenuSelect } from '@/components/MenuSelect';
 import { useDockClearance } from '@/components/player/Dock';
-import { ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
+import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented, type Segment } from '@/components/Segmented';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
@@ -233,7 +233,7 @@ export default function Bought() {
     [],
   );
 
-  // Stable for the screen's life under STRICT_ROW_LIST: everything a cell shows rides on its item, so a switch or a
+  // Stable for the screen's life under ROW_LIST: everything a cell shows rides on its item, so a switch or a
   // spinner re-renders the header cell alone and leaves the mounted rows to their keys.
   const render = useCallback(
     ({ item }: { item: Item }) => {
@@ -262,7 +262,7 @@ export default function Bought() {
       data={data}
       keyExtractor={(i) => i.key}
       renderItem={render}
-      {...STRICT_ROW_LIST}
+      {...ROW_LIST}
       initialNumToRender={FIRST_SCREEN}
       windowSize={WINDOW_SIZE}
       {...appBar.scroll}

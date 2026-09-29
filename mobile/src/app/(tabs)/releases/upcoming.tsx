@@ -8,7 +8,7 @@ import { FlatList } from 'react-native';
 import { useAppBarAtRest } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
-import { FactLine, ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
+import { FactLine, ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
 import { actorSentence, copy, dayLabel, SELF_RELEASED } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
@@ -59,7 +59,7 @@ export default function UpcomingReleases() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
-      {...STRICT_ROW_LIST}
+      {...ROW_LIST}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />

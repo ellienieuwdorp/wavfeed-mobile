@@ -9,7 +9,7 @@ import { useAppBarAtRest } from '@/components/AppBar';
 import { Buyers } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
-import { ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
+import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
 import { copy, dayLabel } from '@/copy';
 import type { ApiFeedItem } from '@/domain/apiTypes';
@@ -65,7 +65,7 @@ export default function UpcomingBought() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
-      {...STRICT_ROW_LIST}
+      {...ROW_LIST}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />

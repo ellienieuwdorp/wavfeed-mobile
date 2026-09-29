@@ -16,6 +16,7 @@ import { AvatarStack } from './AvatarStack';
 import { ModuleHead } from './Curated';
 import { PlayArt } from './PlayArt';
 import type { RowRelease } from './playable';
+import { ROW_LIST } from './ReleaseRow';
 import { RowMenu } from './RowMenu';
 
 const ios = Platform.OS === 'ios';
@@ -70,6 +71,7 @@ export function UpcomingShelf({ cards, more }: { cards: readonly ShelfCard[]; mo
         keyExtractor={keyOf}
         renderItem={renderCard}
         ItemSeparatorComponent={Gap}
+        {...ROW_LIST}
         initialNumToRender={4}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: type.gutter }}

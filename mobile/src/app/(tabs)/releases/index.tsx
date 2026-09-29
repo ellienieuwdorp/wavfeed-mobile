@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { useDockClearance } from '@/components/player/Dock';
 import type { RowRelease } from '@/components/playable';
-import { FactLine, ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
+import { FactLine, ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
@@ -92,7 +92,7 @@ export default function NewReleases() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
-      {...STRICT_ROW_LIST}
+      {...ROW_LIST}
       {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
