@@ -43,7 +43,7 @@ let cursors: number[];
 let releasePages: number[];
 let bandDetailsAsked: number[];
 let probe: BandcampAnswer<Identity>;
-let feedRefusal: BandcampAnswer<FeedUpdatesPage> | null;
+let feedFailure: BandcampAnswer<FeedUpdatesPage> | null;
 let releasePage: (itemId: number) => BandcampAnswer<ReleasePage>;
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
@@ -62,7 +62,7 @@ const session: GatherSession = {
   async fetchFeedUpdates(_fanId, olderThan): Promise<BandcampAnswer<FeedUpdatesPage>> {
     clock += REQUEST_MS;
     cursors.push(olderThan);
-    if (feedRefusal !== null) return feedRefusal;
+    if (feedFailure !== null) return feedFailure;
     const cursor = replayFloor === null ? olderThan : Math.max(olderThan, replayFloor);
     const page = feed.filter((story) => story.at < cursor).sort((a, b) => b.at - a.at).slice(0, PAGE_SIZE);
     const dates = page.map((story) => story.at);
@@ -103,7 +103,7 @@ beforeEach(async () => {
   releasePages = [];
   bandDetailsAsked = [];
   probe = ok(FAN);
-  feedRefusal = null;
+  feedFailure = null;
   releasePage = datedPage;
 });
 
@@ -216,15 +216,15 @@ describe('the probe', () => {
   });
 });
 
-describe('a refused feed page', () => {
+describe('a feed page Bandcamp fails', () => {
   test('keeps its HTTP status beside the failure until a probe answers again', async () => {
     feed = stories(3, 1000);
-    feedRefusal = { kind: 'error', status: 503 };
+    feedFailure = { kind: 'error', status: 503 };
     await turn();
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 503);
 
-    feedRefusal = null;
+    feedFailure = null;
     assert.equal((await turn(600_000, 'timer')).outcome, 'done');
     assert.equal(gather.lastError, null);
     assert.equal(gather.lastStatus, null);
