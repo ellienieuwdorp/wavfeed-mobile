@@ -134,6 +134,21 @@ describe('the gather diff', () => {
     assert.equal(held?.name === 'gather_finished' && held.props.paused, 'logged_out');
     assert.equal(held?.name === 'gather_finished' && held.props.outcome, 'paused');
   });
+
+  test('a chain paused at the probe does not repeat the failure an earlier chain left standing', async () => {
+    await chain(600_000);
+    probe = { kind: 'unreachable' };
+    const [offline] = await chain(600_000);
+    assert.equal(offline?.name === 'gather_finished' && offline.props.failure, 'bandcamp_unreachable');
+    probe = { kind: 'logged_out' };
+    for (let i = 0; i < 2; i += 1) {
+      const [paused] = await chain(600_000, 'timer');
+      assert.deepEqual(
+        paused?.name === 'gather_finished' && [paused.props.outcome, paused.props.failure, paused.props.paused],
+        ['paused', 'none', 'logged_out'],
+      );
+    }
+  });
 });
 
 test('a failure with an HTTP status carries its class, and no failure carries none', () => {

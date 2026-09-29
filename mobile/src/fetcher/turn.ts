@@ -170,7 +170,12 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
 
   const probe = await session.probeIdentity();
   if (probe.kind === 'logged_out') {
-    await sink.patchGatherState({ pausedReason: before.identity === null ? 'not_connected' : 'logged_out' });
+    // The probe answered, so no failure stands; `gather_finished` reads `lastError` as this turn's (task 0038).
+    await sink.patchGatherState({
+      pausedReason: before.identity === null ? 'not_connected' : 'logged_out',
+      lastError: null,
+      lastStatus: null,
+    });
     return 'paused';
   }
   if (probe.kind === 'unreachable') {

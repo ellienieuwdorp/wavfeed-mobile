@@ -19,8 +19,9 @@ import {
 } from './catalogue';
 import type { TallyContext } from './wire';
 
+/** A value that is not a number falls in the lowest bucket, never the highest. */
 export function countBucket(n: number): CountBucket {
-  if (n <= 0) return '0';
+  if (!(n > 0)) return '0';
   if (n === 1) return '1';
   if (n <= 5) return '2 to 5';
   if (n <= 20) return '6 to 20';
@@ -33,7 +34,7 @@ const MINUTE = 60 * SECOND;
 
 /** Each bucket holds its lower edge: 1,000 ms is `1 to 3s`, 60,000 ms is `1 to 10m`. */
 export function durationBucket(ms: number): DurationBucket {
-  if (ms < SECOND) return '<1s';
+  if (!(ms >= SECOND)) return '<1s';
   if (ms < 3 * SECOND) return '1 to 3s';
   if (ms < 10 * SECOND) return '3 to 10s';
   if (ms < MINUTE) return '10 to 60s';
@@ -42,7 +43,7 @@ export function durationBucket(ms: number): DurationBucket {
 }
 
 export function crumbReplaysBucket(n: number): '0' | '1' | '2+' {
-  return n <= 0 ? '0' : n === 1 ? '1' : '2+';
+  return !(n > 0) ? '0' : n === 1 ? '1' : '2+';
 }
 
 /** Every route in `src/app`, by the pathname expo-router reports with groups and `index` dropped. */
@@ -164,18 +165,14 @@ export type ChainFacts = {
   readonly sweepBreakerOpened: boolean;
 };
 
-/** `lastStatus` joins `GatherState` with the misreport fixes (task 0038); until then it reads as absent. */
-export type GatherSeen = GatherState & { readonly lastStatus?: number | null };
-
-function statusClass(state: GatherSeen): '4xx' | '5xx' | 'none' {
-  const status = state.lastError === null ? null : (state.lastStatus ?? null);
+function statusClass(status: number | null): '4xx' | '5xx' | 'none' {
   if (status !== null && status >= 400 && status < 500) return '4xx';
   if (status !== null && status >= 500 && status < 600) return '5xx';
   return 'none';
 }
 
 /** `gather_finished` for every chain, preceded by `sync_run_finished` when the chain finished the first walk. */
-export function gatherTallies(before: GatherSeen, after: GatherSeen, chain: ChainFacts): Tally[] {
+export function gatherTallies(before: GatherState, after: GatherState, chain: ChainFacts): Tally[] {
   const tallies: Tally[] = [];
   if (!before.initialWalkDone && after.initialWalkDone) {
     const walk = chain.walkAtStart;
@@ -199,7 +196,7 @@ export function gatherTallies(before: GatherSeen, after: GatherSeen, chain: Chai
       walk_pending: chain.last.walkPending,
       failure: after.lastError ?? 'none',
       paused: after.pausedReason ?? 'none',
-      status_class: statusClass(after),
+      status_class: statusClass(after.lastError === null ? null : after.lastStatus),
       took: durationBucket(chain.endedAt - chain.startedAt),
       release_pages_failed: countBucket(chain.releasePagesFailed),
       sweep_breaker_opened: chain.sweepBreakerOpened,

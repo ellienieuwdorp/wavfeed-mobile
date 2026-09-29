@@ -15,7 +15,7 @@ describe('buckets', () => {
   test('counts fall into their bucket at each edge', () => {
     const cases: [number, string][] = [
       [0, '0'], [1, '1'], [2, '2 to 5'], [5, '2 to 5'], [6, '6 to 20'], [20, '6 to 20'],
-      [21, '21 to 100'], [100, '21 to 100'], [101, '100+'], [-3, '0'],
+      [21, '21 to 100'], [100, '21 to 100'], [101, '100+'], [-3, '0'], [Number.NaN, '0'],
     ];
     for (const [n, bucket] of cases) assert.equal(countBucket(n), bucket, `${n}`);
   });
@@ -23,7 +23,7 @@ describe('buckets', () => {
   test('durations hold their lower edge', () => {
     const cases: [number, string][] = [
       [-5, '<1s'], [999, '<1s'], [1_000, '1 to 3s'], [2_999, '1 to 3s'], [3_000, '3 to 10s'], [10_000, '10 to 60s'],
-      [59_999, '10 to 60s'], [60_000, '1 to 10m'], [599_999, '1 to 10m'], [600_000, '10m+'],
+      [59_999, '10 to 60s'], [60_000, '1 to 10m'], [599_999, '1 to 10m'], [600_000, '10m+'], [Number.NaN, '<1s'],
     ];
     for (const [ms, bucket] of cases) assert.equal(durationBucket(ms), bucket, `${ms} ms`);
   });
