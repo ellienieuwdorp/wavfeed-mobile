@@ -1,19 +1,25 @@
 /**
- * What every view says about gathering (DESIGN-UI section 9, in the phone's places): "Updated 12 min ago" under the
- * large title, the catch-up pair while the first walk runs (the tab bar's accessory on iOS 26 until something plays, a
- * strip above the mini player otherwise), and which empty state a view with no rows draws. The first walk counts as
- * running between turns too, until it finishes or Bandcamp pauses it; only a turn in flight moves the sweep.
+ * What every view says about gathering (DESIGN-UI section 9, in the phone's places): the line under the large title,
+ * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open (task 0040); the catch-up
+ * pair (the tab bar's accessory on iOS 26 until something plays, a strip above the mini player otherwise) with how far
+ * back the walk has reached and, once the depth probe has a floor, a fill towards it; and which empty state a view with
+ * no rows draws. The first walk counts as running between turns too, until it finishes or Bandcamp pauses it; only a
+ * turn in flight moves the indeterminate sweep.
  */
-import { soFar, updatedAgo, copy } from '@/copy';
+import { backTo, soFar, updatedAgo, copy } from '@/copy';
 import { useNow } from '@/lib/useNow';
-import { readKv } from '@/store';
 
 import { useAppState, useLiveQuery } from './appState';
-import { readStoredIdentity, WALK_KEY } from './gatherSink';
+import { readStoredIdentity, readStoredWalk } from './gatherSink';
+import { walkProgress } from './walkProgress';
 
-export type StatusLine =
-  | { readonly kind: 'updated'; readonly text: string }
-  | { readonly kind: 'catchUp'; readonly primary: string; readonly secondary: string | null; readonly moving: boolean };
+export type CatchUpLine = {
+  readonly primary: string;
+  readonly secondary: string | null;
+  readonly moving: boolean;
+  /** 0 to 1 once the walk has a floor to fill towards; null draws the indeterminate sweep. */
+  readonly fraction: number | null;
+};
 
 export type GatherStatus = {
   /** False until the store has answered; views draw no empty state before it. */
@@ -21,30 +27,36 @@ export type GatherStatus = {
   /** Whether this store has ever held a signed-in Fan. */
   readonly hasIdentity: boolean;
   readonly catchingUp: boolean;
-  readonly line: StatusLine | null;
+  /** The quiet line under each large title. */
+  readonly header: string | null;
+  readonly catchUp: CatchUpLine | null;
 };
 
 export function useGatherStatus(): GatherStatus {
   const { gather } = useAppState();
   const now = useNow();
-  const held = useLiveQuery(async (db) => ({
-    identity: await readStoredIdentity(db),
-    walkPending: (await readKv(db, WALK_KEY)) !== null,
-  }));
+  const held = useLiveQuery(async (db) => ({ identity: await readStoredIdentity(db), walk: await readStoredWalk(db) }));
   const hasIdentity = held?.identity != null || gather.identity !== null;
+  const walk = held?.walk ?? null;
   const catchingUp =
-    hasIdentity &&
-    !gather.initialWalkDone &&
-    (gather.phase !== 'idle' || held?.walkPending === true || gather.pausedReason === null);
+    hasIdentity && !gather.initialWalkDone && (gather.phase !== 'idle' || walk !== null || gather.pausedReason === null);
 
-  let line: StatusLine | null = null;
+  let catchUp: CatchUpLine | null = null;
   if (catchingUp) {
-    line =
+    const { reachedAt, fraction } = walkProgress(walk);
+    catchUp =
       gather.storiesSoFar === 0 && gather.phase === 'probing'
-        ? { kind: 'catchUp', primary: copy.catchUp.settingUp, secondary: null, moving: true }
-        : { kind: 'catchUp', primary: soFar(gather.storiesSoFar), secondary: copy.catchUp.gathering, moving: gather.phase !== 'idle' };
-  } else if (gather.lastSuccessAt !== null) {
-    line = { kind: 'updated', text: updatedAgo(gather.lastSuccessAt, now) };
+        ? { primary: copy.catchUp.settingUp, secondary: null, moving: true, fraction: null }
+        : {
+            primary: soFar(gather.storiesSoFar),
+            secondary: reachedAt === null ? copy.catchUp.gathering : backTo(reachedAt),
+            moving: gather.phase !== 'idle',
+            fraction,
+          };
   }
-  return { loaded: held !== null, hasIdentity, catchingUp, line };
+  // A walk paused on a sign-out moves again only after one, so the note to keep the app open waits for it (task 0040).
+  let header: string | null = null;
+  if (catchingUp) header = gather.pausedReason === null ? copy.catchUp.keepOpen : null;
+  else if (gather.lastSuccessAt !== null) header = updatedAgo(gather.lastSuccessAt, now);
+  return { loaded: held !== null, hasIdentity, catchingUp, header, catchUp };
 }

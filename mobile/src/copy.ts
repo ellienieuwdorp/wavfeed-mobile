@@ -31,6 +31,7 @@ const DAY_MS = 24 * HOUR_MS;
 const LONG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const LONG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function joinMiddot(parts: readonly (string | null | undefined)[]): string {
   return parts.filter((part): part is string => Boolean(part)).join(sep);
@@ -278,6 +279,12 @@ export function soFar(count: number): string {
   return `${new Intl.NumberFormat().format(count)} so far`;
 }
 
+/** "back to March 2021": how far the first walk has reached, a unix-seconds Story date in local time as ADR-0011 reads dates (task 0040). */
+export function backTo(unixSeconds: number): string {
+  const date = new Date(unixSeconds * 1000);
+  return `back to ${LONG_MONTHS[date.getMonth()] ?? ''} ${date.getFullYear()}`;
+}
+
 const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   probing: 'reaching Bandcamp',
   walking: 'gathering your feed',
@@ -297,6 +304,8 @@ export const copy = {
     settingUp: 'getting set up',
     gathering: 'gathering your history',
     label: 'Catching up on your Bandcamp history',
+    /** Under each large title while the first walk runs, in the slot "Updated 12 min ago" takes after it (task 0040). */
+    keepOpen: 'Keep wavfeed open while it catches up',
   },
   empty: {
     nothing: 'Nothing here yet.',
