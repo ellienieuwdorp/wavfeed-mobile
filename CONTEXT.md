@@ -108,16 +108,28 @@ _Avoid_: spam, flood
 **Upcoming**:
 A Release wavfeed holds whose release date is still ahead: announced, usually
 pre-orderable, not out. Found by the band details sweep (catalog truth,
-ADR-0017) or through a pre-order purchase in the feed; being Upcoming needs no
-Story and has no actor. On screen it is the Upcoming band at the top of New
+ADR-0017), through a pre-order purchase in the feed, or through a pre-order's
+`new_release` entry once its release page dates it (task 0041); being Upcoming
+needs no Story and has no actor. On screen it is the Upcoming band at the top of New
 releases on the web and the Upcoming shelf on the phone (task 0037), and a
-Release stops being Upcoming the day its release date arrives.
+Release stops being Upcoming the day its release date arrives, and not before:
+Tracks that play earlier are Drops, and the Release stays on the shelf.
 That day is a GMT day, because Bandcamp writes every release date at midnight
 GMT and that is when the record becomes buyable (ADR-0017, amended 2026-08-29);
 it is the day the row and its week header name too.
 _Avoid_: pre-release, coming soon, future release, announcement, preorder as a
 synonym (`is_preorder` is Bandcamp's buyable state, which an Upcoming Release
 usually but not always has)
+
+**Drop**:
+Tracks of an Upcoming Release becoming playable before its release day, often
+one at a time as a label lets them out. A catalog fact the Projection derives
+from Raw Documents, one per Release per GMT day, holding how many Tracks play
+and how many there are (ADR-0017, amended 2026-09-29). Not a Story: it has no
+actor, and Bandcamp's feed rewrites its `new_release` entry in place and never
+says one happened. On the phone it is a row in the released weeks of New
+releases on its day (task 0041).
+_Avoid_: pre-release, single, teaser, early access, leak
 
 **Group**:
 A user-curated, named set of Pages ("minimal house labels") used as a feed filter.
