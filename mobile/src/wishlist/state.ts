@@ -165,7 +165,7 @@ async function send(app: AppState, target: WishlistTarget, action: WishlistWrite
   const band = { id: found.id, from: found.from };
   const tracks = found.tracklist?.tracks ?? [];
   if (target.itemType === 't' && !sameId(target.itemId, target.release.itemId) && tracks.length > 0) {
-    if (!tracks.some((track) => sameId(track.trackId, target.itemId))) {
+    if (!tracks.some((track) => track.trackId !== null && sameId(track.trackId, target.itemId))) {
       return { failure: 'not_on_release', reason: null, band, wire: null };
     }
   }

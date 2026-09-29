@@ -144,7 +144,7 @@ function TrackRow({ release, track, index, current, playing, ready, first, side 
           {contents}
         </View>
       )}
-      {live ? (
+      {live && track.trackId !== null ? (
         <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} />
       ) : (
         <View style={{ width: ios ? 44 : 48 }} />
@@ -168,7 +168,7 @@ export function Tracklist({ release, side }: { release: PlayableRelease; side: n
       </Text>
       {tracks.map((track, i) => (
         <TrackRow
-          key={track.trackId}
+          key={track.trackId ?? `n${track.trackNum}`}
           release={release}
           track={track}
           index={i}

@@ -297,6 +297,29 @@ export function preorderTralbumBlob(overrides: Fields = {}, out: readonly number
 }
 
 /**
+ * The same pre-order as the page a phone is served writes it (read 2026-09-29 with the app's User-Agent): `current`
+ * has no `release_date` and no `mod_date`, and a Track not out has no `id`, `track_id`, `title_link` or `file` key.
+ */
+export function phonePreorderTralbumBlob(out: readonly number[] = [2]): Fields {
+  return {
+    current: { title: 'Moth Season', publish_date: PREORDER_PUBLISHED, band_id: BAND_ID, id: PREORDER_ITEM_ID, type: 'album' },
+    art_id: 1204872,
+    item_type: 'album',
+    id: PREORDER_ITEM_ID,
+    is_preorder: true,
+    album_is_preorder: true,
+    album_release_date: PREORDER_RELEASE_DATE,
+    trackinfo: [1, 2, 3, 4].map((trackNum) => {
+      const [trackId, title, path] = PREORDER_TRACKS[trackNum - 1] ?? [0, '', ''];
+      const shared = { track_num: trackNum, title, streaming: 1, is_draft: false, has_info: false };
+      if (!out.includes(trackNum)) return { ...shared, duration: 0, unreleased_track: true };
+      return { ...shared, id: trackId, title_link: path, file: { 'mp3-128': streamUrl(trackId) }, unreleased_track: false, duration: 251.04 };
+    }),
+    url: PREORDER_URL,
+  };
+}
+
+/**
  * A Track page's `data-tralbum` blob for one of the pre-order's Tracks, shaped after real Track pages read on 2026-09-29:
  * `publish_date` is the album's, `mod_date` is when the Track page last changed, `is_preorder` is null and the album's
  * state is in `album_is_preorder`.

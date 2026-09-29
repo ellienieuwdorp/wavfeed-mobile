@@ -17,6 +17,7 @@ import {
   PREORDER_ITEM_ID,
   PREORDER_URL,
   preorderNrEntry,
+  phonePreorderTralbumBlob,
   preorderTralbumBlob,
   releasePagePayload,
   tralbumBlob,
@@ -101,6 +102,21 @@ test('the tracklist names every Track of a pre-order, and only the one let out p
     [2, '66602202', true, true],
     [3, '66602203', false, false],
     [4, '66602204', false, false],
+  ]);
+  close();
+});
+
+test('the tracklist names the Tracks not out that a phone\'s page gives no id', async () => {
+  const { db, close } = await openTestStore();
+  const payload = releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum: phonePreorderTralbumBlob() });
+  await insertRawDocument(db, { endpoint: 'release_page', payload, fetchedAt: '2026-09-29T10:05:00.000Z' });
+  const tracklist = await readTracklist(db, 'a', PREORDER_ITEM_ID);
+  const tracks = tracklist?.tracks.map((track) => [track.trackNum, track.title, track.trackId, track.out, track.streamUrl !== null]);
+  assert.deepEqual(tracks, [
+    [1, 'Pupa', null, false, false],
+    [2, 'Lamp Glass', '66602202', true, true],
+    [3, 'Wing Dust', null, false, false],
+    [4, 'Moth Season', null, false, false],
   ]);
   close();
 });

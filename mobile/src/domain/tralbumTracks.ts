@@ -5,7 +5,8 @@
  */
 
 export type TralbumTrack = {
-  readonly trackId: string;
+  /** Null only on a Track not out: the page a phone is served names it by title and number alone. */
+  readonly trackId: string | null;
   readonly trackNum: number;
   readonly title: string;
   readonly duration: number | null;
@@ -16,6 +17,13 @@ export type TralbumTrack = {
   /** `title_link`, the Track page's path on the Release's host; a Track not out has none (task 0041, decision 8). */
   readonly path: string | null;
 };
+
+/** A Track that plays: the page handed over its file, and with it its id. */
+export type PlayingTrack = TralbumTrack & { readonly trackId: string; readonly streamUrl: string };
+
+function plays(track: TralbumTrack): track is PlayingTrack {
+  return track.trackId !== null && track.streamUrl !== null;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
@@ -40,8 +48,10 @@ function readStreamUrl(entry: Record<string, unknown>): string | null {
 }
 
 /**
- * A Track not out says `unreleased_track`, has `id: null` with its id in `track_id`, and no file; on a pre-order a
- * Track with no file is not out either (task 0041, decision 5). An album page states `is_preorder`, a track page `album_is_preorder`.
+ * A Track not out says `unreleased_track` and has no file. The page a desktop browser is served gives it `id: null`
+ * with its id in `track_id`; the page a phone is served gives it no id at all (read 2026-09-29). On a pre-order a Track
+ * with no file is not out either (task 0041, decision 5). An album page states `is_preorder`, a track page
+ * `album_is_preorder`.
  */
 function isOut(entry: Record<string, unknown>, preorder: boolean, streamUrl: string | null): boolean {
   if (isSet(entry.unreleased_track)) return false;
@@ -58,12 +68,13 @@ export function readTralbumTracks(tralbum: unknown): readonly TralbumTrack[] {
   const tracks: TralbumTrack[] = [];
   for (const [index, value] of trackinfo.entries()) {
     const entry = asRecord(value);
-    const trackId = entry === null ? null : (readId(entry.id) ?? readId(entry.track_id));
-    if (entry === null || trackId === null) continue;
+    if (entry === null) continue;
+    const trackId = readId(entry.id) ?? readId(entry.track_id);
     const trackNum =
       typeof entry.track_num === 'number' && Number.isFinite(entry.track_num) ? Math.trunc(entry.track_num) : index + 1;
     const file = readStreamUrl(entry);
     const out = isOut(entry, preorder, file);
+    if (trackId === null && out) continue;
     tracks.push({
       trackId,
       trackNum,
@@ -82,7 +93,7 @@ export function readTralbumTracks(tralbum: unknown): readonly TralbumTrack[] {
  * The Tracks that play on the `after` blob and did not on `before`, in track order: the Tracks a Drop let out, whose
  * Track pages date it (task 0041, decisions 7 and 8). A Track plays when the page hands over its file (decision 4).
  */
-export function newlyOutTracks(before: unknown, after: unknown): readonly TralbumTrack[] {
+export function newlyOutTracks(before: unknown, after: unknown): readonly PlayingTrack[] {
   const played = new Set(readTralbumTracks(before).flatMap((track) => (track.streamUrl === null ? [] : [track.trackId])));
-  return readTralbumTracks(after).filter((track) => track.streamUrl !== null && !played.has(track.trackId));
+  return readTralbumTracks(after).filter((track): track is PlayingTrack => plays(track) && !played.has(track.trackId));
 }

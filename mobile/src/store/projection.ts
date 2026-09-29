@@ -26,9 +26,10 @@ export const FOLD_BATCH_SIZE = 50;
 /**
  * Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). Version 3 is how
  * a phone holding a pre-order dated by its feed entry mends itself after migration 5 (task 0041, decision 2); version 4
- * writes the Drops its Raw Documents already hold after migration 6 (decision 6).
+ * writes the Drops its Raw Documents already hold after migration 6 (decision 6); version 5 counts the Tracks a
+ * phone's page names without an id (decision 4).
  */
-export const PROJECTION_VERSION = 4;
+export const PROJECTION_VERSION = 5;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
 
 export async function ensureProjectionVersion(db: SQLiteDatabase): Promise<boolean> {

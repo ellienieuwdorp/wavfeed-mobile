@@ -165,7 +165,8 @@ export type ApiUpcomingResponse = {
 
 /** One Track of a Release, as the player needs it (ADR-0015). */
 export type ApiReleaseTrack = {
-  readonly trackId: string;
+  /** Null only on a Track not out, which a phone's page names without an id (task 0041, decision 5). */
+  readonly trackId: string | null;
   /** 1-based position on the Release. */
   readonly trackNum: number;
   readonly title: string;

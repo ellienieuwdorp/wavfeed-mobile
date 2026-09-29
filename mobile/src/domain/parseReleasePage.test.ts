@@ -14,6 +14,7 @@ import {
   PREORDER_ITEM_ID,
   preorderTrackId,
   preorderTrackPageBlob,
+  phonePreorderTralbumBlob,
   preorderTralbumBlob,
   releasePagePayload,
   tralbumBlob,
@@ -31,6 +32,22 @@ describe('parseReleasePage', () => {
       numTracks: 3,
       publishedAt: new Date('2026-03-31T19:43:06Z'),
       modifiedAt: new Date('2026-03-31T19:43:06Z'),
+      albumId: null,
+    });
+  });
+
+  test('reads the page a phone is served: the album\'s release day, 1 of 4, and no modified moment', () => {
+    const parsed = parseReleasePage(releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum: phonePreorderTralbumBlob() }));
+
+    assert.deepEqual(parsed, {
+      itemType: 'a',
+      itemId: PREORDER_ITEM_ID,
+      releaseDate: new Date('2026-10-13T00:00:00Z'),
+      isPreorder: true,
+      numStreamableTracks: 1,
+      numTracks: 4,
+      publishedAt: new Date('2026-09-29T09:12:40Z'),
+      modifiedAt: null,
       albumId: null,
     });
   });

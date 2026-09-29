@@ -50,7 +50,7 @@ export function isDead(player: Pick<Player, 'status'>): boolean {
 /** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
 export function TrackHeart({ release, box, icon }: { release: PlayableRelease; box: number; icon: number }) {
   const { track, status } = usePlayer();
-  if (track !== null && status === 'ready') {
+  if (track !== null && track.trackId !== null && status === 'ready') {
     return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={box} icon={icon} />;
   }
   const side = Math.max(box, 44);
