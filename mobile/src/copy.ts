@@ -312,6 +312,15 @@ const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   dating: 'adding release dates',
 };
 
+/** One address for feedback and erasure requests, the privacy page's; `hello@wavfeed.com` replaces it once that exists. */
+export const FEEDBACK_ADDRESS = 'ellie@nieuwdorp.me';
+export const PRIVACY_URL = 'https://wavfeed.com/privacy.html';
+
+/** What a feedback mail carries under the tester's words: the build, the OS and, while sharing is on, the code. */
+export type FeedbackFacts = { readonly version: string; readonly build: string; readonly os: string; readonly code: string | null };
+
+const versionLine = (version: string, build: string) => `Version ${version} (${build})`;
+
 export const copy = {
   views: {
     feed: 'Feed',
@@ -414,6 +423,30 @@ export const copy = {
     removeAllBody: `Your feed and everything gathered for it leave ${thisDevice}. Your Bandcamp account is not touched, and ${thisDevice} stays signed in to Bandcamp.`,
     removeAllConfirm: 'Remove',
     cancel: 'Cancel',
+    usageHead: 'Usage',
+    share: 'Share what I use and what breaks',
+    usageFoot: (code: string | null) =>
+      `When this is on, ${thisDevice} sends wavfeed counts of what gets used and a short report when something goes wrong, stored by Cloudflare in the EU. The detail goes after 90 days, which days it was used after a year. Never your Bandcamp sign-in, your name, or which releases you play.${
+        code === null ? '' : ` Your code is ${code}. Quote it if you write in about a problem.`
+      }`,
+    turnedOff: (code: string) => `Turned off. Your code was ${code}; quote it to have what was sent deleted.`,
+    privacy: 'Privacy',
+    feedback: 'Send feedback',
+    feedbackSubject: 'wavfeed feedback',
+    feedbackBody: (facts: FeedbackFacts) =>
+      `\n\n${joinMiddot([versionLine(facts.version, facts.build), facts.os, facts.code === null ? null : `code ${facts.code}`])}`,
+    version: versionLine,
+  },
+  /** The one-time ask after Connect closes (task 0038 decision 3); nothing is sent before its yes. */
+  usageAsk: {
+    title: 'Before wavfeed counts anything',
+    body: [
+      `A few people are testing wavfeed, and it helps to know which parts get used and what breaks. If you say yes, ${thisDevice} sends counts of what gets tapped and a short report when the app hits an error.`,
+      'Never your Bandcamp sign-in, your name, or which releases you play or wishlist. The counts go to wavfeed, stored by Cloudflare in the EU. The detail is deleted after 90 days, and which days the app was used after a year.',
+      'Nothing is sent until you say yes here. Settings can turn it off at any time.',
+    ],
+    yes: 'Yes, send counts',
+    notNow: 'Not now',
   },
   connect: {
     title: 'Connect Bandcamp',

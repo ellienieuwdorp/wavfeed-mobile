@@ -1,24 +1,28 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), connected devices (held back until a server knows the others), appearance, and removing everything
- * gathered here; the canvas's one notification switch waits for notifications to exist. Android draws the status as
- * one list item and its actions as Material buttons under the custody line, as the canvas's Settings board does. A
- * development build adds the store's facts under the custody line. The wavfeed account rows (email, password, log
- * out, delete) wait for the account this slice does not have (task 0036).
+ * sign out), the usage switch with its sharing code and the privacy page (task 0038, hidden in a build that can never
+ * send), connected devices (held back until a server knows the others), appearance, removing everything gathered here
+ * (which sends `store_removed` first while sharing is on), and a feedback mail naming the build; the canvas's one
+ * notification switch waits for notifications to exist. Android draws the status as one list item and its actions as
+ * Material buttons under the custody line, as the canvas's Settings board does. A development build adds the store's
+ * facts under the custody line. The wavfeed account rows (email, password, log out, delete) wait for the account this
+ * slice does not have (task 0036).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { openURL } from 'expo-linking';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
 import { AppBarTitle, useAppBar } from '@/components/AppBar';
 import { Glyph } from '@/components/Glyph';
+import { NativeSwitch } from '@/components/NativeSwitch';
 import { useDockClearance } from '@/components/player/Dock';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
-import { copy, sep } from '@/copy';
+import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
 import { fanInitials } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
@@ -26,6 +30,7 @@ import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
 import { countRawDocuments, readKv, readOverview } from '@/store';
+import { feedbackFacts, useSharing } from '@/tally/Sharing';
 import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -84,6 +89,23 @@ export default function Settings() {
   }));
   const identity = held?.identity ?? null;
   const connect = () => router.push('/connect');
+  const usage = useSharing();
+  // The code an off just dropped stays in the foot until Settings is left, so the tester can still ask for erasure.
+  const [droppedCode, setDroppedCode] = useState<string | null>(null);
+  useFocusEffect(useCallback(() => () => setDroppedCode(null), []));
+  const sharingOn = usage.sharing !== null;
+  const setSharing = (on: boolean) => {
+    if (on) {
+      setDroppedCode(null);
+      void usage.turnOn().catch(() => undefined);
+    } else void usage.turnOff().then(setDroppedCode, () => undefined);
+  };
+  const usageFoot = usage.code !== null ? s.usageFoot(usage.code) : droppedCode !== null ? s.turnedOff(droppedCode) : s.usageFoot(null);
+  const sendFeedback = () => {
+    const query = `subject=${encodeURIComponent(s.feedbackSubject)}&body=${encodeURIComponent(s.feedbackBody(feedbackFacts(usage.code)))}`;
+    openURL(`mailto:${FEEDBACK_ADDRESS}?${query}`).catch(() => undefined);
+  };
+  const version = feedbackFacts(null);
 
   const status: 'connected' | 'signedOut' | 'notConnected' =
     identity === null || gather.pausedReason === 'not_connected' ? 'notConnected' : gather.pausedReason === 'logged_out' ? 'signedOut' : 'connected';
@@ -117,6 +139,7 @@ export default function Settings() {
         onPress: () => {
           void (async () => {
             await turnRunning()?.catch(() => undefined);
+            await usage.trackAndFlush({ name: 'store_removed', props: {} });
             await app.removeStore();
           })();
         },
@@ -205,6 +228,25 @@ export default function Settings() {
       <GroupFoot text={heldLine(facts, gather.lastError)} />
       {signingOut ? <SignOutWebView onDone={() => void finishSignOut()} /> : null}
 
+      {usage.canSend && usage.loaded ? (
+        <>
+          <GroupHead label={s.usageHead} />
+          <Group>
+            <Cell
+              title={s.share}
+              trailing={<NativeSwitch value={sharingOn} onChange={setSharing} label={s.share} />}
+              onPress={ios ? undefined : () => setSharing(!sharingOn)}
+            />
+            <Cell
+              title={s.privacy}
+              trailing={<Glyph name="external" size={ios ? 15 : 20} weight="regular" colour={c.faint} />}
+              onPress={() => void openURL(PRIVACY_URL).catch(() => undefined)}
+            />
+          </Group>
+          <GroupFoot text={usageFoot} />
+        </>
+      ) : null}
+
       {SHOW_DEVICES ? (
         <>
           <GroupHead label={s.devicesHead} />
@@ -235,6 +277,11 @@ export default function Settings() {
       <Group gapAbove>
         <Cell title={s.removeAll} tone="danger" onPress={busy ? undefined : removeAll} />
       </Group>
+
+      <Group gapAbove>
+        <Cell title={s.feedback} tone="accent" onPress={sendFeedback} />
+      </Group>
+      <GroupFoot text={s.version(version.version, version.build)} />
     </ScrollView>
   );
 }

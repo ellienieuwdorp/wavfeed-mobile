@@ -48,7 +48,8 @@ describe('screenFor', () => {
   test('every route in src/app has its own screen, and every screen but other has a route', () => {
     const paths = routePaths();
     assert.ok(paths.includes('/') && paths.includes('/bought/upcoming'), paths.join(', '));
-    const screens = paths.map(screenFor);
+    assert.equal(screenFor('/usage'), 'settings', 'the ask shares its screen with the switch it sets');
+    const screens = paths.filter((p) => p !== '/usage').map(screenFor);
     assert.ok(!screens.includes('other'), `unmapped: ${paths.filter((p) => screenFor(p) === 'other').join(', ')}`);
     assert.equal(new Set(screens).size, screens.length);
     assert.deepEqual([...screens].sort(), SCREENS.filter((s) => s !== 'other').sort());

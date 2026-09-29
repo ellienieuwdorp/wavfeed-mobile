@@ -17,23 +17,10 @@ import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState } from '@/state/appState';
 import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
 import { Glyph } from '@/components/Glyph';
+import { WideButton } from '@/components/WideButton';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
-
-function Button({ label, filled, onPress }: { label: string; filled: boolean; onPress: () => void }) {
-  const { c } = useTokens();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      android_ripple={ripple(filled ? c.onAccent : c.track)}
-      style={({ pressed }) => ({ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, overflow: ios ? undefined : 'hidden', backgroundColor: filled ? c.accent : undefined, opacity: pressedOpacity(pressed) })}
-    >
-      <Text style={{ fontSize: ios ? 17 : 15, fontWeight: ios ? '600' : '500', color: filled ? c.onAccent : c.accent }}>{label}</Text>
-    </Pressable>
-  );
-}
 
 /** The header's Cancel reads the tokens itself: `Stack.Screen` hands `headerLeft` over in a layout effect, one render late. */
 function Cancel({ onCancel }: { onCancel: () => void }) {
@@ -122,8 +109,8 @@ export default function Connect() {
       <Stack.Screen options={{ title: copy.connect.title, headerLargeTitle: ios, headerLeft: undefined }} />
       <Text style={{ fontSize: 16, lineHeight: 22, color: c.ink }}>{copy.connect.lead}</Text>
       <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.sub }}>{copy.connect.custody}</Text>
-      <Button label={copy.connect.signIn} filled onPress={SAMPLE_MODE ? close : () => setSigningIn(true)} />
-      <Button label={copy.connect.notNow} filled={false} onPress={close} />
+      <WideButton label={copy.connect.signIn} kind="filled" onPress={SAMPLE_MODE ? close : () => setSigningIn(true)} />
+      <WideButton label={copy.connect.notNow} kind="plain" onPress={close} />
     </ScrollView>
   );
 }

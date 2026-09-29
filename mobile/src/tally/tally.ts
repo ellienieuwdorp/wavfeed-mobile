@@ -57,6 +57,8 @@ const SCREEN_PATHS: Readonly<Record<string, Screen>> = {
   '/player': 'player',
   '/connect': 'connect',
   '/bought-by': 'bought_by',
+  // The ask shows only while sharing is off and holds the same switch as the Settings group, so it counts as settings.
+  '/usage': 'settings',
 };
 
 /** Route params and query strings never reach a Tally: only the path's template is looked up. */
