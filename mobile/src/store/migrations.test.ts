@@ -23,7 +23,7 @@ test('migration 3 deletes the feed pokes stored as HTML and leaves no crumb in t
   const file = join(dir, 'store.db');
   const { db, close } = await openTestStore(file);
   // The store as a device held it at version 2.
-  await db.runAsync('delete from schema_migrations where version = 3');
+  await db.execAsync('drop table tally_outbox; delete from schema_migrations where version >= 3;');
   const html = `<meta id="js-crumbs-data" data-crumbs="{&quot;collect_item_cb&quot;:&quot;${CRUMB}&quot;}">`;
   const url = 'https://bandcamp.com/ellie/feed';
   await insertRawDocument(db, { endpoint: 'fan_feed_page', payload: { url, html }, fetchedAt: FETCHED_AT });
@@ -36,4 +36,17 @@ test('migration 3 deletes the feed pokes stored as HTML and leaves no crumb in t
   assert.deepEqual(left.map((row) => row.endpoint), ['fan_dash_feed_updates']);
   close();
   assert.ok(!readFileSync(file).includes(CRUMB));
+});
+
+test('migration 4 adds the Tally outbox to a store at version 3, whose rows are a Tally or an Error Report', async () => {
+  const { db } = await openTestStore();
+  // The store as a device held it at version 3.
+  await db.execAsync('drop table tally_outbox; delete from schema_migrations where version = 4;');
+  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
+
+  assert.equal(await migrate(db), 4);
+
+  await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
+  await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
+  assert.equal((await db.getFirstAsync<{ n: number }>('select count(*) as n from raw_documents'))?.n, 1);
 });

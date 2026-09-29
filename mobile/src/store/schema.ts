@@ -18,3 +18,11 @@ export async function openStore(file: string = STORE_FILE): Promise<Store> {
   await migrate(db);
   return { db };
 }
+
+/** "Remove everything gathered" when the file will not go: every table emptied but the migration record. */
+export async function emptyStore(db: SQLiteDatabase): Promise<void> {
+  const tables = await db.getAllAsync<{ name: string }>(
+    "select name from sqlite_master where type = 'table' and name not in ('schema_migrations') and name not like 'sqlite_%'",
+  );
+  for (const { name } of tables) await db.execAsync(`delete from "${name}"`);
+}

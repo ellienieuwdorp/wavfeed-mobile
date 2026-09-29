@@ -15,7 +15,7 @@ import { CRUMBS_PAGE_ENDPOINT } from '@/bandcamp/wire';
 import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
-import { ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
+import { emptyStore, ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
 
 import { loadGatherState } from './gatherSink';
 
@@ -114,10 +114,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
     } catch {
       // The file would not go (a connection still open): empty every table of a fresh open instead.
       const { db: fresh } = await openStore();
-      const tables = await fresh.getAllAsync<{ name: string }>(
-        "select name from sqlite_master where type = 'table' and name not in ('schema_migrations') and name not like 'sqlite_%'",
-      );
-      for (const { name } of tables) await fresh.execAsync(`delete from "${name}"`);
+      await emptyStore(fresh);
       await fresh.closeAsync();
     }
     setGather(EMPTY_GATHER_STATE);

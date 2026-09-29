@@ -16,9 +16,12 @@ class NodeDb {
   async execAsync(sql: string): Promise<void> {
     this.d.exec(sql);
   }
-  async runAsync(sql: string, params: SQLInputValue[] = []): Promise<{ changes: number; lastInsertRowId: number }> {
+  runSync(sql: string, params: SQLInputValue[] = []): { changes: number; lastInsertRowId: number } {
     const r = this.d.prepare(sql).run(...params);
     return { changes: Number(r.changes), lastInsertRowId: Number(r.lastInsertRowid) };
+  }
+  async runAsync(sql: string, params: SQLInputValue[] = []): Promise<{ changes: number; lastInsertRowId: number }> {
+    return this.runSync(sql, params);
   }
   async getFirstAsync<T>(sql: string, params: SQLInputValue[] = []): Promise<T | null> {
     return (this.d.prepare(sql).get(...params) as T | undefined) ?? null;

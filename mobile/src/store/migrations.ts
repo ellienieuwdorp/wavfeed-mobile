@@ -144,6 +144,21 @@ const MIGRATIONS: readonly Migration[] = [
       pragma secure_delete = off;
     `,
   },
+  {
+    // The Tally outbox: built, scrubbed Tallies and Error Reports waiting to be sent after the Fan's yes, device state
+    // a rebuild leaves alone and "Remove everything gathered" takes with the file (task 0038, ADR-0021).
+    version: 4,
+    sql: `
+      create table tally_outbox (
+        seq integer primary key,
+        kind text not null check (kind in ('tally', 'error')),
+        body text not null,
+        created_at integer not null,
+        batch text
+      );
+      create index tally_outbox_batch on tally_outbox (batch);
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {
