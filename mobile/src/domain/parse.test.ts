@@ -1,9 +1,9 @@
 /// <reference types="node" />
 /**
- * `fan_dash_feed_updates` in, Fans, Pages, Releases and Stories out (ADR-0004): the wire codes `fp`, `fw` and `nr`, a
- * merch purchase credited to the Release it presses (ADR-0005), release dates only where a new-release Story states one
- * (ADR-0011), and every entry it cannot read counted and dropped without costing its siblings. Ported from the server's
- * suite (task 0036).
+ * `fan_dash_feed_updates` in, Fans, Pages, Releases and Stories out (ADR-0004): the wire codes `fp`, `fw` and `nr`, the
+ * codes it ignores (task 0045), a merch purchase credited to the Release it presses (ADR-0005), release dates only where
+ * a new-release Story states one (ADR-0011), and every entry it cannot read counted and dropped without costing its
+ * siblings. Ported from the server's suite (task 0036).
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
@@ -233,6 +233,14 @@ describe('entries it refuses', () => {
     const result = parseEntries(fpEntry({ story_type: 'xx' }), nrEntry());
 
     assert.deepEqual(result.skipped, { ...NO_SKIPS, unknownStoryType: 1 });
+    assert.equal(only(result.stories).storyType, 'new_release');
+  });
+
+  test('drops the codes Bandcamp sends that name nothing followed, without counting them (task 0045)', () => {
+    const ignored = ['np', 'df', 'bp', 'nf', 'fs', 'st', 'sm'].map((code) => fpEntry({ story_type: code }));
+    const result = parseEntries(...ignored, nrEntry());
+
+    assert.deepEqual(result.skipped, NO_SKIPS);
     assert.equal(only(result.stories).storyType, 'new_release');
   });
 

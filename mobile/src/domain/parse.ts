@@ -22,6 +22,13 @@ const STORY_TYPES: Readonly<Record<string, StoryType>> = {
   nr: 'new_release',
 };
 
+/**
+ * Codes Bandcamp's own feed renders that name no Release a followed Fan or Page acted on: `np` a stranger "also
+ * bought", `df` a Discover pick, `bp` a full discography, `nf`, `fs`, `st` and `sm` follows, subscriptions and
+ * messages. Dropped without counting, so `unknownStoryType` counts only codes nobody has read yet (task 0045).
+ */
+const IGNORED_STORY_TYPES: ReadonlySet<string> = new Set(['np', 'df', 'bp', 'nf', 'fs', 'st', 'sm']);
+
 export class FeedPayloadError extends Error {
   override readonly name = 'FeedPayloadError';
 }
@@ -180,7 +187,7 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
   }
   const storyType = STORY_TYPES[wireType];
   if (storyType === undefined) {
-    skipped.unknownStoryType += 1;
+    if (!IGNORED_STORY_TYPES.has(wireType)) skipped.unknownStoryType += 1;
     return undefined;
   }
 
