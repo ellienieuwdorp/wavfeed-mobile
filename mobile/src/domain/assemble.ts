@@ -53,8 +53,13 @@ export function byStoryDateDesc(a: FeedStoryRow, b: FeedStoryRow): number {
   return delta !== 0 ? delta : b.storyId - a.storyId;
 }
 
+/** Whether `fanRef` would name the Fan, without building the ref. */
+export function hasFan(row: FeedStoryRow): row is FeedStoryRow & { readonly fanId: number; readonly fanUsername: string } {
+  return row.fanId !== null && row.fanUsername !== null;
+}
+
 export function fanRef(row: FeedStoryRow): ApiFanRef | null {
-  if (row.fanId === null || row.fanUsername === null) return null;
+  if (!hasFan(row)) return null;
   return {
     fanId: String(row.fanId),
     username: row.fanUsername,
@@ -79,8 +84,9 @@ function distinctFans(sorted: readonly FeedStoryRow[], type: ApiStoryType): ApiF
 function reviewsOf(sorted: readonly FeedStoryRow[]): ApiReview[] {
   const reviews: ApiReview[] = [];
   for (const row of sorted) {
+    if (row.reviewText === null) continue;
     const fan = fanRef(row);
-    if (row.reviewText === null || fan === null) continue;
+    if (fan === null) continue;
     reviews.push({ fan, text: row.reviewText });
   }
   return reviews;
@@ -95,7 +101,11 @@ export type StorySignal = {
 };
 
 export function buildSignal(rows: readonly FeedStoryRow[]): StorySignal {
-  const sorted = [...rows].sort(byStoryDateDesc);
+  return signalOfSorted([...rows].sort(byStoryDateDesc));
+}
+
+/** `buildSignal` over rows already newest first, so a Feed Item does not sort its Stories twice. */
+function signalOfSorted(sorted: readonly FeedStoryRow[]): StorySignal {
   const newest = sorted[0];
   return {
     buyers: distinctFans(sorted, 'purchase'),
@@ -113,7 +123,7 @@ export function buildFeedItem(rows: readonly FeedStoryRow[]): ApiFeedItem {
   if (newest === undefined) throw new Error('a Feed Item needs at least one Story');
   const oldest = sorted[sorted.length - 1] ?? newest;
   const anchor = sorted.length === 1 ? newest.storyDate : (newest.releaseDate ?? oldest.storyDate);
-  const signal = buildSignal(sorted);
+  const signal = signalOfSorted(sorted);
 
   return {
     kind: 'item',
@@ -245,9 +255,10 @@ export function elementSortKey(element: ApiFeedElement, sort: ApiFeedSort): Elem
   };
 }
 
+/** Every sort date is `toISOString` output, whose code unit order is its collation order, so only a tie pays for `localeCompare`. */
 export function compareSortKeys(a: ElementSortKey, b: ElementSortKey): number {
-  const byDate = b.sortDate.localeCompare(a.sortDate);
-  return byDate !== 0 ? byDate : a.tiebreak.localeCompare(b.tiebreak);
+  if (a.sortDate !== b.sortDate) return a.sortDate < b.sortDate ? 1 : -1;
+  return a.tiebreak.localeCompare(b.tiebreak);
 }
 
 export function assembleFeed(rows: readonly FeedStoryRow[], options: AssembleOptions): AssembledFeed {

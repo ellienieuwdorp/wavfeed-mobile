@@ -315,19 +315,24 @@ export const copy = {
     quoteOn: ' on ',
     quoted: quotedReview,
   },
+  /** The phone's picker words and the line under it (DESIGN-UI section 3, The Bought view); the web keeps its own. */
   bought: {
-    byReleaseDate: 'By release date',
-    byPurchased: 'By recently purchased',
-    /** A phone's pane is under 720px, so the segments take DESIGN-UI section 3's one-word forms. */
-    released: 'Released',
-    purchased: 'Purchased',
-    thresholdLabel: 'How many buyers you follow',
+    /** Each fits half an iPhone's width, and is also the segment's accessible name. */
+    segment: { released: 'By release week', crossed: 'Bought by many' } satisfies Record<BoughtMode, string>,
+    /** The sub tone of "Updated 12 min ago", and like it without a full stop. */
+    line: {
+      released: 'Releases people you follow bought, by release week',
+      crossed: 'Releases multiple people you follow bought, by purchase week',
+    } satisfies Record<BoughtMode, string>,
+    /** The threshold menu's accessible name: CONTEXT.md keeps "buyer" off the screen. */
+    thresholdLabel: 'How many people you follow bought it',
   },
   menu: {
     labelled: (label: string, value: string) => `${label}: ${value}`,
     checked: '\u2713',
   },
   play: (title: string) => `Play ${title}`,
+  pause: (title: string) => `Pause ${title}`,
   more: (n: number) => `+${n}`,
   heart: {
     add: (title: string) => `Add ${title} to your Bandcamp wishlist`,
@@ -369,8 +374,6 @@ export const copy = {
     deviceName: ThisDevice,
     added: (at: Date, now: Date) => `added ${formatDatePart(at, { year: at.getFullYear() !== now.getFullYear() })}`,
     disconnect: 'Disconnect',
-    notificationsHead: 'Notifications',
-    announces: 'When a page I follow announces a release',
     appearanceHead: 'Appearance',
     appearance: { light: 'Light', dark: 'Dark', system: 'System' },
     removeAll: `Remove everything gathered on ${thisDevice}`,

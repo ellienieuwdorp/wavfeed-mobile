@@ -1,10 +1,20 @@
 /**
  * The Bought view's weekly chart: Releases followed Fans bought, filed under the GMT Monday of the release week, ranked by distinct buyers (ADR-0011).
- * Ported from server/apps/api/src/feed/boughtChart.ts (task 0036).
+ * Ported from server/apps/api/src/feed/boughtChart.ts (task 0036). Both Bought modes judge the same `BoughtRelease` list, built once per read,
+ * so a switch between them only places what is held and never regroups the Stories.
  */
 import type { ApiBoughtWeek, ApiFeedItem } from './apiTypes';
-import { buildFeedItem, fanRef, groupByItem } from './assemble';
+import { buildFeedItem, groupByItem, hasFan } from './assemble';
 import type { FeedStoryRow } from './rows';
+
+/** A Release at least one named Fan bought, with what the chart and the crossed list rank it by. */
+export type BoughtRelease = {
+  readonly item: ApiFeedItem;
+  readonly releaseDate: Date | null;
+  readonly latestPurchase: number;
+  /** Each named Fan's first purchase, oldest first: a crossing happens once. */
+  readonly firstPurchases: readonly number[];
+};
 
 function releaseDateOf(itemRows: readonly FeedStoryRow[]): Date | null {
   for (const row of itemRows) {
@@ -20,41 +30,52 @@ export function weekStartOf(date: Date): string {
   return monday.toISOString().slice(0, 10);
 }
 
-function latestPurchaseTime(itemRows: readonly FeedStoryRow[]): number {
+function purchaseTimes(itemRows: readonly FeedStoryRow[]): { latest: number; firsts: number[] } {
   let latest = 0;
+  const earliest = new Map<number, number>();
   for (const row of itemRows) {
-    if (row.storyType !== 'purchase' || fanRef(row) === null) continue;
-    latest = Math.max(latest, row.storyDate.getTime());
+    if (row.storyType !== 'purchase' || !hasFan(row)) continue;
+    const time = row.storyDate.getTime();
+    latest = Math.max(latest, time);
+    const known = earliest.get(row.fanId);
+    if (known === undefined || time < known) earliest.set(row.fanId, time);
   }
-  return latest;
+  return { latest, firsts: [...earliest.values()].sort((a, b) => a - b) };
 }
 
-type Ranked = {
-  readonly item: ApiFeedItem;
-  readonly latestPurchase: number;
-};
+/** Every Release with a named purchase, in the order its first Story arrived. */
+export function boughtReleases(rows: readonly FeedStoryRow[]): readonly BoughtRelease[] {
+  const held: BoughtRelease[] = [];
+  for (const itemRows of groupByItem(rows).values()) {
+    const { latest, firsts } = purchaseTimes(itemRows);
+    if (firsts.length === 0) continue;
+    held.push({ item: buildFeedItem(itemRows), releaseDate: releaseDateOf(itemRows), latestPurchase: latest, firstPurchases: firsts });
+  }
+  return held;
+}
 
-function byRank(a: Ranked, b: Ranked): number {
+function byRank(a: BoughtRelease, b: BoughtRelease): number {
   if (a.item.buyers.length !== b.item.buyers.length) return b.item.buyers.length - a.item.buyers.length;
   if (a.latestPurchase !== b.latestPurchase) return b.latestPurchase - a.latestPurchase;
   return a.item.itemId.localeCompare(b.item.itemId);
 }
 
 /** Eligible: a known release date and at least one named buyer. Future weeks sort first; empty weeks are absent. */
-export function buildBoughtChart(rows: readonly FeedStoryRow[]): readonly ApiBoughtWeek[] {
-  const byWeek = new Map<string, Ranked[]>();
-  for (const itemRows of groupByItem(rows).values()) {
-    const releaseDate = releaseDateOf(itemRows);
-    if (releaseDate === null) continue;
-    const item = buildFeedItem(itemRows);
-    if (item.buyers.length === 0) continue;
-    const entry: Ranked = { item, latestPurchase: latestPurchaseTime(itemRows) };
-    const week = weekStartOf(releaseDate);
+export function boughtChartOf(releases: readonly BoughtRelease[]): readonly ApiBoughtWeek[] {
+  const byWeek = new Map<string, BoughtRelease[]>();
+  for (const release of releases) {
+    if (release.releaseDate === null) continue;
+    const week = weekStartOf(release.releaseDate);
     const existing = byWeek.get(week);
-    if (existing === undefined) byWeek.set(week, [entry]);
-    else existing.push(entry);
+    if (existing === undefined) byWeek.set(week, [release]);
+    else existing.push(release);
   }
+  // Week keys are distinct ISO days, so code unit order is date order.
   return [...byWeek.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([a], [b]) => (a < b ? 1 : -1))
     .map(([weekStart, entries]) => ({ weekStart, entries: entries.sort(byRank).map((entry) => entry.item) }));
+}
+
+export function buildBoughtChart(rows: readonly FeedStoryRow[]): readonly ApiBoughtWeek[] {
+  return boughtChartOf(boughtReleases(rows));
 }

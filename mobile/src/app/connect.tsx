@@ -35,6 +35,26 @@ function Button({ label, filled, onPress }: { label: string; filled: boolean; on
   );
 }
 
+/** The header's Cancel reads the tokens itself: `Stack.Screen` hands `headerLeft` over in a layout effect, one render late. */
+function Cancel({ onCancel }: { onCancel: () => void }) {
+  const { c } = useTokens();
+  return ios ? (
+    <Pressable onPress={onCancel} accessibilityRole="button" hitSlop={10} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+      <Text style={{ fontSize: 17, color: c.accent }}>{copy.connect.cancel}</Text>
+    </Pressable>
+  ) : (
+    <Pressable
+      onPress={onCancel}
+      accessibilityRole="button"
+      accessibilityLabel={copy.connect.cancel}
+      android_ripple={ripple(c.track, 20)}
+      style={{ width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Glyph name="dismiss" size={24} colour={c.ink} />
+    </Pressable>
+  );
+}
+
 function close(): void {
   if (router.canGoBack()) router.back();
   else router.replace('/');
@@ -77,22 +97,7 @@ function SignIn({ onCancel }: { onCancel: () => void }) {
         options={{
           title: copy.connect.host,
           headerLargeTitle: false,
-          headerLeft: () =>
-            ios ? (
-              <Pressable onPress={onCancel} accessibilityRole="button" hitSlop={10} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-                <Text style={{ fontSize: 17, color: c.accent }}>{copy.connect.cancel}</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={onCancel}
-                accessibilityRole="button"
-                accessibilityLabel={copy.connect.cancel}
-                android_ripple={ripple(c.track, 20)}
-                style={{ width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Glyph name="dismiss" size={24} colour={c.ink} />
-              </Pressable>
-            ),
+          headerLeft: () => <Cancel onCancel={onCancel} />,
         }}
       />
       {line !== null ? (

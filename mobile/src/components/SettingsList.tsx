@@ -6,7 +6,7 @@
  * actions as buttons.
  */
 import { Children, createContext, useContext, type ReactNode } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type AccessibilityRole } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/Glyph';
 import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
@@ -57,8 +57,6 @@ export function Cell({
   tone = 'ink',
   navigates = false,
   onPress,
-  role,
-  checked,
 }: {
   title: ReactNode;
   sub?: string;
@@ -67,8 +65,6 @@ export function Cell({
   tone?: Tone;
   navigates?: boolean;
   onPress?: () => void;
-  role?: AccessibilityRole;
-  checked?: boolean;
 }) {
   const { c } = useTokens();
   const first = useContext(FirstInGroup);
@@ -77,8 +73,7 @@ export function Cell({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      accessibilityRole={role ?? (onPress ? 'button' : undefined)}
-      accessibilityState={checked === undefined ? undefined : { checked }}
+      accessibilityRole={onPress ? 'button' : undefined}
       android_ripple={{ color: c.track }}
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingLeft: INSET, backgroundColor: pressed ? PRESS_FLASH : undefined })}

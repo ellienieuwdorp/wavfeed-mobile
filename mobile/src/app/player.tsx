@@ -143,8 +143,11 @@ function SeekLine() {
   const { position, duration } = usePlayerClock();
   const [drag, setDrag] = useState<number | null>(null);
   const dragged = useRef<number | null>(null);
+  /** The value the native slider is fed while a drag is on: held still, so the thumb follows the finger and nothing else. */
+  const anchor = useRef(0);
   const live = status === 'ready' && track !== null;
   const shown = drag ?? Math.min(position, duration || position);
+  const fed = drag === null ? shown : anchor.current;
   if (!ios) {
     return (
       <View style={{ height: SEEK, justifyContent: 'center', gap: 2 }}>
@@ -171,11 +174,14 @@ function SeekLine() {
   return (
     <View style={{ height: SEEK, justifyContent: 'center', gap: 2 }}>
       <Slider
-        value={live ? shown : 0}
+        value={live ? fed : 0}
         minimumValue={0}
         maximumValue={Math.max(duration, 1)}
         disabled={!live}
-        onSlidingStart={setDrag}
+        onSlidingStart={(v) => {
+          anchor.current = v;
+          setDrag(v);
+        }}
         onValueChange={(v) => setDrag((d) => (d === null ? d : v))}
         onSlidingComplete={(v) => {
           seek(v);

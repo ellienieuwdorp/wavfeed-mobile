@@ -30,7 +30,6 @@ export {
   listUpcomingReleases,
   markSwept,
   type OverviewView,
-  readBought,
   readCurated,
   readFollowedBands,
   readNewReleases,

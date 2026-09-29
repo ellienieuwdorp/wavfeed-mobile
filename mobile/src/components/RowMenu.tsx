@@ -1,17 +1,18 @@
 /**
  * The long press on anything that draws a Release (task 0036, Later, and the v2 client canvas, sections 6 and 7): Play,
- * Add to or Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is SwiftUI's context menu through @expo/ui, lifting the
- * row it wraps, so the row is laid out at the `width` it is given; on Android a Material dropdown menu anchored to the
- * row, mounted only while open. The wishlist item runs the heart's own press (ADR-0016) and is greyed whenever the
- * heart would take no press. Only an https address from the wire is opened or shared.
+ * Add to or Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is the action sheet while
+ * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
+ * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
+ * wishlist item runs the heart's own press (ADR-0016) and is greyed whenever the heart would take no press. Only an
+ * https address from the wire is opened or shared.
  */
 import { Box, DropdownMenu, DropdownMenuItem, Host as ComposeHost, Text as ComposeText } from '@expo/ui/jetpack-compose';
 import { fillMaxSize } from '@expo/ui/jetpack-compose/modifiers';
 import { Button, ContextMenu, Host, RNHostView } from '@expo/ui/swift-ui';
 import { disabled } from '@expo/ui/swift-ui/modifiers';
 import { openURL } from 'expo-linking';
-import { useState, type ReactElement } from 'react';
-import { ActionSheetIOS, Platform, Share, StyleSheet, View } from 'react-native';
+import { useState, type ReactElement, type ReactNode } from 'react';
+import { ActionSheetIOS, Platform, Pressable, Share, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { copy } from '@/copy';
@@ -22,12 +23,15 @@ import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget 
 import { usePlay, type RowRelease } from './playable';
 
 const ios = Platform.OS === 'ios';
-/** True until the device check of SwiftUI's menu around a hosted row; false falls back to ActionSheetIOS (task 0036). */
-const IOS_CONTEXT_MENU = true;
+// ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9 (task 0036). Its native
+// RNHostView predates @expo/ui 57.0.14 (expo/expo#48969), so every touch on a hosted row reaches JS twice, in host and in
+// page coordinates, and a hosted Pressable drops its press on any finger movement. False falls back to ActionSheetIOS;
+// true again once the app runs on a native side carrying that fix, a dev build or a later Expo Go.
+const IOS_CONTEXT_MENU = false;
 
 type Action = { key: string; label: string; icon: SFSymbol; enabled: boolean; run: () => void };
 
-/** The row takes this for its `onLongPress`: Android opens the menu, iOS only keeps a held press from playing. */
+/** The row takes this for its `onLongPress`: it opens the menu, except under SwiftUI's, where it only keeps a held press from playing. */
 export type OpenMenu = () => void;
 
 const keepHeld: OpenMenu = () => undefined;
@@ -132,6 +136,21 @@ function AnchoredMenu({ actions, children }: { actions: readonly Action[]; child
         </ComposeHost>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * The surface of a row that holds buttons of its own (a card, a quote), taking the long press between them and leaving
+ * the screen reader its buttons. Where SwiftUI's menu owns the long press it is a plain View, since a Pressable above the
+ * pressed one would take the responder on the second touch start of the doubled stream IOS_CONTEXT_MENU names and end
+ * that press without its onPress (task 0036). Its buttons pass `open` to their own `onLongPress`.
+ */
+export function RowSurface({ open, style, children }: { open: OpenMenu; style: StyleProp<ViewStyle>; children: ReactNode }) {
+  if (open === keepHeld) return <View style={style}>{children}</View>;
+  return (
+    <Pressable onLongPress={open} accessible={false} style={style}>
+      {children}
+    </Pressable>
   );
 }
 

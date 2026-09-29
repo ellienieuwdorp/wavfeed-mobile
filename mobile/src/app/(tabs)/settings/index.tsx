@@ -1,21 +1,20 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), connected devices (held back until a server knows the others), the one notification switch, appearance,
- * and removing everything gathered here. Android draws the status as one list item and its actions as Material buttons
- * under the custody line, as the canvas's Settings board does. A development build adds the store's facts under the
- * custody line. The wavfeed account rows (email, password, log out, delete) wait for the account this slice does not
- * have (task 0036).
+ * sign out), connected devices (held back until a server knows the others), appearance, and removing everything
+ * gathered here; the canvas's one notification switch waits for notifications to exist. Android draws the status as
+ * one list item and its actions as Material buttons under the custody line, as the canvas's Settings board does. A
+ * development build adds the store's facts under the custody line. The wavfeed account rows (email, password, log
+ * out, delete) wait for the account this slice does not have (task 0036).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Appearance, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
 import { AppBarTitle, useAppBar } from '@/components/AppBar';
 import { Glyph } from '@/components/Glyph';
-import { NativeSwitch } from '@/components/NativeSwitch';
 import { useDockClearance } from '@/components/player/Dock';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
@@ -27,14 +26,14 @@ import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
 import { countRawDocuments, readKv, readOverview } from '@/store';
-import { useTokens } from '@/theme/tokens';
+import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const s = copy.settings;
 /** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices (task 0036). */
 const SHOW_DEVICES = false;
-
-type Scheme = 'light' | 'dark' | 'system';
+// ceiling: nothing here schedules or receives a notification (no expo-notifications), so the canvas's Notifications
+// group with its one switch returns with push, between the devices and appearance.
 
 /** On Android the dot sits in a 24dp icon slot, so its row's text starts at 56dp with the device row's. */
 function Dot({ colour }: { colour: string }) {
@@ -76,8 +75,7 @@ export default function Settings() {
   const now = useNow();
   const clearance = useDockClearance();
   const appBar = useAppBar();
-  const [announces, setAnnounces] = useState(true);
-  const [scheme, setScheme] = useState<Scheme>('system');
+  const scheme = useAppearanceChoice();
   const [signingOut, setSigningOut] = useState(false);
   const [gathering, setGathering] = useState(false);
   const held = useLiveQuery(async (db) => ({
@@ -92,11 +90,6 @@ export default function Settings() {
   const handle = identity === null ? '' : identity.username || identity.name || String(identity.fanId);
   const busy = gathering || gather.phase !== 'idle';
   const gatheredAgo = gather.lastSuccessAt === null ? s.notGatheredYet : s.gathered(gather.lastSuccessAt, now);
-
-  const pickScheme = (next: Scheme) => {
-    setScheme(next);
-    Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
-  };
 
   const gatherNow = () => {
     setGathering(true);
@@ -138,7 +131,7 @@ export default function Settings() {
         { key: 'system', label: s.appearance.system },
       ]}
       value={scheme}
-      onChange={pickScheme}
+      onChange={setAppearance}
     />
   );
 
@@ -229,17 +222,6 @@ export default function Settings() {
           </Group>
         </>
       ) : null}
-
-      <GroupHead label={s.notificationsHead} />
-      <Group>
-        <Cell
-          title={s.announces}
-          role={ios ? undefined : 'switch'}
-          checked={ios ? undefined : announces}
-          onPress={ios ? undefined : () => setAnnounces(!announces)}
-          trailing={<NativeSwitch value={announces} onChange={setAnnounces} label={s.announces} />}
-        />
-      </Group>
 
       <GroupHead label={s.appearanceHead} />
       {ios ? (

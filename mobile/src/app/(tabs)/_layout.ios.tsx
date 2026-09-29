@@ -2,7 +2,10 @@
  * The four tabs on iOS as native tabs (task 0036 decision 5): UITabBarController, so iOS 26 draws the floating Liquid
  * Glass bar with labels and shrinks it while scrolling down. SF Symbols in canvas order, filled when selected, tinted
  * with the accent. The bar's bottom accessory carries the mini player once a Track exists, and before that the
- * catch-up capsule while the first walk runs (see AccessoryContent).
+ * catch-up capsule while the first walk runs (see AccessoryContent). The tab host takes the token scheme as its own
+ * `overrideUserInterfaceStyle`, set during the same Fabric mount as the token colours, so the glass, the headers'
+ * scroll edge, the accessory, the SwiftUI controls and every PlatformColor inside the tabs flip in the frame the
+ * literal colours do; left to the window's trait, they flipped a JS round trip early (see `setAppearance`).
  */
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
@@ -16,12 +19,12 @@ import { useTokens } from '@/theme/tokens';
 export const unstable_settings = { initialRouteName: '(feed)' };
 
 export default function TabsLayout() {
-  const { c } = useTokens();
+  const { c, dark } = useTokens();
   const current = usePlayerRelease();
   const catchUp = useCatchUpLine();
   const accessory = playerInAccessory() && (current !== null || catchUp !== null);
   return (
-    <NativeTabs tintColor={c.accent} minimizeBehavior="onScrollDown">
+    <NativeTabs tintColor={c.accent} minimizeBehavior="onScrollDown" unstable_nativeProps={{ colorScheme: dark ? 'dark' : 'light' }}>
       {accessory ? (
         <NativeTabs.BottomAccessory>
           <AccessoryContent />

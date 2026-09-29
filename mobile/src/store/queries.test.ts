@@ -2,6 +2,8 @@
 /**
  * The store's view reads narrow the wide Story join in SQL; each must answer what the server's feed rules answer on
  * the full join (task 0036, decision 3), and a rebuild from the Raw Documents must answer the same again (ADR-0004).
+ * Bought is read once and placed per mode on every switch, so that placing answers the rules at each threshold too.
+ * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well.
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
@@ -11,13 +13,20 @@ import { DAY, enterHistory, makeHistory, oracleRows } from '../../test/history';
 import { openTestStore } from '../../test/nodeDb';
 import { assembleFeed, itemKey } from '../domain/assemble';
 import { buildBoughtChart } from '../domain/boughtChart';
-import { buildCrossedList } from '../domain/boughtCrossed';
+import { buildCrossedList, CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD } from '../domain/boughtCrossed';
 import { buildCurated } from '../domain/curate';
 import { buildNewReleases } from '../domain/newReleases';
 import type { FeedStoryRow } from '../domain/rows';
 import { buildUpcoming } from '../domain/upcoming';
 import { fold, rebuild } from './projection';
-import { listUpcomingReleases, readBought, readCurated, readNewestBandcampReleaseUrl, readNewReleases } from './queries';
+import {
+  boughtView,
+  listUpcomingReleases,
+  readBoughtReleases,
+  readCurated,
+  readNewestBandcampReleaseUrl,
+  readNewReleases,
+} from './queries';
 import { insertRawDocument } from './rawDocuments';
 
 const NOW = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
@@ -33,7 +42,7 @@ async function newReleasesByRules(db: SQLiteDatabase, rows: readonly FeedStoryRo
 test('an empty store answers every view as the rules answer no Stories', async () => {
   const { db, close } = await openTestStore();
   assert.deepEqual(await readCurated(db), buildCurated([]));
-  assert.deepEqual(await readBought(db, { mode: 'released', now: NOW }), { weeks: [], nextCursor: null });
+  assert.deepEqual(boughtView(await readBoughtReleases(db), { mode: 'released' }), { weeks: buildBoughtChart([]), nextCursor: null });
   assert.deepEqual(await readNewReleases(db, { now: NOW }), buildNewReleases([], [], NOW));
   close();
 });
@@ -89,12 +98,27 @@ describe('over a long history', () => {
     assert.deepEqual(await readNewReleases(db, { now: earlier }), await newReleasesByRules(db, rows, earlier));
   });
 
-  test('Bought by release week and by Fans crossed match the rules', async () => {
-    assert.deepEqual(await readBought(db, { mode: 'released', now: NOW }), { weeks: buildBoughtChart(rows), nextCursor: null });
-    for (const threshold of [2, 3, 5, 10]) {
-      const expected = buildCrossedList(rows, threshold);
-      assert.ok(expected.length > 0, `some Release crosses ${threshold}`);
-      assert.deepEqual(await readBought(db, { mode: 'crossed', threshold, now: NOW }), { entries: expected, nextCursor: null });
+  test('one Bought read places each mode and every threshold as the rules do', async () => {
+    const held = await readBoughtReleases(db);
+    const typeOf = new Map(held.map(({ item }) => [item.itemId, item.itemType]));
+    assert.ok(held.some(({ item }) => typeOf.get(item.itemId) !== item.itemType), 'an album and a track share an id');
+    const released = { weeks: buildBoughtChart(rows), nextCursor: null };
+    assert.deepEqual(boughtView(held, { mode: 'released' }), released);
+    let fewer = Infinity;
+    for (let threshold = CROSSED_MIN_THRESHOLD; threshold <= CROSSED_MAX_THRESHOLD; threshold += 1) {
+      const crossed = { entries: buildCrossedList(rows, threshold), nextCursor: null };
+      const count = crossed.entries.length;
+      assert.ok(count > 0 && count < fewer, `some Release crosses ${threshold}, fewer than one less`);
+      fewer = count;
+      assert.deepEqual(boughtView(held, { mode: 'crossed', threshold }), crossed);
+    }
+    const clamped = [
+      [CROSSED_MIN_THRESHOLD - 1, CROSSED_MIN_THRESHOLD],
+      [CROSSED_MAX_THRESHOLD + 1, CROSSED_MAX_THRESHOLD],
+    ];
+    for (const [asked, placed] of clamped) {
+      const crossed = { entries: buildCrossedList(rows, placed), nextCursor: null };
+      assert.deepEqual(boughtView(held, { mode: 'crossed', threshold: asked }), crossed);
     }
   });
 
@@ -107,11 +131,11 @@ describe('over a long history', () => {
   test('a rebuild answers what folding page by page answered', async () => {
     for (const doc of later) await insertRawDocument(db, doc);
     await fold(db);
-    const bought = await readBought(db, { mode: 'released', now: NOW });
+    const bought = await readBoughtReleases(db);
     const curated = await readCurated(db);
     const newReleases = await readNewReleases(db, { now: NOW });
     await rebuild(db);
-    assert.deepEqual(await readBought(db, { mode: 'released', now: NOW }), bought);
+    assert.deepEqual(await readBoughtReleases(db), bought);
     assert.deepEqual(await readCurated(db), curated);
     assert.deepEqual(await readNewReleases(db, { now: NOW }), newReleases);
   });

@@ -32,7 +32,10 @@ export function wireDate(ms: number): string {
   return `${two(d.getUTCDate())} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} ${two(d.getUTCHours())}:${two(d.getUTCMinutes())}:${two(d.getUTCSeconds())} GMT`;
 }
 
-/** Stories newest first; one Release in 33 is dated 40 days on, so Upcoming has rows. */
+/**
+ * Stories newest first; one Release in 33 is dated 40 days on, so Upcoming has rows. Every track shares its id with the
+ * album four places before it: an album and a track can share an id (server migration 0002), and the store keys both.
+ */
 export function makeHistory(size: HistorySize, now: Date): History {
   let seed = 20260925;
   const rand = (): number => {
@@ -46,7 +49,7 @@ export function makeHistory(size: HistorySize, now: Date): History {
 
   const releases: Release[] = Array.from({ length: size.releases }, (_, j) => ({
     type: j % 5 === 4 ? 't' : 'a',
-    id: 500_000 + j,
+    id: 500_000 + j - (j % 5 === 4 ? 4 : 0),
     band: 1000 + (j % size.pages),
     at: nowMs - Math.floor(rand() * 730 * DAY) + (j % 33 === 0 ? 40 * DAY : 0),
     shown: j % 3 !== 0 ? 'story' : j % 2 === 0 ? 'page' : 'none',
@@ -62,8 +65,8 @@ export function makeHistory(size: HistorySize, now: Date): History {
     while (held.size < count) {
       const release = unreached.pop() ?? releases[pick(size.releases, 2.2)];
       const fan = 90_000 + pick(size.fans, 1.5);
-      if (release === undefined || held.has(`${fan}:${release.id}`)) continue;
-      held.add(`${fan}:${release.id}`);
+      if (release === undefined || held.has(`${fan}:${release.type}${release.id}`)) continue;
+      held.add(`${fan}:${release.type}${release.id}`);
       const from = Math.max(nowMs - 740 * DAY, Math.min(release.at, nowMs - 60 * DAY));
       const at = from + Math.floor(rand() * (nowMs - from));
       const why = kind === 'fp' && rand() < 0.05 ? `a record I keep returning to ${fan}` : null;

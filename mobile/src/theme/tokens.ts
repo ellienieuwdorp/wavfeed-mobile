@@ -5,8 +5,12 @@
  * `track` its segmented-control track (ink at 8 percent). Type sizes follow the
  * v2 client canvas: SF on iOS, the system Roboto on Android at Material's body-large
  * and body-medium, no web font. A pressed row takes the platform's own highlight.
+ * The scheme is one store: Settings > Appearance's choice for the session over the
+ * system's, read by every `useTokens` so a switch lands in one React commit, with the
+ * tab host's native scheme set in that same commit (see the tabs layouts).
  */
-import { Platform, PlatformColor, useColorScheme, type ColorValue } from 'react-native';
+import { useSyncExternalStore } from 'react';
+import { Appearance, Platform, PlatformColor, type ColorValue } from 'react-native';
 
 export type Palette = {
   bg: string;
@@ -105,8 +109,50 @@ export const SCROLL_PRESS_DELAY_MS = 120;
 
 export type Tokens = { dark: boolean; c: Palette; type: typeof type };
 
+export type AppearanceChoice = 'light' | 'dark' | 'system';
+
+let choice: AppearanceChoice = 'system';
+const choiceListeners = new Set<() => void>();
+
+function subscribeChoice(listener: () => void): () => void {
+  choiceListeners.add(listener);
+  return () => {
+    choiceListeners.delete(listener);
+  };
+}
+
+function subscribeScheme(listener: () => void): () => void {
+  const system = Appearance.addChangeListener(listener);
+  const unsubscribe = subscribeChoice(listener);
+  return () => {
+    system.remove();
+    unsubscribe();
+  };
+}
+
+function readDark(): boolean {
+  return (choice === 'system' ? Appearance.getColorScheme() : choice) === 'dark';
+}
+
+/**
+ * Settings > Appearance, for the session. React Native's `Appearance.setColorScheme` sets the window's override at once
+ * but tells JS only when the native change event comes back, so a light or dark pick is published here first and every
+ * `useTokens` re-renders in one commit. "System" waits for that event, since the window's override hides the system's
+ * own scheme until it is lifted.
+ */
+export function setAppearance(next: AppearanceChoice): void {
+  if (next === choice) return;
+  choice = next;
+  Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
+  for (const listener of choiceListeners) listener();
+}
+
+export function useAppearanceChoice(): AppearanceChoice {
+  return useSyncExternalStore(subscribeChoice, () => choice);
+}
+
 export function useTokens(): Tokens {
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useSyncExternalStore(subscribeScheme, readDark);
   return { dark: isDark, c: isDark ? dark : light, type };
 }
 

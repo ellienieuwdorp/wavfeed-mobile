@@ -1,11 +1,12 @@
 /**
- * Root layout: the navigation theme built from our tokens (DESIGN-UI section 6),
- * light and dark following the system, the app state with its gather runner and
- * schedule (task 0036 decision 4), the player and notice state, and a stack
- * holding the tabs, the player sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036
- * decision 5). The first launch with no Fan held presents Connect once by itself. A sample bundle fills the store and
- * gathers nothing (src/dev/useSampleData.ts). On Android the window behind the
- * edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows a white edge in dark.
+ * Root layout: the navigation theme built from our tokens (DESIGN-UI section 6), light and dark following the system
+ * or Settings > Appearance (see `setAppearance`), the status bar styled from the same tokens because expo-status-bar's
+ * `auto` reads React Native's scheme, which learns of a pick a native round trip later, the app state with its gather
+ * runner and schedule (task 0036 decision 4), the player and notice state, and a stack holding the tabs, the player
+ * sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036 decision 5). The first launch with no Fan held
+ * presents Connect once by itself. A sample bundle fills the store and gathers nothing (src/dev/useSampleData.ts). On
+ * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
+ * a white edge in dark.
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -51,7 +52,7 @@ export default function RootLayout() {
           <FirstRunConnect />
           <PlayerProvider>
             <NoticeProvider>
-              <StatusBar style="auto" />
+              <StatusBar style={dark ? 'light' : 'dark'} />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen

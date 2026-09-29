@@ -94,6 +94,8 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const loadRef = useRef(0);
   const quietUntil = useRef(0);
   const lockActive = useRef(false);
+  /** The position a seek is travelling to; status ticks report the old position until AVPlayer lands it. */
+  const seekingTo = useRef<number | null>(null);
 
   useEffect(() => {
     depsRef.current = deps;
@@ -117,6 +119,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       const track = from.tracks[index];
       if (from.current === null || track === undefined || track.streamUrl === null) return;
       quiet();
+      seekingTo.current = null;
       // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
       if (!SAMPLE_MODE) {
         audio.replace({ uri: track.streamUrl });
@@ -229,8 +232,14 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const seek = useCallback(
     (seconds: number) => {
       if (stateRef.current.index === null) return;
-      audio.seekTo(seconds).catch(() => undefined);
+      seekingTo.current = seconds;
       setClock((at) => ({ ...at, position: seconds }));
+      audio
+        .seekTo(seconds)
+        .catch(() => undefined)
+        .finally(() => {
+          if (seekingTo.current === seconds) seekingTo.current = null;
+        });
     },
     [audio],
   );
@@ -254,7 +263,8 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
         apply({ ...from, status: 'error', playing: false });
         return;
       }
-      setClock({ position: status.currentTime, duration: durationOf(status, from.tracks[from.index]) });
+      const position = seekingTo.current ?? status.currentTime;
+      setClock({ position, duration: durationOf(status, from.tracks[from.index]) });
       // Play and pause that came from outside the app: the lock screen, Control Centre, a phone call.
       if (Date.now() < quietUntil.current) return;
       if (status.playing && !from.playing) apply({ ...from, playing: true });

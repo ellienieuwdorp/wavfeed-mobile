@@ -2,8 +2,8 @@
  * The one context every screen reads: the open store, the Bandcamp session, the
  * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
  * screen re-reads its query (task 0036). `putRaw` is the only way a response
- * enters the phone: verbatim into raw_documents, then folded (ADR-0004). `removeStore` deletes the store file and
- * opens a fresh one, which remounts everything under the provider.
+ * enters the phone: verbatim into raw_documents, then folded (ADR-0004); a release page folds without moving the version.
+ * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider.
  */
 import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -11,6 +11,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
+import { CRUMBS_PAGE_ENDPOINT } from '@/bandcamp/wire';
+import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
 import { ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
@@ -87,7 +89,9 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
       const result = await insertRawDocument(db, doc);
       if (!result.deduped) {
         await fold(db);
-        invalidate();
+        // A page fetched to play or to name a wishlist Page only enriches its Release's date, preorder flag and track count,
+        // which the next fold's version move shows; moving it here re-read every mounted screen as the player opened (task 0036).
+        if (doc.endpoint !== RELEASE_PAGE_ENDPOINT && doc.endpoint !== CRUMBS_PAGE_ENDPOINT) invalidate();
       }
       return { deduped: result.deduped };
     },

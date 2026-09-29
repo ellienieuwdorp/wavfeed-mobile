@@ -1,8 +1,9 @@
 /// <reference types="node" />
 /**
  * Times the store's view reads on a long history (task 0036): 10,000 synthetic Stories over 3,000 Releases, 500 Fans
- * and 400 Pages folded over `node:sqlite`, against the domain rules alone, then a small fold and a rebuild. That each
- * read answers what the rules answer is src/store/queries.test.ts. Run: `npm run perf`.
+ * and 400 Pages folded over `node:sqlite`, Bought's mode switch over Releases already read, the domain rules alone,
+ * then a small fold and a rebuild. That each read answers what the rules answer is src/store/queries.test.ts.
+ * Run: `npm run perf`.
  */
 import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +16,7 @@ import { buildBoughtChart } from '../../domain/boughtChart';
 import { buildCrossedList } from '../../domain/boughtCrossed';
 import { buildCurated } from '../../domain/curate';
 import { fold, rebuild } from '../projection';
-import { listStoryRows, readBought, readCurated, readNewReleases } from '../queries';
+import { boughtView, listStoryRows, readBoughtReleases, readCurated, readNewReleases } from '../queries';
 import { insertRawDocument } from '../rawDocuments';
 
 const NOW = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
@@ -46,8 +47,10 @@ async function main(): Promise<void> {
 
   await time('listStoryRows', () => listStoryRows(db));
   await time('readNewReleases', () => readNewReleases(db, { now: NOW }));
-  await time('readBought released', () => readBought(db, { mode: 'released', now: NOW }));
-  await time('readBought crossed 2', () => readBought(db, { mode: 'crossed', threshold: 2, now: NOW }));
+  await time('readBoughtReleases', () => readBoughtReleases(db));
+  const bought = await readBoughtReleases(db);
+  await time('switch: released', async () => boughtView(bought, { mode: 'released' }));
+  await time('switch: crossed 2', async () => boughtView(bought, { mode: 'crossed', threshold: 2 }));
   await time('readCurated', () => readCurated(db));
 
   const rows = await oracleRows(db);

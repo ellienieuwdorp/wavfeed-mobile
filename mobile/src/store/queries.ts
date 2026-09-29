@@ -15,8 +15,8 @@ import type {
 } from '../domain/apiTypes';
 import { onBandcampHost } from '../bandcamp/wire';
 import { assembleFeed, itemKey } from '../domain/assemble';
-import { buildBoughtChart } from '../domain/boughtChart';
-import { buildCrossedList, CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD } from '../domain/boughtCrossed';
+import { boughtChartOf, type BoughtRelease, boughtReleases } from '../domain/boughtChart';
+import { CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD, crossedListOf } from '../domain/boughtCrossed';
 import {
   buildCurated,
   CURATED_MIN_BUYERS,
@@ -105,6 +105,11 @@ function storiesOfItems(items: readonly ItemPair[]): StoryScope {
   };
 }
 
+/** A Release as one number for the per-Story lookups: Bandcamp ids sit far below 2^52, so the type rides in the low bit. */
+function releaseKey(itemType: ItemType, itemId: number): number {
+  return itemId * 2 + (itemType === 't' ? 1 : 0);
+}
+
 function toReleasePart(row: ReleaseRecord): ReleasePart | null {
   const itemType = asItemType(row.item_type);
   if (itemType === null) return null;
@@ -138,11 +143,14 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: numbe
      limit ?`,
     [...scope.params, limit],
   );
-  const items = new Map<string, ItemPair>();
+  const items = new Map<number, ItemPair>();
   const fanIds = new Set<number>();
   for (const story of stories) {
     const itemType = asItemType(story.item_type);
-    if (itemType !== null) items.set(`${itemType}:${story.item_id}`, [itemType, story.item_id]);
+    if (itemType !== null) {
+      const key = releaseKey(itemType, story.item_id);
+      if (!items.has(key)) items.set(key, [itemType, story.item_id]);
+    }
     if (story.fan_id !== null) fanIds.add(story.fan_id);
   }
   const releaseRows = await db.getAllAsync<ReleaseRecord>(
@@ -158,20 +166,22 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: numbe
     'select fan_id, username, name, image_id from fans where fan_id in (select value from json_each(?))',
     [JSON.stringify([...fanIds])],
   );
-  const releases = new Map<string, ReleasePart>();
+  const releases = new Map<number, ReleasePart>();
   for (const row of releaseRows) {
     const part = toReleasePart(row);
-    if (part !== null) releases.set(`${part.itemType}:${part.itemId}`, part);
+    if (part !== null) releases.set(releaseKey(part.itemType, part.itemId), part);
   }
   const fans = new Map(fanRows.map((fan) => [fan.fan_id, fan]));
 
   const rows: FeedStoryRow[] = [];
   for (const story of stories) {
     const storyType = asStoryType(story.story_type);
-    const storyDate = asDate(story.story_date);
+    const itemType = asItemType(story.item_type);
     // No Release or Page held leaves the Story out, as the inner join did; a rebuild between the reads does the same.
-    const release = releases.get(`${story.item_type}:${story.item_id}`);
-    if (storyType === null || storyDate === null || release === undefined) continue;
+    const release = itemType === null ? undefined : releases.get(releaseKey(itemType, story.item_id));
+    if (storyType === null || release === undefined) continue;
+    const storyDate = asDate(story.story_date);
+    if (storyDate === null) continue;
     const fan = story.fan_id === null ? undefined : fans.get(story.fan_id);
     rows.push({
       storyId: story.story_id,
@@ -325,34 +335,33 @@ export type BoughtOptions =
 /** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
 const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
 
+/** Every Release either Bought mode could place: a named purchase and a release date, or the lowest crossing's named Fans. */
+const BOUGHT_SCOPE: StoryScope = {
+  where: `(s.item_type, s.item_id) in (
+    select b.item_type, b.item_id from ${NAMED_PURCHASES}
+    group by b.item_type, b.item_id
+    having count(distinct b.fan_id) >= ?
+      or exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))`,
+  params: [CROSSED_MIN_THRESHOLD],
+};
+
 /**
- * Every week or crossing at once: the phone has no page boundary, so `nextCursor` is always null. Only a Release the
- * rules could place is loaded, each with all its Stories, so the domain judges exactly what it judged over the whole store.
+ * Both Bought modes' Releases in one read, each with all its Stories, so the domain judges exactly what it judged over the whole
+ * store; `boughtView` places them for a mode without another read, which is what the mode switch and the number menu run.
  */
-export async function readBought(db: SQLiteDatabase, options: { readonly mode: 'released'; readonly now?: Date }): Promise<ApiBoughtResponse>;
-export async function readBought(
-  db: SQLiteDatabase,
-  options: { readonly mode: 'crossed'; readonly threshold: number; readonly now?: Date },
-): Promise<ApiBoughtCrossedResponse>;
-export async function readBought(db: SQLiteDatabase, options: BoughtOptions): Promise<ApiBoughtResponse | ApiBoughtCrossedResponse> {
-  // ceiling: Bought still loads most Stories (43 ms at 10,000 on the Mac); a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
-  if (options.mode === 'released') {
-    const rows = await loadStoryRows(db, {
-      where: `(s.item_type, s.item_id) in (
-        select b.item_type, b.item_id from ${NAMED_PURCHASES}
-          and exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))`,
-      params: [],
-    });
-    return { weeks: buildBoughtChart(rows), nextCursor: null };
-  }
+export async function readBoughtReleases(db: SQLiteDatabase): Promise<readonly BoughtRelease[]> {
+  // ceiling: this still loads most Stories (about 45 ms at 10,000 on the Mac, once per store version); a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
+  return boughtReleases(await loadStoryRows(db, BOUGHT_SCOPE));
+}
+
+/** Every week or crossing at once: the phone has no page boundary, so `nextCursor` is always null. */
+export function boughtView(releases: readonly BoughtRelease[], options: { readonly mode: 'released' }): ApiBoughtResponse;
+export function boughtView(releases: readonly BoughtRelease[], options: { readonly mode: 'crossed'; readonly threshold: number }): ApiBoughtCrossedResponse;
+export function boughtView(releases: readonly BoughtRelease[], options: BoughtOptions): ApiBoughtResponse | ApiBoughtCrossedResponse;
+export function boughtView(releases: readonly BoughtRelease[], options: BoughtOptions): ApiBoughtResponse | ApiBoughtCrossedResponse {
+  if (options.mode === 'released') return { weeks: boughtChartOf(releases), nextCursor: null };
   const threshold = Math.min(CROSSED_MAX_THRESHOLD, Math.max(CROSSED_MIN_THRESHOLD, Math.trunc(options.threshold)));
-  const rows = await loadStoryRows(db, {
-    where: `(s.item_type, s.item_id) in (
-      select b.item_type, b.item_id from ${NAMED_PURCHASES}
-      group by b.item_type, b.item_id having count(distinct b.fan_id) >= ?)`,
-    params: [threshold],
-  });
-  return { entries: buildCrossedList(rows, threshold), nextCursor: null };
+  return { entries: crossedListOf(releases, threshold), nextCursor: null };
 }
 
 /**
