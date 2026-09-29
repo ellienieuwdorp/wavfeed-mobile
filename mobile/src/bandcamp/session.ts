@@ -9,6 +9,7 @@ import {
   BAND_DETAILS_ENDPOINT,
   FEED_PAGE_ENDPOINT,
   FEED_UPDATES_ENDPOINT,
+  type FeedPageEnvelope,
   FOLLOWING_BANDS_ENDPOINT,
   RELEASE_PAGE_ENDPOINT,
   type ReleaseKey,
@@ -16,6 +17,7 @@ import {
 } from '../domain/endpoints';
 import { Platform } from 'react-native';
 
+import { utf8Bytes } from '../domain/hash';
 import { asRecord } from '../domain/wire';
 import { SAMPLE_MODE } from '../dev/sampleMode';
 import { readJsonAttribute } from './htmlBlob';
@@ -285,14 +287,18 @@ export class BandcampSession {
     return { kind: 'ok', value: { fanId, username: username ?? null } };
   }
 
-  /** The dash feed only regenerates when the feed page is visited. */
+  /**
+   * The dash feed only regenerates when the feed page is visited. The signed-in page carries the session's crumbs and
+   * nothing reads it, so it lands as an extract of its URL, status and UTF-8 byte length (ADR-0004 amendment 2026-09-29).
+   */
   async pokeFeedPage(username: string): Promise<BandcampAnswer<BandcampDocument>> {
     const url = `${this.baseUrl}/${encodeURIComponent(username)}/feed`;
     const fetchedAt = nowIso();
     const wire = await this.send(url, { headers: { Accept: HTML_ACCEPT }, credentials: 'include' });
     if (wire === null) return { kind: 'unreachable' };
     if (!wire.ok) return { kind: 'error', status: wire.status };
-    return { kind: 'ok', value: { endpoint: FEED_PAGE_ENDPOINT, payload: { url, html: wire.text }, fetchedAt } };
+    const payload: FeedPageEnvelope = { url, status: wire.status, bytes: utf8Bytes(wire.text).length };
+    return { kind: 'ok', value: { endpoint: FEED_PAGE_ENDPOINT, payload, fetchedAt } };
   }
 
   async fetchFeedUpdates(fanId: number, olderThan: number): Promise<BandcampAnswer<FeedUpdatesPage>> {

@@ -24,6 +24,13 @@ export type ReleaseKey = {
   readonly itemId: number;
 };
 
+/** `fan_feed_page`: the snapshot poke's page as an extract, never its HTML (ADR-0004 amendment 2026-09-29). */
+export type FeedPageEnvelope = {
+  readonly url: string;
+  readonly status: number;
+  readonly bytes: number;
+};
+
 /** `release_page`: the key the page was fetched for beside Bandcamp's own blobs. */
 export type ReleasePageEnvelope = ReleaseKey & {
   readonly itemUrl: string;

@@ -384,7 +384,7 @@ describe('payloads that are not a feed', () => {
       { ok: false, error_message: 'unauthorized' },
       { stories: { entries: null } },
       // A fan_feed_page payload: callers route Raw Documents by endpoint.
-      { url: 'https://bandcamp.com/diggerfan/feed', html: '<!DOCTYPE html>' },
+      { url: 'https://bandcamp.com/diggerfan/feed', status: 200, bytes: 312_408 },
       null,
       '{}',
       [],

@@ -134,6 +134,16 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    // Feed pokes stored before the extract held the page's HTML and its crumbs; nothing folds them, so they go, and
+    // secure_delete zeroes the freed pages (ADR-0003, ADR-0004 amendment 2026-09-29).
+    version: 3,
+    sql: `
+      pragma secure_delete = on;
+      delete from raw_documents where endpoint = 'fan_feed_page' and json_extract(payload, '$.html') is not null;
+      pragma secure_delete = off;
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {

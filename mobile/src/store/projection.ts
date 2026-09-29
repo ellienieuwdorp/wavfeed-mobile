@@ -383,7 +383,7 @@ async function projectWishlistItems(db: SQLiteDatabase, doc: RawDocument): Promi
   return result('projected', { wishlistItemsUpserted: parsed.items.length, wishlistItemsRemoved: removed }, parsed.skipped);
 }
 
-/** `fan_feed_page` HTML and anything unknown is skipped and kept on the raw side for a later parser. */
+/** The `fan_feed_page` extract and anything unknown is skipped and kept on the raw side for a later parser. */
 export async function projectRawDocument(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
   switch (doc.endpoint) {
     case FEED_UPDATES_ENDPOINT:

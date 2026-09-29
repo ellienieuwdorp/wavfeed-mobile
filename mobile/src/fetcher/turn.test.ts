@@ -49,7 +49,7 @@ const at = (): string => new Date(clock).toISOString();
 
 const session: GatherSession = {
   probeIdentity: async () => probe,
-  pokeFeedPage: async (username) => ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, html: '' }, fetchedAt: at() }),
+  pokeFeedPage: async (username) => ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() }),
   fetchWishlistItems: async () => ok({ pages: 0, seen: 0, complete: true }),
   fetchFollowingBands: async () => ok({ pages: 0, seen: 0, complete: true }),
   async fetchBandDetails(bandId) {
