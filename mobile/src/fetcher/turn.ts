@@ -5,8 +5,8 @@
  * plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011), a few while the walk is
  * pending, with budget held back from the walk for them; then the rest of the sweep. A list that fails is noted and
  * the walk still runs. The cursor is written after every page, so a turn out of budget or killed with the app resumes
- * for free, and the store folds after every batch while the walk runs. `lastSuccessAt` moves in the same patch that
- * sets the phase idle, so "Updated just now" lands with the pull to refresh spinner and not on the turn's first answer.
+ * for free, and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed step ends
+ * and again when the turn does, never per answer: a pull to refresh lets its spinner go when it moves (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -61,7 +61,7 @@ type Ctx = {
   readonly now: () => number;
   readonly budgetMs: number;
   deadline: number;
-  /** When this turn's last Raw Document landed; published as `lastSuccessAt` when the turn ends. */
+  /** When this turn's last Raw Document landed; published as `lastSuccessAt` after the feed and at the turn's end. */
   landedAt: number | null;
 };
 
@@ -195,6 +195,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   const feed = await runFeed(ctx, identity, queued * RELEASE_PAGE_RESERVE_MS);
   if (feed === 'paused') return 'paused';
   if (feed === 'unreachable') return 'failed';
+  if (ctx.landedAt !== null) await sink.patchGatherState({ lastSuccessAt: ctx.landedAt });
 
   if (!outOfBudget(ctx)) await runReleasePages(ctx, dating);
   if (!outOfBudget(ctx)) await runSweep(ctx, SWEEP_TURN_MAX - swept);

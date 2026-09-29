@@ -152,7 +152,7 @@ describe('the feed walk', () => {
     assert.equal(gather.releasesDated, 5);
   });
 
-  test('the last success moves when the turn ends, not on its first answer', async () => {
+  test('the last success moves once the feed is in, before the release pages after it', async () => {
     feed = stories(3, 1000, 86_400);
     await turn();
     const before = gather.lastSuccessAt;
@@ -160,20 +160,22 @@ describe('the feed walk', () => {
 
     clock += 15 * 60_000;
     feed = [...stories(2, 2000, 60), ...feed];
-    const midTurn: (number | null)[] = [];
+    const seen: Pick<GatherState, 'phase' | 'lastSuccessAt'>[] = [];
     sink = createGatherSink({
       db,
       setGather: (state) => {
         gather = state;
-        if (state.phase !== 'idle') midTurn.push(state.lastSuccessAt);
+        seen.push({ phase: state.phase, lastSuccessAt: state.lastSuccessAt });
       },
       invalidate: () => undefined,
     });
     await turn(600_000, 'refresh');
-    assert.ok(midTurn.length > 0);
-    assert.ok(midTurn.every((at) => at === before), 'the Updated line holds while the spinner turns');
-    assert.equal(gather.phase, 'idle');
-    assert.ok(gather.lastSuccessAt !== null && before !== null && gather.lastSuccessAt > before);
+    assert.ok(releasePages.length > 0, 'the new Stories send the turn on to release pages');
+    const dating = seen.findIndex((state) => state.phase === 'dating');
+    assert.ok(dating > 0);
+    const moved = seen.findIndex((state) => state.lastSuccessAt !== before);
+    assert.equal(moved, dating - 1, 'it moves once the feed ends, not on an answer and not at the turn end');
+    assert.ok((seen[moved]?.lastSuccessAt ?? 0) > (before ?? 0));
   });
 });
 
