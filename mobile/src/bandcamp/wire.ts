@@ -9,6 +9,12 @@ export const DEFAULT_BANDCAMP_BASE_URL = 'https://bandcamp.com';
 export const COLLECTION_SUMMARY_ENDPOINT = 'collection_summary';
 export const COLLECT_ITEM_ENDPOINT = 'collect_item_cb';
 export const UNCOLLECT_ITEM_ENDPOINT = 'uncollect_item_cb';
+/**
+ * The page a wishlist write read its crumb from, stored as `{ url, status, paths }`: the crumb map's keys and never its
+ * values, which are session secrets a stored file would hand to anyone holding it (ADR-0003, ADR-0004, ADR-0016).
+ * The Projection skips it as an unknown endpoint.
+ */
+export const CRUMBS_PAGE_ENDPOINT = 'crumbs_page';
 
 export const COLLECTION_SUMMARY_PATH = '/api/fan/2/collection_summary';
 export const FEED_UPDATES_PATH = '/fan_dash_feed_updates';
@@ -83,4 +89,15 @@ export function isFetchableTarget(url: string, baseOrigin: string): boolean {
   const host = origin.slice('https://'.length).replace(/:443$/, '').replace(/\.$/, '');
   if (!/^[a-z0-9.-]+$/.test(host) || !host.includes('.') || LOCAL_SUFFIX.test(host)) return false;
   return !NUMERIC_LABEL.test(host.slice(host.lastIndexOf('.') + 1));
+}
+
+/**
+ * bandcamp.com or one of its subdomains over https: the hosts the jar sends the Fan's session to, so the only pages
+ * whose crumb map speaks for that session (ADR-0016 amendment 2026-09-28). A custom domain gets none of its cookies.
+ */
+export function onBandcampHost(url: string): boolean {
+  const origin = originOf(url);
+  if (origin === null || !origin.startsWith('https://')) return false;
+  const host = origin.slice('https://'.length).replace(/:443$/, '').replace(/\.$/, '');
+  return /^[a-z0-9.-]+$/.test(host) && (host === 'bandcamp.com' || host.endsWith('.bandcamp.com'));
 }

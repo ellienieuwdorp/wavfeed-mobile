@@ -20,13 +20,18 @@ import { asRecord } from '../domain/wire';
 import { SAMPLE_MODE } from '../dev/sampleMode';
 import { readJsonAttribute } from './htmlBlob';
 import {
+  crumbKeyOf,
   meansAlreadyThere,
   notJsonPayload,
   readErrorText,
+  readPageCrumbs,
+  readReason,
   readReplayCrumb,
+  refusesCrumb,
   toDetail,
   toSaid,
   MAX_CRUMB_REPLAYS,
+  type WishlistCrumbSource,
   type WishlistEnd,
   type WishlistItem,
   type WishlistWire,
@@ -35,6 +40,7 @@ import {
   wishlistHeaders,
   wishlistRequestBody,
   withholdsCrumb,
+  withoutCrumbs,
 } from './wishlist';
 import {
   BAND_DETAILS_PATH,
@@ -43,6 +49,7 @@ import {
   COLLECT_ITEM_ENDPOINT,
   COLLECT_ITEM_PATH,
   COLLECTION_SUMMARY_PATH,
+  CRUMBS_PAGE_ENDPOINT,
   DEFAULT_BANDCAMP_BASE_URL,
   FEED_UPDATES_PATH,
   FOLLOWING_BANDS_PATH,
@@ -55,6 +62,7 @@ import {
   JSON_CONTENT_TYPE,
   LOGOUT_PATH,
   MAX_UNIX_SECONDS,
+  onBandcampHost,
   originOf,
   parseJson,
   UNCOLLECT_ITEM_ENDPOINT,
@@ -112,6 +120,25 @@ export type ReleasePage =
   | { readonly kind: 'unparsable' }
   | { readonly kind: 'refused' };
 
+/**
+ * A crumb page read: `crumbs` is null when the page carried no readable `#js-crumbs-data` map, and `onBandcamp` says
+ * the page was served from a host the jar sends the session to, the only kind whose map speaks for it.
+ */
+type CrumbPage =
+  | {
+      readonly kind: 'page';
+      readonly status: number;
+      readonly ok: boolean;
+      readonly onBandcamp: boolean;
+      readonly crumbs: Readonly<Record<string, string>> | null;
+      readonly document: BandcampDocument;
+    }
+  | { readonly kind: 'unreachable' }
+  | { readonly kind: 'refused' };
+
+/** The two paths whose crumbs the session keeps, under the keys the page's map uses. */
+const WISHLIST_CRUMB_KEYS: readonly string[] = [crumbKeyOf(COLLECT_ITEM_PATH), crumbKeyOf(UNCOLLECT_ITEM_PATH)];
+
 type Credentials = 'include' | 'omit';
 
 type SendSpec = {
@@ -153,6 +180,18 @@ function looksSignedOut(body: Record<string, unknown> | undefined, text: string)
   return body === undefined && /<html|<!doctype/i.test(text.slice(0, 500));
 }
 
+/**
+ * The page the crumb is read from: the Release's own on a bandcamp.com host, else the store's stand-in on one, since a
+ * crumb is per path and the session already writes one Release with a crumb read on another (ADR-0016 amendment
+ * 2026-09-28). With no stand-in held, the Release's own page, whose map then reads empty.
+ * ceiling: a crumb read off another Release's page is assumed valid for this one, as a held crumb already is; if
+ * Bandcamp ever ties a crumb to its page, a custom-domain Release needs its crumb read inside the sign-in WebView.
+ */
+function crumbPageOf(item: WishlistItem): string {
+  if (onBandcampHost(item.releaseUrl)) return item.releaseUrl;
+  return item.standInUrl !== null && onBandcampHost(item.standInUrl) ? item.standInUrl : item.releaseUrl;
+}
+
 function extractFollowingBands(html: string): Record<string, unknown> | null {
   const blob = asRecord(readJsonAttribute(html, 'blob', 'pagedata'));
   if (blob === undefined) return null;
@@ -170,6 +209,11 @@ export class BandcampSession {
   private readonly baseOrigin: string;
   private tail: Promise<unknown> = Promise.resolve();
   private lastDoneAt: number | null = null;
+  /**
+   * The wishlist paths' crumbs as the last page read or `invalid_crumb` answer gave them, for the app's life: never
+   * stored, logged or put in a Raw Document, and cleared on sign-out (ADR-0003, ADR-0016 amendment 2026-09-28).
+   */
+  private readonly crumbs = new Map<string, string>();
 
   constructor(baseUrl: string = DEFAULT_BANDCAMP_BASE_URL) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
@@ -432,6 +476,7 @@ export class BandcampSession {
 
   /** The iOS WebView copies cookies it gains into the app's jar, never ones it loses: this clears the app's. */
   async signOut(): Promise<'ok' | 'unreachable'> {
+    this.crumbs.clear();
     const wire = await this.send(`${this.baseUrl}${LOGOUT_PATH}`, { headers: { Accept: HTML_ACCEPT }, credentials: 'include' });
     return wire === null ? 'unreachable' : 'ok';
   }
@@ -444,98 +489,199 @@ export class BandcampSession {
     return this.writeWishlist('remove', item);
   }
 
-  /** The site's own heart button (ADR-0016): no crumb first, then replayed with the one `invalid_crumb` hands back. */
+  /**
+   * A Release page with the jar's session attached, as the site's heart has it loaded: the crumb map in its `<head>` is
+   * read and the page itself is dropped. The target guard runs before and after redirects, as for `fetchReleasePage`;
+   * a custom domain passes it but gets no Bandcamp cookie from the jar, so the host it was served from is kept too.
+   */
+  private async readCrumbPage(url: string): Promise<CrumbPage> {
+    if (!isFetchableTarget(url, this.baseOrigin)) return { kind: 'refused' };
+    const fetchedAt = nowIso();
+    const wire = await this.send(url, { headers: { Accept: HTML_ACCEPT }, credentials: 'include' });
+    if (wire === null) return { kind: 'unreachable' };
+    if (wire.url !== '' && !isFetchableTarget(wire.url, this.baseOrigin)) return { kind: 'refused' };
+    const crumbs = wire.ok ? (readPageCrumbs(wire.text) ?? null) : null;
+    const paths = crumbs === null ? null : Object.keys(crumbs);
+    return {
+      kind: 'page',
+      status: wire.status,
+      ok: wire.ok,
+      onBandcamp: onBandcampHost(wire.url === '' ? url : wire.url),
+      crumbs,
+      document: { endpoint: CRUMBS_PAGE_ENDPOINT, payload: { url, status: wire.status, paths }, fetchedAt },
+    };
+  }
+
+  /**
+   * A bandcamp.com page's map is the truth for the wishlist keys: a key it lacks is forgotten, so a signed-out page
+   * empties both. A page off bandcamp.com never reaches here.
+   */
+  private keepCrumbs(crumbs: Readonly<Record<string, string>> | null) {
+    for (const key of WISHLIST_CRUMB_KEYS) {
+      const crumb = crumbs?.[key];
+      if (crumb === undefined) this.crumbs.delete(key);
+      else this.crumbs.set(key, crumb);
+    }
+  }
+
+  /**
+   * The site's own heart (ADR-0016, amended 2026-09-28): the path's crumb from memory, else from `crumbPageOf`'s page,
+   * then the write carrying it. `invalid_crumb` with a fresh crumb is replayed with that crumb; a crumb refused without one,
+   * the crash envelope naming the crumb or a bare `invalid_crumb`, reads the page when this press has not yet, and
+   * replays. One page read and `MAX_CRUMB_REPLAYS` replays at most. A page with no crumb for the path goes to the probe,
+   * so a signed-out page reads as signed out. Every crumb the press sees is cut out of what it returns.
+   */
   private async writeWishlist(action: WishlistWriteKind, item: WishlistItem): Promise<WishlistWriteOutcome> {
+    const path = action === 'add' ? COLLECT_ITEM_PATH : UNCOLLECT_ITEM_PATH;
     const endpoint = action === 'add' ? COLLECT_ITEM_ENDPOINT : UNCOLLECT_ITEM_ENDPOINT;
-    const url = `${this.baseUrl}${action === 'add' ? COLLECT_ITEM_PATH : UNCOLLECT_ITEM_PATH}`;
-    const headers = wishlistHeaders(JSON_ACCEPT);
+    const key = crumbKeyOf(path);
+    const url = `${this.baseUrl}${path}`;
+    const headers = wishlistHeaders(JSON_ACCEPT, this.baseOrigin);
     const documents: BandcampDocument[] = [];
-    let crumb: string | null = null;
+    const seenCrumbs = new Set<string>();
+    let crumb = this.crumbs.get(key) ?? null;
+    let source: WishlistCrumbSource = crumb === null ? 'none' : 'cached';
+    let writes = 0;
+    let pages = 0;
+    let pageStatus: number | null = null;
     let status: number | null = null;
     let answer: WishlistWire['answer'] = null;
     let said: string | null = null;
-    const seen = (end: WishlistEnd): WishlistWire => ({ status, requests: documents.length, answer, end, said });
-    const rejected = (end: WishlistEnd, detail: string): WishlistWriteOutcome => ({
+    let redirected = false;
+    const seen = (end: WishlistEnd): WishlistWire => ({
+      status,
+      requests: writes,
+      answer,
+      end,
+      said,
+      redirected,
+      crumb: source,
+      pages,
+      pageStatus,
+    });
+    const rejected = (end: WishlistEnd, detail: string, reason: string | null = null): WishlistWriteOutcome => ({
       ok: false,
       failure: 'bandcamp_rejected',
       detail,
+      reason,
       wire: seen(end),
       documents,
     });
+    const unreachable = (end: WishlistEnd, detail: string): WishlistWriteOutcome => ({
+      ok: false,
+      failure: 'bandcamp_unreachable',
+      detail,
+      reason: null,
+      wire: seen(end),
+      documents,
+    });
+    // The path's crumb off the page into memory, or the outcome that ends the press without one.
+    const readPage = async (): Promise<string | WishlistWriteOutcome> => {
+      pages += 1;
+      const page = await this.readCrumbPage(crumbPageOf(item));
+      if (page.kind === 'unreachable') return unreachable('page_no_answer', 'the release page did not come back');
+      if (page.kind === 'refused') return rejected('page_refused', 'the release page is not an address to fetch');
+      documents.push(page.document);
+      pageStatus = page.status;
+      if (page.status >= 500 || page.status === 429) return unreachable('page_status', `release page HTTP ${page.status}`);
+      if (!page.ok) return rejected('page_status', `release page HTTP ${page.status}`);
+      for (const value of Object.values(page.crumbs ?? {})) seenCrumbs.add(value);
+      if (page.onBandcamp) this.keepCrumbs(page.crumbs);
+      const fresh = this.crumbs.get(key);
+      if (fresh !== undefined) return fresh;
+      const end = !page.onBandcamp ? 'page_off_bandcamp' : page.crumbs === null ? 'no_crumb_map' : 'no_page_crumb';
+      return await this.classifyByProbe(documents, seen(end), `the release page carried no ${key} crumb`);
+    };
 
+    if (crumb === null) {
+      const read = await readPage();
+      if (typeof read !== 'string') return read;
+      crumb = read;
+      source = 'fetched';
+    }
     for (let attempt = 0; attempt <= MAX_CRUMB_REPLAYS; attempt += 1) {
       const fetchedAt = nowIso();
+      if (crumb !== null) seenCrumbs.add(crumb);
       const wire = await this.send(url, {
         method: 'POST',
         headers,
         body: wishlistRequestBody(item, crumb),
         credentials: 'include',
       });
-      if (wire === null) {
-        return {
-          ok: false,
-          failure: 'bandcamp_unreachable',
-          detail: 'the request did not come back',
-          wire: seen('no_answer'),
-          documents,
-        };
-      }
+      if (wire === null) return unreachable('no_answer', 'the request did not come back');
       const parsed = parseJson(wire.text);
       const body = asRecord(parsed);
       const isHtml = wire.contentType.includes('html');
       status = wire.status;
+      redirected = redirected || (wire.url !== '' && wire.url !== url);
       answer = body !== undefined ? 'json' : isHtml ? 'html' : 'text';
       const errorText = body === undefined ? undefined : readErrorText(body);
       said = toSaid(body);
-      documents.push({ endpoint, payload: body === undefined ? notJsonPayload(wire.text, isHtml) : parsed, fetchedAt });
-
-      if (wire.status >= 500 || wire.status === 429) {
-        return {
-          ok: false,
-          failure: 'bandcamp_unreachable',
-          detail: `HTTP ${wire.status}`,
-          wire: seen('server_status'),
-          documents,
-        };
-      }
+      writes += 1;
       const replay = readReplayCrumb(wire.status, body);
+      if (replay !== null) seenCrumbs.add(replay);
+      const payload = body === undefined ? notJsonPayload(wire.text, isHtml) : parsed;
+      documents.push({ endpoint, payload: withoutCrumbs(payload, seenCrumbs), fetchedAt });
+
+      if (replay !== null) this.crumbs.set(key, replay);
       if (replay !== null && attempt < MAX_CRUMB_REPLAYS) {
         crumb = replay;
         continue;
       }
       if (replay !== null) return rejected('crumb_replays_spent', 'invalid_crumb');
-      if (withholdsCrumb(body)) return rejected('crumb_withheld', 'invalid_crumb, with no crumb to replay');
+      // Read before the status: the crash envelope naming the crumb is a refusal to recover from, whatever its code.
+      if (refusesCrumb(body)) {
+        this.crumbs.delete(key);
+        if (pages === 0 && attempt < MAX_CRUMB_REPLAYS) {
+          const read = await readPage();
+          if (typeof read !== 'string') return read;
+          crumb = read;
+          continue;
+        }
+        return withholdsCrumb(body)
+          ? rejected('crumb_withheld', 'invalid_crumb, with no crumb to replay')
+          : rejected('crumb_refused', toDetail(errorText ?? 'crumb refused'), readReason(body));
+      }
+      if (wire.status >= 500 || wire.status === 429) return unreachable('server_status', `HTTP ${wire.status}`);
       if (body === undefined || wire.status === 401) {
-        return await this.classifyByProbe(wire.status, documents, seen(body === undefined ? 'not_json' : 'http_401'));
+        return await this.classifyByProbe(
+          documents,
+          seen(body === undefined ? 'not_json' : 'http_401'),
+          `HTTP ${wire.status}, non-JSON body`,
+        );
       }
       if (body.ok === true) return { ok: true, alreadyThere: false, wire: seen('ok'), documents };
-      if (errorText !== undefined && meansAlreadyThere(errorText, action)) {
+      // A crash envelope's `exception` is Bandcamp talking to itself, so its words never read as "already there".
+      const crashed = typeof body.exception === 'string' && errorText === body.exception;
+      if (errorText !== undefined && !crashed && meansAlreadyThere(errorText, action)) {
         return { ok: true, alreadyThere: true, wire: seen('already_there'), documents };
       }
       return errorText === undefined
         ? rejected('no_ok_field', `HTTP ${wire.status}, a JSON body with neither ok nor an error in it`)
-        : rejected('error_text', toDetail(errorText));
+        : rejected('error_text', toDetail(errorText), readReason(body));
     }
     return rejected('crumb_replays_spent', 'invalid_crumb');
   }
 
-  /** A login page or a bare 401 could mean signed out or Bandcamp being strange; the probe decides. */
+  /** A login page, a bare 401 or a page with no crumb could mean signed out or Bandcamp being strange; the probe decides. */
   private async classifyByProbe(
-    status: number,
     documents: readonly BandcampDocument[],
     wire: WishlistWire,
+    signedInDetail: string,
   ): Promise<WishlistWriteOutcome> {
     const probe = await this.probeIdentity();
     if (probe.kind === 'logged_out') {
-      return { ok: false, failure: 'logged_out', detail: 'Bandcamp is not signed in on this device', wire, documents };
+      const detail = 'Bandcamp is not signed in on this device';
+      return { ok: false, failure: 'logged_out', detail, reason: null, wire, documents };
     }
     if (probe.kind === 'ok') {
-      return { ok: false, failure: 'bandcamp_rejected', detail: `HTTP ${status}, non-JSON body`, wire, documents };
+      return { ok: false, failure: 'bandcamp_rejected', detail: signedInDetail, reason: null, wire, documents };
     }
     return {
       ok: false,
       failure: 'bandcamp_unreachable',
-      detail: `HTTP ${status}, and the sign-in check could not be completed`,
+      detail: `${signedInDetail}, and the sign-in check could not be completed`,
+      reason: null,
       wire,
       documents,
     };

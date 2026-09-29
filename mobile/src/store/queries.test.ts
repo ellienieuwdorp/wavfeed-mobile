@@ -17,7 +17,7 @@ import { buildNewReleases } from '../domain/newReleases';
 import type { FeedStoryRow } from '../domain/rows';
 import { buildUpcoming } from '../domain/upcoming';
 import { fold, rebuild } from './projection';
-import { listUpcomingReleases, readBought, readCurated, readNewReleases } from './queries';
+import { listUpcomingReleases, readBought, readCurated, readNewestBandcampReleaseUrl, readNewReleases } from './queries';
 import { insertRawDocument } from './rawDocuments';
 
 const NOW = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
@@ -35,6 +35,35 @@ test('an empty store answers every view as the rules answer no Stories', async (
   assert.deepEqual(await readCurated(db), buildCurated([]));
   assert.deepEqual(await readBought(db, { mode: 'released', now: NOW }), { weeks: [], nextCursor: null });
   assert.deepEqual(await readNewReleases(db, { now: NOW }), buildNewReleases([], [], NOW));
+  close();
+});
+
+test("the wishlist crumb's stand-in is the newest Story's Release on a bandcamp.com host", async () => {
+  const { db, close } = await openTestStore();
+  assert.equal(await readNewestBandcampReleaseUrl(db), null);
+  const held: readonly (readonly [number, string, string | null])[] = [
+    [1, 'https://quietharbor.bandcamp.com/album/tidewater', '2026-09-01T00:00:00.000Z'],
+    [2, 'https://lowtidesound.bandcamp.com/album/salt-flats', '2026-09-10T00:00:00.000Z'],
+    [3, 'https://music.lowtidesound.com/album/shoals', '2026-09-20T00:00:00.000Z'],
+    [4, 'https://decoy.example/x.bandcamp.com/album/lure', '2026-09-21T00:00:00.000Z'],
+    [6, 'http://plain.bandcamp.com/album/unsealed', '2026-09-22T00:00:00.000Z'],
+    [7, 'https://evil.example?.bandcamp.com/album/query', '2026-09-23T00:00:00.000Z'],
+    [5, 'https://harbourlights.bandcamp.com/album/no-story', null],
+  ];
+  for (const [id, url, storyDate] of held) {
+    await db.runAsync(
+      `insert into releases (item_type, item_id, band_id, title, url, first_seen_at, last_seen_at)
+       values ('a', ?, 1, 'Release', ?, '2026-09-01', '2026-09-01')`,
+      [id, url],
+    );
+    if (storyDate === null) continue;
+    await db.runAsync(
+      `insert into stories (story_type, fan_key, item_type, item_id, story_date, raw_document_id)
+       values ('new_release', 0, 'a', ?, ?, 1)`,
+      [id, storyDate],
+    );
+  }
+  assert.equal(await readNewestBandcampReleaseUrl(db), 'https://lowtidesound.bandcamp.com/album/salt-flats');
   close();
 });
 

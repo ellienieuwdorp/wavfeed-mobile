@@ -13,6 +13,7 @@ import type {
   ApiUser,
   ApiWishlistResponse,
 } from '../domain/apiTypes';
+import { onBandcampHost } from '../bandcamp/wire';
 import { assembleFeed, itemKey } from '../domain/assemble';
 import { buildBoughtChart } from '../domain/boughtChart';
 import { buildCrossedList, CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD } from '../domain/boughtCrossed';
@@ -422,6 +423,24 @@ export async function readWishlistState(db: SQLiteDatabase, keys?: readonly Wish
       pending: null,
     })),
   };
+}
+
+/** Candidates the host rule sees per call; a store whose newest Stories all sit on custom domains past it answers null. */
+const STAND_IN_CANDIDATES = 50;
+
+/**
+ * The newest Story's Release whose page is on a bandcamp.com host, or null: the stand-in a Release on a custom domain
+ * reads its wishlist crumb off (ADR-0016 amendment 2026-09-28). SQL only narrows to URLs naming bandcamp.com; the host
+ * rule is the session's own `onBandcampHost`, so the store and the session never disagree on a URL.
+ */
+export async function readNewestBandcampReleaseUrl(db: SQLiteDatabase): Promise<string | null> {
+  const rows = await db.getAllAsync<{ url: string }>(
+    `select r.url from stories s join releases r on r.item_type = s.item_type and r.item_id = s.item_id
+     where r.url like '%bandcamp.com%'
+     order by s.story_date desc, s.id desc limit ?`,
+    [STAND_IN_CANDIDATES],
+  );
+  return rows.find((row) => onBandcampHost(row.url))?.url ?? null;
 }
 
 /**

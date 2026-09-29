@@ -14,6 +14,8 @@ export const wishlistCopy = {
     notSignedIn: `Bandcamp isn't signed in on ${thisDevice}, so that didn't reach your wishlist.`,
     unreachable: "Bandcamp didn't answer. That didn't reach your wishlist, try again in a bit.",
     rejected: 'Bandcamp turned that one down. Open the release on Bandcamp to wishlist it there.',
+    /** Bandcamp's own reason, the words its site would show in its error note. */
+    rejectedSaying: (reason: string) => `Bandcamp turned that one down: ${reason}`,
     other: "That didn't reach your wishlist. Try again in a bit.",
     signIn: 'Sign in',
   },
