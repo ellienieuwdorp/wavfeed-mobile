@@ -153,7 +153,7 @@ describe('the gather diff', () => {
 
 test('a failure with an HTTP status carries its class, and no failure carries none', () => {
   const chainFacts = {
-    reason: 'open', last: { reason: 'open', outcome: 'failed', walkPending: true }, turns: 1, retries: 2,
+    reason: 'open', last: { reason: 'open', outcome: 'failed', walkPending: true, status: 0 }, turns: 1, retries: 2,
     startedAt: 0, endedAt: 1, walkAtStart: null, feedPages: 0, releasePagesFailed: 0, sweepBreakerOpened: false,
   } as const;
   const classOf = (lastError: 'bandcamp_error' | null, lastStatus: number | null) => {
