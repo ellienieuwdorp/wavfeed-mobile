@@ -19,7 +19,7 @@ import {
   playbackStarted,
   wishlistActionFinished,
   type Listening,
-  type ListenEvent,
+  type PlayerChange,
 } from './actions';
 import { CATALOGUE, TALLY_NAMES, type Tally, type TallyName } from './catalogue';
 
@@ -81,12 +81,12 @@ test('playback_started buckets the wait and keeps the screen and the retry', () 
 });
 
 describe('release_listened', () => {
-  /** Runs events at their times and collects the Tallies. */
-  function run(events: readonly [number, ListenEvent][]): Tally[] {
+  /** Runs changes at their times and collects the Tallies. */
+  function run(changes: readonly [number, PlayerChange][]): Tally[] {
     let listening: Listening | null = null;
     const tallies: Tally[] = [];
-    for (const [at, event] of events) {
-      const step = listenStep(listening, event, at);
+    for (const [at, change] of changes) {
+      const step = listenStep(listening, change, at);
       listening = step.listening;
       if (step.tally !== null) tallies.push(step.tally);
     }

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import type { ApiReleaseTrack } from '@/domain/apiTypes';
-import { listenStep, playbackStarted, type Listening, type ListenEvent, type PlayResult } from '@/tally/actions';
+import { listenStep, playbackStarted, type Listening, type PlayerChange, type PlayResult } from '@/tally/actions';
 import type { Screen, Tally } from '@/tally/catalogue';
 
 import {
@@ -125,8 +125,8 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' }).catch(() => undefined);
   }, []);
 
-  const listen = useCallback((event: ListenEvent) => {
-    const step = listenStep(listening.current, event, Date.now());
+  const listen = useCallback((change: PlayerChange) => {
+    const step = listenStep(listening.current, change, Date.now());
     listening.current = step.listening;
     if (step.tally !== null) depsRef.current.track(step.tally);
   }, []);

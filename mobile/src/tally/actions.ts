@@ -107,7 +107,7 @@ export type Listening = {
  * Release's reload after an error or an expiry continues it), a Track starting, playing turning on or off, and the
  * last Track ending, which ends the Release's listening.
  */
-export type ListenEvent =
+export type PlayerChange =
   | { readonly kind: 'load'; readonly release: string }
   | { readonly kind: 'start'; readonly release: string }
   | { readonly kind: 'playing'; readonly on: boolean }
@@ -128,23 +128,23 @@ function listened(listening: Listening, now: number, reachedEnd: boolean): Tally
 
 export function listenStep(
   listening: Listening | null,
-  event: ListenEvent,
+  change: PlayerChange,
   now: number,
 ): { listening: Listening | null; tally: Tally | null } {
-  switch (event.kind) {
+  switch (change.kind) {
     case 'load':
       if (listening === null) return { listening, tally: null };
-      if (listening.release !== event.release) return { listening: null, tally: listened(listening, now, false) };
+      if (listening.release !== change.release) return { listening: null, tally: listened(listening, now, false) };
       return { listening: settled(listening, now), tally: null };
     case 'start':
-      if (listening === null || listening.release !== event.release) {
+      if (listening === null || listening.release !== change.release) {
         const ended = listening === null ? null : listened(listening, now, false);
-        return { listening: { release: event.release, tracksStarted: 1, listenedMs: 0, playingSince: now }, tally: ended };
+        return { listening: { release: change.release, tracksStarted: 1, listenedMs: 0, playingSince: now }, tally: ended };
       }
       return { listening: { ...listening, tracksStarted: listening.tracksStarted + 1, playingSince: listening.playingSince ?? now }, tally: null };
     case 'playing':
       if (listening === null) return { listening, tally: null };
-      if (!event.on) return { listening: settled(listening, now), tally: null };
+      if (!change.on) return { listening: settled(listening, now), tally: null };
       return { listening: listening.playingSince === null ? { ...listening, playingSince: now } : listening, tally: null };
     case 'end':
       return listening === null ? { listening, tally: null } : { listening: null, tally: listened(listening, now, true) };

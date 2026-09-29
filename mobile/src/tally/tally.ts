@@ -152,7 +152,7 @@ export function buildContext(app: AppFacts, env: Env): TallyContext {
   };
 }
 
-/** What `runChain` knows of a chain beyond the gather state (task 0038 slice 7 supplies the store counts). */
+/** What `runChain` knows of a chain beyond the gather state: its turns, its clock, the store's counts and the breaker. */
 export type ChainFacts = {
   readonly reason: GatherReason;
   readonly last: TurnSummary;
