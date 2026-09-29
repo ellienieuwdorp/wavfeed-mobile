@@ -35,25 +35,35 @@ const SCRUBS: readonly (readonly [RegExp, string])[] = [
   [/\d{5,}/g, '<n>'],
 ];
 
+/** ceiling: several patterns are quadratic on a long run such as `a-a-a-...`, so only this much of a message is scrubbed. */
+const SCRUB_INPUT_MAX = 5 * WIRE.maxMessage;
+
 /**
  * URLs, emails, quoted strings, file paths, ids, IP addresses and digit runs longer than four go, then the text is cut
- * to 200 characters. Idempotent, since the Worker runs it again.
+ * to 200 characters. A message cut before scrubbing loses everything from its first leftover quote, which may open a
+ * string the cut left unclosed. Idempotent, since the Worker runs it again.
  */
 export function scrubMessage(text: string): string {
-  let out = text.replace(/\s+/g, ' ');
+  const whole = text.replace(/\s+/g, ' ');
+  const cut = whole.length > SCRUB_INPUT_MAX;
+  let out = cut ? whole.slice(0, SCRUB_INPUT_MAX) : whole;
   for (const [pattern, placeholder] of SCRUBS) out = out.replace(pattern, placeholder);
+  if (cut) out = out.replace(/['"`].*$/, '<str>');
   return out.slice(0, WIRE.maxMessage).trim();
 }
 
 const FRAME = /^ {4}at (.+?)(?: \((native)\)?| \((address at )?(.*?):(\d+):(\d+)\))$/;
 const PART_MAX = 60;
 
-/** ASCII only, so 50 frames stay under the Worker's 8 KB, and no digit run a computed function name could carry. */
-function framePart(text: string): string {
+/**
+ * ASCII only, so 50 frames stay under the Worker's 8 KB, and no digit run a computed function name could carry. The
+ * Worker holds any sender to the same rule with this function and `basename`.
+ */
+export function framePart(text: string): string {
   return text.replace(/[^\w$.<>-]/g, '').replace(/\d{5,}/g, '').slice(0, PART_MAX) || '?';
 }
 
-function basename(url: string): string {
+export function basename(url: string): string {
   const path = url.split(/[?#]/)[0] ?? '';
   return framePart(path.slice(path.lastIndexOf('/') + 1));
 }

@@ -64,6 +64,20 @@ describe('the scrubber', () => {
     ];
     for (const text of cases) assert.equal(scrubMessage(scrubMessage(text)), scrubMessage(text), text);
   });
+
+  test('scrubs a 64 KB message built to make its patterns backtrack in well under a second', () => {
+    for (const unit of ['a.', 'a-', 'a1-', '/a', 'a@']) {
+      const started = performance.now();
+      scrubMessage(unit.repeat(32_000));
+      assert.ok(performance.now() - started < 1000, unit);
+    }
+  });
+
+  test('a long message cut before scrubbing leaks nothing from a quote the cut left open', () => {
+    const scrubbed = scrubMessage(`lookup of 'diggerfan${' x'.repeat(2000)}' failed`);
+    assert.equal(scrubbed, 'lookup of <str>');
+    assert.equal(scrubMessage(scrubbed), scrubbed);
+  });
 });
 
 describe('the Hermes stack parser', () => {
