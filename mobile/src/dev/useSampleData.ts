@@ -70,6 +70,7 @@ export function useSampleStart(on: boolean): void {
     if (!SAMPLE_MODE || !on || started.current) return;
     started.current = true;
     const release = sampleShowcase();
-    if (release !== null) play(toPlayable(release));
+    // The router names the new path only after this effect has run, so the player screen names itself.
+    if (release !== null) play(toPlayable(release), null, 'player');
   }, [on, play]);
 }

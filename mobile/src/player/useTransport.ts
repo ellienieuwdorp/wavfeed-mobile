@@ -51,8 +51,11 @@ export type Transport = {
   readonly bandId: string | null;
   readonly canPrevious: boolean;
   readonly canNext: boolean;
-  /** Starts at the Track `from` names when it streams, else the first that does (a Drop's row, task 0041 decision 10). */
-  readonly play: (release: PlayableRelease, from?: string | null) => void;
+  /**
+   * Starts at the Track `from` names when it streams, else the first that does (a Drop's row, task 0041 decision 10).
+   * `screen` names where the play began when the pathname cannot yet, as in an effect on a screen that just mounted.
+   */
+  readonly play: (release: PlayableRelease, from?: string | null, screen?: Screen) => void;
   readonly toggle: () => void;
   readonly next: () => void;
   readonly previous: () => void;
@@ -161,14 +164,14 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   );
 
   const loadAndStart = useCallback(
-    async (release: PlayableRelease, wantedTrackId: string | null, force: boolean) => {
+    async (release: PlayableRelease, wantedTrackId: string | null, force: boolean, pressedOn?: Screen) => {
       loadRef.current += 1;
       const token = loadRef.current;
       const before = stateRef.current;
       const same = before.release !== null && isSameRelease(before.release, release);
       const kept = force && same ? before.tracks : [];
       const startedAt = Date.now();
-      const screen = depsRef.current.screen();
+      const screen = pressedOn ?? depsRef.current.screen();
       // A reload of the Release already in the transport, after an error or once its stream URLs expired, is a retry.
       const started = (result: PlayResult) => depsRef.current.track(playbackStarted(result, Date.now() - startedAt, screen, same));
       listen({ kind: 'load', release: releaseKey(release) });
@@ -239,13 +242,13 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   }, [apply, audio, quiet, startTrack]);
 
   const play = useCallback(
-    (release: PlayableRelease, wantedTrackId: string | null = null) => {
+    (release: PlayableRelease, wantedTrackId: string | null = null, screen?: Screen) => {
       const from = stateRef.current;
       if (from.release !== null && isSameRelease(from.release, release) && (from.status === 'ready' || from.status === 'loading')) {
         toggle();
         return;
       }
-      void loadAndStart(release, wantedTrackId, false);
+      void loadAndStart(release, wantedTrackId, false, screen);
     },
     [loadAndStart, toggle],
   );
