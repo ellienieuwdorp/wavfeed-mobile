@@ -1,13 +1,25 @@
 /// <reference types="node" />
 /**
  * Gather turns through the phone's own sink and store (task 0036, decision 4), against a Bandcamp that serves a list
- * of purchase Stories newest first behind the feed's `older_than` cursor. Each request costs the clock a second.
+ * of purchase Stories newest first behind the feed's `older_than` cursor, and release and Track pages by key. Each
+ * request costs the clock a second.
  */
 import assert from 'node:assert/strict';
 import { beforeEach, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { FAN_ID, feedPayload, purchaseAt, releasePagePayload } from '../../test/fixtures';
+import {
+  FAN_ID,
+  feedPayload,
+  PREORDER_ITEM_ID,
+  PREORDER_URL,
+  preorderNrEntry,
+  preorderTrackId,
+  preorderTrackPageBlob,
+  preorderTralbumBlob,
+  purchaseAt,
+  releasePagePayload,
+} from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
 import type { BandDetails, FeedUpdatesPage, ReleasePage } from '../bandcamp/session';
@@ -15,6 +27,7 @@ import { createGatherSink, WALK_KEY } from '../state/gatherSink';
 import { readUndatedReleases } from '../store/enrichment';
 import { writeKv } from '../store/kv';
 import { fold } from '../store/projection';
+import { listDrops } from '../store/queries';
 import { insertRawDocument } from '../store/rawDocuments';
 import { EMPTY_GATHER_STATE, type GatherSink, type GatherState } from './sink';
 import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, POLL_MAX_PAGES, runGatherTurn } from './turn';
@@ -49,12 +62,13 @@ let feed: Story[];
 let replayFloor: number | null;
 let cursors: number[];
 let releasePages: number[];
+let releasePageUrls: string[];
 let bandDetailsAsked: number[];
 let bandDetails: BandcampAnswer<BandDetails>;
 let probe: BandcampAnswer<Identity>;
 /** A refusal for the feed request with this index in `cursors`, or null to answer it. */
 let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
-let releasePage: (itemId: number) => BandcampAnswer<ReleasePage>;
+let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
 const at = (): string => new Date(clock).toISOString();
@@ -84,10 +98,11 @@ const session: GatherSession = {
       newestStoryDate: page.length === 0 ? null : Math.max(...dates),
     });
   },
-  async fetchReleasePage(_url, key) {
+  async fetchReleasePage(url, key) {
     clock += REQUEST_MS;
     releasePages.push(key.itemId);
-    return releasePage(key.itemId);
+    releasePageUrls.push(url);
+    return releasePage(key.itemId, key.itemType);
   },
 };
 
@@ -119,6 +134,7 @@ beforeEach(async () => {
   replayFloor = null;
   cursors = [];
   releasePages = [];
+  releasePageUrls = [];
   bandDetailsAsked = [];
   bandDetails = { kind: 'error', status: 429 };
   probe = ok(FAN);
@@ -414,6 +430,68 @@ describe('release pages', () => {
     await turn(600_000, 'timer');
     assert.equal(releasePages.length, 2);
     assert.deepEqual((await readUndatedReleases(db, 10, new Date(clock))).map((release) => release.itemId), [1001, 1002]);
+  });
+});
+
+describe('Upcoming Releases (task 0041, decision 8)', () => {
+  const albumPage = (out: readonly number[]) =>
+    releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob({}, out) });
+  const trackPage = (itemId: number): BandcampAnswer<ReleasePage> => {
+    const tralbum = preorderTrackPageBlob(3, '04 Oct 2026 20:36:00 GMT');
+    return ok({ kind: 'page', document: { endpoint: 'release_page', payload: releasePagePayload({ itemType: 't', itemId, tralbum }), fetchedAt: at() } });
+  };
+  const dropDays = async () => (await listDrops(db)).map((drop) => [drop.day, drop.tracksOut]);
+
+  /** Held from four days back: the feed's pre-order and its page, one Track playing; its page now plays a second. */
+  async function holdPreorder(): Promise<void> {
+    clock = Date.UTC(2026, 9, 5, 12);
+    const heldAt = new Date(Date.UTC(2026, 9, 1, 8)).toISOString();
+    await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [preorderNrEntry()] }), fetchedAt: heldAt });
+    await insertRawDocument(db, { endpoint: 'release_page', payload: albumPage([2]), fetchedAt: heldAt });
+    await fold(db);
+    releasePage = (itemId, itemType) => {
+      if (itemType === 'a' && itemId !== PREORDER_ITEM_ID) return datedPage(itemId);
+      if (itemType === 'a') return ok({ kind: 'page', document: { endpoint: 'release_page', payload: albumPage([2, 3]), fetchedAt: at() } });
+      return trackPage(itemId);
+    };
+  }
+
+  test('a page a day old is read again after the undated, with the Track pages of the Tracks it let out', async () => {
+    await holdPreorder();
+    feed = stories(1, 1000);
+    await turn();
+    assert.deepEqual(releasePages, [1000, PREORDER_ITEM_ID, preorderTrackId(3)]);
+    assert.equal(releasePageUrls[2], 'https://nightgraft.bandcamp.com/track/wing-dust');
+    assert.deepEqual(await dropDays(), [['2026-10-04', 2], ['2026-09-29', 1]], 'the Track page dates the Drop the read found');
+
+    releasePages = [];
+    await turn(600_000, 'timer');
+    assert.deepEqual(releasePages, [], 'read today, and the feed names no more');
+  });
+
+  test('a Track page the quota or a refusal left unread is asked on a later turn, and dates the Drop then', async () => {
+    await holdPreorder();
+    // Four undated Releases and the pre-order fill a walking turn's five pages, leaving no room for its Track page.
+    feed = stories(4, 1000);
+    await turn();
+    assert.deepEqual(releasePages, [1000, 1001, 1002, 1003, PREORDER_ITEM_ID]);
+    assert.deepEqual(await dropDays(), [['2026-10-05', 2], ['2026-09-29', 1]]);
+
+    releasePages = [];
+    releasePage = () => ({ kind: 'error', status: 503 });
+    await turn(600_000, 'timer');
+    assert.deepEqual(releasePages, [preorderTrackId(3)]);
+
+    releasePages = [];
+    releasePage = (itemId) => trackPage(itemId);
+    await turn(600_000, 'timer');
+    assert.deepEqual(releasePages, [preorderTrackId(3)]);
+    assert.equal(releasePageUrls.at(-1), 'https://nightgraft.bandcamp.com/track/wing-dust');
+    assert.deepEqual(await dropDays(), [['2026-10-04', 2], ['2026-09-29', 1]]);
+
+    releasePages = [];
+    await turn(600_000, 'timer');
+    assert.deepEqual(releasePages, [], 'the Drop owes no Track page');
   });
 });
 

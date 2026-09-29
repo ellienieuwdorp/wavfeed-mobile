@@ -156,7 +156,9 @@ export async function oracleRows(db: SQLiteDatabase): Promise<FeedStoryRow[]> {
   const rows = await db.getAllAsync<WideRecord>(
     `select s.id as story_id, s.story_type, s.story_date, s.review_text, f.fan_id, f.username as fan_username, f.name as fan_name,
             f.image_id as fan_image_id, r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
-            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, p.name as artist
+            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks, r.is_preorder,
+            (r.release_date is not null and (r.release_date_source = 'feed' or r.first_seen_at < r.release_date)) as on_release_day,
+            p.name as artist
      from stories s join releases r on r.item_type = s.item_type and r.item_id = s.item_id join pages p on p.band_id = r.band_id
      left join fans f on f.fan_id = s.fan_id order by s.story_date desc, s.id desc`,
   );
@@ -183,6 +185,9 @@ export async function oracleRows(db: SQLiteDatabase): Promise<FeedStoryRow[]> {
     featuredTrackTitle: str(row.featured_track_title),
     featuredTrackDuration: num(row.featured_track_duration),
     numStreamableTracks: num(row.num_streamable_tracks),
+    numTracks: num(row.num_tracks),
+    isPreorder: row.is_preorder === 1,
+    onReleaseDay: row.on_release_day === 1,
     artist: str(row.artist) ?? '',
   }));
 }

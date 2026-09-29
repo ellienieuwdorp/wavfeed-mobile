@@ -16,6 +16,7 @@ import {
   fold,
   IDENTITY_KEY,
   insertRawDocument,
+  latestReleasePageDocument,
   markSwept,
   readFollowedBands,
   readKv,
@@ -23,7 +24,13 @@ import {
   type StoredIdentity,
   writeKv,
 } from '@/store';
-import { markReleasePageAttempt, readReleaseDateCounts, readUndatedReleases } from '@/store/enrichment';
+import {
+  markReleasePageAttempt,
+  readOwedTrackPages,
+  readReleaseDateCounts,
+  readUndatedReleases,
+  readUpcomingDue,
+} from '@/store/enrichment';
 
 export const WALK_KEY = 'walk';
 export const GATHER_KEY = 'gather';
@@ -160,6 +167,11 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       invalidate();
     },
     readUndatedReleases: (nowMs, limit) => readUndatedReleases(db, limit, new Date(nowMs)),
+    readUpcomingDue: (nowMs, limit) => readUpcomingDue(db, limit, new Date(nowMs)),
+    readOwedTrackPages: (nowMs, limit) => readOwedTrackPages(db, limit, new Date(nowMs)),
+    async readReleasePage(key) {
+      return (await latestReleasePageDocument(db, key.itemType, key.itemId))?.payload ?? null;
+    },
     markReleasePageAttempt: (key, outcome, nowMs) => markReleasePageAttempt(db, key, outcome, new Date(nowMs)),
     readReleaseDateCounts: () => readReleaseDateCounts(db),
   };

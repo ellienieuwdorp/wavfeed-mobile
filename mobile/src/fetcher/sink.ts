@@ -5,7 +5,7 @@
  */
 import type { BandcampDocument, Identity } from '../bandcamp/wire';
 import type { ReleaseKey } from '../domain/endpoints';
-import type { ReleaseDateCounts, ReleasePageOutcome, UndatedRelease } from '../store/enrichment';
+import type { DueRelease, OwedTrackPage, ReleaseDateCounts, ReleasePageOutcome, UndatedRelease } from '../store/enrichment';
 
 export type WalkKind = 'feed_walk' | 'feed_poll';
 
@@ -103,6 +103,12 @@ export type GatherSink = {
   afterDocuments(): Promise<void>;
   /** Undated Releases whose page is due a visit, newest Story first (ADR-0011). */
   readUndatedReleases(nowMs: number, limit: number): Promise<readonly UndatedRelease[]>;
+  /** Upcoming Releases whose page is due a read again, for a Drop (task 0041, decision 8). */
+  readUpcomingDue(nowMs: number, limit: number): Promise<readonly DueRelease[]>;
+  /** Track pages a Drop still owes, which date it (task 0041, decisions 7 and 8). */
+  readOwedTrackPages(nowMs: number, limit: number): Promise<readonly OwedTrackPage[]>;
+  /** The newest release page payload held for a Release, or null: what a new page's Tracks are compared against. */
+  readReleasePage(key: ReleaseKey): Promise<unknown>;
   markReleasePageAttempt(key: ReleaseKey, outcome: ReleasePageOutcome, nowMs: number): Promise<void>;
   readReleaseDateCounts(): Promise<ReleaseDateCounts>;
 };

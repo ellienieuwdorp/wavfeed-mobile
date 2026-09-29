@@ -1,6 +1,7 @@
 /**
  * The Projection on the phone: every Raw Document past its endpoint's cursor, folded in fetch order with the server's upsert rules, one
  * transaction per document; `rebuild` empties the derived tables and replays from raw id 0 (task 0036, ADR-0004, ADR-0018 amendment).
+ * Feed entries and release pages that count the Tracks of an Upcoming Release also fold into Drops (task 0041, drops.ts).
  */
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 import {
@@ -16,13 +17,18 @@ import { FollowingBandsPayloadError, parseFollowingBands } from '../domain/parse
 import { parseReleasePage, ReleasePagePayloadError } from '../domain/parseReleasePage';
 import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWishlistItems';
 import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
+import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
 import { BUSY_TIMEOUT_MS } from './migrations';
 import { listForProjection, type RawDocument } from './rawDocuments';
 
 export const FOLD_BATCH_SIZE = 50;
 
-/** Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). */
-export const PROJECTION_VERSION = 2;
+/**
+ * Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). Version 3 is how
+ * a phone holding a pre-order dated by its feed entry mends itself after migration 5 (task 0041, decision 2); version 4
+ * writes the Drops its Raw Documents already hold after migration 6 (decision 6).
+ */
+export const PROJECTION_VERSION = 4;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
 
 export async function ensureProjectionVersion(db: SQLiteDatabase): Promise<boolean> {
@@ -111,11 +117,42 @@ async function upsertPage(db: SQLiteDatabase, page: ParsedPage, seenAt: string, 
   await db.runAsync(`${PAGE_INSERT} ${set}`, [page.bandId, page.name, page.url, page.imageId, page.genreId, seenAt, seenAt]);
 }
 
+/**
+ * Where a `release_date` came from (task 0041, decision 1): a feed entry, a release page, or the Sweep's discography.
+ * `preorder` is a feed entry naming a pre-order, which states no release day and holds `release_date` empty.
+ */
+type ReleaseDateSource = 'feed' | 'preorder' | 'page' | 'sweep';
+
+const RELEASE_DATE_COLUMNS = ['release_date', 'release_date_source', 'release_date_read_at'] as const;
+
+/**
+ * A page or the Sweep outranks the feed's pre-order, which outranks a feed date, so a Release the feed once named a
+ * pre-order takes no date from a later entry rewritten as out (task 0041, decision 1). A row with no source ranks last.
+ */
+function dateRank(row: string): string {
+  return `(case ${row}.release_date_source when 'page' then 3 when 'sweep' then 3 when 'preorder' then 2 when 'feed' then 1 else 0 end)`;
+}
+
+/** Rank, then the newer read, then the later date and the source name, so no two different rows compare equal. */
+function dateOrder(row: string): string {
+  return `(${dateRank(row)}, coalesce(${row}.release_date_read_at, ''), coalesce(${row}.release_date, ''), coalesce(${row}.release_date_source, ''))`;
+}
+
+/**
+ * The incoming row takes the date columns only when it is strictly greater in `dateOrder`, a total order, so the held
+ * date is the same whatever order the Raw Documents fold in (task 0041, decision 1; ADR-0011 amended). `incoming` and
+ * `held` name the two rows; an incoming row with no source states nothing.
+ */
+function releaseDateSet(incoming: string, held: string): string {
+  const takes = `(${incoming}.release_date_source is not null and ${dateOrder(incoming)} > ${dateOrder(held)})`;
+  return RELEASE_DATE_COLUMNS.map((column) => `${column} = case when ${takes} then ${incoming}.${column} else ${held}.${column} end`).join(',\n  ');
+}
+
 const RELEASE_INSERT = `insert into releases (
-    item_type, item_id, band_id, title, url, album_id, album_title, art_id, release_date, label, label_id, price,
-    currency, featured_track_id, featured_track_title, featured_track_duration, num_streamable_tracks,
-    also_collected_count, is_preorder, tags, first_seen_at, last_seen_at
-  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    item_type, item_id, band_id, title, url, album_id, album_title, art_id, release_date, release_date_source,
+    release_date_read_at, label, label_id, price, currency, featured_track_id, featured_track_title,
+    featured_track_duration, num_streamable_tracks, also_collected_count, is_preorder, tags, first_seen_at, last_seen_at
+  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   on conflict (item_type, item_id) do update set`;
 
 const RELEASE_CATALOG_SET = `title = excluded.title, url = excluded.url, band_id = excluded.band_id,`;
@@ -125,7 +162,7 @@ const RELEASE_SHARED_SET = `
   album_id = coalesce(excluded.album_id, releases.album_id),
   album_title = coalesce(excluded.album_title, releases.album_title),
   art_id = coalesce(excluded.art_id, releases.art_id),
-  release_date = coalesce(excluded.release_date, releases.release_date),
+  ${releaseDateSet('excluded', 'releases')},
   label = coalesce(excluded.label, releases.label),
   label_id = coalesce(excluded.label_id, releases.label_id),
   price = coalesce(excluded.price, releases.price),
@@ -141,9 +178,16 @@ const RELEASE_SHARED_SET = `
 
 type ReleaseUpsert = Omit<ParsedRelease, 'isPreorder'> & { readonly isPreorder: boolean | null };
 
+/** Only the feed states a pre-order's missing release day; the Sweep's undated item states nothing (task 0041, decision 1). */
+function releaseUpsertDateSource(release: ReleaseUpsert, source: Source): ReleaseDateSource | null {
+  if (release.releaseDate !== null) return source === 'catalog' ? 'sweep' : 'feed';
+  return source === 'per-user' && release.isPreorder === true ? 'preorder' : null;
+}
+
 /** A source silent on `is_preorder` inserts the column default and never unlearns a stated `true` on update. */
 async function upsertRelease(db: SQLiteDatabase, release: ReleaseUpsert, seenAt: string, source: Source): Promise<void> {
   const set = source === 'catalog' ? RELEASE_CATALOG_SET + RELEASE_SHARED_SET : RELEASE_SHARED_SET;
+  const dateSource = releaseUpsertDateSource(release, source);
   const values: SQLiteBindValue[] = [
     release.itemType,
     release.itemId,
@@ -154,6 +198,8 @@ async function upsertRelease(db: SQLiteDatabase, release: ReleaseUpsert, seenAt:
     release.albumTitle,
     release.artId,
     iso(release.releaseDate),
+    dateSource,
+    dateSource === null ? null : seenAt,
     release.label,
     release.labelId,
     release.price,
@@ -178,18 +224,41 @@ type Enrichment = {
   readonly releaseDate: Date | null;
   readonly isPreorder: boolean | null;
   readonly numStreamableTracks: number | null;
+  readonly numTracks: number | null;
 };
 
-/** An update, never an insert: a public page states a date, not a Release. Answers whether a held row took it. */
-async function enrichReleaseFromPage(db: SQLiteDatabase, input: Enrichment, seenAt: string): Promise<boolean> {
+/**
+ * An update, never an insert: a public page states a date, not a Release. Answers whether a held row took it. The
+ * release page and the Sweep's item with no link both come through here, each naming itself as the date's source.
+ */
+async function enrichReleaseFromPage(
+  db: SQLiteDatabase,
+  input: Enrichment,
+  seenAt: string,
+  dateSource: 'page' | 'sweep',
+): Promise<boolean> {
+  const dated = input.releaseDate !== null;
   const outcome = await db.runAsync(
     `update releases set
-       release_date = coalesce(?, release_date),
-       num_streamable_tracks = coalesce(?, num_streamable_tracks),
-       is_preorder = coalesce(?, is_preorder),
-       last_seen_at = max(last_seen_at, ?)
-     where item_type = ? and item_id = ?`,
-    [iso(input.releaseDate), input.numStreamableTracks, flag(input.isPreorder), seenAt, input.itemType, input.itemId],
+       ${releaseDateSet('incoming', 'releases')},
+       num_streamable_tracks = coalesce(incoming.num_streamable_tracks, releases.num_streamable_tracks),
+       num_tracks = coalesce(incoming.num_tracks, releases.num_tracks),
+       is_preorder = coalesce(incoming.is_preorder, releases.is_preorder),
+       last_seen_at = max(releases.last_seen_at, incoming.seen_at)
+     from (select ? as release_date, ? as release_date_source, ? as release_date_read_at, ? as num_streamable_tracks,
+                  ? as num_tracks, ? as is_preorder, ? as seen_at) as incoming
+     where releases.item_type = ? and releases.item_id = ?`,
+    [
+      iso(input.releaseDate),
+      dated ? dateSource : null,
+      dated ? seenAt : null,
+      input.numStreamableTracks,
+      input.numTracks,
+      flag(input.isPreorder),
+      seenAt,
+      input.itemType,
+      input.itemId,
+    ],
   );
   return outcome.changes > 0;
 }
@@ -242,6 +311,7 @@ async function projectFeedUpdates(db: SQLiteDatabase, doc: RawDocument): Promise
   for (const release of parsed.releases) await upsertRelease(db, release, doc.fetchedAt, 'per-user');
   for (const fan of parsed.fans) await upsertFan(db, fan, doc.fetchedAt);
   for (const story of parsed.stories) await upsertStory(db, story, doc.id);
+  await foldNewReleaseCounts(db, doc, parsed);
   return result(
     'projected',
     {
@@ -254,6 +324,16 @@ async function projectFeedUpdates(db: SQLiteDatabase, doc: RawDocument): Promise
   );
 }
 
+/** Each `new_release` entry's count of the Tracks that play is a read of its Release for Drops (task 0041, decision 6). */
+async function foldNewReleaseCounts(db: SQLiteDatabase, doc: RawDocument, parsed: ReturnType<typeof parseFeedUpdates>): Promise<void> {
+  const counts = new Map(parsed.releases.map((release) => [`${release.itemType}:${release.itemId}`, release.numStreamableTracks]));
+  for (const story of parsed.stories) {
+    const tracksOut = counts.get(`${story.itemType}:${story.itemId}`);
+    if (story.storyType !== 'new_release' || tracksOut === undefined || tracksOut === null) continue;
+    await foldFeedTrackRead(db, doc, { itemType: story.itemType, itemId: story.itemId, tracksOut, storyDate: story.storyDate });
+  }
+}
+
 async function projectReleasePage(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseReleasePage>;
   try {
@@ -262,7 +342,9 @@ async function projectReleasePage(db: SQLiteDatabase, doc: RawDocument): Promise
     if (err instanceof ReleasePagePayloadError) return result('unparsable');
     throw err;
   }
-  const enriched = await enrichReleaseFromPage(db, parsed, doc.fetchedAt);
+  const enriched = await enrichReleaseFromPage(db, parsed, doc.fetchedAt, 'page');
+  await foldPageTrackRead(db, doc, parsed);
+  await foldTrackPage(db, parsed);
   return result('projected', { releasesEnriched: enriched ? 1 : 0 });
 }
 
@@ -319,7 +401,7 @@ async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise
       upserted += 1;
       continue;
     }
-    const filled = await enrichReleaseFromPage(db, { ...release, numStreamableTracks: null }, seenAt);
+    const filled = await enrichReleaseFromPage(db, { ...release, numStreamableTracks: null, numTracks: null }, seenAt, 'sweep');
     if (filled) enriched += 1;
   }
   return result(
@@ -462,6 +544,7 @@ export async function rebuild(db: SQLiteDatabase): Promise<FoldSummary> {
     await txn.execAsync(`
       pragma busy_timeout = ${BUSY_TIMEOUT_MS};
       delete from stories;
+      delete from drops;
       delete from releases;
       delete from pages;
       delete from fans;

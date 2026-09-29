@@ -159,6 +159,43 @@ const MIGRATIONS: readonly Migration[] = [
       create index tally_outbox_batch on tally_outbox (batch);
     `,
   },
+  {
+    // Where each release date came from and when it was read, and how many Tracks a release page names (task 0041,
+    // decisions 1 and 4). The rows held already fill in when PROJECTION_VERSION 3 replays the Raw Documents (decision 2).
+    version: 5,
+    sql: `
+      alter table releases add column release_date_source text;
+      alter table releases add column release_date_read_at text;
+      alter table releases add column num_tracks integer;
+    `,
+  },
+  {
+    // Drops, and on each Upcoming Release the newest count of Tracks that play the feed and a release page stated and
+    // when, which date a Drop and make its page due (task 0041, decisions 6 to 8). A Drop's `day` is a GMT day;
+    // `after_read_at` and `read_at` are the reads that showed fewer and more, `track_at` the Track page moment that
+    // dated it, `track_ids` the Tracks it let out in track order. PROJECTION_VERSION 4 replays them in (ADR-0004).
+    version: 6,
+    sql: `
+      create table drops (
+        item_type text not null,
+        item_id integer not null,
+        day text not null,
+        num_streamable_tracks integer not null,
+        num_tracks integer,
+        track_ids text not null default '[]',
+        read_at text not null,
+        after_read_at text,
+        track_at text,
+        dated_by text not null,
+        primary key (item_type, item_id, day)
+      );
+      create index drops_day on drops (day);
+      alter table releases add column feed_tracks_out integer;
+      alter table releases add column feed_tracks_read_at text;
+      alter table releases add column page_tracks_out integer;
+      alter table releases add column page_tracks_read_at text;
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {

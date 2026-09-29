@@ -26,6 +26,7 @@ export {
   type BoughtOptions,
   FEED_MAX_STORY_ROWS,
   type FollowedPage,
+  listDrops,
   listStoryRows,
   listUpcomingReleases,
   markSwept,

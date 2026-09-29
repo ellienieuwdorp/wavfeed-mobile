@@ -72,6 +72,7 @@ export function buildUpcoming(
       featuredTrackTitle: release.featuredTrackTitle,
       featuredTrackDuration: release.featuredTrackDuration,
       numStreamableTracks: release.numStreamableTracks,
+      numTracks: release.numTracks,
     };
   });
 }

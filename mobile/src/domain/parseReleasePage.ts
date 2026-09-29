@@ -1,7 +1,10 @@
 /**
- * The parser for a `release_page` Raw Document: the `data-tralbum` blob in, the release date, pre-order state and streamable count out.
+ * The parser for a `release_page` Raw Document: the `data-tralbum` blob in, the release date, pre-order state, and how
+ * many Tracks play of how many there are out (task 0041, decision 4); with the page's publish and edit moments and, on
+ * a Track page, its album, which date a Drop (decision 7).
  * Ported from server/packages/projection/src/parseReleasePage.ts (task 0036).
  */
+import { readTralbumTracks } from './tralbumTracks';
 import type { ItemType, ParsedReleasePage } from './types';
 import { asRecord, asTralbumType, readDate, readId, readText } from './wire';
 
@@ -19,15 +22,11 @@ function readIdentity(
   return itemType === undefined || itemId === undefined ? undefined : { itemType, itemId };
 }
 
-function readStreamableTracks(tralbum: Record<string, unknown>): number | undefined {
-  const trackinfo = tralbum.trackinfo;
-  if (!Array.isArray(trackinfo)) return undefined;
-  let streamable = 0;
-  for (const raw of trackinfo) {
-    const track = asRecord(raw);
-    if (track !== undefined && track.streaming !== null && track.streaming !== undefined) streamable += 1;
-  }
-  return streamable;
+/** A Track plays when the page hands over a file for it; `streaming` says 1 on Tracks not out yet (task 0041, decision 4). */
+function readTrackCounts(tralbum: Record<string, unknown>): { readonly streamable: number; readonly total: number } | undefined {
+  if (!Array.isArray(tralbum.trackinfo)) return undefined;
+  const tracks = readTralbumTracks(tralbum);
+  return { streamable: tracks.filter((track) => track.streamUrl !== null).length, total: tracks.length };
 }
 
 /**
@@ -46,11 +45,17 @@ export function parseReleasePage(payload: unknown): ParsedReleasePage {
   }
   const current = asRecord(tralbum.current) ?? {};
   const releaseDate = readDate(current, 'release_date') ?? readDate(tralbum, 'album_release_date');
+  const counts = readTrackCounts(tralbum);
+  const albumId = identity.itemType === 't' ? readId(current, 'album_id') : undefined;
   return {
     itemType: identity.itemType,
     itemId: identity.itemId,
     releaseDate: releaseDate ?? null,
     isPreorder: typeof tralbum.is_preorder === 'boolean' ? tralbum.is_preorder : null,
-    numStreamableTracks: readStreamableTracks(tralbum) ?? null,
+    numStreamableTracks: counts?.streamable ?? null,
+    numTracks: counts?.total ?? null,
+    publishedAt: readDate(current, 'publish_date') ?? null,
+    modifiedAt: readDate(current, 'mod_date') ?? null,
+    albumId: albumId ?? null,
   };
 }

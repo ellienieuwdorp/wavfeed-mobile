@@ -212,7 +212,10 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
   }
 
   const actionDate = storyType === 'purchase' ? (readDate(entry, 'purchased') ?? storyDate) : storyDate;
-  const releaseDate = storyType === 'new_release' ? (readDate(entry, 'new_date') ?? storyDate) : null;
+  // A pre-order's story date is the day its page went public, weeks before it is out, so its release page dates it
+  // (task 0041, decision 1).
+  const isPreorder = entry.is_preorder === true;
+  const releaseDate = storyType === 'new_release' && !isPreorder ? (readDate(entry, 'new_date') ?? storyDate) : null;
 
   return {
     fan,
@@ -242,7 +245,7 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
       featuredTrackDuration: readDecimalOrNull(entry, 'featured_track_duration'),
       numStreamableTracks: readIdOrNull(entry, 'num_streamable_tracks'),
       alsoCollectedCount: readIdOrNull(entry, 'also_collected_count'),
-      isPreorder: entry.is_preorder === true,
+      isPreorder,
       tags: readTags(entry.tags),
     },
     story: {

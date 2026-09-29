@@ -174,6 +174,13 @@ describe('new releases', () => {
     assert.deepEqual(only(parseEntries(nrEntry()).releases).releaseDate, NEW_AT);
     assert.deepEqual(only(parseEntries(nrEntry({ new_date: null })).releases).releaseDate, STORY_AT);
   });
+
+  test('states no release date for a pre-order, whose story date is the day its page went public (task 0041)', () => {
+    const release = only(parseEntries(nrEntry({ new_date: null, is_preorder: true })).releases);
+
+    assert.equal(release.releaseDate, null);
+    assert.equal(release.isPreorder, true);
+  });
 });
 
 describe('wishlists', () => {

@@ -48,6 +48,12 @@ export type ApiFeedItem = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
+  /** How many Tracks the release page names, out or not; null until a page is read (task 0041, decision 4). */
+  readonly numTracks: number | null;
+  /** New releases leaves an undated pre-order to its page (task 0041, decision 1). */
+  readonly isPreorder: boolean;
+  /** New releases places it on its release day, not its anchor (task 0041, decision 3; `FeedStoryRow.onReleaseDay`). */
+  readonly onReleaseDay: boolean;
 };
 
 /** One member of a Burst, enough for the expanded mini rows. */
@@ -149,6 +155,8 @@ export type ApiUpcomingRelease = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
+  /** How many Tracks the release page names, out or not; null until a page is read (task 0041, decision 4). */
+  readonly numTracks: number | null;
 };
 
 export type ApiUpcomingResponse = {
@@ -166,6 +174,8 @@ export type ApiReleaseTrack = {
   readonly streamUrl: string | null;
   /** Bandcamp caps some previews short; the audio ends where the stream does. */
   readonly capped: boolean;
+  /** False for a Track the page names that the label has not let out yet; it never has a stream (task 0041, decision 5). */
+  readonly out: boolean;
 };
 
 export type ApiReleaseTracksResponse = {

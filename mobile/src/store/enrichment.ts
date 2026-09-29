@@ -2,16 +2,26 @@
  * Release-date enrichment's worklist on the device (ADR-0011, DESIGN.md section 3, task 0036): the Releases a Story or
  * a wishlist item reaches whose public page has not yet given the Projection a `release_date`, and the attempts made
  * at each page, kept in `release_page_attempts` so a page that answered badly waits a day, or a week after three.
+ * Upcoming Releases join it after them, their page read again to catch a Drop, and the Track pages a Drop still owes
+ * (task 0041, decision 8).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ReleaseKey } from '../domain/endpoints';
+import { storedTralbum } from '../domain/releasePage';
+import { readTralbumTracks, type TralbumTrack } from '../domain/tralbumTracks';
 import type { ItemType } from '../domain/types';
+import { aheadFrom } from '../domain/upcoming';
+import { REACHED_BY_FOLLOW_OR_STORY } from './queries';
+import { latestReleasePageDocument } from './rawDocuments';
 
 /** `dated` is the only outcome that clears the failure count: every other one left the Release undated. */
 export type ReleasePageOutcome = 'dated' | 'undated' | 'gone' | 'unparsable' | 'refused' | 'failed';
 
-export type UndatedRelease = ReleaseKey & { readonly url: string };
+/** A Release whose public page is due a read, and where it is. */
+export type DueRelease = ReleaseKey & { readonly url: string };
+
+export type UndatedRelease = DueRelease;
 
 export type ReleaseDateCounts = { readonly dated: number; readonly undated: number };
 
@@ -24,6 +34,9 @@ const REACHED = `(
   exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id)
   or exists (select 1 from wishlist_items w where w.item_type = r.item_type and w.item_id = r.item_id)
 )`;
+
+/** The attempt book lets a page be asked: never asked, or its wait (a day, a week after three failures) is over. */
+const ATTEMPT_OVER = `(a.attempted_at is null or a.attempted_at <= case when a.failures >= ? then ? else ? end)`;
 
 function asItemType(value: string): ItemType | null {
   return value === 'a' || value === 't' ? value : null;
@@ -46,7 +59,7 @@ export async function readUndatedReleases(
      left join release_page_attempts a on a.item_type = r.item_type and a.item_id = r.item_id
      where r.release_date is null
        and ${REACHED}
-       and (a.attempted_at is null or a.attempted_at <= case when a.failures >= ? then ? else ? end)
+       and ${ATTEMPT_OVER}
      order by newest_story is null, newest_story desc, wished_at desc
      limit ?`,
     [BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore, limit],
@@ -57,6 +70,88 @@ export async function readUndatedReleases(
     if (itemType !== null && row.url !== '') releases.push({ itemType, itemId: row.item_id, url: row.url });
   }
   return releases;
+}
+
+/**
+ * Upcoming Releases whose page is due (task 0041, decision 8): none read while it was Upcoming or the newest a day old,
+ * once the attempt book allows; or the feed read since the last attempt names more Tracks playing than the newest page
+ * did, which skips the day's wait after a read that went well and never a failure's wait. Those the feed is ahead on
+ * first, then the longest unread.
+ */
+export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date()): Promise<readonly DueRelease[]> {
+  if (limit <= 0) return [];
+  const retryBefore = new Date(now.getTime() - RETRY_AFTER_MS).toISOString();
+  const attemptOver = [BACKOFF_AFTER_FAILURES, new Date(now.getTime() - BACKOFF_MS).toISOString(), retryBefore];
+  const rows = await db.getAllAsync<{ item_type: string; item_id: number; url: string }>(
+    `select item_type, item_id, url from (
+       select r.item_type, r.item_id, r.url, r.release_date, r.page_tracks_read_at,
+         (r.feed_tracks_out > coalesce(r.page_tracks_out, 0)
+           and r.feed_tracks_read_at > coalesce(r.page_tracks_read_at, '')
+           and (a.attempted_at is null or (a.failures = 0 and a.attempted_at < r.feed_tracks_read_at) or ${ATTEMPT_OVER})) as behind,
+         ${ATTEMPT_OVER} and (r.page_tracks_read_at is null or r.page_tracks_read_at <= ?) as stale
+       from releases r
+       left join release_page_attempts a on a.item_type = r.item_type and a.item_id = r.item_id
+       where r.release_date >= ?
+         and ${REACHED_BY_FOLLOW_OR_STORY}
+     )
+     where behind or stale
+     order by behind desc, page_tracks_read_at is not null, page_tracks_read_at, release_date, item_type, item_id
+     limit ?`,
+    [...attemptOver, ...attemptOver, retryBefore, aheadFrom(now).toISOString(), limit],
+  );
+  const releases: DueRelease[] = [];
+  for (const row of rows) {
+    const itemType = asItemType(row.item_type);
+    if (itemType !== null && row.url !== '') releases.push({ itemType, itemId: row.item_id, url: row.url });
+  }
+  return releases;
+}
+
+/** A Track page a Drop still owes: the Track, its path on its Release's host, and that Release's page. */
+export type OwedTrackPage = ReleaseKey & { readonly releaseUrl: string; readonly path: string };
+
+/**
+ * The Track pages a later Drop of a reached Upcoming Release still owes (task 0041, decisions 7 and 8): a Track it let
+ * out whose page no read since the Drop's has asked, or whose failure's wait is over. A pass that ran out of quota or
+ * was refused before them leaves them here for the next. The path is the newest album page's `title_link`.
+ */
+export async function readOwedTrackPages(
+  db: SQLiteDatabase,
+  limit: number,
+  now: Date = new Date(),
+): Promise<readonly OwedTrackPage[]> {
+  if (limit <= 0) return [];
+  const retryBefore = new Date(now.getTime() - RETRY_AFTER_MS).toISOString();
+  const backoffBefore = new Date(now.getTime() - BACKOFF_MS).toISOString();
+  const rows = await db.getAllAsync<{ album_id: number; url: string; track_id: number }>(
+    `select d.item_id as album_id, r.url, t.value as track_id
+     from drops d
+     join releases r on r.item_type = d.item_type and r.item_id = d.item_id
+     join json_each(d.track_ids) t
+     left join release_page_attempts a on a.item_type = 't' and a.item_id = t.value
+     where d.item_type = 'a' and d.dated_by in ('read', 'track')
+       and r.release_date >= ?
+       and ${REACHED_BY_FOLLOW_OR_STORY}
+       and (a.attempted_at is null or a.attempted_at < d.read_at or (a.outcome = 'failed' and ${ATTEMPT_OVER}))
+     order by d.read_at desc, d.item_id, t.key`,
+    [aheadFrom(now).toISOString(), BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore],
+  );
+  const tracks = new Map<number, readonly TralbumTrack[]>();
+  const owed = new Map<number, OwedTrackPage>();
+  for (const row of rows) {
+    if (owed.size >= limit) break;
+    let named = tracks.get(row.album_id);
+    if (named === undefined) {
+      const page = await latestReleasePageDocument(db, 'a', row.album_id);
+      named = page === null ? [] : readTralbumTracks(storedTralbum(page.payload));
+      tracks.set(row.album_id, named);
+    }
+    const path = named.find((track) => track.trackId === String(row.track_id))?.path ?? null;
+    if (path !== null && row.url !== '' && !owed.has(row.track_id)) {
+      owed.set(row.track_id, { itemType: 't', itemId: row.track_id, releaseUrl: row.url, path });
+    }
+  }
+  return [...owed.values()];
 }
 
 export async function markReleasePageAttempt(

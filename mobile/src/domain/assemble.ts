@@ -146,6 +146,9 @@ export function buildFeedItem(rows: readonly FeedStoryRow[]): ApiFeedItem {
     featuredTrackTitle: newest.featuredTrackTitle,
     featuredTrackDuration: newest.featuredTrackDuration,
     numStreamableTracks: newest.numStreamableTracks,
+    numTracks: newest.numTracks,
+    isPreorder: newest.isPreorder,
+    onReleaseDay: newest.onReleaseDay,
   };
 }
 

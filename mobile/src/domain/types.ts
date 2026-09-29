@@ -39,7 +39,7 @@ export type ParsedRelease = {
   readonly albumId: number | null;
   readonly albumTitle: string | null;
   readonly artId: number | null;
-  /** Only new-release Stories carry one (ADR-0011). */
+  /** Only a new-release Story of a Release that is not a pre-order carries one (ADR-0011, task 0041 decision 1). */
   readonly releaseDate: Date | null;
   readonly label: string | null;
   readonly labelId: number | null;
@@ -70,7 +70,15 @@ export type ParsedReleasePage = {
   readonly releaseDate: Date | null;
   /** Only album pages state this. */
   readonly isPreorder: boolean | null;
+  /** Tracks the page hands a file for; null with the total when the page carries no track list (task 0041, decision 4). */
   readonly numStreamableTracks: number | null;
+  readonly numTracks: number | null;
+  /** `current.publish_date`: on an album page when it went public; a Track page states its album's (task 0041, decision 7). */
+  readonly publishedAt: Date | null;
+  /** `current.mod_date`: moves when a Track comes out and on any later edit. */
+  readonly modifiedAt: Date | null;
+  /** A Track page's album, from `current.album_id`; null on an album page or a Track with no album. */
+  readonly albumId: number | null;
 };
 
 export type ParsedCatalogRelease = {

@@ -4,16 +4,22 @@
  * Upcoming hold truth while the history fills; before a first walk's first page, a depth probe that binary searches the
  * feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or poll with the Extension's rules
  * (extension/lib/poll.ts) plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011),
- * a few while the walk is pending, with budget held back from the walk for them; then the rest of the sweep. A list
- * that fails is noted and the walk still runs; a feed page or a depth probe Bandcamp answers with an error fails the
- * turn before the release pages and the rest of the sweep, since a 403, 429 or 5xx asks for fewer requests
- * (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app resumes for free,
- * and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed step ends and again
- * when the turn does, never per answer: a pull to refresh lets its spinner go when it moves (state/refresh.ts).
+ * then the Track pages a Drop owes and the pages of Upcoming ones due a read, with the Track pages of any Drop (task
+ * 0041, decision 8), a few while the walk is pending, with budget held back from the walk for the undated; then the
+ * rest of the sweep. A list that fails is noted and the walk still runs; a feed page or a depth probe Bandcamp answers
+ * with an error fails the turn before the release pages and the rest of the sweep, since a 403, 429 or 5xx asks for
+ * fewer requests (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app
+ * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed
+ * step ends and again when the turn does, never per answer: a pull to refresh lets its spinner go when it moves
+ * (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
-import type { BandcampAnswer, BandcampDocument, Identity } from '../bandcamp/wire';
+import { storedTralbum } from '../domain/releasePage';
+import { newlyOutTracks } from '../domain/tralbumTracks';
+import { type BandcampAnswer, type BandcampDocument, type Identity, originOf } from '../bandcamp/wire';
+import type { ReleaseKey } from '../domain/endpoints';
+import type { DueRelease } from '../store/enrichment';
 import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
 
@@ -465,37 +471,84 @@ function namesReleaseDate(payload: unknown): boolean {
   }
 }
 
+/** Books a refused answer: only a page's own 4xx counts against it, as an offline phone, a 429 or a 5xx says nothing about it. */
+async function refused(ctx: Ctx, what: string, key: ReleaseKey, answer: Refusal): Promise<void> {
+  if (answer.kind === 'error' && answer.status < 500 && answer.status !== 429) {
+    await ctx.sink.markReleasePageAttempt(key, 'failed', ctx.now());
+  }
+  warnAnswer(what, answer);
+}
+
+/** One public page, stored before anything reads it and booked in the attempts; `refused` ends the pass. */
+async function readPublicPage(ctx: Ctx, what: string, url: string, key: ReleaseKey): Promise<BandcampDocument | 'none' | 'refused'> {
+  const answer = await ctx.session.fetchReleasePage(url, key);
+  if (answer.kind !== 'ok') {
+    await refused(ctx, what, key, answer);
+    return 'refused';
+  }
+  const page = answer.value;
+  if (page.kind !== 'page') {
+    await ctx.sink.markReleasePageAttempt(key, page.kind, ctx.now());
+    return 'none';
+  }
+  await store(ctx, page.document);
+  await ctx.sink.markReleasePageAttempt(key, namesReleaseDate(page.document.payload) ? 'dated' : 'undated', ctx.now());
+  return page.document;
+}
+
+/** A page due this pass; `again` for an Upcoming Release, whose page is compared with the one held before. */
+type DuePage = { readonly what: string; readonly url: string; readonly key: ReleaseKey; readonly again: boolean };
+
 /**
- * Up to `quota` public release pages of undated Releases, each stored before it is read; the Projection folds the date
- * in. One failed request ends the pass, as the server's enrichment does (ADR-0001).
+ * Up to `quota` public pages, each stored before it is read; the Projection folds the dates and the Drops in. Undated
+ * Releases first (ADR-0011), then the Track pages a Drop still owes, then Upcoming Releases due a read again, and after
+ * an Upcoming Release's page the Track pages of the Tracks that play on it and did not on the page held before, which
+ * date the Drop (task 0041, decisions 7 and 8). A Track page the quota or a refusal leaves unread is owed next pass.
+ * One failed request ends the pass, as the server's enrichment does (ADR-0001).
  */
 async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
-  const { session, sink } = ctx;
-  const due = await sink.readUndatedReleases(ctx.now(), quota);
+  const { sink } = ctx;
+  const undated = await sink.readUndatedReleases(ctx.now(), quota);
+  const owed = await sink.readOwedTrackPages(ctx.now(), quota - undated.length);
+  const upcoming = await sink.readUpcomingDue(ctx.now(), quota - undated.length - owed.length);
+  const release = (again: boolean) => (due: DueRelease): DuePage => ({
+    what: 'release page',
+    url: due.url,
+    key: { itemType: due.itemType, itemId: due.itemId },
+    again,
+  });
+  const due: DuePage[] = [
+    ...undated.map(release(false)),
+    ...owed.flatMap((track) => {
+      const origin = originOf(track.releaseUrl);
+      const key: ReleaseKey = { itemType: track.itemType, itemId: track.itemId };
+      return origin === null ? [] : [{ what: 'track page', url: `${origin}${track.path}`, key, again: false }];
+    }),
+    ...upcoming.map(release(true)),
+  ];
   if (due.length === 0) return;
   await sink.patchGatherState({ phase: 'dating' });
   let wrote = false;
+  let asked = 0;
 
-  for (const release of due) {
-    if (outOfBudget(ctx)) break;
-    const key = { itemType: release.itemType, itemId: release.itemId };
-    const answer = await session.fetchReleasePage(release.url, key);
-    if (answer.kind !== 'ok') {
-      // An offline phone, a 429 or a 5xx says nothing about the page, so only its own answers count against it.
-      if (answer.kind === 'error' && answer.status < 500 && answer.status !== 429) {
-        await sink.markReleasePageAttempt(key, 'failed', ctx.now());
-      }
-      warnAnswer('release page', answer);
-      break;
-    }
-    const page = answer.value;
-    if (page.kind !== 'page') {
-      await sink.markReleasePageAttempt(key, page.kind, ctx.now());
-      continue;
-    }
-    await store(ctx, page.document);
+  pass: for (const page of due) {
+    if (asked >= quota || outOfBudget(ctx)) break;
+    asked += 1;
+    const before = page.again ? await sink.readReleasePage(page.key) : null;
+    const read = await readPublicPage(ctx, page.what, page.url, page.key);
+    if (read === 'refused') break;
+    if (read === 'none') continue;
     wrote = true;
-    await sink.markReleasePageAttempt(key, namesReleaseDate(page.document.payload) ? 'dated' : 'undated', ctx.now());
+    const origin = originOf(page.url);
+    if (before === null || origin === null) continue;
+
+    for (const track of newlyOutTracks(storedTralbum(before), storedTralbum(read.payload))) {
+      if (track.path === null) continue;
+      if (asked >= quota || outOfBudget(ctx)) break pass;
+      asked += 1;
+      const key: ReleaseKey = { itemType: 't', itemId: Number(track.trackId) };
+      if ((await readPublicPage(ctx, 'track page', `${origin}${track.path}`, key)) === 'refused') break pass;
+    }
   }
   if (wrote) await sink.afterDocuments();
 }

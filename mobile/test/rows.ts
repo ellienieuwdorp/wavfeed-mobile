@@ -46,6 +46,10 @@ export function storyRow(overrides: Partial<FeedStoryRow> = {}): FeedStoryRow {
     featuredTrackTitle: 'Low Tide',
     featuredTrackDuration: 314.52,
     numStreamableTracks: 8,
+    numTracks: null,
+    isPreorder: false,
+    // A day the feed states, which New releases places the row on.
+    onReleaseDay: true,
     artist: 'Nightgraft',
     ...overrides,
   };

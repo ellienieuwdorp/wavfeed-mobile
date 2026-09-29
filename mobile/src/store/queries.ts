@@ -24,13 +24,14 @@ import {
   CURATED_QUOTES_MAX,
   CURATED_WINDOW_DAYS,
 } from '../domain/curate';
-import { buildNewReleases, type NewReleasesView } from '../domain/newReleases';
+import { buildDrops, buildNewReleases, type NewReleasesView } from '../domain/newReleases';
 import { storedBandId, storedTralbum } from '../domain/releasePage';
-import type { FeedStoryRow, UpcomingReleaseRow } from '../domain/rows';
+import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from '../domain/rows';
 import { intervalFor, readDiscographyDates, type SweepTier, tierFor } from '../domain/sweep';
 import { readTralbumTracks } from '../domain/tralbumTracks';
 import type { ItemType, StoryType } from '../domain/types';
 import { aheadFrom, buildUpcoming, handoffFloor, UPCOMING_MAX_RELEASES } from '../domain/upcoming';
+import { trackIds } from './drops';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
@@ -78,12 +79,21 @@ type ReleaseRecord = {
   featured_track_title: string | null;
   featured_track_duration: number | null;
   num_streamable_tracks: number | null;
+  num_tracks: number | null;
+  is_preorder: number;
+  on_release_day: number;
   artist: string;
 };
 
 type FanRecord = { fan_id: number; username: string; name: string | null; image_id: number | null };
 
 type ReleasePart = Omit<FeedStoryRow, 'storyId' | 'storyType' | 'storyDate' | 'reviewText' | 'fanId' | 'fanUsername' | 'fanName' | 'fanImageId'>;
+
+/** Held before its release day: the Upcoming handoff's test (ADR-0017), and whether a page's date places a Feed Item. */
+export const HELD_BEFORE_OUT = 'r.first_seen_at < r.release_date';
+
+/** Whether New releases places a Feed Item on its release day (task 0041, decision 3; `FeedStoryRow.onReleaseDay`). */
+export const ON_RELEASE_DAY = `(r.release_date is not null and (r.release_date_source = 'feed' or ${HELD_BEFORE_OUT}))`;
 
 /** A Story reaches the views only with its Release and that Release's Page held, as the server's inner joins say. */
 const STORY_JOIN = `stories s
@@ -126,6 +136,9 @@ function toReleasePart(row: ReleaseRecord): ReleasePart | null {
     featuredTrackTitle: row.featured_track_title,
     featuredTrackDuration: row.featured_track_duration,
     numStreamableTracks: row.num_streamable_tracks,
+    numTracks: row.num_tracks,
+    isPreorder: row.is_preorder === 1,
+    onReleaseDay: row.on_release_day === 1,
     artist: row.artist,
   };
 }
@@ -155,8 +168,8 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: numbe
   }
   const releaseRows = await db.getAllAsync<ReleaseRecord>(
     `select r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
-            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks,
-            p.name as artist
+            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks,
+            r.is_preorder, ${ON_RELEASE_DAY} as on_release_day, p.name as artist
      from json_each(?) k
      join releases r on r.item_type = json_extract(k.value, '$[0]') and r.item_id = json_extract(k.value, '$[1]')
      join pages p on p.band_id = r.band_id`,
@@ -204,6 +217,9 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: numbe
       featuredTrackTitle: release.featuredTrackTitle,
       featuredTrackDuration: release.featuredTrackDuration,
       numStreamableTracks: release.numStreamableTracks,
+      numTracks: release.numTracks,
+      isPreorder: release.isPreorder,
+      onReleaseDay: release.onReleaseDay,
       artist: release.artist,
     });
   }
@@ -229,8 +245,40 @@ type UpcomingRecord = {
   featured_track_title: string | null;
   featured_track_duration: number | null;
   num_streamable_tracks: number | null;
+  num_tracks: number | null;
   artist: string;
 };
+
+const UPCOMING_COLUMNS = `r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.is_preorder, r.label,
+  r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks,
+  p.name as artist`;
+
+function toUpcomingRow(row: UpcomingRecord): UpcomingReleaseRow | null {
+  const itemType = asItemType(row.item_type);
+  const releaseDate = asDate(row.release_date);
+  if (itemType === null || releaseDate === null) return null;
+  return {
+    itemType,
+    itemId: row.item_id,
+    bandId: row.band_id,
+    title: row.title,
+    url: row.url,
+    artId: row.art_id,
+    releaseDate,
+    isPreorder: row.is_preorder === 1,
+    label: row.label,
+    featuredTrackId: row.featured_track_id,
+    featuredTrackTitle: row.featured_track_title,
+    featuredTrackDuration: row.featured_track_duration,
+    numStreamableTracks: row.num_streamable_tracks,
+    numTracks: row.num_tracks,
+    artist: row.artist,
+  };
+}
+
+/** The shelf's reach: the Release's Page is followed, or a Story reaches the Release (ADR-0017). */
+export const REACHED_BY_FOLLOW_OR_STORY = `(exists (select 1 from follows f where f.band_id = r.band_id)
+  or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id))`;
 
 /**
  * Releases dated ahead of today's GMT day, or out within the handoff and held
@@ -238,39 +286,61 @@ type UpcomingRecord = {
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
   const rows = await db.getAllAsync<UpcomingRecord>(
-    `select r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.is_preorder, r.label,
-            r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks,
-            p.name as artist
+    `select ${UPCOMING_COLUMNS}
      from releases r
      join pages p on p.band_id = r.band_id
      where r.release_date >= ?
-       and (r.release_date >= ? or r.first_seen_at < r.release_date)
-       and (exists (select 1 from follows f where f.band_id = r.band_id)
-            or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id))
+       and (r.release_date >= ? or ${HELD_BEFORE_OUT})
+       and ${REACHED_BY_FOLLOW_OR_STORY}
      order by r.release_date asc, r.item_type asc, r.item_id asc
      limit ?`,
     [handoffFloor(now).toISOString(), aheadFrom(now).toISOString(), UPCOMING_MAX_RELEASES],
   );
   return rows.flatMap((row) => {
-    const itemType = asItemType(row.item_type);
-    const releaseDate = asDate(row.release_date);
-    if (itemType === null || releaseDate === null) return [];
+    const release = toUpcomingRow(row);
+    return release === null ? [] : [release];
+  });
+}
+
+/** Ceiling against a runaway fold, not a page size: a year of Drops from a few hundred Upcoming Releases sits well under it. */
+export const DROPS_MAX = 2_000;
+
+type DropRecord = UpcomingRecord & {
+  day: string;
+  tracks_out: number;
+  drop_num_tracks: number | null;
+  track_ids: string;
+};
+
+/**
+ * Every Drop whose Release has a release date, newest day first (task 0041, decision 6): an undated pre-order waits for
+ * its page, which dates it, and the row names that day. The total is the Drop's own, else the Release's. The fold
+ * writes a Drop for any Upcoming Release it holds; only those the shelf's reach takes in are drawn (decision 10).
+ */
+export async function listDrops(db: SQLiteDatabase): Promise<readonly DropRow[]> {
+  const rows = await db.getAllAsync<DropRecord>(
+    `select ${UPCOMING_COLUMNS}, d.day, d.num_streamable_tracks as tracks_out,
+            coalesce(d.num_tracks, r.num_tracks) as drop_num_tracks, d.track_ids
+     from drops d
+     join releases r on r.item_type = d.item_type and r.item_id = d.item_id
+     join pages p on p.band_id = r.band_id
+     where r.release_date is not null
+       and ${REACHED_BY_FOLLOW_OR_STORY}
+     order by d.day desc, d.item_type asc, d.item_id asc
+     limit ?`,
+    [DROPS_MAX],
+  );
+  return rows.flatMap((row) => {
+    const release = toUpcomingRow(row);
+    if (release === null) return [];
+    const newest = trackIds(row.track_ids).at(-1);
     return [
       {
-        itemType,
-        itemId: row.item_id,
-        bandId: row.band_id,
-        title: row.title,
-        url: row.url,
-        artId: row.art_id,
-        releaseDate,
-        isPreorder: row.is_preorder === 1,
-        label: row.label,
-        featuredTrackId: row.featured_track_id,
-        featuredTrackTitle: row.featured_track_title,
-        featuredTrackDuration: row.featured_track_duration,
-        numStreamableTracks: row.num_streamable_tracks,
-        artist: row.artist,
+        release,
+        day: row.day,
+        tracksOut: row.tracks_out,
+        numTracks: row.drop_num_tracks,
+        newestTrackId: newest ?? null,
       },
     ];
   });
@@ -312,11 +382,12 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
 
 /**
  * The web's New releases view in one read: `/api/upcoming` split at today's
- * GMT day, and the new-release Feed Items (everything, anchor sort) filed into weeks.
+ * GMT day, the new-release Feed Items (everything, anchor sort) filed into weeks, and the Drops (task 0041).
  */
 export async function readNewReleases(db: SQLiteDatabase, options: { readonly now: Date }): Promise<NewReleasesView> {
   const releases = await listUpcomingReleases(db, options.now);
-  const upcomingItems = storiesOfItems(releases.map((release) => [release.itemType, release.itemId]));
+  const drops = await listDrops(db);
+  const upcomingItems = storiesOfItems([...releases, ...drops.map((drop) => drop.release)].map((release) => [release.itemType, release.itemId]));
   // The new-release filter drops every other type before Bursts, so the view's elements need only those Stories.
   const rows = await loadStoryRows(db, {
     where: `s.story_type = 'new_release' or ${upcomingItems.where}`,
@@ -325,7 +396,7 @@ export async function readNewReleases(db: SQLiteDatabase, options: { readonly no
   const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
   const wanted = new Set(releases.map(itemKey));
   const upcoming = buildUpcoming(releases, rows.filter((row) => wanted.has(itemKey(row))));
-  return buildNewReleases(elements, upcoming, options.now);
+  return buildNewReleases(elements, upcoming, options.now, buildDrops(drops, rows));
 }
 
 export type BoughtOptions =

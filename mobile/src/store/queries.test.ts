@@ -3,12 +3,24 @@
  * The store's view reads narrow the wide Story join in SQL; each must answer what the server's feed rules answer on
  * the full join (task 0036, decision 3), and a rebuild from the Raw Documents must answer the same again (ADR-0004).
  * Bought is read once and placed per mode on every switch, so that placing answers the rules at each threshold too.
- * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well.
+ * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well, and the
+ * player's tracklist off a stored release page, every Track the page names (task 0041, decision 5).
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import {
+  feedPayload,
+  ITEM_ID,
+  nrEntry,
+  PREORDER_ITEM_ID,
+  PREORDER_URL,
+  preorderNrEntry,
+  preorderTralbumBlob,
+  releasePagePayload,
+  tralbumBlob,
+} from '../../test/fixtures';
 import { DAY, enterHistory, makeHistory, oracleRows } from '../../test/history';
 import { openTestStore } from '../../test/nodeDb';
 import { assembleFeed, itemKey } from '../domain/assemble';
@@ -26,12 +38,14 @@ import {
   readCurated,
   readNewestBandcampReleaseUrl,
   readNewReleases,
+  readTracklist,
 } from './queries';
 import { insertRawDocument } from './rawDocuments';
 
 const NOW = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
 const SIZE = { pages: 100, releases: 800, fans: 120, purchases: 1600, wishes: 500 };
 
+/** Without Drops: the history holds no pre-order pages, so it writes none, and drops.test.ts holds their rules. */
 async function newReleasesByRules(db: SQLiteDatabase, rows: readonly FeedStoryRow[], now: Date) {
   const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
   const upcoming = await listUpcomingReleases(db, now);
@@ -76,6 +90,89 @@ test("the wishlist crumb's stand-in is the newest Story's Release on a bandcamp.
   close();
 });
 
+test('the tracklist names every Track of a pre-order, and only the one let out plays', async () => {
+  const { db, close } = await openTestStore();
+  const payload = releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum: preorderTralbumBlob() });
+  await insertRawDocument(db, { endpoint: 'release_page', payload, fetchedAt: '2026-09-29T10:05:00.000Z' });
+  const tracklist = await readTracklist(db, 'a', PREORDER_ITEM_ID);
+  const tracks = tracklist?.tracks.map((track) => [track.trackNum, track.trackId, track.out, track.streamUrl !== null]);
+  assert.deepEqual(tracks, [
+    [1, '66602201', false, false],
+    [2, '66602202', true, true],
+    [3, '66602203', false, false],
+    [4, '66602204', false, false],
+  ]);
+  close();
+});
+
+test('in New releases a Feed Item sits on its release day, not on the day its one Story came (task 0041, decision 3)', async () => {
+  const { db, close } = await openTestStore();
+  // Out 14 August, its Story dated 18 August.
+  const payload = feedPayload({ entries: [nrEntry()] });
+  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload, fetchedAt: '2026-08-18T08:00:00.000Z' });
+  await fold(db);
+  const { weeks } = await readNewReleases(db, { now: new Date(Date.UTC(2026, 7, 20, 12)) });
+  assert.deepEqual(
+    weeks.flatMap((week) => week.releases.map((placed) => [placed.key, placed.date])),
+    [[`item:a:${ITEM_ID}`, new Date(2026, 7, 14)]],
+  );
+  close();
+});
+
+test('a pre-order the feed names stays out of the released weeks until its page dates it onto the shelf', async () => {
+  const { db, close } = await openTestStore();
+  const now = new Date(Date.UTC(2026, 8, 30, 12));
+  const payload = feedPayload({ entries: [preorderNrEntry()] });
+  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload, fetchedAt: '2026-09-29T10:00:00.000Z' });
+  await fold(db);
+  const placed = async () => {
+    const view = await readNewReleases(db, { now });
+    return [view.upcoming.map((release) => release.itemId), view.weeks.flatMap((week) => week.releases.map((entry) => entry.key))];
+  };
+  assert.deepEqual(await placed(), [[], []]);
+
+  const page = releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob() });
+  await insertRawDocument(db, { endpoint: 'release_page', payload: page, fetchedAt: '2026-09-29T10:05:00.000Z' });
+  await fold(db);
+  assert.deepEqual(await placed(), [[String(PREORDER_ITEM_ID)], [`drop:a:${PREORDER_ITEM_ID}:2026-09-29`]]);
+  close();
+});
+
+test("a reissue whose page states a day before its Story stays on the Story's day in New releases", async () => {
+  const { db, close } = await openTestStore();
+  // A new_release with no new_date, dated by its Story on 18 August; the player reads its page, which says 1994.
+  const feedRead = (fetchedAt: string, collected: number) => ({
+    endpoint: 'fan_dash_feed_updates',
+    payload: feedPayload({ entries: [nrEntry({ new_date: null, also_collected_count: collected })] }),
+    fetchedAt,
+  });
+  const old = '01 Jan 1994 00:00:00 GMT';
+  const current = { ...(tralbumBlob().current as object), release_date: old };
+  const page = releasePagePayload({ tralbum: tralbumBlob({ current, album_release_date: old }) });
+  await insertRawDocument(db, feedRead('2026-08-18T08:00:00.000Z', 3));
+  await insertRawDocument(db, { endpoint: 'release_page', payload: page, fetchedAt: '2026-08-18T09:00:00.000Z' });
+  await insertRawDocument(db, feedRead('2026-08-19T08:00:00.000Z', 4));
+  await fold(db);
+  const { weeks } = await readNewReleases(db, { now: new Date(Date.UTC(2026, 7, 20, 12)) });
+  assert.deepEqual(
+    weeks.flatMap((week) => week.releases.map((placed) => [placed.key, placed.date])),
+    [[`item:a:${ITEM_ID}`, new Date('2026-08-18T07:28:27.000Z')]],
+  );
+  close();
+});
+
+test('a Track with no file on a Release that is out is out, with no preview', async () => {
+  const { db, close } = await openTestStore();
+  await insertRawDocument(db, { endpoint: 'release_page', payload: releasePagePayload(), fetchedAt: '2026-09-29T10:05:00.000Z' });
+  const tracks = (await readTracklist(db, 'a', ITEM_ID))?.tracks;
+  assert.deepEqual(tracks?.map((track) => [track.title, track.out, track.streamUrl !== null]), [
+    ['Low Tide', true, true],
+    ['Slow Harbour', true, true],
+    ['Silt', true, false],
+  ]);
+  close();
+});
+
 describe('over a long history', () => {
   let db: SQLiteDatabase;
   let close: () => void;
@@ -93,6 +190,7 @@ describe('over a long history', () => {
   test('New releases match the rules, today and 200 days back', async () => {
     const today = await readNewReleases(db, { now: NOW });
     assert.ok(today.weeks.length > 0 && today.upcoming.length > 0, 'the history reaches both halves of the view');
+    assert.equal((await db.getFirstAsync<{ n: number }>('select count(*) as n from drops'))?.n, 0, 'the history writes no Drop');
     assert.deepEqual(today, await newReleasesByRules(db, rows, NOW));
     const earlier = new Date(NOW.getTime() - 200 * DAY);
     assert.deepEqual(await readNewReleases(db, { now: earlier }), await newReleasesByRules(db, rows, earlier));

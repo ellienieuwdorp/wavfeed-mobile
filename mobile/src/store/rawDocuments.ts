@@ -67,19 +67,22 @@ export async function listForProjection(db: SQLiteDatabase, limit: number): Prom
   return rows.map(toRawDocument);
 }
 
+/** The newest release page held for a Release; with `beforeId`, the newest the fold had reached before that document. */
 export async function latestReleasePageDocument(
   db: SQLiteDatabase,
   itemType: ItemType,
   itemId: number,
+  beforeId: number = Number.MAX_SAFE_INTEGER,
 ): Promise<RawDocument | null> {
   const row = await db.getFirstAsync<RawDocumentRow>(
     `select id, endpoint, payload, fetched_at from raw_documents
      where endpoint = 'release_page'
        and json_extract(payload, '$.itemType') = ?
        and json_extract(payload, '$.itemId') = ?
+       and id < ?
      order by fetched_at desc, id desc
      limit 1`,
-    [itemType, itemId],
+    [itemType, itemId, beforeId],
   );
   return row === null ? null : toRawDocument(row);
 }

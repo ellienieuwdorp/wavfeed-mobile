@@ -8,17 +8,66 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { bandBlob, ITEM_ID, releasePagePayload, tralbumBlob } from '../../test/fixtures';
+import {
+  bandBlob,
+  ITEM_ID,
+  PREORDER_ITEM_ID,
+  preorderTrackId,
+  preorderTrackPageBlob,
+  preorderTralbumBlob,
+  releasePagePayload,
+  tralbumBlob,
+} from '../../test/fixtures';
 import { parseReleasePage, ReleasePagePayloadError } from './parseReleasePage';
 
 describe('parseReleasePage', () => {
-  test('reads the Release key, the date and the streamable track count', () => {
+  test('reads the Release key, the date, and how many of its Tracks play', () => {
     assert.deepEqual(parseReleasePage(releasePagePayload()), {
       itemType: 'a',
       itemId: ITEM_ID,
       releaseDate: new Date('2026-08-05T00:00:00Z'),
       isPreorder: false,
       numStreamableTracks: 2,
+      numTracks: 3,
+      publishedAt: new Date('2026-03-31T19:43:06Z'),
+      modifiedAt: new Date('2026-03-31T19:43:06Z'),
+      albumId: null,
+    });
+  });
+
+  test('counts a Track as playing only when the page hands over its file (task 0041)', () => {
+    // Every Track of the pre-order says `streaming: 1`; one has a file.
+    const parsed = parseReleasePage(releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum: preorderTralbumBlob() }));
+
+    assert.deepEqual(parsed, {
+      itemType: 'a',
+      itemId: PREORDER_ITEM_ID,
+      releaseDate: new Date('2026-10-13T00:00:00Z'),
+      isPreorder: true,
+      numStreamableTracks: 1,
+      numTracks: 4,
+      publishedAt: new Date('2026-09-29T09:12:40Z'),
+      modifiedAt: new Date('2026-09-29T09:12:40Z'),
+      albumId: null,
+    });
+  });
+
+  test("reads a Track page's album and its edit moment, and its album's publish date (task 0041)", () => {
+    const trackId = preorderTrackId(3);
+    const parsed = parseReleasePage(
+      releasePagePayload({ itemType: 't', itemId: trackId, tralbum: preorderTrackPageBlob(3, '06 Oct 2026 17:02:11 GMT') }),
+    );
+
+    assert.deepEqual(parsed, {
+      itemType: 't',
+      itemId: trackId,
+      releaseDate: new Date('2026-10-13T00:00:00Z'),
+      isPreorder: null,
+      numStreamableTracks: 1,
+      numTracks: 1,
+      publishedAt: new Date('2026-09-29T09:12:40Z'),
+      modifiedAt: new Date('2026-10-06T17:02:11Z'),
+      albumId: PREORDER_ITEM_ID,
     });
   });
 
@@ -71,10 +120,10 @@ describe('parseReleasePage', () => {
     assert.equal(parseReleasePage(releasePagePayload({ tralbum: nonsense })).releaseDate, null);
   });
 
-  test('counts no streamable tracks when the blob carries no track list', () => {
+  test('counts no Tracks when the blob carries no track list', () => {
     const parsed = parseReleasePage(releasePagePayload({ tralbum: tralbumBlob({ trackinfo: null }) }));
 
-    assert.equal(parsed.numStreamableTracks, null);
+    assert.deepEqual([parsed.numStreamableTracks, parsed.numTracks], [null, null]);
   });
 
   test('refuses a payload that is not a release page, or a page that names no Release', () => {
