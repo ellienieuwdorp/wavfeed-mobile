@@ -199,6 +199,14 @@ and long digit runs removed, minified frames, the screen code and a fingerprint.
 Native crashes are not Error Reports; the stores hold those.
 _Avoid_: crash report, exception, log
 
+**Demo**:
+The feed a phone with no Fan yet opens from Connect's "Look around first": real
+Releases read once from public label pages, bought and wishlisted by made-up
+Fans, held in the store under its own Fan id until a sign-in replaces it
+(task 0043). In the UI it is "a sample".
+_Avoid_: demo account (the server's, gone with the box), sample (the simulator rig's
+made-up data in `src/dev/sample.ts`), guest mode
+
 **Install**:
 One copy of the app on one phone, known by a random id minted when sharing is
 turned on and dropped when it is turned off or the store is removed. Shown to
