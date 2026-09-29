@@ -1,7 +1,7 @@
 /**
  * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
  * scroll in Apple Music's shape: artwork, "N. Track title" linking out, the Page and Release, the label and release day,
- * the seek line with its m:ss times, the transport, the heart for the playing Track and "Buy on Bandcamp ↗", then the
+ * the seek line with its m:ss times, the transport, the heart for the playing Track and "Open on Bandcamp ↗", then the
  * Release's tracklist. On iOS it is a page sheet with its grabber and close chevron over a plain face, so the pull-down
  * dismisses from the art and from the top of the scroll; on Android a bottom sheet with 28dp corners at full height,
  * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist has a fixed height, so
@@ -283,11 +283,11 @@ function Actions({ release }: { release: PlayableRelease }) {
       <Pressable
         onPress={() => open(release, 'sheet_buy')}
         accessibilityRole="link"
-        accessibilityLabel={playerCopy.buyLabel}
+        accessibilityLabel={playerCopy.bandcampLinkLabel}
         android_ripple={ripple(c.track)}
         style={({ pressed }) => (ios ? { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', opacity: pressedOpacity(pressed) } : { minHeight: 48, justifyContent: 'center', paddingHorizontal: 22, borderRadius: 24, overflow: 'hidden', backgroundColor: c.tint })}
       >
-        <Text style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accent : c.ink }}>{playerCopy.buy}</Text>
+        <Text style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accent : c.ink }}>{playerCopy.bandcampLink}</Text>
       </Pressable>
     </View>
   );

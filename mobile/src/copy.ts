@@ -463,12 +463,20 @@ export const copy = {
     custody: `The sign-in stays on ${thisDevice} and is used only to read your own feed and to add or remove wishlist items you press. wavfeed's server never receives it. Signing out of Bandcamp on ${thisDevice} removes it.`,
     signIn: 'Sign in to Bandcamp',
     notNow: 'Not now',
+    lookAround: 'Look around first',
     cancel: 'Cancel',
     host: 'bandcamp.com',
     refusal: (other: string | null, owner: string) =>
       `That is a different Bandcamp account${other === null ? '' : ` (${other})`}. ${ThisDevice}'s feed belongs to ${owner}.`,
     unreachable: 'Bandcamp did not answer. Try again in a moment.',
     pageFailed: "Bandcamp's sign-in did not load. Cancel, then try again.",
+  },
+  /** The Demo's own lines (task 0043): under each large title, and Settings' status and foot while the store holds it. */
+  demo: {
+    header: 'A sample feed of real releases',
+    status: 'Looking at a sample',
+    statusSub: 'Real releases, made-up people',
+    foot: 'The releases, their artwork and previews come from Bandcamp. The people buying them are made up. Sign in to Bandcamp to see your own feed.',
   },
   notice: {
     signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,
@@ -511,8 +519,8 @@ export const copy = {
     pause: 'Pause',
     previous: 'Previous track',
     next: 'Next track',
-    buy: 'Buy on Bandcamp ↗',
-    buyLabel: 'Buy on Bandcamp',
+    bandcampLink: 'Open on Bandcamp ↗',
+    bandcampLinkLabel: 'Open on Bandcamp',
     trackTitle: (n: number, title: string) => `${n}. ${title}`,
     openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
   },
