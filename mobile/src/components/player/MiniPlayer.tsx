@@ -48,10 +48,10 @@ export function isDead(player: Pick<Player, 'status'>): boolean {
 }
 
 /** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
-export function TrackHeart({ release, box, icon }: { release: PlayableRelease; box: number; icon: number }) {
+export function TrackHeart({ release, box, icon, surface }: { release: PlayableRelease; box: number; icon: number; surface: 'mini_player' | 'sheet' }) {
   const { track, status } = usePlayer();
   if (track !== null && track.trackId !== null && status === 'ready') {
-    return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={box} icon={icon} />;
+    return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={box} icon={icon} surface={surface} />;
   }
   const side = Math.max(box, 44);
   return <View style={{ width: side, height: side }} />;
@@ -113,11 +113,11 @@ function Contents({ release, inline = false }: { release: PlayableRelease; inlin
       {ios ? (
         <>
           <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} />
-          {inline ? null : <TrackHeart release={release} box={44} icon={22} />}
+          {inline ? null : <TrackHeart release={release} box={44} icon={22} surface="mini_player" />}
         </>
       ) : (
         <>
-          <TrackHeart release={release} box={48} icon={24} />
+          <TrackHeart release={release} box={48} icon={24} surface="mini_player" />
           <PlayPause box={48} glyph={24} primary />
         </>
       )}

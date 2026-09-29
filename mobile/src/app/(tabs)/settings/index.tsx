@@ -2,8 +2,8 @@
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
  * sign out), the usage switch with its sharing code and the privacy page (task 0038, hidden in a build that can never
  * send), connected devices (held back until a server knows the others), appearance, removing everything gathered here
- * (which sends `store_removed` first while sharing is on), and a feedback mail naming the build; the canvas's one
- * notification switch waits for notifications to exist. Android draws the status as one list item and its actions as
+ * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
+ * mail naming the build; the canvas's one notification switch waits for notifications to exist. Android draws the status as one list item and its actions as
  * Material buttons under the custody line, as the canvas's Settings board does. A development build adds the store's
  * facts under the custody line. While something plays, the catch-up of a first walk sits under the large title as on
  * every tab (task 0040, decision 6). The wavfeed account rows (email, password, log out, delete) wait for the account
@@ -32,6 +32,7 @@ import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
 import { countRawDocuments, readKv, readOverview } from '@/store';
+import { connectHref } from '@/tally/actions';
 import { feedbackFacts, useSharing } from '@/tally/Sharing';
 import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
@@ -90,7 +91,7 @@ export default function Settings() {
     addedAt: await readKv<number>(db, DEVICE_ADDED_KEY),
   }));
   const identity = held?.identity ?? null;
-  const connect = () => router.push('/connect');
+  const connect = () => router.push(connectHref('settings'));
   const usage = useSharing();
   // The code an off just dropped stays in the foot until Settings is left, so the tester can still ask for erasure.
   const [droppedCode, setDroppedCode] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export default function Settings() {
 
   const gatherNow = () => {
     setGathering(true);
+    usage.track({ name: 'feed_refreshed', props: { from: 'gather_now', hit_ceiling: false } });
     void app
       .runGather('refresh')
       .catch(() => undefined)
@@ -124,7 +126,8 @@ export default function Settings() {
   };
 
   const finishSignOut = async () => {
-    await app.session.signOut();
+    const result = await app.session.signOut();
+    usage.track({ name: 'signed_out', props: { result } });
     await patchGather(app, { pausedReason: 'not_connected' });
     setSigningOut(false);
   };

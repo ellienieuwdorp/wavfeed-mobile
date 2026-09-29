@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAppState } from '@/state/appState';
 import { CONNECT_SHOWN_KEY, readStoredIdentity } from '@/state/gatherSink';
 import { readKv, writeKv } from '@/store';
+import { connectHref } from '@/tally/actions';
 
 export function FirstRunConnect({ children }: { children: (pushed: boolean) => ReactNode }) {
   const { db } = useAppState();
@@ -22,7 +23,7 @@ export function FirstRunConnect({ children }: { children: (pushed: boolean) => R
       if ((await readKv<boolean>(db, CONNECT_SHOWN_KEY)) !== null) return false;
       await writeKv(db, CONNECT_SHOWN_KEY, true);
       if ((await readStoredIdentity(db)) !== null) return false;
-      router.push('/connect');
+      router.push(connectHref('first_run'));
       return true;
     })()
       .catch(() => false)

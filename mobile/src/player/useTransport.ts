@@ -4,13 +4,16 @@
  * pressed again toggling pause, previous and next inside the Release, a Track ending advancing and the last one
  * stopping at rest. The lock screen and Control Centre get the Track through `setActiveForLockScreen`; expo-audio 57
  * gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
- * so the tab bar does not re-render four times a second.
+ * so the tab bar does not re-render four times a second. A play's start, a stream that dies mid-Track and the listening
+ * a Release got go to `track` as Tallies (task 0038, `src/tally/actions.ts`).
  */
 import { setAudioModeAsync, useAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import type { ApiReleaseTrack } from '@/domain/apiTypes';
+import { listenStep, playbackStarted, type Listening, type ListenEvent, type PlayResult } from '@/tally/actions';
+import type { Screen, Tally } from '@/tally/catalogue';
 
 import {
   firstStreamableIndex,
@@ -56,7 +59,12 @@ export type Transport = {
   readonly seek: (seconds: number) => void;
   /** Starts the Track at `index`; the Track already in the transport toggles pause instead. */
   readonly playAt: (index: number) => void;
+  /** Whether audio plays now, read at a press without re-rendering on every change. */
+  readonly isPlaying: () => boolean;
 };
+
+/** Where the player's Tallies go, and the screen a play was pressed on. */
+export type TransportTallies = { readonly track: (tally: Tally) => void; readonly screen: () => Screen };
 
 export type PlayerClock = { readonly position: number; readonly duration: number };
 
@@ -75,6 +83,10 @@ function durationOf(status: AudioStatus | null, track: ApiReleaseTrack | undefin
   return track?.duration ?? 0;
 }
 
+function releaseKey(release: PlayableRelease): string {
+  return `${release.itemType}:${release.itemId}`;
+}
+
 function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, release: PlayableRelease, track: ApiReleaseTrack) {
   const metadata = lockScreenMetadata(release, track);
   try {
@@ -86,7 +98,7 @@ function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, rele
   }
 }
 
-export function useTransport(deps: TransportDeps): { transport: Transport; clock: PlayerClock } {
+export function useTransport(deps: TransportDeps & TransportTallies): { transport: Transport; clock: PlayerClock } {
   // expo-audio deactivates the iOS audio session 100 ms after a pause or a Track's end unless something is playing,
   // and the next Track is still buffering then; in the background an inactive session gets the app suspended before
   // it starts. Keeping the session active is what lets a Release play on with the screen locked (task 0036).
@@ -100,6 +112,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   const lockActive = useRef(false);
   /** The position a seek is travelling to; status ticks report the old position until AVPlayer lands it. */
   const seekingTo = useRef<number | null>(null);
+  const listening = useRef<Listening | null>(null);
 
   useEffect(() => {
     depsRef.current = deps;
@@ -109,10 +122,20 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
     setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' }).catch(() => undefined);
   }, []);
 
-  const apply = useCallback((next: TransportState) => {
-    stateRef.current = next;
-    setState(next);
+  const listen = useCallback((event: ListenEvent) => {
+    const step = listenStep(listening.current, event, Date.now());
+    listening.current = step.listening;
+    if (step.tally !== null) depsRef.current.track(step.tally);
   }, []);
+
+  const apply = useCallback(
+    (next: TransportState) => {
+      stateRef.current = next;
+      setState(next);
+      listen({ kind: 'playing', on: next.status === 'ready' && next.playing });
+    },
+    [listen],
+  );
 
   const quiet = useCallback(() => {
     quietUntil.current = Date.now() + QUIET_AFTER_CONTROL_MS;
@@ -124,6 +147,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       if (from.release === null || track === undefined || track.streamUrl === null) return;
       quiet();
       seekingTo.current = null;
+      listen({ kind: 'start', release: releaseKey(from.release) });
       // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
       if (!SAMPLE_MODE) {
         audio.replace({ uri: track.streamUrl });
@@ -133,7 +157,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       setClock({ position: 0, duration: durationOf(null, track) });
       showOnLockScreen(audio, lockActive, from.release, track);
     },
-    [apply, audio, quiet],
+    [apply, audio, listen, quiet],
   );
 
   const loadAndStart = useCallback(
@@ -141,7 +165,13 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       loadRef.current += 1;
       const token = loadRef.current;
       const before = stateRef.current;
-      const kept = force && before.release !== null && isSameRelease(before.release, release) ? before.tracks : [];
+      const same = before.release !== null && isSameRelease(before.release, release);
+      const kept = force && same ? before.tracks : [];
+      const startedAt = Date.now();
+      const screen = depsRef.current.screen();
+      // A reload of the Release already in the transport, after an error or once its stream URLs expired, is a retry.
+      const started = (result: PlayResult) => depsRef.current.track(playbackStarted(result, Date.now() - startedAt, screen, same));
+      listen({ kind: 'load', release: releaseKey(release) });
       quiet();
       audio.pause();
       apply({ ...IDLE, release, status: 'loading', tracks: kept });
@@ -150,6 +180,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       if (loadRef.current !== token) return;
       if (tracklist === null) {
         apply({ ...IDLE, release, status: 'error' });
+        started('error');
         return;
       }
       const wanted = tracklist.tracks.findIndex((track) => track.trackId === wantedTrackId && isStreamable(track));
@@ -164,10 +195,15 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
         expiresAt: Number.isNaN(expiresAt) ? 0 : expiresAt,
         bandId: tracklist.bandId,
       };
-      if (index === null) apply({ ...loaded, status: 'unplayable' });
-      else beginPlayback(loaded, index);
+      if (index === null) {
+        apply({ ...loaded, status: 'unplayable' });
+        started('unplayable');
+      } else {
+        beginPlayback(loaded, index);
+        started('playing');
+      }
     },
-    [apply, audio, beginPlayback, quiet],
+    [apply, audio, beginPlayback, listen, quiet],
   );
 
   const startTrack = useCallback(
@@ -196,7 +232,10 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       return;
     }
     const index = from.index ?? firstStreamableIndex(from.tracks);
-    if (index !== null) startTrack(index);
+    if (index === null) return;
+    // A Release at rest after its last Track starts again from here; an expired one reloads and counts itself.
+    if (from.index === null && !expired(from)) depsRef.current.track(playbackStarted('playing', 0, depsRef.current.screen(), false));
+    startTrack(index);
   }, [apply, audio, quiet, startTrack]);
 
   const play = useCallback(
@@ -258,6 +297,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
           startTrack(to);
           return;
         }
+        listen({ kind: 'end' });
         apply({ ...from, index: null, playing: false });
         setClock(ZERO);
         return;
@@ -265,6 +305,7 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       if (status.error) {
         audio.pause();
         apply({ ...from, status: 'error', playing: false });
+        depsRef.current.track({ name: 'playback_failed', props: { stage: 'mid_track' } });
         return;
       }
       const position = seekingTo.current ?? status.currentTime;
@@ -276,7 +317,9 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       if (!status.playing && halted && from.playing) apply({ ...from, playing: false });
     });
     return () => subscription.remove();
-  }, [apply, audio, startTrack]);
+  }, [apply, audio, listen, startTrack]);
+
+  const isPlaying = useCallback(() => stateRef.current.playing, []);
 
   const track = state.index === null ? null : (state.tracks[state.index] ?? null);
   const transport = useMemo<Transport>(
@@ -296,8 +339,9 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
       previous,
       seek,
       playAt,
+      isPlaying,
     }),
-    [state, track, play, toggle, next, previous, seek, playAt],
+    [state, track, play, toggle, next, previous, seek, playAt, isPlaying],
   );
   return { transport, clock };
 }

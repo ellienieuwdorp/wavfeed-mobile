@@ -145,7 +145,7 @@ function TrackRow({ release, track, index, current, playing, ready, first, side 
         </View>
       )}
       {live && track.trackId !== null ? (
-        <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} />
+        <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} surface="tracklist" />
       ) : (
         <View style={{ width: ios ? 44 : 48 }} />
       )}

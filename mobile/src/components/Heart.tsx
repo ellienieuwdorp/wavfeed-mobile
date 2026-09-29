@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Platform, Pressable } from 'react-native';
 
 import { useReduceMotion } from '@/player/motion';
+import type { PressSurface } from '@/tally/actions';
 import { storeItemType, type PlayableRelease } from '@/player/transport';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
@@ -26,6 +27,8 @@ type HeartProps = {
   trackId?: string;
   box?: number;
   icon?: number;
+  /** Where the heart sits, for `wishlist_action_finished` (task 0038). */
+  surface: PressSurface;
 };
 
 function usePulse(active: boolean): Animated.Value {
@@ -50,13 +53,13 @@ function usePulse(active: boolean): Animated.Value {
   return opacity;
 }
 
-export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon }: HeartProps) {
+export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, surface }: HeartProps) {
   const { c } = useTokens();
   const release = { itemType: storeItemType(itemType), itemId };
   const target: WishlistTarget = trackId === undefined ? { ...release, release } : { itemType: 't', itemId: trackId, release };
   const membership = useMembership(target.itemType, target.itemId);
   const pending = usePendingAction(target.itemType, target.itemId);
-  const press = useWishlistPress();
+  const press = useWishlistPress(surface);
   const opacity = usePulse(pending !== null);
   const box = boxSize ?? (ios ? 44 : 48);
 

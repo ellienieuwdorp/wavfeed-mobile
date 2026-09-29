@@ -4,7 +4,7 @@
  * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
  * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
  * wishlist item runs the heart's own press (ADR-0016) and is greyed whenever the heart would take no press. Only an
- * https address from the wire is opened or shared.
+ * https address from the wire is opened or shared, and an open is counted as a hand-off (task 0038).
  */
 import { Box, DropdownMenu, DropdownMenuItem, Host as ComposeHost, Text as ComposeText } from '@expo/ui/jetpack-compose';
 import { fillMaxSize } from '@expo/ui/jetpack-compose/modifiers';
@@ -17,10 +17,12 @@ import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { copy } from '@/copy';
 import { webUrl } from '@/lib/format';
+import { useSharing } from '@/tally/Sharing';
 import { useTokens } from '@/theme/tokens';
 import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
 
 import { usePlay, type RowRelease } from './playable';
+import { usePlayerActions } from './player/playerState';
 
 const ios = Platform.OS === 'ios';
 // ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9 (task 0036). Its native
@@ -38,9 +40,11 @@ const keepHeld: OpenMenu = () => undefined;
 
 function useRowActions(release: RowRelease): readonly Action[] {
   const play = usePlay();
+  const { isPlaying } = usePlayerActions();
+  const { track } = useSharing();
   const membership = useMembership(release.itemType, release.itemId);
   const pending = usePendingAction(release.itemType, release.itemId);
-  const press = useWishlistPress();
+  const press = useWishlistPress('row_menu');
   const wishlisted = membership.known && membership.wishlisted;
   const url = webUrl(release.itemUrl);
   const key = { itemType: release.itemType, itemId: release.itemId };
@@ -60,7 +64,9 @@ function useRowActions(release: RowRelease): readonly Action[] {
       icon: 'safari',
       enabled: url !== null,
       run: () => {
-        if (url !== null) openURL(url).catch(() => undefined);
+        if (url === null) return;
+        track({ name: 'release_opened_on_bandcamp', props: { surface: 'row_menu', was_playing: isPlaying() } });
+        openURL(url).catch(() => undefined);
       },
     },
     {

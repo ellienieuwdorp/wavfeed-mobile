@@ -24,6 +24,8 @@ import type { ItemType } from '@/domain/types';
 import { useAppState, type AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
 import { readNewestBandcampReleaseUrl, readTracklist, readWishlistState } from '@/store/queries';
+import { connectHref, wishlistActionFinished, type PressSurface } from '@/tally/actions';
+import { useSharing } from '@/tally/Sharing';
 
 import { wishlistCopy } from './copy';
 
@@ -37,7 +39,7 @@ export type WishlistTarget = {
 export type Membership = { readonly known: false } | { readonly known: true; readonly wishlisted: boolean };
 
 type Held = { readonly db: SQLiteDatabase; readonly version: number; readonly keys: ReadonlySet<string> };
-type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
+export type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
 type BandSource = 'page' | 'fetched_page' | 'row';
 type Sent = {
   readonly failure: PressFailure | null;
@@ -208,32 +210,40 @@ function logPress(action: WishlistWriteKind, target: WishlistTarget, sent: Sent)
 }
 
 function noticeFor(failure: PressFailure | 'other', reason: string | null = null): NoticeLine {
-  const signIn = { onPress: () => router.push('/connect') };
+  const signIn = { onPress: () => router.push(connectHref('wishlist_notice')) };
   switch (failure) {
     case 'logged_out':
-      return { text: wishlistCopy.notice.loggedOut, action: { label: copy.notice.signInAgain, ...signIn } };
+      return { code: 'wishlist_failed', text: wishlistCopy.notice.loggedOut, action: { label: copy.notice.signInAgain, ...signIn } };
     case 'not_signed_in':
-      return { text: wishlistCopy.notice.notSignedIn, action: { label: wishlistCopy.notice.signIn, ...signIn } };
+      return { code: 'wishlist_failed', text: wishlistCopy.notice.notSignedIn, action: { label: wishlistCopy.notice.signIn, ...signIn } };
     case 'bandcamp_unreachable':
-      return { text: wishlistCopy.notice.unreachable };
+      return { code: 'wishlist_failed', text: wishlistCopy.notice.unreachable };
     case 'bandcamp_rejected':
-      return { text: reason === null ? wishlistCopy.notice.rejected : wishlistCopy.notice.rejectedSaying(reason) };
+      return { code: 'wishlist_failed', text: reason === null ? wishlistCopy.notice.rejected : wishlistCopy.notice.rejectedSaying(reason) };
     default:
-      return { text: wishlistCopy.notice.other };
+      return { code: 'wishlist_failed', text: wishlistCopy.notice.other };
   }
 }
 
-/** One press, one exchange: a second press on the same item while one travels is turned away. */
-export function useWishlistPress(): (target: WishlistTarget, action: WishlistWriteKind) => void {
+/**
+ * One press, one exchange: a second press on the same item while one travels is turned away. Each exchange ends in one
+ * `wishlist_action_finished` naming the `surface` pressed (task 0038).
+ */
+export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind) => void {
   const app = useAppState();
   const { show } = useNotice();
+  const { track } = useSharing();
   return useCallback(
     (target, action) => {
       const key = keyOf(target.itemType, target.itemId);
       if (pending.has(key)) return;
       setPending(key, action);
+      const onTrack = key !== keyOf(target.release.itemType, target.release.itemId);
+      let told = false;
       send(app, target, action)
         .then((sent) => {
+          told = true;
+          track(wishlistActionFinished({ action, surface, onTrack, failure: sent.failure, wire: sent.wire }));
           logPress(action, target, sent);
           if (sent.failure !== null) show(noticeFor(sent.failure, sent.reason));
           else {
@@ -243,10 +253,11 @@ export function useWishlistPress(): (target: WishlistTarget, action: WishlistWri
         })
         .catch((error: unknown) => {
           console.warn(`wishlist ${action} ${key} threw:`, error instanceof Error ? error.message : String(error));
+          if (!told) track(wishlistActionFinished({ action, surface, onTrack, failure: 'other', wire: null }));
           show(noticeFor('other'));
         })
         .finally(() => setPending(key, null));
     },
-    [app, show],
+    [app, show, track, surface],
   );
 }

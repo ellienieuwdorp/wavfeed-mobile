@@ -1,17 +1,22 @@
 /**
  * The player as the chrome reads it (DESIGN-UI section 10, ADR-0015, task 0036), split so a reader re-renders only on
- * what it draws: stable controls, the Release in the transport, the Track and its state, and the position ticks.
+ * what it draws: stable controls, the Release in the transport, the Track and its state, and the position ticks. The
+ * transport's Tallies go to the sharing provider's `track`, naming the screen a play was pressed on (task 0038).
  */
-import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
+import { usePathname } from 'expo-router';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import type { PlayableRelease } from '@/player/transport';
 import { useTransport, type PlayerClock, type Transport } from '@/player/useTransport';
 import { useAppState } from '@/state/appState';
+import type { Screen } from '@/tally/catalogue';
+import { useSharing } from '@/tally/Sharing';
+import { screenFor } from '@/tally/tally';
 
 export type { PlayableRelease, PlayerStatus } from '@/player/transport';
 export type { PlayerClock } from '@/player/useTransport';
 export type Player = Transport;
-export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek' | 'playAt'>;
+export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek' | 'playAt' | 'isPlaying'>;
 
 const PlayerContext = createContext<Player | null>(null);
 const ActionsContext = createContext<PlayerActions | null>(null);
@@ -19,9 +24,19 @@ const ReleaseContext = createContext<PlayableRelease | null>(null);
 const ClockContext = createContext<PlayerClock>({ position: 0, duration: 0 });
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const { transport, clock } = useTransport(useAppState());
-  const { play, toggle, next, previous, seek, playAt, release } = transport;
-  const actions = useMemo<PlayerActions>(() => ({ play, toggle, next, previous, seek, playAt }), [play, toggle, next, previous, seek, playAt]);
+  const { track } = useSharing();
+  const pathname = usePathname();
+  const here = useRef<Screen>('other');
+  useEffect(() => {
+    here.current = screenFor(pathname);
+  }, [pathname]);
+  const screen = useCallback(() => here.current, []);
+  const { transport, clock } = useTransport({ ...useAppState(), track, screen });
+  const { play, toggle, next, previous, seek, playAt, isPlaying, release } = transport;
+  const actions = useMemo<PlayerActions>(
+    () => ({ play, toggle, next, previous, seek, playAt, isPlaying }),
+    [play, toggle, next, previous, seek, playAt, isPlaying],
+  );
   const tree = createElement(ClockContext.Provider, { value: clock }, children);
   return createElement(
     ActionsContext.Provider,

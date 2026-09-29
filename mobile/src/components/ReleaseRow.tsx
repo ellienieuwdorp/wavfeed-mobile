@@ -31,9 +31,9 @@ const ios = Platform.OS === 'ios';
  */
 export const ROW_LIST = { strictMode: true, removeClippedSubviews: false } as object;
 
-/** The heart lane's props for a Release: its key and its title for the label. */
+/** The heart lane's props for a Release: its key, its title for the label, and the row it sits on. */
 export function heartFor(release: RowRelease) {
-  return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title };
+  return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title, surface: 'row' as const };
 }
 
 type RowProps = {

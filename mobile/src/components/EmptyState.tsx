@@ -7,6 +7,7 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { copy } from '@/copy';
 import { useGatherStatus } from '@/state/status';
+import { connectHref } from '@/tally/actions';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -19,7 +20,7 @@ export function EmptyState({ filling, nothing }: { filling: string; nothing: str
     return (
       <View style={{ paddingHorizontal: type.gutter, paddingTop: 24 }}>
         <Pressable
-          onPress={() => router.push('/connect')}
+          onPress={() => router.push(connectHref('empty_state'))}
           accessibilityRole="button"
           android_ripple={ripple(c.onAccent)}
           style={({ pressed }) => ({ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, overflow: ios ? undefined : 'hidden', backgroundColor: c.accent, opacity: pressedOpacity(pressed) })}

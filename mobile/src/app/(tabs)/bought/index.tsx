@@ -202,7 +202,7 @@ export default function Bought() {
   const [mode, setMode] = useState<BoughtMode>('released');
   const [threshold, setThreshold] = useState(DEFAULT_BOUGHT_THRESHOLD);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const { refreshing, onRefresh } = useRefresh();
+  const { refreshing, onRefresh } = useRefresh('bought');
   const appBar = useAppBar();
 
   // One read per store version holds both modes and every number, so a switch places what is held and reads nothing (task 0036).

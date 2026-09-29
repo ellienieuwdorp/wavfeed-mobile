@@ -64,7 +64,7 @@ export default function NewReleases() {
   const now = useNow();
   const day = dayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), [day]);
-  const { refreshing, onRefresh } = useRefresh();
+  const { refreshing, onRefresh } = useRefresh('releases');
   const appBar = useAppBar();
 
   const items = useMemo(() => {

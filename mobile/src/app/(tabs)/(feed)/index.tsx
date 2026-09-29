@@ -22,7 +22,7 @@ export default function Feed() {
   const clearance = useDockClearance();
   const now = useNow();
   const curated = useLiveQuery((db) => readCurated(db));
-  const { refreshing, onRefresh } = useRefresh();
+  const { refreshing, onRefresh } = useRefresh('feed');
   const appBar = useAppBar();
   const empty =
     curated !== null && curated.newFromPages.length === 0 && curated.boughtByFollowed.length === 0 && curated.inTheirOwnWords.length === 0;

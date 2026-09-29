@@ -19,13 +19,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/Artwork';
 import { Glyph, type GlyphName } from '@/components/Glyph';
 import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/components/player/MiniPlayer';
-import { clock, usePlayer, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
+import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { Tracklist } from '@/components/player/Tracklist';
 import { SELF_RELEASED, sep } from '@/copy';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useSampleStart } from '@/dev/useSampleData';
 import { formatDatePart, releaseDay } from '@/lib/dates';
 import { playerCopy } from '@/player/copy';
+import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -41,8 +42,16 @@ const MAIN = ios ? 72 : 80;
 const ACTIONS = ios ? 44 : 48;
 const ART_RADIUS = ios ? 14 : 24;
 
-function open(release: PlayableRelease) {
-  openURL(release.url).catch(() => undefined);
+type OpenSurface = 'sheet_title' | 'sheet_buy';
+
+/** Opens the Release on Bandcamp and counts the hand-off (task 0038). */
+function useOpen(): (release: PlayableRelease, surface: OpenSurface) => void {
+  const { track } = useSharing();
+  const { isPlaying } = usePlayerActions();
+  return (release, surface) => {
+    track({ name: 'release_opened_on_bandcamp', props: { surface, was_playing: isPlaying() } });
+    openURL(release.url).catch(() => undefined);
+  };
 }
 
 /** The label, "self-released" when the row knew there was none, and the release day, each only when the row held it. */
@@ -249,10 +258,11 @@ function Transport() {
 function Titles({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
   const player = usePlayer();
+  const open = useOpen();
   const title = trackLine(player, release);
   return (
     <View>
-      <Pressable onPress={() => open(release)} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+      <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
         <View style={{ height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
           <Text style={{ fontSize: 16, color: c.accent }}>{playerCopy.linkOut}</Text>
@@ -266,11 +276,12 @@ function Titles({ release }: { release: PlayableRelease }) {
 
 function Actions({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
+  const open = useOpen();
   return (
     <View style={{ height: ACTIONS, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: ios ? -8 : 0 }}>
-      <TrackHeart release={release} box={ACTIONS} icon={26} />
+      <TrackHeart release={release} box={ACTIONS} icon={26} surface="sheet" />
       <Pressable
-        onPress={() => open(release)}
+        onPress={() => open(release, 'sheet_buy')}
         accessibilityRole="link"
         accessibilityLabel={playerCopy.buyLabel}
         android_ripple={ripple(c.track)}
