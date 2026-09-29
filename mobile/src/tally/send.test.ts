@@ -11,7 +11,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { openTestStore } from '../../test/nodeDb';
 import type { Tally } from './catalogue';
 import { enqueueTally, readDropped, turnSharingOff, turnSharingOn } from './outbox';
-import { flush, IDLE, onSettled, onTrigger, Sender, type FlushDeps, type Post, type SenderDeps } from './send';
+import { fetchPost, flush, IDLE, onSettled, onTrigger, Sender, type FlushDeps, type Post, type SenderDeps } from './send';
 import type { BatchBody } from './wire';
 
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
@@ -123,6 +123,28 @@ describe('flush', () => {
     assert.equal(await rows(), 1, 'the new Install keeps its own row');
   });
 
+  test('an off that lands while a batch is being taken stops the flush before anything is posted', async () => {
+    await turnSharingOn(db, INSTALL, NOW);
+    await queue(3);
+    const controller = new AbortController();
+    const w = worker();
+    // The press that turns sharing off aborts the flush and deletes the rows while the take is still reading them.
+    const taking = new Proxy(db, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver) as unknown;
+        if (prop !== 'getAllAsync' || typeof value !== 'function') return typeof value === 'function' ? value.bind(target) : value;
+        return async (...args: unknown[]) => {
+          const read = await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+          controller.abort();
+          await turnSharingOff(target);
+          return read;
+        };
+      },
+    });
+    assert.deepEqual(await flush({ ...deps(w.post), db: taking }, controller.signal), { kind: 'stopped' });
+    assert.equal(w.bodies.length, 0);
+  });
+
   test('an abort mid-request stops without settling', async () => {
     await turnSharingOn(db, INSTALL, NOW);
     await queue(2);
@@ -224,5 +246,24 @@ describe('Sender', () => {
     wake.run();
     await new Promise((done) => setImmediate(done));
     assert.equal(w.bodies.length, 1);
+  });
+});
+
+describe('fetchPost', () => {
+  function recorder() {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const send = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response('{"ok":true}', { status: 200, headers: { 'retry-after': '60' } });
+    }) as unknown as typeof fetch;
+    return { calls, post: fetchPost(send) };
+  }
+
+  test('a signal that fired before the call sends nothing', async () => {
+    const { calls, post } = recorder();
+    const controller = new AbortController();
+    controller.abort();
+    assert.equal(await post('http://localhost:8787/v1/batch', '{}', controller.signal), null);
+    assert.equal(calls.length, 0);
   });
 });

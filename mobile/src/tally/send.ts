@@ -47,6 +47,8 @@ export async function flush(deps: FlushDeps, signal: AbortSignal): Promise<Flush
     if ((await countQueued(db)) === 0) break;
     const taken = await takeBatch(db, deps.newId, deps.now());
     if (taken === null) break;
+    // An off or a removed store during the take lands here: the rows read before it never leave.
+    if (signal.aborted || (await readSharing(db))?.install !== deps.install) return { kind: 'stopped' };
     const body = batchBody({ key: deps.key, install: deps.install, batch: taken.batch, sentAt: deps.now(), ctx: deps.ctx }, taken.rows);
     const answer = await deps.post(deps.url, JSON.stringify(body), signal);
     if (signal.aborted) return { kind: 'stopped' };
@@ -155,6 +157,8 @@ export class Sender {
 /** `fetch` as the house sends public calls: no cookies, a JSON body and a 10 s ceiling (`mobile/src/bandcamp/session.ts`). */
 export function fetchPost(send: typeof fetch): Post {
   return async (url, body, signal) => {
+    // A listener added to a signal that has already fired never runs, so an abort before the call is checked here.
+    if (signal.aborted) return null;
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal.addEventListener('abort', abort);
