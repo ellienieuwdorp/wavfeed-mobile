@@ -5,6 +5,7 @@
  */
 import type { ApiBoughtWeek, ApiFeedItem } from './apiTypes';
 import { buildFeedItem, groupByItem, hasFan } from './assemble';
+import { aheadFrom } from './upcoming';
 import type { FeedStoryRow } from './rows';
 
 /** A Release at least one named Fan bought, with what the chart and the crossed list rank it by. */
@@ -58,6 +59,26 @@ function byRank(a: BoughtRelease, b: BoughtRelease): number {
   if (a.item.buyers.length !== b.item.buyers.length) return b.item.buyers.length - a.item.buyers.length;
   if (a.latestPurchase !== b.latestPurchase) return b.latestPurchase - a.latestPurchase;
   return a.item.itemId.localeCompare(b.item.itemId);
+}
+
+export type BoughtHalves = {
+  /** Not out yet, nearest release date first: the Upcoming shelf (task 0037). */
+  readonly upcoming: readonly BoughtRelease[];
+  /** Out, or with no release date known: what the weekly chart files. */
+  readonly out: readonly BoughtRelease[];
+};
+
+/** A Release is in one half and never both, split at the GMT release day as New releases splits (ADR-0017, task 0037). */
+export function boughtHalves(releases: readonly BoughtRelease[], now: Date): BoughtHalves {
+  const ahead = aheadFrom(now).getTime();
+  const upcoming: BoughtRelease[] = [];
+  const out: BoughtRelease[] = [];
+  for (const release of releases) {
+    if (release.releaseDate !== null && release.releaseDate.getTime() >= ahead) upcoming.push(release);
+    else out.push(release);
+  }
+  upcoming.sort((a, b) => (a.releaseDate?.getTime() ?? 0) - (b.releaseDate?.getTime() ?? 0) || a.item.itemId.localeCompare(b.item.itemId));
+  return { upcoming, out };
 }
 
 /** Eligible: a known release date and at least one named buyer. Future weeks sort first; empty weeks are absent. */

@@ -36,6 +36,14 @@ export function useAppBar(): { scroll: ScrollProps; refreshOffset: number | unde
   };
 }
 
+/** A screen pushed over the tab's view draws its own native header, so the collapsed bar stands down while it is up (task 0037). */
+export function useAppBarAtRest(): void {
+  const setCollapsed = useContext(FrameContext)?.setCollapsed;
+  useEffect(() => {
+    setCollapsed?.(false);
+  }, [setCollapsed]);
+}
+
 /** The expanded half, first in the list: the title and, when there is one, the subtitle line. */
 export function AppBarTitle({ subtitle }: { subtitle: string | null }) {
   const frame = useContext(FrameContext);

@@ -15,7 +15,10 @@ import { useTokens } from '@/theme/tokens';
 const ios = Platform.OS === 'ios';
 const glassBar = ios && isLiquidGlassAvailable();
 
-export function TabStack({ title, raised = false }: { title: string; raised?: boolean }) {
+/** A screen the tab's view pushes, under a plain native header on both platforms. */
+export type Pushed = { readonly name: string; readonly title: string };
+
+export function TabStack({ title, raised = false, pushed = [] }: { title: string; raised?: boolean; pushed?: readonly Pushed[] }) {
   const { c } = useTokens();
   const background = raised && ios ? c.raised : c.bg;
   const bar = glassBar ? undefined : { backgroundColor: background };
@@ -39,6 +42,13 @@ export function TabStack({ title, raised = false }: { title: string; raised?: bo
             }}
           >
             <Stack.Screen name="index" options={{ title }} />
+            {pushed.map((screen) => (
+              <Stack.Screen
+                key={screen.name}
+                name={screen.name}
+                options={{ title: screen.title, headerShown: true, headerLargeTitle: false, headerTintColor: ios ? c.accent : c.ink, headerStyle: bar ?? (ios ? undefined : { backgroundColor: background }) }}
+              />
+            ))}
           </Stack>
         </AppBarFrame>
       </WithDock>

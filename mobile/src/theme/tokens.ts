@@ -79,7 +79,6 @@ export const type = {
   fact: ios ? 13 : 14,
   sectionHead: ios ? 15 : 14,
   moduleHead: ios ? 20 : 18,
-  upcomingHead: ios ? 20 : 16,
   viewTitle: ios ? 32 : 28,
   sub: ios ? 13 : 14,
   body: 16,

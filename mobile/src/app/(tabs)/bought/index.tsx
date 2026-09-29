@@ -10,8 +10,8 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
-import { AvatarStack } from '@/components/AvatarStack';
 import { useAppBar } from '@/components/AppBar';
+import { Buyers } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { MenuSelect } from '@/components/MenuSelect';
@@ -19,21 +19,22 @@ import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented, type Segment } from '@/components/Segmented';
+import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
 import {
   BOUGHT_THRESHOLDS,
   BOUGHT_TOP_ENTRIES,
   copy,
   DEFAULT_BOUGHT_THRESHOLD,
+  dayLabel,
   expanderLabel,
-  SELF_RELEASED,
   thresholdOptionLabel,
   type BoughtMode,
 } from '@/copy';
 import type { ApiBoughtCrossedResponse, ApiBoughtResponse, ApiFeedItem } from '@/domain/apiTypes';
-import type { BoughtRelease } from '@/domain/boughtChart';
-import { parseIsoDate, startOfWeek } from '@/lib/dates';
-import { dayKey, useNow } from '@/lib/useNow';
+import { boughtHalves, type BoughtHalves } from '@/domain/boughtChart';
+import { parseIsoDate, releaseDay as localDayOf, startOfWeek } from '@/lib/dates';
+import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildSectionsFromWeeks, buildWeekSections } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
@@ -58,24 +59,35 @@ const THRESHOLD_OPTIONS = BOUGHT_THRESHOLDS.map((n) => ({ value: n, label: thres
 
 type Choice = { readonly mode: BoughtMode; readonly threshold: number };
 
-type Answer = { mode: 'released'; data: ApiBoughtResponse } | { mode: 'crossed'; threshold: number; data: ApiBoughtCrossedResponse };
+type Answer = { mode: 'released'; upcoming: BoughtHalves['upcoming']; data: ApiBoughtResponse } | { mode: 'crossed'; threshold: number; data: ApiBoughtCrossedResponse };
 
 type Item =
   | { key: string; kind: 'header'; choice: Choice; switching: boolean }
   | { key: string; kind: 'empty'; nothing: string }
+  | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
   | { key: string; kind: 'release'; release: ApiFeedItem }
   | { key: string; kind: 'all'; week: string; expanded: boolean; total: number }
   | { key: string; kind: 'gap'; text: string };
 
-function answerOf(held: readonly BoughtRelease[], choice: Choice): Answer {
-  if (choice.mode === 'released') return { mode: 'released', data: boughtView(held, { mode: 'released' }) };
-  return { mode: 'crossed', threshold: choice.threshold, data: boughtView(held, { mode: 'crossed', threshold: choice.threshold }) };
+/** The chart files only what is out; "Bought by many" goes by purchase week, so it places both halves. */
+function answerOf(held: BoughtHalves, choice: Choice): Answer {
+  if (choice.mode === 'released') return { mode: 'released', upcoming: held.upcoming, data: boughtView(held.out, { mode: 'released' }) };
+  return { mode: 'crossed', threshold: choice.threshold, data: boughtView([...held.out, ...held.upcoming], { mode: 'crossed', threshold: choice.threshold }) };
+}
+
+function shelfOf(upcoming: BoughtHalves['upcoming'], at: Date): readonly ShelfCard[] {
+  return upcoming.flatMap((r) =>
+    r.releaseDate === null
+      ? []
+      : [{ key: `${r.item.itemType}:${r.item.itemId}`, release: r.item, day: dayLabel(localDayOf(r.releaseDate.toISOString()), at), buyers: r.item.buyers }],
+  );
 }
 
 function rowsOf(answer: Answer, at: Date, open: ReadonlySet<string>): Item[] {
   const list: Item[] = [];
   if (answer.mode === 'released') {
+    if (answer.upcoming.length > 0) list.push({ key: 'shelf', kind: 'shelf', cards: shelfOf(answer.upcoming, at) });
     const sections = buildSectionsFromWeeks(
       answer.data.weeks.map((w) => ({ start: startOfWeek(parseIsoDate(w.weekStart)), entries: w.entries })),
       at,
@@ -158,16 +170,6 @@ function Header({ choice, switching, setMode, setThreshold }: { choice: Choice; 
   );
 }
 
-function Buyers({ release }: { release: ApiFeedItem }) {
-  const { c, type } = useTokens();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <AvatarStack fans={release.buyers} opens />
-      <Text numberOfLines={1} style={{ flex: 1, fontSize: type.fact, color: c.sub }}>{release.label ?? SELF_RELEASED}</Text>
-    </View>
-  );
-}
-
 /** A cell re-rendered for its index or a rebuilt item ("Show all" shifts every cell after it) keeps its row while the Release is the same. */
 const BoughtRow = memo(function BoughtRow({ release }: { release: ApiFeedItem }) {
   return <ReleaseRow release={release} detail={<Buyers release={release} />} />;
@@ -192,6 +194,7 @@ export default function Bought() {
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
+  const releaseDay = releaseDayKey(now);
   const [mode, setMode] = useState<BoughtMode>('released');
   const [threshold, setThreshold] = useState(DEFAULT_BOUGHT_THRESHOLD);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -213,7 +216,8 @@ export default function Bought() {
     return () => cancelAnimationFrame(frame);
   }, [grown, shown]);
 
-  const answer = useMemo(() => (held === null ? null : answerOf(held, shown)), [held, shown]);
+  const halves = useMemo(() => (held === null ? null : boughtHalves(held, new Date(releaseDay))), [held, releaseDay]);
+  const answer = useMemo(() => (halves === null ? null : answerOf(halves, shown)), [halves, shown]);
   const rows = useMemo(() => (answer === null ? [] : rowsOf(answer, new Date(day), open)), [answer, day, open]);
   const header = useMemo<Item>(() => ({ key: 'header', kind: 'header', choice, switching }), [choice, switching]);
   const data = useMemo(() => [header, ...(grown === shown ? rows : rows.slice(0, FIRST_SCREEN - 1))], [header, rows, grown, shown]);
@@ -238,6 +242,8 @@ export default function Bought() {
           return <Header choice={item.choice} switching={item.switching} setMode={setMode} setThreshold={setThreshold} />;
         case 'empty':
           return <EmptyState filling={copy.empty.fillingBought} nothing={item.nothing} />;
+        case 'shelf':
+          return <UpcomingShelf cards={item.cards} more="/bought/upcoming" />;
         case 'week':
           return <WeekHead week={item.heading} range={item.detail} />;
         case 'gap':

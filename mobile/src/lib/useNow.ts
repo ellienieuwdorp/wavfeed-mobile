@@ -16,3 +16,8 @@ export function useNow(): Date {
 export function dayKey(now: Date): number {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
+
+/** The first instant of today's GMT day, the day a release date is judged against (ADR-0017): moves once a day. */
+export function releaseDayKey(now: Date): number {
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+}

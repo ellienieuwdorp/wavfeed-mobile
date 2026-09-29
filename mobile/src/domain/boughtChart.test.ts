@@ -9,7 +9,7 @@ import { after, describe, test } from 'node:test';
 
 import { BASE_DATE, chain, minutesAfter, newReleaseRow, storyRow } from '../../test/rows';
 import { BURST_MIN_STORIES } from './assemble';
-import { buildBoughtChart, weekStartOf } from './boughtChart';
+import { boughtHalves, boughtReleases, buildBoughtChart, weekStartOf } from './boughtChart';
 
 /** The last instant of a Sunday, the first of the Monday after it, and the Wednesday of that week. */
 const SUNDAY = new Date('2026-08-16T23:59:59.999Z');
@@ -150,4 +150,19 @@ test('sorts newest week first, a pre-order in its future week on top, and never 
     buildBoughtChart(rows).map((week) => week.weekStart),
     ['2026-08-24', THIS_WEEK, LAST_WEEK, '2026-06-22'],
   );
+});
+
+test('splits at the GMT release day: out today or undated stays for the chart, later days wait nearest first', () => {
+  const held = boughtReleases([
+    bought({ itemId: 5001, fanId: 101, releaseDate: NEXT_MONDAY }),
+    bought({ itemId: 5002, fanId: 101, releaseDate: WEDNESDAY }),
+    bought({ itemId: 5003, fanId: 101, releaseDate: new Date('2026-08-20T00:00:00.000Z') }),
+    bought({ itemId: 5004, fanId: 101 }),
+  ]);
+
+  // The last minute of Wednesday in GMT: Wednesday's record is out, Thursday's is not.
+  const halves = boughtHalves(held, new Date('2026-08-19T23:59:00.000Z'));
+
+  assert.deepEqual(halves.upcoming.map((release) => release.item.itemId), ['5003', '5001']);
+  assert.deepEqual(halves.out.map((release) => release.item.itemId), ['5002', '5004']);
 });

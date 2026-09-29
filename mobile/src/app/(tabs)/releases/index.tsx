@@ -1,6 +1,6 @@
 /**
- * New releases on the store: the Upcoming band with its forward week heads, then the released weeks and the quiet
- * gaps between them (DESIGN-UI section 3). Rows carry label, who bought or wishlisted it, and the day.
+ * New releases on the store: the Upcoming shelf, then the released weeks and the quiet gaps between them, newest
+ * first (DESIGN-UI section 3, task 0037). Rows carry label, who bought or wishlisted it, and the day.
  */
 import { useMemo } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
@@ -12,12 +12,13 @@ import { useDockClearance } from '@/components/player/Dock';
 import type { RowRelease } from '@/components/playable';
 import { FactLine, ReleaseRow, STRICT_ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { BandHead, WeekHead } from '@/components/WeekHead';
-import { actorSentence, copy, dayLabel, PAGES_GAP_TAIL, SELF_RELEASED, UPCOMING_HEAD } from '@/copy';
+import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
+import { WeekHead } from '@/components/WeekHead';
+import { actorSentence, copy, dayLabel, PAGES_GAP_TAIL, SELF_RELEASED } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, useNow } from '@/lib/useNow';
-import { buildSectionsFromWeeks, buildUpcomingWeekSections } from '@/lib/weekSections';
+import { buildSectionsFromWeeks } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
 import { readNewReleases } from '@/store';
@@ -28,7 +29,7 @@ type Row = RowRelease & { readonly label: string | null; readonly buyers: readon
 type Item =
   | { key: string; kind: 'header' }
   | { key: string; kind: 'empty' }
-  | { key: string; kind: 'band' }
+  | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
   | { key: string; kind: 'release'; release: Row; day: string }
   | { key: string; kind: 'gap'; text: string };
@@ -39,8 +40,8 @@ function render({ item }: { item: Item }) {
       return <ScreenHeader />;
     case 'empty':
       return <EmptyState filling={copy.empty.fillingReleases} nothing={copy.empty.nothing} />;
-    case 'band':
-      return <BandHead label={UPCOMING_HEAD} />;
+    case 'shelf':
+      return <UpcomingShelf cards={item.cards} more="/releases/upcoming" />;
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'gap':
@@ -63,13 +64,9 @@ export default function NewReleases() {
     const list: Item[] = [{ key: 'header', kind: 'header' }];
     if (view === null) return list;
     const at = new Date(day);
-    const upcoming = buildUpcomingWeekSections(view.upcoming, (r) => releaseDay(r.releaseDate), at);
-    if (upcoming.length > 0) list.push({ key: 'band', kind: 'band' });
-    for (const week of upcoming) {
-      list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
-      for (const r of week.entries) {
-        list.push({ key: `u:${r.itemType}:${r.itemId}`, kind: 'release', release: r, day: dayLabel(releaseDay(r.releaseDate), at) });
-      }
+    if (view.upcoming.length > 0) {
+      const cards = view.upcoming.map((r) => ({ key: `${r.itemType}:${r.itemId}`, release: r, day: dayLabel(releaseDay(r.releaseDate), at) }));
+      list.push({ key: 'shelf', kind: 'shelf', cards });
     }
     const released = buildSectionsFromWeeks(
       view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })),

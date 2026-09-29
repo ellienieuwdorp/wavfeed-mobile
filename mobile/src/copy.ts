@@ -327,6 +327,10 @@ export const copy = {
     /** The threshold menu's accessible name: CONTEXT.md keeps "buyer" off the screen. */
     thresholdLabel: 'How many people you follow bought it',
   },
+  /** The Upcoming shelf's head and the title of its full list (DESIGN-UI section 3, task 0037). */
+  upcoming: {
+    title: UPCOMING_HEAD,
+  },
   menu: {
     labelled: (label: string, value: string) => `${label}: ${value}`,
     checked: '\u2713',
