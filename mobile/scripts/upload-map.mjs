@@ -43,12 +43,31 @@ export function signedUpload({ endpoint, keyId, secret, platform, id, body, date
   return client.sign(url, { method: 'PUT', headers, body, aws: datetime ? { datetime } : {} });
 }
 
-/** CFBundleVersion from the app target's Info.plist, or the build setting it names; versionCode from build.gradle. */
+/** Every AndroidManifest.xml the release build merged, under `android/app/build/intermediates`. */
+function releaseManifests(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter((path) => path.endsWith('AndroidManifest.xml') && /release/i.test(path))
+    .map((path) => join(dir, path));
+}
+
+/**
+ * CFBundleVersion from the app target's Info.plist, or the build setting it names; Android's versionCode from the
+ * manifest the release build merged, since EAS injects a remote versionCode outside build.gradle, which keeps the local
+ * value. build.gradle is the fallback for a build that left no merged manifest.
+ */
 export function buildNumber(platform, root) {
   if (platform === 'android') {
+    const codes = new Set(
+      releaseManifests(join(root, 'android/app/build/intermediates'))
+        .map((path) => /android:versionCode="(\d+)"/.exec(readFileSync(path, 'utf8'))?.[1])
+        .filter((code) => code !== undefined),
+    );
+    if (codes.size > 1) throw new Error(`the release manifests disagree on versionCode: ${[...codes].join(', ')}`);
+    if (codes.size === 1) return [...codes][0];
     const gradle = readFileSync(join(root, 'android/app/build.gradle'), 'utf8');
     const code = /^\s*versionCode\s+(\d+)/m.exec(gradle)?.[1];
-    if (!code) throw new Error('no versionCode in android/app/build.gradle');
+    if (!code) throw new Error('no versionCode in a merged release manifest or android/app/build.gradle');
     return code;
   }
   const ios = join(root, 'ios');

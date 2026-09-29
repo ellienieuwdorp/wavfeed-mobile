@@ -114,6 +114,18 @@ describe('as the EAS Build hook', () => {
     assert.equal(puts.length, 1);
   });
 
+  test('Android takes the versionCode the release build merged, as EAS injects a remote one outside build.gradle', async () => {
+    const manifest = (code) => `<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="${code}" android:versionName="1.0.0" package="com.wavfeed.app"/>`;
+    const gradle = { 'android/app/build.gradle': 'android {\n  defaultConfig {\n    versionCode 1\n  }\n}' };
+    const merged = 'android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml';
+    const bundled = 'android/app/build/intermediates/bundle_manifest/release/processApplicationManifestReleaseForBundle/AndroidManifest.xml';
+    const root = project({ ...gradle, [merged]: manifest(2), [bundled]: manifest(2), [ANDROID_MAP]: MAP });
+    const { send } = bucket();
+    assert.equal(await main({ argv: [], env: { ...KEYS, EAS_BUILD_PLATFORM: 'android' }, cwd: root, send, log: quiet }), 'maps/wavfeed/android/2/index.map');
+    const split = project({ ...gradle, [merged]: manifest(2), [bundled]: manifest(3), [ANDROID_MAP]: MAP });
+    await assert.rejects(main({ argv: [], env: { ...KEYS, EAS_BUILD_PLATFORM: 'android' }, cwd: split, send, log: quiet }), /disagree/);
+  });
+
   test('without the bucket token it uploads nothing and passes, so a self-build still builds', async () => {
     const { puts, send } = bucket();
     const lines = [];
