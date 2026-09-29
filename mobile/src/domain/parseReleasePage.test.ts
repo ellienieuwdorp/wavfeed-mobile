@@ -1,0 +1,92 @@
+/// <reference types="node" />
+/**
+ * A release page's `data-tralbum` blob, where a Release reached only through purchases gets its date (ADR-0011). The
+ * dates are the risk: Bandcamp puts one in two places depending on whether the page is an album or a track inside
+ * one, leaves it null often, and writes packed numbers like 20260805 that are not dates the parser may read. Ported
+ * from the server's suite (task 0036).
+ */
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+
+import { bandBlob, ITEM_ID, releasePagePayload, tralbumBlob } from '../../test/fixtures';
+import { parseReleasePage, ReleasePagePayloadError } from './parseReleasePage';
+
+describe('parseReleasePage', () => {
+  test('reads the Release key, the date and the streamable track count', () => {
+    assert.deepEqual(parseReleasePage(releasePagePayload()), {
+      itemType: 'a',
+      itemId: ITEM_ID,
+      releaseDate: new Date('2026-08-05T00:00:00Z'),
+      isPreorder: false,
+      numStreamableTracks: 2,
+    });
+  });
+
+  test('takes the Release key the walk wrote down over the blob', () => {
+    // The walk knew which row it went looking for.
+    const parsed = parseReleasePage(
+      releasePagePayload({ itemType: 't', itemId: 55501122, tralbum: tralbumBlob({ id: 999, item_type: 'album' }) }),
+    );
+
+    assert.deepEqual([parsed.itemType, parsed.itemId], ['t', 55501122]);
+  });
+
+  test("falls back to the blob's own item type and id when the key is absent", () => {
+    const parsed = parseReleasePage({ itemUrl: 'https://x.bandcamp.com/album/y', tralbum: tralbumBlob() });
+
+    // "album" and "track" in the blob, "a" and "t" in the schema.
+    assert.deepEqual([parsed.itemType, parsed.itemId], ['a', ITEM_ID]);
+  });
+
+  test("falls back to the album's date for a track that has none of its own", () => {
+    const track = tralbumBlob({
+      item_type: 'track',
+      current: { id: 55501122, type: 'track', release_date: null },
+      album_release_date: '28 Jul 2023 00:00:00 GMT',
+      is_preorder: undefined,
+    });
+
+    const parsed = parseReleasePage(releasePagePayload({ itemType: 't', tralbum: track }));
+
+    assert.deepEqual(parsed.releaseDate, new Date('2023-07-28T00:00:00Z'));
+    // A track page carries `album_is_preorder`, which is about its album.
+    assert.equal(parsed.isPreorder, null);
+  });
+
+  test('leaves the date null when the page states none, and does not borrow publish_date', () => {
+    const undated = tralbumBlob({
+      current: { id: ITEM_ID, type: 'album', release_date: null, publish_date: '05 Aug 2026 00:00:00 GMT' },
+      album_release_date: null,
+    });
+
+    assert.equal(parseReleasePage(releasePagePayload({ tralbum: undated })).releaseDate, null);
+  });
+
+  test('treats a date it cannot read as absent', () => {
+    const nonsense = tralbumBlob({
+      current: { id: ITEM_ID, type: 'album', release_date: 'sometime last spring' },
+      album_release_date: 20260805,
+    });
+
+    assert.equal(parseReleasePage(releasePagePayload({ tralbum: nonsense })).releaseDate, null);
+  });
+
+  test('counts no streamable tracks when the blob carries no track list', () => {
+    const parsed = parseReleasePage(releasePagePayload({ tralbum: tralbumBlob({ trackinfo: null }) }));
+
+    assert.equal(parsed.numStreamableTracks, null);
+  });
+
+  test('refuses a payload that is not a release page, or a page that names no Release', () => {
+    const payloads: readonly unknown[] = [
+      undefined,
+      { stories: { entries: [] } },
+      { itemType: 'a', itemId: ITEM_ID, tralbum: null },
+      { itemUrl: 'https://x.bandcamp.com/album/y', band: bandBlob() },
+      { tralbum: { current: {} } },
+    ];
+    for (const payload of payloads) {
+      assert.throws(() => parseReleasePage(payload), ReleasePagePayloadError, JSON.stringify(payload));
+    }
+  });
+});
