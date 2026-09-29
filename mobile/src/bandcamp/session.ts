@@ -91,6 +91,14 @@ const USER_AGENT = Platform.select({
   default: 'Mozilla/5.0 AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
 });
 
+/**
+ * Release pages alone are asked for as desktop Safari on both platforms: Bandcamp serves a phone a page with no
+ * `release_date` or `mod_date` in `current` and no id on a Track that is not out (task 0041, decision 11). The request
+ * carries no cookie, so no signed-in session is ever seen under this identity.
+ */
+const RELEASE_PAGE_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
+
 export const FOLLOWING_BANDS_PAGE_SIZE = 500;
 export const FOLLOWING_BANDS_MAX_PAGES = 20;
 export const WISHLIST_ITEMS_PAGE_SIZE = 100;
@@ -151,6 +159,8 @@ type SendSpec = {
   readonly headers: Readonly<Record<string, string>>;
   readonly body?: string;
   readonly credentials: Credentials;
+  /** Only `fetchReleasePage` names one; every other request goes as the sign-in WebView's browser. */
+  readonly userAgent?: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -238,7 +248,7 @@ export class BandcampSession {
     try {
       const response = await fetch(url, {
         method: spec.method ?? 'GET',
-        headers: { 'User-Agent': USER_AGENT, ...spec.headers },
+        headers: { ...spec.headers, 'User-Agent': spec.userAgent ?? USER_AGENT },
         body: spec.body,
         // The whole custody design in one option (task 0036, decision 1).
         credentials: spec.credentials,
@@ -432,11 +442,18 @@ export class BandcampSession {
     };
   }
 
-  /** Stored as the page's two Bandcamp-authored blobs, keyed by the Release it was fetched for. */
+  /**
+   * Stored as the page's two Bandcamp-authored blobs, keyed by the Release it was fetched for. Public, and asked for as
+   * a desktop browser (task 0041, decision 11); a Track page comes through here too.
+   */
   async fetchReleasePage(itemUrl: string, key: ReleaseKey): Promise<BandcampAnswer<ReleasePage>> {
     if (!isFetchableTarget(itemUrl, this.baseOrigin)) return { kind: 'ok', value: { kind: 'refused' } };
     const fetchedAt = nowIso();
-    const wire = await this.send(itemUrl, { headers: { Accept: HTML_ACCEPT }, credentials: 'omit' });
+    const wire = await this.send(itemUrl, {
+      headers: { Accept: HTML_ACCEPT },
+      credentials: 'omit',
+      userAgent: RELEASE_PAGE_USER_AGENT,
+    });
     if (wire === null) return { kind: 'unreachable' };
     // The platform follows redirects itself, so the hop is checked after the fact and its body dropped.
     if (wire.url !== '' && !isFetchableTarget(wire.url, this.baseOrigin)) {

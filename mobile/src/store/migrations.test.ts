@@ -3,6 +3,8 @@
  * Migration 3 on a store that already holds feed pokes as HTML (ADR-0003, ADR-0004 amendment 2026-09-29): those rows
  * go, their crumbs with them down to the database file's bytes, and every other Raw Document stays. Migration 5 and the
  * replay after it on a store that filed a pre-order by its feed date: the Release is Upcoming again (task 0041, decision 2).
+ * Migration 7 on a store whose release pages were asked for as a phone: each Upcoming page, and each Track page a Drop
+ * still dated by its read came back with, is due once more, and never again for that reason (decision 11).
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -16,20 +18,24 @@ import {
   feedPayload,
   PREORDER_ITEM_ID,
   PREORDER_URL,
+  phonePreorderTralbumBlob,
   preorderNrEntry,
+  preorderTrackId,
+  preorderTrackPageBlob,
   preorderTralbumBlob,
   releasePagePayload,
 } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
-import { FEED_UPDATES_ENDPOINT, RELEASE_PAGE_ENDPOINT } from '../domain/endpoints';
-import { readUndatedReleases } from './enrichment';
+import { FEED_UPDATES_ENDPOINT, RELEASE_PAGE_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
+import { markReleasePageAttempt, readOwedTrackPages, readUndatedReleases, readUpcomingDue } from './enrichment';
 import { migrate } from './migrations';
 import { ensureProjectionVersion, fold, PROJECTION_VERSION_KEY } from './projection';
-import { listUpcomingReleases, readNewReleases } from './queries';
-import { insertRawDocument } from './rawDocuments';
+import { listDrops, listUpcomingReleases, readNewReleases } from './queries';
+import { insertRawDocument, type RawDocumentInput } from './rawDocuments';
 
 /** Undoes the migrations after `version`, so a test starts from the store a device held then. */
 async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
+  if (version < 7) await db.execAsync('alter table release_page_attempts drop column asked_as_phone;');
   if (version < 6) {
     await db.execAsync(`
       drop table drops;
@@ -48,6 +54,15 @@ async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
   }
   if (version < 4) await db.execAsync('drop table tally_outbox;');
   await db.runAsync('delete from schema_migrations where version > ?', [version]);
+}
+
+/** Books a release page attempt as the code at store version 6 did, before migration 7 marked phone bookings. */
+async function bookAtVersion6(db: SQLiteDatabase, key: ReleaseKey, outcome: 'dated' | 'undated', at: Date): Promise<void> {
+  await db.runAsync(
+    `insert into release_page_attempts (item_type, item_id, attempted_at, outcome, failures) values (?, ?, ?, ?, 0)
+     on conflict (item_type, item_id) do update set attempted_at = excluded.attempted_at, outcome = excluded.outcome, failures = 0`,
+    [key.itemType, key.itemId, at.toISOString(), outcome],
+  );
 }
 
 const CRUMB = '|collect_item_cb|1727531042|q8Zc+Lm/2vXe0sPd9RkYbQ==';
@@ -78,7 +93,7 @@ test('migration 4 adds the Tally outbox to a store at version 3, whose rows are 
   await heldAt(db, 3);
   await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
 
-  assert.equal(await migrate(db), 6);
+  assert.equal(await migrate(db), 7);
 
   await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
   await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
@@ -142,5 +157,88 @@ test('migration 5 and the replay it comes with put a pre-order the feed dated ba
     [other, '2026-10-20T00:00:00.000Z', 4],
   ]);
   assert.deepEqual(await inWeeks(), []);
+  close();
+});
+
+test("migration 7 makes an Upcoming page and a Drop's Track page read as a phone due once more", async () => {
+  const { db, close } = await openTestStore();
+  const album: ReleaseKey = { itemType: 'a', itemId: PREORDER_ITEM_ID };
+  const track: ReleaseKey = { itemType: 't', itemId: preorderTrackId(3) };
+  const albumRead = (tralbum: unknown): unknown => releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum });
+  const trackRead = (tralbum: unknown): unknown =>
+    releasePagePayload({ itemType: 't', itemId: track.itemId, itemUrl: 'https://nightgraft.bandcamp.com/track/wing-dust', tralbum });
+  let migrated = false;
+  const read = async (payload: unknown, fetchedAt: string, key: ReleaseKey, outcome: 'dated' | 'undated') => {
+    const doc: RawDocumentInput = { endpoint: RELEASE_PAGE_ENDPOINT, payload, fetchedAt };
+    await insertRawDocument(db, doc);
+    const at = new Date(Date.parse(fetchedAt) + 1000);
+    await (migrated ? markReleasePageAttempt(db, key, outcome, at) : bookAtVersion6(db, key, outcome, at));
+    await fold(db);
+  };
+  // A Track page as a phone is served it: `current` has no `mod_date`.
+  const { mod_date: _dropped, ...phoneCurrent } = preorderTrackPageBlob(3, '').current as Record<string, unknown>;
+  const phoneTrackPage = { ...preorderTrackPageBlob(3, ''), current: phoneCurrent };
+
+  // The store as the phone held it at migration 6: the pre-order announced with one Track out, then read on 5 October
+  // with a second out, a Drop dated by that read, and the Track page that could not date it.
+  await heldAt(db, 6);
+  await insertRawDocument(db, {
+    endpoint: FEED_UPDATES_ENDPOINT,
+    payload: feedPayload({ entries: [preorderNrEntry()] }),
+    fetchedAt: '2026-09-29T10:00:00.000Z',
+  });
+  await fold(db);
+  await read(albumRead(phonePreorderTralbumBlob([2])), '2026-09-29T10:05:00.000Z', album, 'dated');
+  await read(albumRead(phonePreorderTralbumBlob([2, 3])), '2026-10-05T09:10:00.000Z', album, 'dated');
+  await read(trackRead(phoneTrackPage), '2026-10-05T09:11:00.000Z', track, 'undated');
+  const days = async () => (await listDrops(db)).map((drop) => drop.day);
+  assert.deepEqual(await days(), ['2026-10-05', '2026-09-29']);
+
+  await migrate(db);
+  migrated = true;
+  const due = async (iso: string) => ({
+    upcoming: (await readUpcomingDue(db, 10, new Date(iso))).map((r) => r.itemId),
+    owed: (await readOwedTrackPages(db, 10, new Date(iso))).map((r) => r.itemId),
+  });
+  assert.deepEqual(await due('2026-10-05T10:00:00.000Z'), { upcoming: [PREORDER_ITEM_ID], owed: [track.itemId] });
+
+  // The same pages asked for as a desktop browser: the Track page's `mod_date` dates the Drop inside its window.
+  await read(trackRead(preorderTrackPageBlob(3, '03 Oct 2026 17:02:11 GMT')), '2026-10-05T10:01:00.000Z', track, 'dated');
+  await read(albumRead(preorderTralbumBlob({}, [2, 3])), '2026-10-05T10:02:00.000Z', album, 'dated');
+  assert.deepEqual(await days(), ['2026-10-03', '2026-09-29']);
+  assert.deepEqual(await due('2026-10-05T10:03:00.000Z'), { upcoming: [], owed: [] });
+  assert.deepEqual(await due('2026-10-06T10:02:01.000Z'), { upcoming: [PREORDER_ITEM_ID], owed: [] }, 'then a day old, as any');
+  close();
+});
+
+test('migration 7 on a store whose clock ran ahead makes a page due once, not until the clock catches up', async () => {
+  const { db, close } = await openTestStore();
+  const album: ReleaseKey = { itemType: 'a', itemId: PREORDER_ITEM_ID };
+  let migrated = false;
+  const read = async (tralbum: unknown, fetchedAt: string) => {
+    const payload = releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum });
+    await insertRawDocument(db, { endpoint: RELEASE_PAGE_ENDPOINT, payload, fetchedAt });
+    const at = new Date(Date.parse(fetchedAt) + 1000);
+    await (migrated ? markReleasePageAttempt(db, album, 'dated', at) : bookAtVersion6(db, album, 'dated', at));
+    await fold(db);
+  };
+  const due = async (iso: string) => (await readUpcomingDue(db, 10, new Date(iso))).map((r) => r.itemId);
+
+  // The phone read the page as a phone on 1 October with its clock a week fast, then the clock was put right.
+  await heldAt(db, 6);
+  await insertRawDocument(db, {
+    endpoint: FEED_UPDATES_ENDPOINT,
+    payload: feedPayload({ entries: [preorderNrEntry()] }),
+    fetchedAt: '2026-09-29T10:00:00.000Z',
+  });
+  await fold(db);
+  await read(phonePreorderTralbumBlob([2]), '2026-10-08T10:05:00.000Z');
+
+  await migrate(db);
+  migrated = true;
+  assert.deepEqual(await due('2026-10-01T10:00:00.000Z'), [PREORDER_ITEM_ID]);
+  await read(preorderTralbumBlob({}, [2]), '2026-10-01T10:01:00.000Z');
+  assert.deepEqual(await due('2026-10-01T10:03:00.000Z'), []);
+  assert.deepEqual(await due('2026-10-04T10:03:00.000Z'), []);
   close();
 });

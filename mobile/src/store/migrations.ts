@@ -196,6 +196,16 @@ const MIGRATIONS: readonly Migration[] = [
       alter table releases add column page_tracks_read_at text;
     `,
   },
+  {
+    // Release pages are asked for as a desktop browser from here on (task 0041, decision 11). Each booking held already
+    // is the phone's, so `asked_as_phone` marks it, the next booking clears it, and a page so marked is due once more
+    // (enrichment.ts).
+    version: 7,
+    sql: `
+      alter table release_page_attempts add column asked_as_phone integer not null default 0;
+      update release_page_attempts set asked_as_phone = 1;
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {

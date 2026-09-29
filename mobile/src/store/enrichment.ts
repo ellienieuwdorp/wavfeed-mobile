@@ -76,7 +76,8 @@ export async function readUndatedReleases(
  * Upcoming Releases whose page is due (task 0041, decision 8): none read while it was Upcoming or the newest a day old,
  * once the attempt book allows; or the feed read since the last attempt names more Tracks playing than the newest page
  * did, which skips the day's wait after a read that went well and never a failure's wait. Those the feed is ahead on
- * first, then the longest unread.
+ * first, then the longest unread. A page last read as a phone, and not asked since, is due once more whatever its age,
+ * unless a failure's wait is running (decision 11): migration 7 marked its booking and the next one clears the mark.
  */
 export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date()): Promise<readonly DueRelease[]> {
   if (limit <= 0) return [];
@@ -88,13 +89,14 @@ export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Da
          (r.feed_tracks_out > coalesce(r.page_tracks_out, 0)
            and r.feed_tracks_read_at > coalesce(r.page_tracks_read_at, '')
            and (a.attempted_at is null or (a.failures = 0 and a.attempted_at < r.feed_tracks_read_at) or ${ATTEMPT_OVER})) as behind,
-         ${ATTEMPT_OVER} and (r.page_tracks_read_at is null or r.page_tracks_read_at <= ?) as stale
+         ${ATTEMPT_OVER} and (r.page_tracks_read_at is null or r.page_tracks_read_at <= ?) as stale,
+         (r.page_tracks_read_at is not null and a.asked_as_phone = 1 and a.failures = 0) as phone
        from releases r
        left join release_page_attempts a on a.item_type = r.item_type and a.item_id = r.item_id
        where r.release_date >= ?
          and ${REACHED_BY_FOLLOW_OR_STORY}
      )
-     where behind or stale
+     where behind or stale or phone
      order by behind desc, page_tracks_read_at is not null, page_tracks_read_at, release_date, item_type, item_id
      limit ?`,
     [...attemptOver, ...attemptOver, retryBefore, aheadFrom(now).toISOString(), limit],
@@ -113,7 +115,9 @@ export type OwedTrackPage = ReleaseKey & { readonly releaseUrl: string; readonly
 /**
  * The Track pages a later Drop of a reached Upcoming Release still owes (task 0041, decisions 7 and 8): a Track it let
  * out whose page no read since the Drop's has asked, or whose failure's wait is over. A pass that ran out of quota or
- * was refused before them leaves them here for the next. The path is the newest album page's `title_link`.
+ * was refused before them leaves them here for the next. The path is the newest album page's `title_link`. A Drop
+ * still dated by its read owes once more a Track page that came back when pages were asked for as a phone, which has
+ * no `mod_date` (decision 11).
  */
 export async function readOwedTrackPages(
   db: SQLiteDatabase,
@@ -132,7 +136,8 @@ export async function readOwedTrackPages(
      where d.item_type = 'a' and d.dated_by in ('read', 'track')
        and r.release_date >= ?
        and ${REACHED_BY_FOLLOW_OR_STORY}
-       and (a.attempted_at is null or a.attempted_at < d.read_at or (a.outcome = 'failed' and ${ATTEMPT_OVER}))
+       and (a.attempted_at is null or a.attempted_at < d.read_at or (a.outcome = 'failed' and ${ATTEMPT_OVER})
+         or (d.dated_by = 'read' and a.outcome in ('dated', 'undated') and a.asked_as_phone = 1))
      order by d.read_at desc, d.item_id, t.key`,
     [aheadFrom(now).toISOString(), BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore],
   );
@@ -166,6 +171,7 @@ export async function markReleasePageAttempt(
      on conflict (item_type, item_id) do update set
        attempted_at = excluded.attempted_at,
        outcome = excluded.outcome,
+       asked_as_phone = 0,
        failures = case when excluded.failures = 0 then 0 else release_page_attempts.failures + 1 end`,
     [key.itemType, key.itemId, at.toISOString(), outcome, failed],
   );

@@ -297,8 +297,9 @@ export function preorderTralbumBlob(overrides: Fields = {}, out: readonly number
 }
 
 /**
- * The same pre-order as the page a phone is served writes it (read 2026-09-29 with the app's User-Agent): `current`
- * has no `release_date` and no `mod_date`, and a Track not out has no `id`, `track_id`, `title_link` or `file` key.
+ * The same pre-order as the page a phone is served writes it (read 2026-09-29 with the app's phone User-Agent, which
+ * release pages went out with until task 0041, decision 11): `current` has no `release_date` and no `mod_date`, and a
+ * Track not out has no `id`, `track_id`, `title_link` or `file` key.
  */
 export function phonePreorderTralbumBlob(out: readonly number[] = [2]): Fields {
   return {
