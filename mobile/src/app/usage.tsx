@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph } from '@/components/Glyph';
 import { WideButton } from '@/components/WideButton';
-import { copy, PRIVACY_URL } from '@/copy';
+import { copy, PRIVACY_COUNTS_URL } from '@/copy';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, useTokens } from '@/theme/tokens';
 
@@ -48,7 +48,7 @@ export default function Usage() {
         </Text>
       ))}
       <Pressable
-        onPress={() => void openURL(PRIVACY_URL).catch(() => undefined)}
+        onPress={() => void openURL(PRIVACY_COUNTS_URL).catch(() => undefined)}
         accessibilityRole="link"
         hitSlop={8}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, opacity: pressedOpacity(pressed) })}

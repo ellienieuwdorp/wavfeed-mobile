@@ -324,6 +324,8 @@ const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
 /** One address for feedback and erasure requests, the privacy page's; `hello@wavfeed.com` replaces it once that exists. */
 export const FEEDBACK_ADDRESS = 'ellie@nieuwdorp.me';
 export const PRIVACY_URL = 'https://wavfeed.com/privacy.html';
+/** The privacy page's section on counts, where the ask's link lands: what is sent and what is never sent (task 0044 decision 3). */
+export const PRIVACY_COUNTS_URL = `${PRIVACY_URL}#counts`;
 
 /** What a feedback mail carries under the tester's words: the build, the OS and, while sharing is on, the code. */
 export type FeedbackFacts = { readonly version: string; readonly build: string; readonly os: string; readonly code: string | null };
@@ -460,7 +462,6 @@ export const copy = {
     yes: 'Yes, send counts',
     no: 'No thanks',
   },
-  /** The first screen (task 0044 decision 4): the lead reads what the store holds, and the rest is the same for all three. */
   /** The first screen, the whole app until a sign-in or the Demo (task 0044 decision 4). */
   welcome: {
     mark: 'wavfeed',
