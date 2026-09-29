@@ -7,7 +7,8 @@
  * gradle output or iOS's `SOURCEMAP_FILE` (set in `eas.json`), and the build number is read from the native project
  * EAS just built. `dev/update.sh` passes `--platform`, `--id` and `--file` for each update. The request is signed with
  * `aws4fetch` and the bucket-scoped token in the sensitive EAS variables `TALLY_MAPS_KEY_ID`, `TALLY_MAPS_SECRET` and
- * `TALLY_MAPS_ENDPOINT`; without them it uploads nothing and says so, so a self-build of the public repo still passes.
+ * `TALLY_MAPS_ENDPOINT`; a build with none of them uploads nothing and says so, so a self-build of the public repo
+ * still passes, and anything short of all three otherwise fails.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -26,6 +27,7 @@ const BUILD = /^[0-9A-Za-z.]{1,20}$/;
 const UPDATE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isMapId = (id) => (BUILD.test(id) || UPDATE.test(id)) && /[0-9A-Za-z]/.test(id);
 const TRIES = 3;
+const TOKEN = 'TALLY_MAPS_KEY_ID, TALLY_MAPS_SECRET and TALLY_MAPS_ENDPOINT';
 
 export function mapKey(platform, id) {
   if (platform !== 'ios' && platform !== 'android') throw new Error(`no platform ${platform}`);
@@ -86,7 +88,9 @@ export async function main({ argv, env, cwd, send = fetch, wait = (ms) => new Pr
   const given = flags(argv);
   const { TALLY_MAPS_KEY_ID: keyId, TALLY_MAPS_SECRET: secret, TALLY_MAPS_ENDPOINT: endpoint } = env;
   if (!keyId || !secret || !endpoint) {
-    log('upload-map: TALLY_MAPS_KEY_ID, TALLY_MAPS_SECRET and TALLY_MAPS_ENDPOINT are not all set here, so no map was uploaded');
+    // Only a build with none of them is a self-build; one or two, or an update's upload, is a misconfigured token.
+    if (keyId || secret || endpoint || argv.length > 0) throw new Error(`${TOKEN} are not all set here`);
+    log(`upload-map: ${TOKEN} are not set here, so no map was uploaded`);
     return null;
   }
   const platform = given.platform ?? env.EAS_BUILD_PLATFORM;

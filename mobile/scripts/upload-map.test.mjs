@@ -122,6 +122,15 @@ describe('as the EAS Build hook', () => {
     assert.match(lines.join('\n'), /no map was uploaded/);
   });
 
+  test("a token short of its three parts, or an update's upload without one, fails and puts nothing", async () => {
+    const { puts, send } = bucket();
+    const { TALLY_MAPS_SECRET: _, ...partial } = KEYS;
+    await assert.rejects(main({ argv: [], env: { ...partial, EAS_BUILD_PLATFORM: 'android' }, cwd: tmpdir(), send, log: quiet }), /not all set/);
+    const argv = ['--platform', 'ios', '--id', '0e5c4f7a-2d11-4b1e-8f3a-9b6d0c2e4a55', '--file', 'm.map'];
+    await assert.rejects(main({ argv, env: {}, cwd: tmpdir(), send, log: quiet }), /not all set/);
+    assert.equal(puts.length, 0);
+  });
+
   test('a build with the token but no map fails loudly, and a refused upload fails after its retries', async () => {
     const root = project({ 'ios/wavfeed.xcodeproj/project.pbxproj': '', 'ios/wavfeed/Info.plist': plist('38') });
     await assert.rejects(main({ argv: [], env: { ...KEYS, EAS_BUILD_PLATFORM: 'ios' }, cwd: root, log: quiet }), /SOURCEMAP_FILE is not set/);
