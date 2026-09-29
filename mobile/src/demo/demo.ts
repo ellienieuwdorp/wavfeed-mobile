@@ -16,14 +16,11 @@ import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import { CONNECT_SHOWN_KEY, DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
 import { fold, IDENTITY_KEY, insertRawDocument, type StoredIdentity, writeKv } from '@/store';
 
+import { DEMO_FAN_ID } from './fan';
 import { demoReleases } from './releases';
 import { type Rng, seeded, wireDate } from './wireShape';
 
-export const DEMO_FAN_ID = 9_000_002;
-
-export function isDemoFan(fanId: number | null | undefined): boolean {
-  return fanId === DEMO_FAN_ID;
-}
+export { DEMO_FAN_ID, isDemoFan } from './fan';
 
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;

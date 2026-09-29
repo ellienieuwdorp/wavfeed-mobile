@@ -12,6 +12,8 @@ import { beforeEach, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { openTestStore } from '../../test/nodeDb';
+import { DEMO_FAN_ID } from '../demo/fan';
+import { IDENTITY_KEY, writeKv } from '../store/kv';
 import { emptyStore } from '../store/schema';
 import { WIRE, type Tally } from './catalogue';
 import { buildErrorReport, type ErrorReport } from './errorReport';
@@ -297,5 +299,21 @@ describe('verdicts and backoff', () => {
     assert.equal(backoffMs(0, top, retryAfterMs('7200')), 3_600_000, 'no longer than an hour');
     assert.equal(retryAfterMs('Wed, 30 Sep 2026 12:00:00 GMT'), 0);
     assert.equal(retryAfterMs(null), 0);
+  });
+});
+
+describe('the Demo', () => {
+  test('queues nothing while the store holds the Demo Fan, even with a yes held (task 0044 decision 1)', async () => {
+    await turnSharingOn(db, INSTALL, NOW);
+    await writeKv(db, IDENTITY_KEY, { fanId: DEMO_FAN_ID, username: '', name: null, avatarUrl: null });
+    assert.equal(await enqueueTally(db, OPENED, at(NOW)), false);
+    assert.equal(enqueueErrorSync(db, { errorsWritten: 0 }, report(NOW)), false);
+    assert.equal(await enqueueDropped(db, at(NOW)), 0);
+    assert.equal(await rows(), 0);
+    assert.equal((await db.getFirstAsync<{ n: number }>(`select count(*) as n from kv where key = 'tally_dropped'`))?.n, 0);
+
+    await writeKv(db, IDENTITY_KEY, { fanId: 1_234, username: 'dj_okonkwo', name: null, avatarUrl: null });
+    assert.equal(await enqueueTally(db, OPENED, at(NOW)), true, 'a sign-in that replaced the Demo queues again');
+    assert.equal(await rows(), 1);
   });
 });

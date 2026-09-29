@@ -7,7 +7,8 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { readKv } from '@/store/kv';
+import { DEMO_FAN_ID } from '@/demo/fan';
+import { IDENTITY_KEY, readKv } from '@/store/kv';
 
 import { WIRE, type Tally } from './catalogue';
 import type { ErrorReport } from './errorReport';
@@ -29,8 +30,12 @@ export const MAX_ERRORS_PER_LAUNCH = 10;
 /** ceiling: 60,000 bytes of rows a batch, under the Worker's 64 KB with room for the envelope; gzip once Hermes can. */
 export const BATCH_BYTES = 60_000;
 
-/** A SQL condition true only while the yes is held, so a write that carries it does nothing after an off. */
-export const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)`;
+/**
+ * A SQL condition true only while the yes is held and the store's Fan is not the Demo (task 0044 decision 1), so a
+ * write that carries it does nothing after an off or while someone is looking around.
+ */
+export const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)
+  and not exists (select 1 from kv where key = '${IDENTITY_KEY}' and json_extract(value, '$.fanId') = ${DEMO_FAN_ID})`;
 
 export async function readSharing(db: SQLiteDatabase): Promise<Sharing | null> {
   const sharing = await readKv<Sharing>(db, SHARING_KEY);

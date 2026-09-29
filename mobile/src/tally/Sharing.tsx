@@ -4,14 +4,17 @@
  * a flush once `app_opened` is queued at launch, at each foreground and background, every minute while active and at
  * 20 queued rows. It folds AppState into `app_opened` and the foreground marker (`lifecycle.ts`). A build the gate can
  * never open (`sendEnv` null: a development bundle without the override, Expo Go, no URL or key) reads nothing and
- * writes nothing, and every write is also guarded in SQL by the stored yes. `removeStore` remounts it with the store.
- * `track` is the one way a Tally is queued; the gather runner above it reaches it through the app state's `bindTally`.
+ * writes nothing, and every write is also guarded in SQL by the stored yes. While the store holds the Demo the gate
+ * reads as unable to send too, so nobody looking around is asked and nothing is queued (task 0044 decision 1).
+ * `removeStore` remounts it with the store. `track` is the one way a Tally is queued; the gather runner above it
+ * reaches it through the app state's `bindTally`.
  */
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
+import { isDemoFan } from '@/demo/fan';
 import { useAppState } from '@/state/appState';
 import { readStoredIdentity } from '@/state/gatherSink';
 
@@ -73,9 +76,9 @@ export function SharingProvider({ children }: { children: ReactNode }) {
 
   const enqueue = useCallback(
     async (tally: Tally): Promise<void> => {
-      if (held.current === null) return;
-      const t = Date.now();
       const { identity, initialWalkDone } = gather.current;
+      if (held.current === null || isDemoFan(identity?.fanId)) return;
+      const t = Date.now();
       const signedIn = identity !== null || (await readStoredIdentity(db)) !== null;
       if (await enqueueTally(db, tally, { t, signedIn, walkDone: initialWalkDone })) await sender.current?.queued();
     },
@@ -206,9 +209,11 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     [enqueue, later],
   );
 
+  // The Demo cannot send (task 0044 decision 1): the ask and the Usage group stay away until a sign-in replaces it.
+  const demo = isDemoFan(app.gather.identity?.fanId);
   const value = useMemo<SharingApi>(
     () => ({
-      canSend: ENV !== null,
+      canSend: ENV !== null && !demo,
       loaded,
       sharing: install === null ? null : sharing,
       code: install === null ? null : sharingCode(install),
@@ -217,7 +222,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
       track,
       trackAndFlush,
     }),
-    [loaded, install, sharing, turnOn, turnOff, track, trackAndFlush],
+    [demo, loaded, install, sharing, turnOn, turnOff, track, trackAndFlush],
   );
   return <SharingContext.Provider value={value}>{children}</SharingContext.Provider>;
 }
