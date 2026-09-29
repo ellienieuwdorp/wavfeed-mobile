@@ -10,7 +10,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { FAN_ID, feedPayload, purchaseAt, releasePagePayload } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
-import type { FeedUpdatesPage, ReleasePage } from '../bandcamp/session';
+import type { BandDetails, FeedUpdatesPage, ReleasePage } from '../bandcamp/session';
 import { createGatherSink } from '../state/gatherSink';
 import { readUndatedReleases } from '../store/enrichment';
 import { fold } from '../store/projection';
@@ -42,6 +42,7 @@ let replayFloor: number | null;
 let cursors: number[];
 let releasePages: number[];
 let bandDetailsAsked: number[];
+let bandDetails: BandcampAnswer<BandDetails>;
 let probe: BandcampAnswer<Identity>;
 let feedFailure: BandcampAnswer<FeedUpdatesPage> | null;
 let releasePage: (itemId: number) => BandcampAnswer<ReleasePage>;
@@ -57,7 +58,7 @@ const session: GatherSession = {
   async fetchBandDetails(bandId) {
     clock += REQUEST_MS;
     bandDetailsAsked.push(bandId);
-    return { kind: 'error', status: 429 };
+    return bandDetails;
   },
   async fetchFeedUpdates(_fanId, olderThan): Promise<BandcampAnswer<FeedUpdatesPage>> {
     clock += REQUEST_MS;
@@ -88,6 +89,13 @@ function turn(budgetMs = 600_000, reason: GatherReason = 'open') {
   return runGatherTurn(session, sink, { now: () => clock, reason, budgetMs });
 }
 
+async function followBands(bandIds: readonly number[]): Promise<void> {
+  const follows = Object.fromEntries(bandIds.map((bandId) => [String(bandId), { band_id: bandId }]));
+  const followingBands = { item_cache: { following_bands: follows }, following_bands: { item_count: bandIds.length } };
+  await insertRawDocument(db, { endpoint: 'following_bands', payload: { fanId: FAN.fanId, page: 1, snapshotStartedAt: at(), followingBands }, fetchedAt: at() });
+  await fold(db);
+}
+
 async function storyCount(): Promise<number> {
   return (await db.getFirstAsync<{ n: number }>('select count(*) as n from stories'))?.n ?? 0;
 }
@@ -102,6 +110,7 @@ beforeEach(async () => {
   cursors = [];
   releasePages = [];
   bandDetailsAsked = [];
+  bandDetails = { kind: 'error', status: 429 };
   probe = ok(FAN);
   feedFailure = null;
   releasePage = datedPage;
@@ -110,7 +119,7 @@ beforeEach(async () => {
 describe('the feed walk', () => {
   test('a first walk takes the whole feed, and a poll after it stops at what the walk reached', async () => {
     feed = stories(23, 1000);
-    assert.deepEqual(await turn(), { reason: 'open', outcome: 'done', walkPending: false });
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'done', walkPending: false, status: null });
     assert.equal(await storyCount(), 23);
     assert.equal(gather.newestStoryDate, feed[0]?.at);
 
@@ -140,7 +149,7 @@ describe('the feed walk', () => {
 
   test('a turn out of budget resumes at its cursor', async () => {
     feed = stories(40, 1000);
-    assert.deepEqual(await turn(3_500), { reason: 'open', outcome: 'out_of_budget', walkPending: true });
+    assert.deepEqual(await turn(3_500), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null });
     assert.equal((await turn()).outcome, 'done');
     assert.equal(new Set(cursors).size, cursors.length, 'no page asked twice');
     assert.equal(await storyCount(), 40);
@@ -151,7 +160,7 @@ describe('the feed walk', () => {
     await turn(12_000);
     assert.equal(gather.releasesDated, 0);
     releasePages = [];
-    assert.deepEqual(await turn(12_000), { reason: 'open', outcome: 'out_of_budget', walkPending: true });
+    assert.deepEqual(await turn(12_000), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null });
     assert.equal(releasePages.length, 5);
     assert.equal(gather.releasesDated, 5);
   });
@@ -209,7 +218,7 @@ describe('the probe', () => {
   test('a 429 on the probe is a Bandcamp error with its status, not a sign-out', async () => {
     await turn();
     probe = { kind: 'error', status: 429 };
-    assert.equal((await turn()).outcome, 'failed');
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: false, status: 429 });
     assert.equal(gather.pausedReason, null);
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 429);
@@ -217,10 +226,10 @@ describe('the probe', () => {
 });
 
 describe('a feed page Bandcamp fails', () => {
-  test('keeps its HTTP status beside the failure until a probe answers again', async () => {
+  test('fails the turn with its status, and keeps the status beside the failure until a probe answers again', async () => {
     feed = stories(3, 1000);
     feedFailure = { kind: 'error', status: 503 };
-    await turn();
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: 503 });
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 503);
 
@@ -228,6 +237,36 @@ describe('a feed page Bandcamp fails', () => {
     assert.equal((await turn(600_000, 'timer')).outcome, 'done');
     assert.equal(gather.lastError, null);
     assert.equal(gather.lastStatus, null);
+  });
+
+  test('with a 429 asks for no release page or band details after it (ADR-0017)', async () => {
+    feed = stories(3, 1000);
+    releasePage = () => ({ kind: 'error', status: 503 });
+    await turn();
+    await followBands([1, 2]);
+    bandDetails = ok({ kind: 'gone', status: 404 });
+    releasePage = datedPage;
+    releasePages = [];
+
+    clock += 15 * 60_000;
+    feedFailure = { kind: 'error', status: 429 };
+    const summary = await turn(600_000, 'timer');
+    assert.equal(summary.outcome, 'failed');
+    assert.equal(summary.status, 429);
+    assert.deepEqual(releasePages, []);
+    assert.deepEqual(bandDetailsAsked, []);
+
+    clock += 15 * 60_000;
+    feedFailure = null;
+    assert.equal((await turn(600_000, 'timer')).outcome, 'done');
+    assert.equal(releasePages.length, 3);
+    assert.deepEqual(bandDetailsAsked, [1, 2]);
+  });
+
+  test('unanswered fails the turn with no status', async () => {
+    feedFailure = { kind: 'unreachable' };
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: null });
+    assert.equal(gather.lastError, 'bandcamp_unreachable');
   });
 });
 
@@ -248,10 +287,7 @@ describe('release pages', () => {
 
 describe('the band details sweep', () => {
   test('a 429 stops sweeping until the breaker cools down (ADR-0017)', async () => {
-    const follows = Object.fromEntries([1, 2, 3, 4].map((bandId) => [String(bandId), { band_id: bandId }]));
-    const payload = { fanId: FAN.fanId, page: 1, snapshotStartedAt: at(), followingBands: { item_cache: { following_bands: follows }, following_bands: { item_count: 4 } } };
-    await insertRawDocument(db, { endpoint: 'following_bands', payload, fetchedAt: at() });
-    await fold(db);
+    await followBands([1, 2, 3, 4]);
 
     await turn();
     assert.deepEqual(bandDetailsAsked, [1]);

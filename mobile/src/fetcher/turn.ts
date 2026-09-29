@@ -4,9 +4,11 @@
  * Upcoming hold truth while the history fills; the feed walk or poll with the Extension's rules (extension/lib/poll.ts)
  * plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011), a few while the walk is
  * pending, with budget held back from the walk for them; then the rest of the sweep. A list that fails is noted and
- * the walk still runs. The cursor is written after every page, so a turn out of budget or killed with the app resumes
- * for free, and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed step ends
- * and again when the turn does, never per answer: a pull to refresh lets its spinner go when it moves (state/refresh.ts).
+ * the walk still runs; a feed page Bandcamp answers with an error fails the turn before the release pages and the rest
+ * of the sweep, since a 403, 429 or 5xx asks for fewer requests (ADR-0017). The cursor is written after every page, so
+ * a turn out of budget or killed with the app resumes for free, and the store folds after every batch while the walk
+ * runs. `lastSuccessAt` moves once the feed step ends and again when the turn does, never per answer: a pull to refresh
+ * lets its spinner go when it moves (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -39,6 +41,8 @@ export type TurnSummary = {
   readonly reason: GatherReason;
   readonly outcome: TurnOutcome;
   readonly walkPending: boolean;
+  /** A failed turn's `lastStatus`: the status of the Bandcamp error that ended it, 0 when none explains it; else null. */
+  readonly status: number | null;
 };
 
 /** The Extension's PAGES_PER_TURN: with no five-minute kill here, the batch between folds; the budget ends a turn. */
@@ -98,13 +102,18 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     const counts = await sink.readReleaseDateCounts();
     await sink.patchGatherState({ releasesDated: counts.dated, releasesUndated: counts.undated });
     const after = await sink.readGatherState();
-    summary = { reason: options.reason, outcome, walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null };
+    summary = {
+      reason: options.reason,
+      outcome,
+      walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null,
+      status: outcome === 'failed' ? after.lastStatus : null,
+    };
     await sink.patchGatherState({ phase: 'idle', ...landed(ctx) });
   } catch (error) {
     // The sink threw: a store message, never a Bandcamp body (the session returns values).
     console.warn('gather turn stopped on the store:', error instanceof Error ? error.message : String(error));
     await sink.patchGatherState({ lastError: 'store_error', lastStatus: null, phase: 'idle', ...landed(ctx) }).catch(() => undefined);
-    summary = { reason: options.reason, outcome: 'failed', walkPending: false };
+    summary = { reason: options.reason, outcome: 'failed', walkPending: false, status: null };
   }
   return summary;
 }
@@ -206,7 +215,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   const queued = walkPending ? (await sink.readUndatedReleases(ctx.now(), dating)).length : 0;
   const feed = await runFeed(ctx, identity, queued * RELEASE_PAGE_RESERVE_MS);
   if (feed === 'paused') return 'paused';
-  if (feed === 'unreachable') return 'failed';
+  if (feed === 'unreachable' || feed === 'error') return 'failed';
   if (ctx.landedAt !== null) await sink.patchGatherState({ lastSuccessAt: ctx.landedAt });
 
   if (!outOfBudget(ctx)) await runReleasePages(ctx, dating);

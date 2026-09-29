@@ -29,7 +29,10 @@ async function signedOutHere(app: AppState): Promise<boolean> {
 
 /** While the first walk is still pending, turns chain back to back so the history fills in one sitting. */
 export const MAX_CHAINED_TURNS = 12;
-/** A walk turn that failed on the wire retries twice, in case the first request after a wake fails (unconfirmed). */
+/**
+ * A walk turn that failed unanswered or on the store retries twice, in case the first request after a wake fails
+ * (unconfirmed). One that Bandcamp failed with a status does not: a 403, 429 or 5xx asks for fewer requests (ADR-0017).
+ */
 export const FAILED_RETRIES = 2;
 export const RETRY_AFTER_MS = 10_000;
 
@@ -55,9 +58,9 @@ async function runChain(reason: GatherReason, app: AppState): Promise<void> {
       running = null;
     });
     const summary = await running;
-    console.log('gather turn:', summary.reason, summary.outcome, 'walk pending', summary.walkPending);
+    console.log('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
-    if (summary.outcome === 'failed' && summary.walkPending && retries < FAILED_RETRIES) {
+    if (summary.outcome === 'failed' && summary.status === null && summary.walkPending && retries < FAILED_RETRIES) {
       retries += 1;
       await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
       continue;
