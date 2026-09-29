@@ -5,6 +5,7 @@
  * fails the turn with no status, so it takes the retry, whose wait the mocked clock jumps; a status fails the turn
  * with no retry (ADR-0017). The app state's hooks module is stood in here, since Node cannot load its TSX; keep awake and the
  * foreground state come from test/register.mjs, and the foreground state is the one `react-native` export these tests move.
+ * Each chain's Tallies (task 0038) are collected from the runner's `track`.
  */
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -16,9 +17,10 @@ import { openTestStore } from '../../test/nodeDb';
 import type { FeedUpdatesPage } from '../bandcamp/session';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
 import type { GatherState, WalkState } from '../fetcher/sink';
-import type { GatherSession } from '../fetcher/turn';
+import type { GatherReason, GatherSession } from '../fetcher/turn';
 import { readKv } from '../store';
-import type { AppState } from './appState';
+import type { Tally } from '../tally/catalogue';
+import type { RunnerDeps } from './appState';
 import { GATHER_KEY, patchGather, WALK_KEY } from './gatherSink';
 
 const stub = (source: string) => ({ url: `data:text/javascript,${encodeURIComponent(source)}`, shortCircuit: true });
@@ -44,6 +46,7 @@ let feed: { readonly itemId: number; readonly at: number }[];
 let feedPage: (olderThan: number) => BandcampAnswer<FeedUpdatesPage> | Promise<BandcampAnswer<FeedUpdatesPage>>;
 /** Turns whose identity probe answers after a minute, so the budget is spent before the walk. */
 let slowProbe: (turn: number) => boolean;
+let tallies: Tally[];
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
 const at = (): string => new Date(Date.now()).toISOString();
@@ -78,16 +81,17 @@ const session: GatherSession = {
 };
 
 // The runner reaches only these; the session is the turn's slice of BandcampSession.
-const app = (): Pick<AppState, 'db' | 'session' | 'setGather' | 'invalidate'> => ({
+const app = (): RunnerDeps => ({
   db,
-  session: session as unknown as AppState['session'],
+  session: session as unknown as RunnerDeps['session'],
   setGather: () => undefined,
   invalidate: () => undefined,
+  track: (tally) => tallies.push(tally),
 });
 
-async function gather(): Promise<void> {
+async function gather(reason: GatherReason = 'open'): Promise<void> {
   let ended = false;
-  const run = runner('open', app() as AppState).finally(() => {
+  const run = runner(reason, app()).finally(() => {
     ended = true;
   });
   while (!ended) {
@@ -112,6 +116,7 @@ beforeEach(async () => {
   feed = Array.from({ length: 80 * PAGE_SIZE }, (_, i) => ({ itemId: 1000 + i, at: newest - 60 * i }));
   feedPage = servedPage;
   slowProbe = () => false;
+  tallies = [];
 });
 
 afterEach(() => {
@@ -176,4 +181,64 @@ test('a store closed under the chain ends it without a rejection', async () => {
   };
   await gather();
   assert.equal(turns, 2);
+});
+
+const names = () => tallies.map((tally) => tally.name);
+const finished = () => tallies.find((tally) => tally.name === 'gather_finished')?.props;
+
+test('the chain that ends the first walk sends one sync_run_finished and one gather_finished, and the next chain no Sync Run', async () => {
+  await gather();
+  assert.deepEqual(names(), ['sync_run_finished', 'gather_finished']);
+  assert.deepEqual(tallies[0]?.props, { pages: '21 to 100', stories: '100+', took: '10m+' });
+  assert.deepEqual(finished(), {
+    reason: 'open',
+    outcome: 'done',
+    turns: '6 to 20',
+    retries: '0',
+    walk_pending: false,
+    failure: 'none',
+    paused: 'none',
+    status_class: 'none',
+    took: '10m+',
+    release_pages_failed: '0',
+    sweep_breaker_opened: false,
+  });
+  tallies = [];
+  await gather('refresh');
+  assert.deepEqual(names(), ['gather_finished']);
+  assert.equal(finished()?.reason, 'refresh');
+});
+
+test('a chain the background ends sends gather_finished alone, with the walk still pending', async () => {
+  feedPage = (olderThan) => {
+    if (turns === 3) foreground.currentState = 'background';
+    return servedPage(olderThan);
+  };
+  await gather();
+  assert.deepEqual(names(), ['gather_finished']);
+  assert.equal(finished()?.outcome, 'out_of_budget');
+  assert.equal(finished()?.walk_pending, true);
+  assert.equal(finished()?.turns, '2 to 5');
+});
+
+test('the retries a chain spends on unanswered turns are counted across the whole chain', async () => {
+  let asked = 0;
+  feedPage = (olderThan) => ((asked += 1) % 15 === 0 ? { kind: 'unreachable' } : servedPage(olderThan));
+  await gather();
+  assert.deepEqual(names(), ['sync_run_finished', 'gather_finished']);
+  // Past FAILED_RETRIES, since each turn that moves the walk gives the retries back.
+  assert.equal(finished()?.retries, '6 to 20');
+});
+
+test('a chain Bandcamp ends with a status carries the failure and its class, and a signed-out chain sends nothing', async () => {
+  feedPage = () => ({ kind: 'error', status: 503 });
+  await gather();
+  assert.deepEqual(names(), ['gather_finished']);
+  assert.equal(finished()?.outcome, 'failed');
+  assert.equal(finished()?.failure, 'bandcamp_error');
+  assert.equal(finished()?.status_class, '5xx');
+  tallies = [];
+  await patchGather(app(), { pausedReason: 'not_connected' });
+  await gather();
+  assert.deepEqual(names(), []);
 });

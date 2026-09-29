@@ -5,19 +5,22 @@
  * is fifteen minutes old. While the first walk is pending, turns chain back to back with no count cap for as long as
  * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was (task 0040).
  * A phone signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot
- * turn the person's own sign-out into Bandcamp's.
+ * turn the person's own sign-out into Bandcamp's. Each chain that ran a turn ends in its gather Tallies, and each fold
+ * that skipped something in `projection_skipped` (task 0038).
  */
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';
 import { AppState as NativeAppState } from 'react-native';
 
 import { dueFrom, useGatherSchedule, type Due } from '@/fetcher/schedule';
-import type { GatherState, WalkState } from '@/fetcher/sink';
+import type { GatherSink, GatherState, WalkState } from '@/fetcher/sink';
+import { bandDetailsBreaker } from '@/fetcher/sweep';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
-import { readKv } from '@/store';
+import { readChainCounts, readKv } from '@/store';
+import { gatherTallies, projectionSkipped, type ChainFacts } from '@/tally/tally';
 
 import { useAppState, type AppState, type RunnerDeps } from './appState';
-import { createGatherSink, GATHER_KEY, readStoredIdentity, WALK_KEY } from './gatherSink';
+import { createGatherSink, GATHER_KEY, readStoredIdentity, readStoredWalk, WALK_KEY } from './gatherSink';
 
 export const BUDGET_MS: Readonly<Record<GatherReason, number>> = { open: 60_000, timer: 60_000, refresh: 120_000 };
 
@@ -59,19 +62,57 @@ export async function runner(reason: GatherReason, app: RunnerDeps): Promise<voi
 
 async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
   if (await signedOutHere(app)) return;
-  const sink = createGatherSink(app);
+  const sink = createGatherSink({
+    ...app,
+    onFold: (skipped) => {
+      const tally = projectionSkipped(skipped);
+      if (tally !== null) app.track(tally);
+    },
+  });
+  const startedAt = Date.now();
+  const before = await sink.readGatherState();
+  const walkAtStart = await readStoredWalk(app.db);
+  const openingsAtStart = bandDetailsBreaker.openings;
+  const run = await runTurns(reason, app, sink);
+  if (run === null) return;
+  // One `gather_finished` per chain, after `sync_run_finished` when this chain ended the first walk (task 0038).
+  const endedAt = Date.now();
+  const after = await sink.readGatherState();
+  const counts = await readChainCounts(app.db, new Date(startedAt));
+  const facts: ChainFacts = {
+    reason,
+    ...run,
+    startedAt,
+    endedAt,
+    walkAtStart,
+    ...counts,
+    sweepBreakerOpened: bandDetailsBreaker.openings > openingsAtStart,
+  };
+  for (const tally of gatherTallies(before, after, facts)) app.track(tally);
+}
+
+type ChainRun = Pick<ChainFacts, 'last' | 'turns' | 'retries'>;
+
+/** The chain's turns, with the last one's summary and the failed-turn retries it spent; null only if none ran. */
+async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink): Promise<ChainRun | null> {
+  let last: TurnSummary | null = null;
+  let turns = 0;
+  let retriesUsed = 0;
   let retries = 0;
   let stalled = 0;
+  const ran = (): ChainRun | null => (last === null ? null : { last, turns, retries: retriesUsed });
   for (let turn = 0; ; turn += 1) {
     // iOS freezes JS in the background and Android gathers in the foreground only (task 0036, decision 4), so a chain
     // ends when the app leaves the foreground and the schedule's 'open' wake resumes it (task 0040). A sign-out from
     // Settings mid-chain ends it too, before the next probe can turn it into Bandcamp's.
-    if (turn > 0 && (NativeAppState.currentState !== 'active' || (await signedOutHere(app)))) return;
+    if (turn > 0 && (NativeAppState.currentState !== 'active' || (await signedOutHere(app)))) return ran();
     const before = await walkSpot(app.db);
     running = runGatherTurn(app.session, sink, { now: Date.now, reason, budgetMs: BUDGET_MS[reason] }).finally(() => {
       running = null;
     });
     const summary = await running;
+    last = summary;
+    turns += 1;
     console.log('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
     // A chain with no count cap ends once turns stop moving the walk; a turn that moved it resets the stall run and
@@ -81,13 +122,14 @@ async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
       stalled = 0;
       retries = 0;
     }
-    if (stalled >= STALL_TURNS) return;
+    if (stalled >= STALL_TURNS) return ran();
     if (summary.outcome === 'failed' && summary.status === null && summary.walkPending && retries < FAILED_RETRIES) {
       retries += 1;
+      retriesUsed += 1;
       await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
       continue;
     }
-    if (summary.outcome !== 'out_of_budget' || !summary.walkPending) return;
+    if (summary.outcome !== 'out_of_budget' || !summary.walkPending) return ran();
   }
 }
 

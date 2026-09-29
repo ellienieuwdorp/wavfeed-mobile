@@ -24,6 +24,12 @@ export class SweepBreaker {
   private failures = 0;
   private opens = 0;
   private successesSinceOpen = 0;
+  private openedEver = 0;
+
+  /** Every opening since the process started, which a recovery never resets: a gather chain compares it before and after (task 0038). */
+  get openings(): number {
+    return this.openedEver;
+  }
 
   isOpen(nowMs: number): boolean {
     if (this.openUntil !== null && this.openUntil <= nowMs) {
@@ -47,6 +53,7 @@ export class SweepBreaker {
     this.failures += 1;
     if (!REFUSAL_STATUSES.includes(status) && this.failures < BREAKER_FAILURE_THRESHOLD) return false;
     this.opens += 1;
+    this.openedEver += 1;
     this.successesSinceOpen = 0;
     this.openUntil = nowMs + Math.min(BREAKER_COOLDOWN_MS * 2 ** (this.opens - 1), BREAKER_MAX_COOLDOWN_MS);
     return true;

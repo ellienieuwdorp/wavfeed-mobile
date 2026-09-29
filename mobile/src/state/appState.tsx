@@ -3,7 +3,8 @@
  * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
  * screen re-reads its query (task 0036). `putRaw` is the only way a response
  * enters the phone: verbatim into raw_documents, then folded (ADR-0004); a release page folds without moving the version.
- * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider.
+ * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
+ * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038).
  */
 import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -16,6 +17,7 @@ import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
 import { emptyStore, ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
+import type { Tally } from '@/tally/catalogue';
 
 import { loadGatherState } from './gatherSink';
 
@@ -29,7 +31,11 @@ export type AppState = {
   readonly putRaw: (doc: BandcampDocument) => Promise<{ deduped: boolean }>;
   readonly runGather: (reason: GatherReason) => Promise<void>;
   readonly removeStore: () => Promise<void>;
+  /** The sharing provider's `track`, bound while it is mounted; null unbinds. */
+  readonly bindTally: (track: TallyTrack | null) => void;
 };
+
+export type TallyTrack = (tally: Tally) => void;
 
 const AppStateContext = createContext<AppState | null>(null);
 
@@ -38,8 +44,8 @@ export const INVALIDATE_EVERY_MS = 2_000;
 /** A screen out of view follows the version once it has held still this long, or at once when it comes back into view. */
 export const UNFOCUSED_SETTLE_MS = 10_000;
 
-/** What a gather turn needs from the app state: the store, the session and the two ways it reports back. */
-export type RunnerDeps = Pick<AppState, 'db' | 'session' | 'setGather' | 'invalidate'>;
+/** What a gather turn needs from the app state: the store, the session, the two ways it reports back and its Tallies. */
+export type RunnerDeps = Pick<AppState, 'db' | 'session' | 'setGather' | 'invalidate'> & { readonly track: TallyTrack };
 
 type Runner = (reason: GatherReason, app: RunnerDeps) => Promise<void>;
 
@@ -100,11 +106,17 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
     [db, invalidate],
   );
 
+  const tallyTo = useRef<TallyTrack | null>(null);
+  const bindTally = useCallback((track: TallyTrack | null) => {
+    tallyTo.current = track;
+  }, []);
+  const track = useCallback((tally: Tally) => tallyTo.current?.(tally), []);
+
   const runGather = useCallback(
     async (reason: GatherReason) => {
-      if (runner && db) await runner(reason, { db, session, setGather, invalidate });
+      if (runner && db) await runner(reason, { db, session, setGather, invalidate, track });
     },
-    [runner, db, session, invalidate],
+    [runner, db, session, invalidate, track],
   );
 
   const removeStore = useCallback(async () => {
@@ -124,7 +136,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   }, [db]);
 
   if (!db) return null;
-  const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore };
+  const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore, bindTally };
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 

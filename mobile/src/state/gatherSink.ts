@@ -8,6 +8,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Identity } from '@/bandcamp/wire';
 import { BAND_DETAILS_ENDPOINT } from '@/domain/endpoints';
+import type { SkippedCounts } from '@/domain/types';
 import { asRecord } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, ForeignFanError, type GatherSink, type GatherState, type WalkState } from '@/fetcher/sink';
 import { fanAvatarUrl } from '@/lib/format';
@@ -15,6 +16,7 @@ import {
   deleteKv,
   feedAnswerSpans,
   fold,
+  type FoldSummary,
   IDENTITY_KEY,
   insertRawDocument,
   latestReleasePageDocument,
@@ -44,6 +46,8 @@ export type SinkDeps = {
   readonly db: SQLiteDatabase;
   readonly setGather: (state: GatherState) => void;
   readonly invalidate: () => void;
+  /** Hears each fold's skipped counts, for `projection_skipped` (task 0038). */
+  readonly onFold?: (skipped: SkippedCounts) => void;
 };
 
 let tail: Promise<unknown> = Promise.resolve();
@@ -161,13 +165,15 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       }
     },
     async afterDocuments() {
+      let summary: FoldSummary;
       try {
-        const summary = await fold(db);
+        summary = await fold(db);
         console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
       } catch (error) {
         console.warn('fold failed:', error instanceof Error ? error.message : String(error));
         throw error;
       }
+      deps.onFold?.(summary.skipped);
       invalidate();
     },
     readUndatedReleases: (nowMs, limit) => readUndatedReleases(db, limit, new Date(nowMs)),

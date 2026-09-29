@@ -1,9 +1,10 @@
 /**
  * The pure rules behind every Tally (task 0038, ADR-0021): the count and duration buckets that keep exact numbers off
- * the wire, the closed screen list, the per-batch context built from injected build facts, the sharing gate, and the
- * gather diff that turns a chain's before and after `GatherState` into `sync_run_finished` and `gather_finished`.
- * Nothing here reads a clock, a random source or the platform itself.
+ * the wire, the closed screen list, the per-batch context built from injected build facts, the sharing gate, the
+ * gather diff that turns a chain's before and after `GatherState` into `sync_run_finished` and `gather_finished`, and
+ * a fold's skipped counts as `projection_skipped`. Nothing here reads a clock, a random source or the platform itself.
  */
+import type { SkippedCounts } from '@/domain/types';
 import type { GatherState, WalkState } from '@/fetcher/sink';
 import type { GatherReason, TurnSummary } from '@/fetcher/turn';
 
@@ -204,4 +205,17 @@ export function gatherTallies(before: GatherState, after: GatherState, chain: Ch
     },
   });
   return tallies;
+}
+
+/** A fold's skipped counts as `projection_skipped`, or null when it skipped nothing. */
+export function projectionSkipped(skipped: SkippedCounts): Tally | null {
+  if (skipped.unparsable + skipped.unknownStoryType + skipped.missingFanInfo <= 0) return null;
+  return {
+    name: 'projection_skipped',
+    props: {
+      unparsable: countBucket(skipped.unparsable),
+      unknown_story_type: countBucket(skipped.unknownStoryType),
+      missing_fan_info: countBucket(skipped.missingFanInfo),
+    },
+  };
 }

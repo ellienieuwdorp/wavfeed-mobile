@@ -36,11 +36,13 @@ import {
   boughtView,
   listUpcomingReleases,
   readBoughtReleases,
+  readChainCounts,
   readCurated,
   readNewestBandcampReleaseUrl,
   readNewReleases,
   readTracklist,
 } from './queries';
+import { markReleasePageAttempt } from './enrichment';
 import { insertRawDocument } from './rawDocuments';
 
 const NOW = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
@@ -253,4 +255,19 @@ describe('over a long history', () => {
     assert.deepEqual(await readCurated(db), curated);
     assert.deepEqual(await readNewReleases(db, { now: NOW }), newReleases);
   });
+});
+
+test("a gather chain's counts: every feed page held, and only the release pages booked failed since the chain began", async () => {
+  const { db } = await openTestStore();
+  const start = new Date(Date.UTC(2026, 8, 29, 12, 0, 0));
+  const later = new Date(start.getTime() + 60_000);
+  for (const itemId of [1, 2, 3]) {
+    await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [nrEntry({ item_id: itemId })] }), fetchedAt: later.toISOString() });
+  }
+  await insertRawDocument(db, { endpoint: 'release_page', payload: releasePagePayload(), fetchedAt: later.toISOString() });
+  await markReleasePageAttempt(db, { itemType: 'a', itemId: 10 }, 'failed', new Date(start.getTime() - 1));
+  await markReleasePageAttempt(db, { itemType: 'a', itemId: 11 }, 'failed', later);
+  await markReleasePageAttempt(db, { itemType: 'a', itemId: 12 }, 'gone', later);
+  await markReleasePageAttempt(db, { itemType: 'a', itemId: 13 }, 'dated', later);
+  assert.deepEqual(await readChainCounts(db, start), { feedPages: 3, releasePagesFailed: 1 });
 });

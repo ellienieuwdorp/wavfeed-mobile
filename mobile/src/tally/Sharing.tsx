@@ -5,6 +5,7 @@
  * 20 queued rows. It folds AppState into `app_opened` and the foreground marker (`lifecycle.ts`). A build the gate can
  * never open (`sendEnv` null: a development bundle without the override, Expo Go, no URL or key) reads nothing and
  * writes nothing, and every write is also guarded in SQL by the stored yes. `removeStore` remounts it with the store.
+ * `track` is the one way a Tally is queued; the gather runner above it reaches it through the app state's `bindTally`.
  */
 import * as Application from 'expo-application';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -125,6 +126,13 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const track = useCallback((tally: Tally) => void later(() => enqueue(tally)).catch(() => undefined), [later, enqueue]);
+
+  // The gather runner sits above this provider, in the app state, and reaches `track` through the binding.
+  const { bindTally } = app;
+  useLayoutEffect(() => {
+    bindTally(track);
+    return () => bindTally(null);
+  }, [bindTally, track]);
 
   // The switch shows what the store holds once each yes or off has run, whatever order two quick presses land in.
   const settleSharing = useCallback(async (): Promise<void> => {

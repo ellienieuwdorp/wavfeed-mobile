@@ -24,6 +24,7 @@ import {
   CURATED_QUOTES_MAX,
   CURATED_WINDOW_DAYS,
 } from '../domain/curate';
+import { FEED_UPDATES_ENDPOINT } from '../domain/endpoints';
 import { buildDrops, buildNewReleases, type NewReleasesView } from '../domain/newReleases';
 import { storedBandId, storedTralbum } from '../domain/releasePage';
 import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from '../domain/rows';
@@ -624,4 +625,19 @@ export async function markSwept(db: SQLiteDatabase, input: SweepOutcome): Promis
      on conflict (band_id) do update set last_swept_at = excluded.last_swept_at, tier = excluded.tier, failures = 0`,
     [input.bandId, at, tier],
   );
+}
+
+export type ChainCounts = { readonly feedPages: number; readonly releasePagesFailed: number };
+
+/**
+ * What a gather chain's Tallies read back from the store (task 0038): the feed pages held, which after a first walk are
+ * the pages it took, and the release pages booked `failed` (a page's own 4xx) since the chain started.
+ */
+export async function readChainCounts(db: SQLiteDatabase, since: Date): Promise<ChainCounts> {
+  const row = await db.getFirstAsync<{ feed_pages: number; release_pages_failed: number }>(
+    `select (select count(*) from raw_documents where endpoint = ?) as feed_pages,
+            (select count(*) from release_page_attempts where outcome = 'failed' and attempted_at >= ?) as release_pages_failed`,
+    [FEED_UPDATES_ENDPOINT, since.toISOString()],
+  );
+  return { feedPages: row?.feed_pages ?? 0, releasePagesFailed: row?.release_pages_failed ?? 0 };
 }

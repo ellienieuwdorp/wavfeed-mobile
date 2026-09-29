@@ -25,6 +25,7 @@ export {
 } from './projection';
 export {
   type BoughtOptions,
+  type ChainCounts,
   FEED_MAX_STORY_ROWS,
   type FollowedPage,
   listDrops,
@@ -32,6 +33,7 @@ export {
   listUpcomingReleases,
   markSwept,
   type OverviewView,
+  readChainCounts,
   readCurated,
   readFollowedBands,
   readNewReleases,
