@@ -1,6 +1,7 @@
 /**
  * Every Upcoming Release people you follow bought, the Bought shelf's "View more" (DESIGN-UI section 3, task 0037):
- * the weeks read forwards, nearest first, and a row is a Bought row with its release day as the trailing fact.
+ * the weeks read forwards, nearest first, and a row is a Bought row with its release day as the trailing fact and
+ * "1 of 4 tracks" after the label once a Track plays (task 0041, decision 9).
  */
 import { useMemo } from 'react';
 import { FlatList } from 'react-native';
@@ -11,7 +12,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
-import { copy, dayLabel } from '@/copy';
+import { copy, dayLabel, outOnPhrase, spokenFacts, tracksOutPhrase } from '@/copy';
 import type { ApiFeedItem } from '@/domain/apiTypes';
 import { boughtHalves } from '@/domain/boughtChart';
 import { releaseDay } from '@/lib/dates';
@@ -23,7 +24,7 @@ import { readBoughtReleases } from '@/store/queries';
 type Item =
   | { key: string; kind: 'empty' }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: ApiFeedItem; day: string };
+  | { key: string; kind: 'release'; release: ApiFeedItem; day: string; out: string; count: string | null };
 
 function render({ item }: { item: Item }) {
   switch (item.kind) {
@@ -32,7 +33,13 @@ function render({ item }: { item: Item }) {
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'release':
-      return <ReleaseRow release={item.release} detail={<Buyers release={item.release} trailing={item.day} />} />;
+      return (
+        <ReleaseRow
+          release={item.release}
+          spoken={spokenFacts([item.count, item.out])}
+          detail={<Buyers release={item.release} fact={item.count} trailing={item.day} />}
+        />
+      );
   }
 }
 
@@ -53,7 +60,8 @@ export default function UpcomingBought() {
     for (const week of buildUpcomingWeekSections(upcoming, (r) => r.on, at)) {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
       for (const r of week.entries) {
-        list.push({ key: `${r.item.itemType}:${r.item.itemId}`, kind: 'release', release: r.item, day: dayLabel(r.on, at) });
+        const count = tracksOutPhrase(r.item.numStreamableTracks, r.item.numTracks);
+        list.push({ key: `${r.item.itemType}:${r.item.itemId}`, kind: 'release', release: r.item, day: dayLabel(r.on, at), out: outOnPhrase(r.on, at), count });
       }
     }
     if (list.length === 0) list.push({ key: 'empty', kind: 'empty' });

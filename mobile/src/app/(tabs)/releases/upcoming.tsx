@@ -1,6 +1,7 @@
 /**
  * Every Upcoming Release from New releases, the shelf's "View more" (DESIGN-UI section 3, task 0037): the weeks read
- * forwards, nearest first, with no quiet gaps, and the rows are the released weeks' own.
+ * forwards, nearest first, with no quiet gaps, and the rows are the released weeks' own, with "1 of 4 tracks" after the
+ * label once a Track plays (task 0041, decision 9).
  */
 import { useMemo } from 'react';
 import { FlatList } from 'react-native';
@@ -10,7 +11,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { FactLine, ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
-import { actorSentence, copy, dayLabel, SELF_RELEASED } from '@/copy';
+import { actorSentence, copy, dayLabel, outOnPhrase, SELF_RELEASED, spokenFacts, tracksOutPhrase } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, useNow } from '@/lib/useNow';
@@ -21,7 +22,7 @@ import { readNewReleases } from '@/store';
 type Item =
   | { key: string; kind: 'empty' }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: ApiUpcomingRelease; day: string };
+  | { key: string; kind: 'release'; release: ApiUpcomingRelease; day: string; out: string; count: string | null };
 
 function render({ item }: { item: Item }) {
   switch (item.kind) {
@@ -30,7 +31,13 @@ function render({ item }: { item: Item }) {
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'release':
-      return <ReleaseRow release={item.release} detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, actorSentence(item.release)]} trailing={item.day} />} />;
+      return (
+        <ReleaseRow
+          release={item.release}
+          spoken={spokenFacts([item.count, item.out])}
+          detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, item.count, actorSentence(item.release)]} trailing={item.day} />}
+        />
+      );
   }
 }
 
@@ -47,7 +54,9 @@ export default function UpcomingReleases() {
     for (const week of buildUpcomingWeekSections(view.upcoming, (r) => releaseDay(r.releaseDate), at)) {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
       for (const r of week.entries) {
-        list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day: dayLabel(releaseDay(r.releaseDate), at) });
+        const on = releaseDay(r.releaseDate);
+        const count = tracksOutPhrase(r.numStreamableTracks, r.numTracks);
+        list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day: dayLabel(on, at), out: outOnPhrase(on, at), count });
       }
     }
     if (list.length === 0) list.push({ key: 'empty', kind: 'empty' });

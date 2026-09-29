@@ -48,7 +48,8 @@ export type Transport = {
   readonly bandId: string | null;
   readonly canPrevious: boolean;
   readonly canNext: boolean;
-  readonly play: (release: PlayableRelease) => void;
+  /** Starts at the Track `from` names when it streams, else the first that does (a Drop's row, task 0041 decision 10). */
+  readonly play: (release: PlayableRelease, from?: string | null) => void;
   readonly toggle: () => void;
   readonly next: () => void;
   readonly previous: () => void;
@@ -199,13 +200,13 @@ export function useTransport(deps: TransportDeps): { transport: Transport; clock
   }, [apply, audio, quiet, startTrack]);
 
   const play = useCallback(
-    (release: PlayableRelease) => {
+    (release: PlayableRelease, wantedTrackId: string | null = null) => {
       const from = stateRef.current;
       if (from.release !== null && isSameRelease(from.release, release) && (from.status === 'ready' || from.status === 'loading')) {
         toggle();
         return;
       }
-      void loadAndStart(release, null, false);
+      void loadAndStart(release, wantedTrackId, false);
     },
     [loadAndStart, toggle],
   );

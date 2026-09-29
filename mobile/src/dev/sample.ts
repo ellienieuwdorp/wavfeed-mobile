@@ -4,6 +4,10 @@
  * server/packages/projection/test/fixtures.ts records it and entering as Raw Documents through insertRawDocument before
  * the fold reads them (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
  * is set, so nothing drawn from the sample reaches Bandcamp. Payloads carry no real clock, so a second run dedupes.
+ * The generated pre-orders have no Track out; two more Upcoming Releases let Tracks out early, read at fixed moments
+ * so their Drops land on the same days every run (task 0041), and a Fan buys one so Bought's shelf shows a count. The
+ * rig loads the sample into an empty store only: a simulator that holds an older sample keeps it until Expo Go is
+ * uninstalled from it (`xcrun simctl uninstall <udid> host.exp.Exponent`), which the next `dev/sim.sh serve` reinstalls.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -121,6 +125,8 @@ type Release = {
   readonly price: number;
   readonly tags: readonly string[];
   readonly tracks: readonly Track[];
+  /** The Tracks a pre-order's feed entry counts as playing: none for a generated one, a Drop demo's last read. */
+  readonly outEarly: number;
   readonly weight: number;
 };
 type StoryKind = 'fp' | 'fw' | 'nr';
@@ -198,6 +204,7 @@ function makeReleases(rng: Rng, pages: readonly Page[]): Release[] {
       price: pick(rng, [1, 5, 7, 7.5, 8, 10, 12]),
       tags: [pick(rng, TAGS), pick(rng, TAGS)].filter((tag, n, all) => all.indexOf(tag) === n),
       tracks: makeTracks(rng, itemType, title, index),
+      outEarly: 0,
       weight: 1 / Math.pow(1 + Math.floor(rng() * 300), 0.85),
     });
   }
@@ -277,12 +284,88 @@ function makeStories(rng: Rng, fans: readonly Fan[], releases: readonly Release[
   return stories.sort((a, b) => b.at - a.at);
 }
 
+/**
+ * The Upcoming Releases that let Tracks out early (task 0041), each on a followed Page with no Story, so the Sweep dates
+ * it and its release page reads write its Drops. Every read is a moment fixed against ANCHOR, never the clock, and
+ * `reads` lists the Tracks playing on each read in order, `trackPage` a Track page whose `mod_date` dates the later
+ * Drop, `purchase` a Fan's purchase Story after the last read that puts the Release on Bought's shelf.
+ */
+type DropDemo = {
+  readonly release: Release;
+  readonly publishedMs: number;
+  readonly reads: readonly { readonly atMs: number; readonly out: readonly number[] }[];
+  readonly trackPage?: { readonly atMs: number; readonly trackNum: number; readonly modMs: number };
+  readonly purchase?: { readonly fanIndex: number; readonly atMs: number };
+};
+
+const HOUR = 60 * 60_000;
+
+function dropTracks(first: number, titles: readonly string[]): Track[] {
+  return titles.map((title, n) => ({ id: first + n, title, duration: 200 + n * 37.5, playable: true, capped: false }));
+}
+
+function dropDemos(pages: readonly Page[]): DropDemo[] {
+  const day = Math.floor(ANCHOR / DAY) * DAY;
+  const release = (n: number, page: Page | undefined, title: string, releaseDays: number, tracks: Track[], outEarly: number): Release => {
+    if (page === undefined) throw new Error('a Release with no Page');
+    return {
+      itemType: 'a',
+      itemId: 4_100_000_000 + (300 + n) * 13,
+      page,
+      title,
+      url: `${page.url}/album/${slugOf(title)}`,
+      releaseMs: day + releaseDays * DAY,
+      preorder: true,
+      label: LABELS[n] ?? null,
+      price: 8,
+      tags: ['ambient'],
+      tracks,
+      outEarly,
+      weight: 0,
+    };
+  };
+  const moths = dropTracks(56_000_001, ['Pupal', 'Lamp Glass', 'Wing Dust', 'Moth Lanterns']);
+  const signals = dropTracks(56_000_011, ['Sounding', 'Low Band', 'Carrier', 'Shortwave', 'Night Net', 'Weathered Signals']);
+  return [
+    // Out Tue 13 Oct; its second Track came out with the page on Mon 21 Sep: 1 of 4, one Drop.
+    {
+      release: release(0, pages[3], 'Moth Lanterns', 19, moths, 1),
+      publishedMs: day - 3 * DAY + 9 * HOUR,
+      reads: [{ atMs: day - 2 * DAY + 7 * HOUR, out: [2] }],
+    },
+    // Out Sat 24 Oct; two Tracks with the page on Mon 14 Sep, a third on Tue 22 Sep by its Track page: 3 of 6, two Drops.
+    // Bought on Wed 23 Sep, after the read that showed the third.
+    {
+      release: release(1, pages[8], 'Weathered Signals', 30, signals, 3),
+      publishedMs: day - 10 * DAY + 10 * HOUR + 30 * 60_000,
+      reads: [
+        { atMs: day - 9 * DAY + 8 * HOUR, out: [1, 2] },
+        { atMs: day - DAY + 8 * HOUR, out: [1, 2, 3] },
+      ],
+      trackPage: { atMs: day - DAY + 8 * HOUR + 60_000, trackNum: 3, modMs: day - 2 * DAY + 20 * HOUR + 36 * 60_000 },
+      purchase: { fanIndex: 0, atMs: day - DAY + 14 * HOUR },
+    },
+  ];
+}
+
 function makeWorld(): World {
   const rng = seeded(20260924);
   const fans = makeFans(rng);
   const pages = makePages(rng);
   const releases = makeReleases(rng, pages);
-  return { fans, pages, releases, stories: makeStories(rng, fans, releases) };
+  const stories = makeStories(rng, fans, releases);
+  // Added after the seeded draws, so the rest of the world is what it always was.
+  const demos = dropDemos(pages);
+  const bought = demos.flatMap(({ release, purchase }): Story[] => {
+    const fan = purchase === undefined ? undefined : fans[purchase.fanIndex];
+    return purchase === undefined || fan === undefined ? [] : [{ kind: 'fp', fan, release, at: purchase.atMs, why: null, merch: false }];
+  });
+  return {
+    fans,
+    pages,
+    releases: [...releases, ...demos.map((demo) => demo.release)],
+    stories: [...stories, ...bought].sort((a, b) => b.at - a.at),
+  };
 }
 
 function featured(release: Release): Track | undefined {
@@ -318,7 +401,8 @@ function entryOf(story: Story, buyers: ReadonlyMap<number, number>, index: numbe
     featured_track_title: track?.title ?? null,
     featured_track_number: track === undefined ? null : release.tracks.indexOf(track) + 1,
     featured_track_duration: track?.duration ?? null,
-    num_streamable_tracks: release.tracks.filter((t) => t.playable).length,
+    // A pre-order counts only the Tracks it let out early (task 0041).
+    num_streamable_tracks: release.preorder ? release.outEarly : release.tracks.filter((t) => t.playable).length,
     also_collected_count: buyers.get(release.itemId) ?? 0,
     is_preorder: release.preorder,
     is_purchasable: true,
@@ -505,6 +589,75 @@ function releasePagePayloads(world: World): Record<string, unknown>[] {
   }));
 }
 
+/**
+ * A pre-order Track as its album page writes it (test/fixtures.ts, read 2026-09-29): one not out has no id, link or
+ * file and still says `streaming: 1`.
+ */
+function preorderTrackEntry(track: Track, trackNum: number, out: boolean): Record<string, unknown> {
+  const shared = { track_id: track.id, track_num: trackNum, title: track.title, streaming: 1, is_capped: null };
+  if (!out) return { ...shared, id: null, title_link: null, file: null, unreleased_track: true, duration: 0 };
+  const file = { 'mp3-128': `https://t4.sample.local/stream/${track.id}.mp3` };
+  return { ...shared, id: track.id, title_link: `/track/${slugOf(track.title)}`, file, unreleased_track: false, duration: track.duration };
+}
+
+/**
+ * Each Drop demo's album page per read, then its Track page, with their fixed fetch moments. The last read is asked
+ * again at `freshMs`, so the player holds a page young enough to list (ADR-0015).
+ */
+function dropDemoDocuments(pages: readonly Page[], freshMs: number): { readonly payload: unknown; readonly fetchedAt: string }[] {
+  return dropDemos(pages).flatMap(({ release, publishedMs, reads: fixed, trackPage }) => {
+    const last = fixed[fixed.length - 1];
+    const reads = last === undefined ? fixed : [...fixed, { atMs: freshMs, out: last.out }];
+    const band = { id: release.page.bandId, name: release.page.name, fan_email: null, account_id: 836_000_000 + release.page.bandId, image_id: null };
+    const current = { title: release.title, publish_date: wire(publishedMs), band_id: release.page.bandId, release_date: wire(release.releaseMs) };
+    const albumReads = reads.map(({ atMs, out }) => ({
+      fetchedAt: new Date(atMs).toISOString(),
+      payload: {
+        itemType: 'a',
+        itemId: release.itemId,
+        itemUrl: release.url,
+        tralbum: {
+          current: { ...current, mod_date: wire(atMs - HOUR), album_id: release.itemId, id: release.itemId, type: 'album' },
+          art_id: null,
+          artist: release.page.name,
+          item_type: 'album',
+          id: release.itemId,
+          is_preorder: true,
+          album_release_date: wire(release.releaseMs),
+          trackinfo: release.tracks.map((track, n) => preorderTrackEntry(track, n + 1, out.includes(n + 1))),
+          url: release.url,
+        },
+        band,
+      },
+    }));
+    const track = trackPage === undefined ? undefined : release.tracks[trackPage.trackNum - 1];
+    if (trackPage === undefined || track === undefined) return albumReads;
+    const trackUrl = `${release.page.url}/track/${slugOf(track.title)}`;
+    return [
+      ...albumReads,
+      {
+        fetchedAt: new Date(trackPage.atMs).toISOString(),
+        payload: {
+          itemType: 't',
+          itemId: track.id,
+          itemUrl: trackUrl,
+          tralbum: {
+            current: { ...current, title: track.title, mod_date: wire(trackPage.modMs), album_id: release.itemId, id: track.id, type: 'track' },
+            item_type: 'track',
+            id: track.id,
+            is_preorder: null,
+            album_is_preorder: true,
+            album_release_date: wire(release.releaseMs),
+            trackinfo: [preorderTrackEntry(track, trackPage.trackNum, true)],
+            url: trackUrl,
+          },
+          band,
+        },
+      },
+    ];
+  });
+}
+
 /** Inserts the sample's Raw Documents and folds them; a store with no Fan also gets the sample Fan and a finished first walk. */
 export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
   const world = makeWorld();
@@ -519,6 +672,8 @@ export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
   for (const [index, doc] of documents.entries()) {
     await insertRawDocument(db, { ...doc, fetchedAt: new Date(gatheredAt - (documents.length - index) * 200).toISOString() });
   }
+  // After the Sweep has dated the demos, and in their own order, which is the order the fold reads them in.
+  for (const doc of dropDemoDocuments(world.pages, gatheredAt)) await insertRawDocument(db, { endpoint: RELEASE_PAGE_ENDPOINT, ...doc });
   await fold(db);
 
   // A store that already holds a Fan keeps it: a foreign identity would pause that Fan's own gathering.

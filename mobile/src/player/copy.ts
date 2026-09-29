@@ -21,5 +21,7 @@ export const playerCopy = {
   playTrack: (n: number, title: string) => `Play ${n}. ${title}`,
   pauseTrack: (n: number, title: string) => `Pause ${n}. ${title}`,
   silentTrack: (n: number, title: string) => `${n}. ${title}, no preview`,
+  /** A Track of an Upcoming Release the label has not let out yet (task 0041, decision 5). */
+  trackNotOut: (n: number, title: string) => `${n}. ${title}, not out yet`,
   previewTail: 'a short preview',
 } as const;

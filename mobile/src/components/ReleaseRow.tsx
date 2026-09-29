@@ -4,7 +4,8 @@
  * body plays too, lighting the whole row in the track tone on the UI thread on iOS and drawing the ripple on Android,
  * where the body is one TalkBack element beside the art and the heart. The art, the body and the heart sit side by
  * side, none inside another's Pressable. The iOS separator starts at the text edge. A long press on the art or the
- * body opens the row menu (see RowMenu). New releases and Bought share it via the detail slot.
+ * body opens the row menu (see RowMenu). New releases and Bought share it via the detail slot. A Drop's row starts at
+ * the Track `from` names and its art speaks the facts in `spoken` (task 0041, decision 10).
  */
 import type { ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -35,7 +36,16 @@ export function heartFor(release: RowRelease) {
   return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title };
 }
 
-export function ReleaseRow({ release, detail }: { release: RowRelease; detail: ReactNode }) {
+type RowProps = {
+  release: RowRelease;
+  detail: ReactNode;
+  /** The Track a press starts at; the first that streams when absent. */
+  from?: string | null;
+  /** From spokenFacts: what the art's label says after the title. */
+  spoken?: string;
+};
+
+export function ReleaseRow({ release, detail, from, spoken }: RowProps) {
   const { c, type } = useTokens();
   const play = usePlay();
   const rule = ios ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border } : null;
@@ -51,10 +61,10 @@ export function ReleaseRow({ release, detail }: { release: RowRelease; detail: R
       {(openMenu) => (
         <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: height, paddingLeft: type.gutter, paddingRight: ios ? 8 : 4, gap }}>
           {ios ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} /> : null}
-          <PlayArt release={release} size={art} radius={ios ? 6 : 8} onLongPress={openMenu} hitSlop={{ top: slop, bottom: slop, left: type.gutter }} />
+          <PlayArt release={release} size={art} radius={ios ? 6 : 8} onLongPress={openMenu} from={from} spoken={spoken} hitSlop={{ top: slop, bottom: slop, left: type.gutter }} />
           <View style={[{ flex: 1, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center' }, rule]}>
             <Pressable
-              onPress={() => play(release)}
+              onPress={() => play(release, from)}
               onLongPress={openMenu}
               onPressIn={ios ? onPressIn : undefined}
               onPressOut={ios ? onPressOut : undefined}

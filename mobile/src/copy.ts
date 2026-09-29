@@ -111,6 +111,25 @@ export function dayLabel(value: string | Date, now: Date): string {
   });
 }
 
+/**
+ * "1 of 4 tracks": the Tracks of an Upcoming Release that play, once one does and the total is known (task 0041,
+ * decision 9); a total under the count is not a known one. Counted by the total, so "1 of 1 track".
+ */
+export function tracksOutPhrase(out: number | null, total: number | null): string | null {
+  if (out === null || total === null || out < 1 || out > total) return null;
+  return `${out} of ${total} ${total === 1 ? 'track' : 'tracks'}`;
+}
+
+/** "out Tue 13 Oct", the release day in dayLabel's form (task 0041, decision 10); "out today" on the day. */
+export function outOnPhrase(value: string | Date, now: Date): string {
+  return isSameDay(value, now) ? 'out today' : `out ${dayLabel(value, now)}`;
+}
+
+/** The facts a play control speaks after its title, comma separated as speech reads them. */
+export function spokenFacts(parts: readonly (string | null | undefined)[]): string {
+  return parts.filter((part): part is string => Boolean(part)).join(', ');
+}
+
 // Signal sentences (web lib/format.ts and browseCopy.ts).
 
 const WEEKS_AGO_LIMIT = 3;
@@ -344,8 +363,9 @@ export const copy = {
     labelled: (label: string, value: string) => `${label}: ${value}`,
     checked: '\u2713',
   },
-  play: (title: string) => `Play ${title}`,
-  pause: (title: string) => `Pause ${title}`,
+  /** `facts` from spokenFacts, as an Upcoming card or a Drop row adds its count and release day (task 0041). */
+  play: (title: string, facts = '') => (facts === '' ? `Play ${title}` : `Play ${title}, ${facts}`),
+  pause: (title: string, facts = '') => (facts === '' ? `Pause ${title}` : `Pause ${title}, ${facts}`),
   more: (n: number) => `+${n}`,
   heart: {
     add: (title: string) => `Add ${title} to your Bandcamp wishlist`,

@@ -28,7 +28,9 @@ import {
   DEFAULT_BOUGHT_THRESHOLD,
   dayLabel,
   expanderLabel,
+  outOnPhrase,
   thresholdOptionLabel,
+  tracksOutPhrase,
   type BoughtMode,
 } from '@/copy';
 import type { ApiBoughtCrossedResponse, ApiBoughtResponse, ApiFeedItem } from '@/domain/apiTypes';
@@ -76,12 +78,14 @@ function answerOf(held: BoughtHalves, choice: Choice): Answer {
   return { mode: 'crossed', threshold: choice.threshold, data: boughtView([...held.out, ...held.upcoming], { mode: 'crossed', threshold: choice.threshold }) };
 }
 
+/** Bought's cards count the Tracks that play as New releases' do, and draw no Drop rows (task 0041, decisions 9 and 10). */
 function shelfOf(upcoming: BoughtHalves['upcoming'], at: Date): readonly ShelfCard[] {
-  return upcoming.flatMap((r) =>
-    r.releaseDate === null
-      ? []
-      : [{ key: `${r.item.itemType}:${r.item.itemId}`, release: r.item, day: dayLabel(localDayOf(r.releaseDate.toISOString()), at), buyers: r.item.buyers }],
-  );
+  return upcoming.flatMap((r) => {
+    if (r.releaseDate === null) return [];
+    const on = localDayOf(r.releaseDate.toISOString());
+    const count = tracksOutPhrase(r.item.numStreamableTracks, r.item.numTracks);
+    return [{ key: `${r.item.itemType}:${r.item.itemId}`, release: r.item, day: dayLabel(on, at), out: outOnPhrase(on, at), count, buyers: r.item.buyers }];
+  });
 }
 
 function rowsOf(answer: Answer, at: Date, open: ReadonlySet<string>): Item[] {

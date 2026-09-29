@@ -36,7 +36,8 @@ export function toPlayable(item: RowRelease): PlayableRelease {
   };
 }
 
-export function usePlay(): (item: RowRelease) => void {
+/** `from` is the Track to start at, a Drop's newest (task 0041, decision 10); the transport falls back to the first that streams. */
+export function usePlay(): (item: RowRelease, from?: string | null) => void {
   const { play } = usePlayerActions();
-  return (item) => play(toPlayable(item));
+  return (item, from) => play(toPlayable(item), from);
 }

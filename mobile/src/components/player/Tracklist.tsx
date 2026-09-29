@@ -3,8 +3,9 @@
  * Track of the Release in the transport, the number in tabular figures, the title and the m:ss trailing. The playing
  * Track swaps its number for a live mark in the accent, three rounded bars on iOS and Material's square equaliser on
  * Android, still while paused or under reduce motion. A Track without a stream is faint, says "no preview" and takes no
- * press; a capped one adds "preview" after its time. Every playable row carries the heart for its own Track and plays
- * it on a press; nothing draws while the tracklist first loads.
+ * press; a capped one adds "preview" after its time. A Track not out yet is as faint and says nothing in that slot,
+ * only its spoken label naming it (task 0041, decision 5). Every playable row carries the heart for its own Track and
+ * plays it on a press; nothing draws while the tracklist first loads.
  */
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -76,9 +77,17 @@ type RowProps = {
 };
 
 function rowLabel(track: ApiReleaseTrack, current: boolean, playing: boolean): string {
+  if (!track.out) return playerCopy.trackNotOut(track.trackNum, track.title);
   if (!isStreamable(track)) return playerCopy.silentTrack(track.trackNum, track.title);
   if (current && playing) return playerCopy.pauseTrack(track.trackNum, track.title);
   return playerCopy.playTrack(track.trackNum, track.title);
+}
+
+/** The trailing slot: the time, "no preview" for a Track of a Release that is out, nothing for a Track not out yet. */
+function trailing(track: ApiReleaseTrack, live: boolean): string {
+  if (!track.out) return '';
+  if (!live) return playerCopy.noPreview;
+  return track.duration === null ? '' : clock(track.duration);
 }
 
 function TrackRow({ release, track, index, current, playing, ready, first, side }: RowProps) {
@@ -88,7 +97,7 @@ function TrackRow({ release, track, index, current, playing, ready, first, side 
   const live = isStreamable(track);
   const title = !live ? c.faint : current ? c.accent : c.ink;
   const quiet = live ? c.sub : c.faint;
-  const time = !live ? playerCopy.noPreview : track.duration === null ? '' : clock(track.duration);
+  const time = trailing(track, live);
   const label = rowLabel(track, current, playing);
   const face = { flex: 1, minWidth: 0, height: ROW, flexDirection: 'row' as const, alignItems: 'center' as const, gap: ROW_GAP, paddingLeft: side };
   const contents = (

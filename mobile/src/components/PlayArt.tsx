@@ -41,6 +41,10 @@ type Props = {
   /** Bandcamp's image size id for `releaseArtUrl`. */
   art?: number;
   onLongPress: OpenMenu;
+  /** The Track a press starts at, a Drop's newest (task 0041, decision 10); the first that streams when absent. */
+  from?: string | null;
+  /** Facts the label speaks after the title, from spokenFacts: an Upcoming card's count and release day (task 0041). */
+  spoken?: string;
   hitSlop?: Insets | number;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
@@ -83,7 +87,7 @@ function Live({ size, radius, onPause }: { size: number; radius: number; onPause
   return size >= CORNER_MIN ? <Corner size={size} glyph={glyph} live /> : <Scrim size={size} radius={radius} glyph={glyph} />;
 }
 
-export function PlayArt({ release, size, radius, art, onLongPress, hitSlop, style, children }: Props) {
+export function PlayArt({ release, size, radius, art, onLongPress, from, spoken, hitSlop, style, children }: Props) {
   const play = usePlay();
   const live = isCurrent(usePlayerRelease(), release);
   const [pause, setPause] = useState(false);
@@ -93,14 +97,14 @@ export function PlayArt({ release, size, radius, art, onLongPress, hitSlop, styl
   const shade = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) * PRESS_SHADE }));
   return (
     <Pressable
-      onPress={() => play(release)}
+      onPress={() => play(release, from)}
       onLongPress={onLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       hitSlop={hitSlop}
       accessibilityRole="button"
-      accessibilityLabel={live && pause ? copy.pause(release.title) : copy.play(release.title)}
+      accessibilityLabel={live && pause ? copy.pause(release.title, spoken) : copy.play(release.title, spoken)}
       style={style}
     >
       <Animated.View style={[{ width: size, height: size }, lift]}>
