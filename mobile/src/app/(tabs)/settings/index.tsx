@@ -235,6 +235,9 @@ export default function Settings() {
             <Cell
               title={s.share}
               trailing={<NativeSwitch value={sharingOn} onChange={setSharing} label={s.share} />}
+              ownsFocus={ios}
+              role={ios ? undefined : 'switch'}
+              checked={ios ? undefined : sharingOn}
               onPress={ios ? undefined : () => setSharing(!sharingOn)}
             />
             <Cell

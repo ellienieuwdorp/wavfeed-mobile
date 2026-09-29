@@ -6,7 +6,7 @@
  * actions as buttons.
  */
 import { Children, createContext, useContext, type ReactNode } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type AccessibilityRole } from 'react-native';
 
 import { Glyph } from '@/components/Glyph';
 import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
@@ -56,6 +56,9 @@ export function Cell({
   trailing,
   tone = 'ink',
   navigates = false,
+  role,
+  checked,
+  ownsFocus = false,
   onPress,
 }: {
   title: ReactNode;
@@ -64,6 +67,10 @@ export function Cell({
   trailing?: ReactNode;
   tone?: Tone;
   navigates?: boolean;
+  role?: AccessibilityRole;
+  checked?: boolean;
+  /** The trailing control takes its own accessibility focus, so the row does not swallow it (a SwiftUI Toggle on iOS). */
+  ownsFocus?: boolean;
   onPress?: () => void;
 }) {
   const { c } = useTokens();
@@ -73,7 +80,9 @@ export function Cell({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      accessibilityRole={onPress ? 'button' : undefined}
+      accessible={ownsFocus ? false : undefined}
+      accessibilityRole={role ?? (onPress ? 'button' : undefined)}
+      accessibilityState={checked === undefined ? undefined : { checked }}
       android_ripple={{ color: c.track }}
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingLeft: INSET, backgroundColor: pressed ? PRESS_FLASH : undefined })}
