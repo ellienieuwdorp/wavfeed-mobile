@@ -38,9 +38,8 @@
     "android": {
       "package": "com.wavfeed.app",
       "adaptiveIcon": {
-        "backgroundColor": "#e2ecfb",
+        "backgroundColor": "#fafbfc",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       }
     },
@@ -51,7 +50,7 @@
         {
           "backgroundColor": "#0687f5",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 100
         }
       ],
       "expo-sqlite",
