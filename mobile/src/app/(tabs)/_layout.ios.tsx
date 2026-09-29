@@ -11,12 +11,14 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { AccessoryContent } from '@/components/AccessoryContent';
 import { useCatchUpLine } from '@/components/CatchUp';
+import { ScreenFailed } from '@/components/Failed';
 import { playerInAccessory } from '@/components/player/MiniPlayer';
 import { usePlayerRelease } from '@/components/player/playerState';
 import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
-export const unstable_settings = { initialRouteName: '(feed)' };
+/** A screen that throws while drawing shows its fallback under the tab bar (task 0038 decision 10). */
+export const unstable_settings = { initialRouteName: '(feed)', screenErrorBoundary: ScreenFailed };
 
 export default function TabsLayout() {
   const { c, dark } = useTokens();

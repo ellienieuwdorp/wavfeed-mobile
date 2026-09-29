@@ -8,7 +8,8 @@
  * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
- * a white edge in dark.
+ * a white edge in dark. Error capture is installed as this module loads, and its `ErrorBoundary` catches what a
+ * tab's screen boundary does not (task 0038 decision 10).
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +17,7 @@ import { setBackgroundColorAsync } from 'expo-system-ui';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { AppFailed } from '@/components/Failed';
 import { FirstRunAsk } from '@/components/FirstRunAsk';
 import { FirstRunConnect } from '@/components/FirstRunConnect';
 import { NoticeProvider } from '@/components/noticeState';
@@ -25,18 +27,28 @@ import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { SampleGate } from '@/dev/useSampleData';
 import { AppStateProvider } from '@/state/appState';
 import { GatherSchedule, runner } from '@/state/gather';
+import { errorReports, installErrorCapture } from '@/tally/errors';
 import { SharingProvider, useSharing } from '@/tally/Sharing';
 import { screenFor } from '@/tally/tally';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
-/** One `screen_viewed` per pathname change while sharing is on; the ask itself is never counted, it shows only before a yes. */
+installErrorCapture();
+
+/** A render error bypasses the global handler, so the root boundary reports it (src/tally/errors.ts). */
+export const ErrorBoundary = AppFailed;
+
+/**
+ * One `screen_viewed` per pathname change while sharing is on; the ask itself is never counted, it shows only before a
+ * yes. An Error Report names the same screen.
+ */
 function ScreenTally() {
   const pathname = usePathname();
   const { sharing, track } = useSharing();
   const last = useRef<string | null>(null);
   const on = sharing !== null;
+  useEffect(() => errorReports.setScreen(screenFor(pathname)), [pathname]);
   useEffect(() => {
     if (!on) {
       last.current = null;

@@ -7,22 +7,20 @@
  * writes nothing, and every write is also guarded in SQL by the stored yes. `removeStore` remounts it with the store.
  * `track` is the one way a Tally is queued; the gather runner above it reaches it through the app state's `bindTally`.
  */
-import * as Application from 'expo-application';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { randomUUID } from 'expo-crypto';
-import * as Updates from 'expo-updates';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 
-import type { FeedbackFacts } from '@/copy';
 import { useAppState } from '@/state/appState';
 import { readStoredIdentity } from '@/state/gatherSink';
 
+import { APP } from './appFacts';
 import type { Tally } from './catalogue';
 import { clearForegroundMarker, lifeStep, NEW_LIFE, setForegroundMarker, takeEndedUnexpectedly, type Life } from './lifecycle';
 import { enqueueTally, readSharing, turnSharingOff, turnSharingOn } from './outbox';
 import { fetchPost, FLUSH_EVERY_MS, REMOVE_FLUSH_MS, Sender } from './send';
-import { buildContext, sendEnv, sharingCode, type AppFacts, type BuildFacts, type Sharing } from './tally';
+import { buildContext, sendEnv, sharingCode, type BuildFacts, type Sharing } from './tally';
 
 // Each `process.env.EXPO_PUBLIC_*` is spelled out so Metro inlines it.
 const BUILD: BuildFacts = {
@@ -35,22 +33,7 @@ const BUILD: BuildFacts = {
 };
 const ENV = sendEnv(BUILD);
 
-const APP: AppFacts = {
-  version: Application.nativeApplicationVersion,
-  build: Application.nativeBuildVersion,
-  embedded: Updates.isEmbeddedLaunch,
-  updateId: Updates.updateId,
-  platform: Platform.OS === 'ios' ? 'ios' : 'android',
-  osVersion: Platform.Version,
-};
 const CTX = ENV === null ? null : buildContext(APP, ENV);
-
-/** The version, build and OS a feedback mail names; Android's OS is its release, not the API level the ctx carries. */
-export function feedbackFacts(code: string | null): FeedbackFacts {
-  const release = Platform.OS === 'android' ? String(Platform.constants.Release) : String(Platform.Version);
-  const os = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Number.parseInt(release, 10) || release}`;
-  return { version: APP.version ?? '?', build: APP.build ?? '?', os, code };
-}
 
 /** The process's AppState history, kept across a removed store's remount. */
 let life: Life = NEW_LIFE;

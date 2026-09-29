@@ -475,6 +475,22 @@ export const copy = {
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
   },
+  /**
+   * What shows in place of what failed (task 0038 decision 10): a tab's screen that could not draw, the whole app when
+   * the root could not, and the store that would not open, which sends nothing by itself (decision 11).
+   */
+  failed: {
+    screenTitle: 'This screen did not load',
+    screenBody: 'Trying again usually helps. The other tabs still work.',
+    appTitle: 'wavfeed could not show this',
+    appBody: 'Trying again usually helps. If it keeps happening, close wavfeed and open it again.',
+    tryAgain: 'Try again',
+    storeTitle: `${ThisDevice} could not open what wavfeed gathered.`,
+    storeBody: 'Restarting the app usually helps. If it keeps happening, send a report and a person will look.',
+    sendReport: 'Send a report by email',
+    reportSubject: 'wavfeed could not open',
+    reportBody: (facts: FeedbackFacts) => `\n\n${joinMiddot(['store_open_failed', versionLine(facts.version, facts.build), facts.os])}`,
+  },
   /** Dev builds only, never a release screen: the author's view of what the store holds (settings/index.tsx). */
   dev: {
     held: (

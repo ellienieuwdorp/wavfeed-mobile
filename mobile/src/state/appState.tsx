@@ -4,7 +4,9 @@
  * screen re-reads its query (task 0036). `putRaw` is the only way a response
  * enters the phone: verbatim into raw_documents, then folded (ADR-0004); a release page folds without moving the version.
  * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
- * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038).
+ * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
+ * will not open shows the failure screen, whose "Try again" opens it once more; the open store is where Error Reports
+ * are written, and a failed replay is a coded one (task 0038 decisions 10 and 11).
  */
 import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -13,11 +15,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
 import { CRUMBS_PAGE_ENDPOINT } from '@/bandcamp/wire';
+import { StoreFailed } from '@/components/Failed';
 import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
 import { emptyStore, ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
 import type { Tally } from '@/tally/catalogue';
+import { errorReports, reportCode } from '@/tally/errors';
 
 import { loadGatherState } from './gatherSink';
 
@@ -55,16 +59,22 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   const [version, setVersion] = useState(0);
   const session = useMemo(() => new BandcampSession(), []);
   const [generation, setGeneration] = useState(0);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    void openStore().then(async (store) => {
-      await ensureProjectionVersion(store.db).catch((error: unknown) => {
-        console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
-      });
-      await loadGatherState({ db: store.db, setGather, invalidate: () => undefined }).catch(() => undefined);
-      if (alive) setDb(store.db);
-    });
+    void openStore().then(
+      async (store) => {
+        errorReports.setSink(store.db);
+        await ensureProjectionVersion(store.db).catch((error: unknown) => {
+          console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
+          reportCode('projection_replay_failed', error);
+        });
+        await loadGatherState({ db: store.db, setGather, invalidate: () => undefined }).catch(() => undefined);
+        if (alive) setDb(store.db);
+      },
+      () => alive && setFailed(true),
+    );
     return () => {
       alive = false;
     };
@@ -122,6 +132,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   const removeStore = useCallback(async () => {
     if (!db) return;
     setDb(null);
+    errorReports.setSink(null);
     await db.closeAsync().catch(() => undefined);
     try {
       await deleteDatabaseAsync(STORE_FILE);
@@ -135,6 +146,16 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
     setGeneration((g) => g + 1);
   }, [db]);
 
+  if (failed) {
+    return (
+      <StoreFailed
+        onRetry={() => {
+          setFailed(false);
+          setGeneration((g) => g + 1);
+        }}
+      />
+    );
+  }
   if (!db) return null;
   const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore, bindTally };
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

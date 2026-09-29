@@ -2,7 +2,8 @@
  * The gather turn's sink over the phone's store (task 0036, decisions 2 and 4): responses go verbatim into raw_documents
  * (ADR-0004), the walk and the gather state live in the kv table, and every change to the gather state is published to
  * the screen. The store books the band details sweep by tier from the discography it was handed (ADR-0017): the sink
- * keeps the last band details payload per Page from `putRaw` and hands it to the store's `markSwept`.
+ * keeps the last band details payload per Page from `putRaw` and hands it to the store's `markSwept`. A failed fold
+ * is a coded Error Report (task 0038 decision 10).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -34,6 +35,7 @@ import {
   readUndatedReleases,
   readUpcomingDue,
 } from '@/store/enrichment';
+import { reportCode } from '@/tally/errors';
 
 export const WALK_KEY = 'walk';
 export const GATHER_KEY = 'gather';
@@ -171,6 +173,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
         console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
       } catch (error) {
         console.warn('fold failed:', error instanceof Error ? error.message : String(error));
+        reportCode('fold_failed', error);
         throw error;
       }
       deps.onFold?.(summary.skipped);

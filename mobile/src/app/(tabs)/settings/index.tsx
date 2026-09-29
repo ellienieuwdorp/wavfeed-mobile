@@ -33,7 +33,8 @@ import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
 import { countRawDocuments, readKv, readOverview } from '@/store';
 import { connectHref } from '@/tally/actions';
-import { feedbackFacts, useSharing } from '@/tally/Sharing';
+import { feedbackFacts } from '@/tally/appFacts';
+import { useSharing } from '@/tally/Sharing';
 import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';

@@ -47,3 +47,11 @@ test('a feedback mail carries the build and the code only when there is one', ()
   assert.equal(s.feedbackBody({ version: '1.0.0', build: '37', os: 'iOS 26', code: null }), '\n\nVersion 1.0.0 (37) · iOS 26');
   assert.equal(s.feedbackBody({ version: '1.0.0', build: '37', os: 'Android 16', code: '3b9f0c' }), '\n\nVersion 1.0.0 (37) · Android 16 · code 3b9f0c');
 });
+
+test('the failure screens speak without machine words, and the store mail names its code and build', () => {
+  const f = copy.failed;
+  for (const text of [f.screenTitle, f.screenBody, f.appTitle, f.appBody, f.tryAgain, f.storeTitle, f.storeBody, f.sendReport, f.reportSubject]) {
+    assert.doesNotMatch(text, /error|crash|exception|database|store|—/i, text);
+  }
+  assert.equal(f.reportBody({ version: '1.0.0', build: '37', os: 'Android 16', code: null }), '\n\nstore_open_failed · Version 1.0.0 (37) · Android 16');
+});
