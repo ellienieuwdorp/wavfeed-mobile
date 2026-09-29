@@ -19,6 +19,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { WishlistFailure, WishlistWire, WishlistWriteKind } from '@/bandcamp/wishlist';
 import { useNotice, type NoticeLine } from '@/components/noticeState';
 import { copy } from '@/copy';
+import { isDemoFan } from '@/demo/demo';
 import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { useAppState, type AppState } from '@/state/appState';
@@ -161,7 +162,8 @@ async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandI
 /** The documents are already stored by the time this answers. A Track press names a Track its Release holds. */
 async function send(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<Sent> {
   const identity = await readKv<StoredIdentity>(app.db, IDENTITY_KEY);
-  if (identity === null) return { failure: 'not_signed_in', reason: null, band: null, wire: null };
+  // The Demo's Fan has no Bandcamp session, so its press is a sign-in notice (task 0043, decision 7).
+  if (identity === null || isDemoFan(identity.fanId)) return { failure: 'not_signed_in', reason: null, band: null, wire: null };
   const found = await readBand(app, target.release);
   if (found === null) return { failure: 'unknown_item', reason: null, band: null, wire: null };
   const band = { id: found.id, from: found.from };

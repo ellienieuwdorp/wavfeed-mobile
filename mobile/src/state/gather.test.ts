@@ -16,6 +16,7 @@ import { FAN_ID, feedPayload, purchaseAt } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
 import type { FeedUpdatesPage } from '../bandcamp/session';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
+import { loadDemo } from '../demo/demo';
 import type { GatherState, WalkState } from '../fetcher/sink';
 import type { GatherReason, GatherSession } from '../fetcher/turn';
 import { readKv } from '../store';
@@ -172,6 +173,14 @@ test('a sign-out from Settings mid-chain ends the chain before the next probe an
   await gather();
   assert.equal(turns, 2);
   assert.equal((await readKv<GatherState>(db, GATHER_KEY))?.pausedReason, 'not_connected');
+});
+
+test('a store holding the Demo runs no turn, so no probe can call it signed out', async () => {
+  await loadDemo(db, START);
+  identity = { kind: 'logged_out' };
+  await gather();
+  assert.equal(turns, 0);
+  assert.equal((await readKv<GatherState>(db, GATHER_KEY))?.pausedReason, null);
 });
 
 test('a store closed under the chain ends it without a rejection', async () => {

@@ -6,12 +6,14 @@
  * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was (task 0040).
  * A phone signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot
  * turn the person's own sign-out into Bandcamp's. Each chain that ran a turn ends in its gather Tallies, and each fold
- * that skipped something in `projection_skipped` (task 0038).
+ * that skipped something in `projection_skipped` (task 0038). A store holding the Demo runs no
+ * turn either (task 0043, decision 7).
  */
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';
 import { AppState as NativeAppState } from 'react-native';
 
+import { isDemoFan } from '@/demo/demo';
 import { dueFrom, useGatherSchedule, type Due } from '@/fetcher/schedule';
 import type { GatherSink, GatherState, WalkState } from '@/fetcher/sink';
 import { bandDetailsBreaker } from '@/fetcher/sweep';
@@ -27,9 +29,12 @@ export const BUDGET_MS: Readonly<Record<GatherReason, number>> = { open: 60_000,
 let running: Promise<TurnSummary> | null = null;
 let chain: Promise<void> | null = null;
 
-async function signedOutHere(app: RunnerDeps): Promise<boolean> {
+/** Signed out from Settings, or the Demo: either way no probe may run. */
+async function holdsNoTurn(app: RunnerDeps): Promise<boolean> {
+  const identity = await readStoredIdentity(app.db);
+  if (isDemoFan(identity?.fanId)) return true;
   const state = await readKv<Partial<GatherState>>(app.db, GATHER_KEY);
-  return state?.pausedReason === 'not_connected' && (await readStoredIdentity(app.db)) !== null;
+  return state?.pausedReason === 'not_connected' && identity !== null;
 }
 
 /** Turns in a row that leave the stored walk as it was, cursor and depth probe alike, after which the chain stops. */
@@ -61,7 +66,7 @@ export async function runner(reason: GatherReason, app: RunnerDeps): Promise<voi
 }
 
 async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
-  if (await signedOutHere(app)) return;
+  if (await holdsNoTurn(app)) return;
   const sink = createGatherSink({
     ...app,
     onFold: (skipped) => {
@@ -105,7 +110,7 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
     // iOS freezes JS in the background and Android gathers in the foreground only (task 0036, decision 4), so a chain
     // ends when the app leaves the foreground and the schedule's 'open' wake resumes it (task 0040). A sign-out from
     // Settings mid-chain ends it too, before the next probe can turn it into Bandcamp's.
-    if (turn > 0 && (NativeAppState.currentState !== 'active' || (await signedOutHere(app)))) return ran();
+    if (turn > 0 && (NativeAppState.currentState !== 'active' || (await holdsNoTurn(app)))) return ran();
     const before = await walkSpot(app.db);
     running = runGatherTurn(app.session, sink, { now: Date.now, reason, budgetMs: BUDGET_MS[reason] }).finally(() => {
       running = null;

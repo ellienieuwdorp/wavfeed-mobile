@@ -2,7 +2,8 @@
  * The Bought by sheet (the v2 client canvas, sections 6 to 8): "Bought by" over the people you follow who bought a
  * Release, each with their face and username, pressing through to their own Bandcamp page. It closes DESIGN-UI section
  * 11's debt of touch users never learning who bought it. The avatar stack hands the Fans over as JSON in the `fans`
- * param (see `openBoughtBy`); anything in it that is not a Fan is dropped.
+ * param (see `openBoughtBy`); anything in it that is not a Fan is dropped. The Demo's Fans are made up, so their rows
+ * open nothing (task 0043, decision 5).
  */
 import { openURL } from 'expo-linking';
 import { useLocalSearchParams } from 'expo-router';
@@ -12,8 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FanFace } from '@/components/AvatarStack';
 import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
+import { isDemoFan } from '@/demo/demo';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { fanPageUrl } from '@/lib/format';
+import { useAppState } from '@/state/appState';
 import { PRESS_FLASH, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -40,23 +43,23 @@ function readFans(raw: string | string[] | undefined): readonly ApiFanRef[] {
   }
 }
 
-function FanRow({ fan }: { fan: ApiFanRef }) {
+function FanRow({ fan, linked }: { fan: ApiFanRef; linked: boolean }) {
   const { c, type } = useTokens();
   const name = fan.name?.trim() ?? '';
   return (
     <Pressable
-      onPress={() => openURL(fanPageUrl(fan)).catch(() => undefined)}
-      accessibilityRole="link"
-      accessibilityLabel={copy.boughtBy.fanPage(fan.username)}
-      android_ripple={ripple(c.track)}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: ios ? 12 : 16, minHeight: ios ? 56 : 64, paddingHorizontal: type.gutter, backgroundColor: pressed ? PRESS_FLASH : undefined })}
+      onPress={linked ? () => openURL(fanPageUrl(fan)).catch(() => undefined) : undefined}
+      accessibilityRole={linked ? 'link' : 'text'}
+      accessibilityLabel={linked ? copy.boughtBy.fanPage(fan.username) : undefined}
+      android_ripple={linked ? ripple(c.track) : undefined}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: ios ? 12 : 16, minHeight: ios ? 56 : 64, paddingHorizontal: type.gutter, backgroundColor: pressed && linked ? PRESS_FLASH : undefined })}
     >
       <FanFace fan={fan} size={ios ? 36 : 40} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={1} style={{ fontSize: ios ? 17 : 16, color: c.ink }}>{fan.username}</Text>
         {name !== '' && name !== fan.username ? <Text numberOfLines={1} style={{ fontSize: type.sub, color: c.sub }}>{name}</Text> : null}
       </View>
-      <Glyph name="external" size={ios ? 15 : 20} weight="regular" colour={c.faint} />
+      {linked ? <Glyph name="external" size={ios ? 15 : 20} weight="regular" colour={c.faint} /> : null}
     </Pressable>
   );
 }
@@ -67,6 +70,7 @@ export default function BoughtBy() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const list = readFans(fans);
+  const linked = !isDemoFan(useAppState().gather.identity?.fanId);
   // Android's fitToContents sheet takes the content's full height and clips what passes the window, so the sheet is
   // capped where Material's full-height sheet stops and the list shrinks into it and scrolls.
   const cap = ios ? undefined : height - insets.top - SHEET_TOP;
@@ -80,7 +84,7 @@ export default function BoughtBy() {
       </Text>
       <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
         {list.map((fan) => (
-          <FanRow key={fan.fanId} fan={fan} />
+          <FanRow key={fan.fanId} fan={fan} linked={linked} />
         ))}
       </ScrollView>
     </View>

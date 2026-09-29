@@ -5,7 +5,8 @@
  * stays; otherwise the identity is written, the modal closes and a turn starts. A page that fails to load raises its own
  * line over it. The rig's sample bundle never opens the login page (ADR-0001). Each visit counts the door it came
  * through (`connect_opened`) and ends in one `sign_in_finished`: signed in, else the last failure line the visit
- * showed, else closed (task 0038, `src/tally/actions.ts`).
+ * showed, else closed (task 0038, `src/tally/actions.ts`). While the store holds no Fan a third button loads the Demo;
+ * a sign-in from the Demo empties the store once the probe names a Fan (task 0043, decisions 2 and 8).
  */
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,9 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
+import { isDemoFan, loadDemo } from '@/demo/demo';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState } from '@/state/appState';
-import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
+import { loadGatherState, patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
+import { emptyStore } from '@/store';
 import { Glyph } from '@/components/Glyph';
 import { WideButton } from '@/components/WideButton';
 import { connectFrom, failSignIn, finishSignIn, openSignIn, type SignInFailure, type SignInVisit } from '@/tally/actions';
@@ -109,7 +112,11 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
         setLine(copy.connect.unreachable);
         return;
       }
-      const held = await readStoredIdentity(app.db);
+      let held = await readStoredIdentity(app.db);
+      if (held !== null && isDemoFan(held.fanId)) {
+        await emptyStore(app.db);
+        held = null;
+      }
       if (held !== null && held.fanId !== probe.value.fanId) {
         visit.fail('other_fan_refused');
         setLine(copy.connect.refusal(probe.value.username, held.username || held.name || String(held.fanId)));
@@ -156,9 +163,23 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
 export default function Connect() {
   const { c, type } = useTokens();
   const insets = useSafeAreaInsets();
+  const app = useAppState();
   const [signingIn, setSigningIn] = useState(false);
   const visit = useVisit();
+  const [loading, setLoading] = useState(false);
   if (signingIn) return <SignIn onCancel={() => setSigningIn(false)} visit={visit} />;
+
+  const lookAround = () => {
+    setLoading(true);
+    void (async () => {
+      await loadDemo(app.db);
+      await loadGatherState(app);
+      app.invalidate();
+      close();
+    })()
+      .catch((error: unknown) => console.warn('the Demo did not load:', error instanceof Error ? error.message : String(error)))
+      .finally(() => setLoading(false));
+  };
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: type.gutter, paddingTop: 8, paddingBottom: 40 + (ios ? 0 : insets.bottom), gap: 14 }}>
       <Stack.Screen options={{ title: copy.connect.title, headerLargeTitle: ios, headerLeft: undefined }} />
@@ -166,6 +187,7 @@ export default function Connect() {
       <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.sub }}>{copy.connect.custody}</Text>
       <WideButton label={copy.connect.signIn} kind="filled" onPress={SAMPLE_MODE ? close : () => setSigningIn(true)} />
       <WideButton label={copy.connect.notNow} kind="plain" onPress={close} />
+      {app.gather.identity === null ? <WideButton label={copy.connect.lookAround} kind="plain" busy={loading} onPress={lookAround} /> : null}
     </ScrollView>
   );
 }

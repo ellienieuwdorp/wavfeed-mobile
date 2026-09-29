@@ -7,7 +7,7 @@
  * status as one list item and its actions as Material buttons under the custody line, as the canvas's Settings board
  * does. A development build adds the store's facts under the custody line. The catch-up of a first walk sits under the
  * large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
- * password, log out, delete) wait for the account this slice does not have (task 0036).
+ * password, log out, delete) wait for the account this slice does not have (task 0036). The Demo shows as a sample with Sign in and no account card or Sign out (task 0043, decision 7).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
@@ -25,6 +25,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
+import { isDemoFan } from '@/demo/demo';
 import { fanInitials } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
@@ -111,8 +112,13 @@ export default function Settings() {
   };
   const version = feedbackFacts(null);
 
-  const status: 'connected' | 'signedOut' | 'notConnected' =
-    identity === null || gather.pausedReason === 'not_connected' ? 'notConnected' : gather.pausedReason === 'logged_out' ? 'signedOut' : 'connected';
+  const status: 'connected' | 'signedOut' | 'notConnected' | 'demo' = isDemoFan(identity?.fanId)
+    ? 'demo'
+    : identity === null || gather.pausedReason === 'not_connected'
+      ? 'notConnected'
+      : gather.pausedReason === 'logged_out'
+        ? 'signedOut'
+        : 'connected';
   const handle = identity === null ? '' : identity.username || identity.name || String(identity.fanId);
   const busy = gathering || gather.phase !== 'idle';
   const gatheredAgo = gather.lastSuccessAt === null ? s.notGatheredYet : s.gathered(gather.lastSuccessAt, now);
@@ -180,14 +186,18 @@ export default function Settings() {
         navigates
         onPress={connect}
       />
+    ) : status === 'demo' ? (
+      <Cell leading={<Dot colour={c.faint} />} title={copy.demo.status} sub={copy.demo.statusSub} />
     ) : (
       <Cell leading={<Dot colour={c.faint} />} title={s.notConnected} sub={s.notGathering} />
     );
+  const hasSignOut = status === 'connected' || status === 'signedOut';
+  const custody = status === 'demo' ? copy.demo.foot : s.custody;
 
   return (
     <ScrollView {...appBar.scroll} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 16 : 0, paddingBottom: 40 + clearance }}>
       <ScreenHeader quiet />
-      {identity !== null ? (
+      {identity !== null && status !== 'demo' ? (
         <Group>
           <Cell
             leading={<Avatar url={identity.avatarUrl} initials={fanInitials(identity.name ?? handle)} />}
@@ -213,21 +223,21 @@ export default function Settings() {
             ) : (
               <Cell title={s.signIn} tone="accent" onPress={connect} />
             )}
-            {status === 'notConnected' ? null : <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : signOut} />}
+            {hasSignOut ? <Cell title={s.signOut} tone="accent" onPress={signingOut ? undefined : signOut} /> : null}
           </Group>
-          <GroupFoot text={s.custody} />
+          <GroupFoot text={custody} />
         </>
       ) : (
         <>
           <Group>{statusCell}</Group>
-          <GroupFoot text={s.custody} />
+          <GroupFoot text={custody} />
           <ButtonRow>
             {status === 'connected' ? (
               <ListButton label={s.gatherNow} kind="tonal" busy={busy} onPress={gatherNow} />
             ) : (
               <ListButton label={s.signIn} kind="filled" onPress={connect} />
             )}
-            {status === 'notConnected' ? null : <ListButton label={s.signOut} kind="outlined" onPress={signingOut ? undefined : signOut} />}
+            {hasSignOut ? <ListButton label={s.signOut} kind="outlined" onPress={signingOut ? undefined : signOut} /> : null}
           </ButtonRow>
         </>
       )}

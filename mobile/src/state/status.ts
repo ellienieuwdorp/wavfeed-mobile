@@ -3,9 +3,10 @@
  * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open (task 0040); the catch-up
  * pair with how far back the walk has reached and the fill `walkProgress` estimates, never moving back while the app
  * runs, which the header carries over that note (see ScreenHeader); and which empty state a view with no rows draws. The first walk counts as running between turns
- * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep.
+ * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep. The Demo says it is a sample in the header line instead (task 0043).
  */
 import { backTo, soFar, updatedAgo, copy } from '@/copy';
+import { isDemoFan } from '@/demo/demo';
 import { useNow } from '@/lib/useNow';
 
 import { useAppState, useLiveQuery } from './appState';
@@ -56,7 +57,8 @@ export function useGatherStatus(): GatherStatus {
   }
   // A walk paused on a sign-out moves again only after one, so the note to keep the app open waits for it (task 0040).
   let header: string | null = null;
-  if (catchingUp) header = gather.pausedReason === null ? copy.catchUp.keepOpen : null;
+  if (isDemoFan(gather.identity?.fanId)) header = copy.demo.header;
+  else if (catchingUp) header = gather.pausedReason === null ? copy.catchUp.keepOpen : null;
   else if (gather.lastSuccessAt !== null) header = updatedAgo(gather.lastSuccessAt, now);
   return { loaded: held !== null, hasIdentity, catchingUp, header, catchUp };
 }
