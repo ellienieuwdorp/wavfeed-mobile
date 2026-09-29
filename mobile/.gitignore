@@ -19,6 +19,8 @@ expo-env.d.ts
 *.mobileprovision
 
 # Metro
+# the iOS release build's composed Hermes map (eas.json SOURCEMAP_FILE, scripts/upload-map.mjs)
+index.ios.map
 .metro-health-check*
 
 # debug
