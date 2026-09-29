@@ -74,7 +74,7 @@ export const CATALOGUE = {
       wait: DURATION,
     },
   },
-  sync_run_finished: { code: 5, props: { pages: COUNT, stories: COUNT, took: DURATION, from_poll: FLAG } },
+  sync_run_finished: { code: 5, props: { pages: COUNT, stories: COUNT, took: DURATION } },
   gather_finished: {
     code: 6,
     props: {

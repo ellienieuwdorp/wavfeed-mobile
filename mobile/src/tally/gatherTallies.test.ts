@@ -86,7 +86,7 @@ describe('the gather diff', () => {
     const first = await chain(600_000);
     assert.equal(pagesAsked, 6, 'five full pages and the empty one that ends the walk');
     assert.deepEqual(first, [
-      { name: 'sync_run_finished', props: { pages: '6 to 20', stories: '21 to 100', took: '3 to 10s', from_poll: false } },
+      { name: 'sync_run_finished', props: { pages: '6 to 20', stories: '21 to 100', took: '3 to 10s' } },
       {
         name: 'gather_finished',
         props: {

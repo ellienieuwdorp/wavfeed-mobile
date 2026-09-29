@@ -182,7 +182,6 @@ export function gatherTallies(before: GatherState, after: GatherState, chain: Ch
         pages: countBucket(chain.feedPages),
         stories: countBucket(after.storiesSoFar),
         took: durationBucket(chain.endedAt - (walk?.startedAt ?? chain.startedAt)),
-        from_poll: walk !== null && (walk.kind === 'feed_poll' || walk.sinceTs !== null),
       },
     });
   }
