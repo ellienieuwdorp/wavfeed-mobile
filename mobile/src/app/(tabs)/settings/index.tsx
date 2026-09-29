@@ -1,9 +1,10 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), the usage switch with its sharing code and the privacy page (task 0038, hidden in a build that can never
- * send), connected devices (held back until a server knows the others), appearance, removing everything gathered here
+ * sign out), the usage switch with its sharing code (task 0038, hidden in a build that can never send and in the
+ * Demo), connected devices (held back until a server knows the others), appearance, removing everything gathered here
  * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
- * mail naming the build; the canvas's one notification switch waits for notifications to exist. Android draws the
+ * mail naming the build beside the privacy page, which every build shows (task 0044 decision 5, guideline 5.1.1(i));
+ * the canvas's one notification switch waits for notifications to exist. Every foot is two sentences at most. Android draws the
  * status as one list item and its actions as Material buttons under the custody line, as the canvas's Settings board
  * does. A development build adds the store's facts under the custody line. The catch-up of a first walk sits under the
  * large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
@@ -143,7 +144,7 @@ export default function Settings() {
   const signOut = () => (SAMPLE_MODE ? void finishSignOut() : setSigningOut(true));
 
   const removeAll = () =>
-    Alert.alert(s.removeAllTitle, s.removeAllBody, [
+    Alert.alert(s.removeAllTitle, s.removeAllBody(status === 'connected'), [
       { text: s.cancel, style: 'cancel' },
       {
         text: s.removeAllConfirm,
@@ -256,11 +257,6 @@ export default function Settings() {
               checked={ios ? undefined : sharingOn}
               onPress={ios ? undefined : () => setSharing(!sharingOn)}
             />
-            <Cell
-              title={s.privacy}
-              trailing={<Glyph name="external" size={ios ? 15 : 20} weight="regular" colour={c.faint} />}
-              onPress={() => void openURL(PRIVACY_URL).catch(() => undefined)}
-            />
           </Group>
           <GroupFoot text={usageFoot} />
         </>
@@ -299,6 +295,11 @@ export default function Settings() {
 
       <Group gapAbove>
         <Cell title={s.feedback} tone="accent" onPress={sendFeedback} />
+        <Cell
+          title={s.privacy}
+          trailing={<Glyph name="external" size={ios ? 15 : 20} weight="regular" colour={c.faint} />}
+          onPress={() => void openURL(PRIVACY_URL).catch(() => undefined)}
+        />
       </Group>
       <GroupFoot text={s.version(version.version, version.build)} />
     </ScrollView>

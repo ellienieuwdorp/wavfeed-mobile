@@ -4,6 +4,7 @@
  * gather diff that turns a chain's before and after `GatherState` into `sync_run_finished` and `gather_finished`, and
  * a fold's skipped counts as `projection_skipped`. Nothing here reads a clock, a random source or the platform itself.
  */
+import { isDemoFan } from '@/demo/fan';
 import type { SkippedCounts } from '@/domain/types';
 import type { GatherState, WalkState } from '@/fetcher/sink';
 import type { GatherReason, TurnSummary } from '@/fetcher/turn';
@@ -126,6 +127,25 @@ export type Sharing = { readonly on: true; readonly install: string; readonly si
 
 export function gateOpen(build: BuildFacts, sharing: Sharing | null): boolean {
   return sharing?.on === true && sendEnv(build) !== null;
+}
+
+/** What the ask's timing reads: the gate, the stored answer, the store's Fan and where the person is. */
+export type AskState = {
+  readonly canSend: boolean;
+  readonly loaded: boolean;
+  readonly sharing: Sharing | null;
+  readonly fanId: number | null;
+  readonly pathname: string;
+};
+
+/**
+ * The ask is due once the store holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open
+ * (task 0044 decision 2): after the sign-in that closes Connect, never after "Not now" or while looking around.
+ */
+export function usageAskDue(state: AskState): boolean {
+  if (!state.canSend || !state.loaded || state.sharing !== null) return false;
+  if (state.fanId === null || isDemoFan(state.fanId)) return false;
+  return screenFor(state.pathname) !== 'connect';
 }
 
 export type AppFacts = {

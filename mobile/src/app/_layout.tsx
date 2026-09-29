@@ -4,7 +4,7 @@
  * `auto` reads React Native's scheme, which learns of a pick a native round trip later, the app state with its gather
  * runner and schedule (task 0036 decision 4), the player and notice state, and a stack holding the tabs, the player
  * sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036 decision 5). The first launch with no Fan held
- * presents Connect once by itself, and the usage ask follows it once (task 0038); the sharing provider under the app
+ * presents Connect once by itself, and the usage ask follows a sign-in once (task 0044); the sharing provider under the app
  * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
@@ -85,7 +85,9 @@ export default function RootLayout() {
         <SampleGate>
           <SharingProvider>
             <GatherSchedule />
-            <FirstRunConnect>{(pushed) => <FirstRunAsk connectPushed={pushed} />}</FirstRunConnect>
+            <FirstRunConnect>
+              <FirstRunAsk />
+            </FirstRunConnect>
             <ScreenTally />
             <PlayerProvider>
               <NoticeProvider>
@@ -122,9 +124,10 @@ export default function RootLayout() {
                     name="connect"
                     options={{
                       presentation: 'modal',
-                      headerShown: true,
+                      // The first screen draws its own top (task 0044 decision 4); the sign-in page turns the bar on.
+                      headerShown: false,
                       title: copy.connect.title,
-                      headerLargeTitle: ios,
+                      headerLargeTitle: false,
                       headerShadowVisible: false,
                       headerLargeTitleShadowVisible: false,
                       headerStyle: { backgroundColor: c.bg },

@@ -1,16 +1,20 @@
 /**
- * The usage ask (task 0038 decision 3, ADR-0021): what sharing sends, what it never sends and where it goes, then
- * "Yes, send counts" and "Not now" as two buttons of the same size. Anything but the yes, a swipe down or back
- * included, leaves sharing off. A form sheet sized to its content on iOS, a modal on Android. `FirstRunAsk` presents it.
+ * The usage ask (task 0044 decision 3, task 0038 decision 1, ADR-0021): that this is an early test version and counts
+ * are what let it improve, what is never sent, a link to the privacy page for the rest, then "Yes, send counts" and
+ * "No thanks" as two buttons of one kind and size, so neither answer leans on the other. Anything but the yes, a swipe
+ * down or back included, leaves sharing off. A form sheet sized to its content on iOS, a modal on Android.
+ * `FirstRunAsk` presents it after a sign-in.
  */
+import { openURL } from 'expo-linking';
 import { router } from 'expo-router';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Glyph } from '@/components/Glyph';
 import { WideButton } from '@/components/WideButton';
-import { copy } from '@/copy';
+import { copy, PRIVACY_URL } from '@/copy';
 import { useSharing } from '@/tally/Sharing';
-import { useTokens } from '@/theme/tokens';
+import { pressedOpacity, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const a = copy.usageAsk;
@@ -43,9 +47,18 @@ export default function Usage() {
           {text}
         </Text>
       ))}
+      <Pressable
+        onPress={() => void openURL(PRIVACY_URL).catch(() => undefined)}
+        accessibilityRole="link"
+        hitSlop={8}
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, opacity: pressedOpacity(pressed) })}
+      >
+        <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.accent }}>{a.link}</Text>
+        <Glyph name="external" size={ios ? 12 : 16} weight="regular" colour={c.accent} />
+      </Pressable>
       <View style={{ gap: 10, paddingTop: 12 }}>
-        <WideButton label={a.yes} kind="filled" onPress={yes} />
-        <WideButton label={a.notNow} kind="tonal" onPress={close} />
+        <WideButton label={a.yes} kind="tonal" onPress={yes} />
+        <WideButton label={a.no} kind="tonal" onPress={close} />
       </View>
     </ScrollView>
   );

@@ -419,7 +419,7 @@ export const copy = {
     gatherNow: 'Gather now',
     phase: (phase: GatherPhase) => (phase === 'idle' ? '' : PHASES[phase]),
     signOut: `Sign out of Bandcamp on ${thisDevice}`,
-    custody: `${ThisDevice} gathers your feed with its own Bandcamp sign-in, on ${thisDevice}. wavfeed never receives it.`,
+    custody: `Your Bandcamp sign-in stays on ${thisDevice} and goes when you sign out.`,
     devicesHead: 'Connected devices',
     thisDevice,
     deviceName: ThisDevice,
@@ -429,15 +429,18 @@ export const copy = {
     appearance: { light: 'Light', dark: 'Dark', system: 'System' },
     removeAll: `Remove everything gathered on ${thisDevice}`,
     removeAllTitle: `Remove everything gathered on ${thisDevice}?`,
-    removeAllBody: `Your feed and everything gathered for it leave ${thisDevice}. Your Bandcamp account is not touched, and ${thisDevice} stays signed in to Bandcamp.`,
+    /** The second sentence only while a Bandcamp sign-in is held: the Demo and a signed-out phone have none to keep. */
+    removeAllBody: (signedIn: boolean) =>
+      `Your feed and its history leave ${thisDevice}.${signedIn ? ' Bandcamp is not touched, and you stay signed in.' : ''}`,
     removeAllConfirm: 'Remove',
     cancel: 'Cancel',
     usageHead: 'Usage',
     share: 'Share what I use and what breaks',
+    /** Two sentences at most under the switch (task 0044 decision 5); where it goes and for how long is on the privacy page. */
     usageFoot: (code: string | null) =>
-      `When this is on, ${thisDevice} sends wavfeed counts of what gets used and a short report when something goes wrong, stored by Cloudflare in the EU. The detail goes after 90 days, which days it was used after a year. Never your Bandcamp sign-in, your name, or which releases you play.${
-        code === null ? '' : ` Your code is ${code}. Quote it if you write in about a problem.`
-      }`,
+      code === null
+        ? 'Counts of what gets used and what breaks. Never your Bandcamp sign-in, your name or what you play.'
+        : `Counts of what gets used and what breaks, never your Bandcamp sign-in, your name or what you play. Your code is ${code}; quote it if you write in.`,
     turnedOff: (code: string) => `Turned off. Your code was ${code}; quote it to have what was sent deleted.`,
     privacy: 'Privacy',
     feedback: 'Send feedback',
@@ -446,21 +449,27 @@ export const copy = {
       `\n\n${joinMiddot([versionLine(facts.version, facts.build), facts.os, facts.code === null ? null : `code ${facts.code}`])}`,
     version: versionLine,
   },
-  /** The one-time ask after Connect closes (task 0038 decision 3); nothing is sent before its yes. */
+  /** The one-time ask after a sign-in (task 0044 decisions 2 and 3); nothing is sent before its yes, and the no is never sent. */
   usageAsk: {
-    title: 'Before wavfeed counts anything',
+    title: 'May wavfeed count what gets used?',
     body: [
-      `A few people are testing wavfeed, and it helps to know which parts get used and what breaks. If you say yes, ${thisDevice} sends counts of what gets tapped and a short report when the app hits an error.`,
-      'Never your Bandcamp sign-in, your name, or which releases you play or wishlist. The counts go to wavfeed, stored by Cloudflare in the EU. The detail is deleted after 90 days, and which days the app was used after a year.',
-      'Nothing is sent until you say yes here. Settings can turn it off at any time.',
+      'wavfeed is an early test version. Counts of what gets used and what breaks are what let it get better.',
+      'Never your Bandcamp sign-in, your name or what you play. Nothing is sent until you say yes, and Settings can change your answer any time.',
     ],
+    link: 'What is sent, and what is not',
     yes: 'Yes, send counts',
-    notNow: 'Not now',
+    no: 'No thanks',
   },
+  /** The first screen (task 0044 decision 4): the lead reads what the store holds, and the rest is the same for all three. */
   connect: {
     title: 'Connect Bandcamp',
-    lead: `Your feed is already here. To keep it fresh from ${thisDevice}, sign in to Bandcamp once.`,
-    custody: `The sign-in stays on ${thisDevice} and is used only to read your own feed and to add or remove wishlist items you press. wavfeed's server never receives it. Signing out of Bandcamp on ${thisDevice} removes it.`,
+    mark: 'wavfeed',
+    lead: {
+      none: { title: 'Your Bandcamp feed, as a list of releases', sub: 'New from pages you follow and bought by people you follow, with previews.' },
+      demo: { title: 'Your own feed', sub: 'Sign in to Bandcamp and it replaces the sample.' },
+      held: { title: 'Your feed is already here', sub: 'Sign in to Bandcamp again to keep it fresh.' },
+    },
+    custody: `Your Bandcamp sign-in stays on ${thisDevice}.`,
     signIn: 'Sign in to Bandcamp',
     notNow: 'Not now',
     lookAround: 'Look around first',
@@ -476,7 +485,7 @@ export const copy = {
     header: 'A sample feed of real releases',
     status: 'Looking at a sample',
     statusSub: 'Real releases, made-up people',
-    foot: 'The releases, their artwork and previews come from Bandcamp. The people buying them are made up. Sign in to Bandcamp to see your own feed.',
+    foot: 'Sign in and your own feed replaces the sample.',
   },
   notice: {
     signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,

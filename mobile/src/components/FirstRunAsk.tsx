@@ -1,8 +1,10 @@
 /**
- * Presents the usage ask once (task 0038 decision 3): after Connect closes on a first run, signed in or "Not now", and
- * on the first launch of an install that predates the sender. The `usageAsked` flag in kv keeps it to once, and
- * "Remove everything gathered" takes the flag with the store, so the ask returns. A build that can never send never
- * asks. Renders nothing.
+ * Presents the usage ask once, after a sign-in (task 0044 decision 2, amending task 0038 decision 3): when the store
+ * holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open (`usageAskDue`). So it follows
+ * the sign-in that closes Connect on a first run or replaces the Demo, and on an install that predates the sender it
+ * comes on the first launch after the update; "Not now" and looking around never see it. The `usageAsked` flag in kv
+ * keeps it to once, and "Remove everything gathered" takes the flag with the store, so the ask returns. A build that
+ * can never send never asks. Renders nothing.
  */
 import { router, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -10,19 +12,17 @@ import { useEffect, useRef } from 'react';
 import { useAppState } from '@/state/appState';
 import { readKv, writeKv } from '@/store';
 import { useSharing } from '@/tally/Sharing';
+import { usageAskDue } from '@/tally/tally';
 
 export const USAGE_ASKED_KEY = 'usageAsked';
 
-/** `connectPushed`: Connect was pushed this launch, so the ask waits until it has shown and closed. */
-export function FirstRunAsk({ connectPushed }: { connectPushed: boolean }) {
-  const { db } = useAppState();
+export function FirstRunAsk() {
+  const { db, gather } = useAppState();
   const { canSend, loaded, sharing } = useSharing();
   const pathname = usePathname();
-  const connectSeen = useRef(!connectPushed);
   const asked = useRef(false);
+  const due = usageAskDue({ canSend, loaded, sharing, fanId: gather.identity?.fanId ?? null, pathname });
   useEffect(() => {
-    if (pathname === '/connect') connectSeen.current = true;
-    const due = canSend && loaded && sharing === null && connectSeen.current && pathname !== '/connect';
     if (!due || asked.current) return;
     asked.current = true;
     void (async () => {
@@ -30,6 +30,6 @@ export function FirstRunAsk({ connectPushed }: { connectPushed: boolean }) {
       await writeKv(db, USAGE_ASKED_KEY, true);
       router.push('/usage');
     })().catch(() => undefined);
-  }, [db, canSend, loaded, sharing, pathname]);
+  }, [db, due]);
   return null;
 }

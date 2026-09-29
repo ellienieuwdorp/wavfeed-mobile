@@ -8,8 +8,9 @@ import { readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, test } from 'node:test';
 
+import { DEMO_FAN_ID } from '../demo/fan';
 import { SCREENS, WIRE } from './catalogue';
-import { buildContext, countBucket, durationBucket, gateOpen, isLocalTallyUrl, screenFor, screenForRoute, sendEnv, type BuildFacts } from './tally';
+import { buildContext, countBucket, durationBucket, gateOpen, isLocalTallyUrl, screenFor, screenForRoute, sendEnv, usageAskDue, type AskState, type BuildFacts } from './tally';
 
 describe('buckets', () => {
   test('counts fall into their bucket at each edge', () => {
@@ -138,5 +139,27 @@ describe('the batch context', () => {
     assert.match(ctx.version, WIRE.buildPattern);
     assert.match(ctx.build, WIRE.buildPattern);
     assert.ok(ctx.os >= WIRE.osMin && ctx.os <= WIRE.osMax);
+  });
+});
+
+describe('the ask', () => {
+  const signedIn: AskState = { canSend: true, loaded: true, sharing: null, fanId: 1_234, pathname: '/' };
+
+  test('is due once a signed-in Fan is held, nothing is answered and Connect is closed (task 0044 decision 2)', () => {
+    assert.equal(usageAskDue(signedIn), true);
+    assert.equal(usageAskDue({ ...signedIn, pathname: '/settings' }), true, 'a sign-in from Settings');
+  });
+
+  test('never after Not now, never in the Demo, never while Connect is open', () => {
+    assert.equal(usageAskDue({ ...signedIn, fanId: null }), false, 'Not now holds no Fan');
+    assert.equal(usageAskDue({ ...signedIn, fanId: DEMO_FAN_ID }), false, 'the Demo');
+    assert.equal(usageAskDue({ ...signedIn, pathname: '/connect' }), false);
+    assert.equal(usageAskDue({ ...signedIn, pathname: '/connect?from=first_run' }), false);
+  });
+
+  test('waits for the answer to load, and never comes with an answer held or in a build that cannot send', () => {
+    assert.equal(usageAskDue({ ...signedIn, loaded: false }), false);
+    assert.equal(usageAskDue({ ...signedIn, canSend: false }), false);
+    assert.equal(usageAskDue({ ...signedIn, sharing: { on: true, install: '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10', since: 0 } }), false);
   });
 });
