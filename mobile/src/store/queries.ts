@@ -311,7 +311,7 @@ export async function readNewReleases(db: SQLiteDatabase, options: { readonly no
     where: `s.story_type = 'new_release' or ${upcomingItems.where}`,
     params: upcomingItems.params,
   });
-  const { elements } = assembleFeed(rows, { view: 'everything', types: ['new_release'], sort: 'anchor' });
+  const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
   const wanted = new Set(releases.map(itemKey));
   const upcoming = buildUpcoming(releases, rows.filter((row) => wanted.has(itemKey(row))));
   return buildNewReleases(elements, upcoming, options.now);

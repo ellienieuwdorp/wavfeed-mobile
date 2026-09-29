@@ -68,8 +68,6 @@ export function buildUpcoming(
       wishlisters: signal.wishlisters,
       hasNewRelease: signal.hasNewRelease,
       reviews: signal.reviews,
-      seen: false,
-      starred: false,
       featuredTrackId: release.featuredTrackId === null ? null : String(release.featuredTrackId),
       featuredTrackTitle: release.featuredTrackTitle,
       featuredTrackDuration: release.featuredTrackDuration,

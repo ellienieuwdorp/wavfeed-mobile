@@ -107,7 +107,7 @@ console.log('parse', {
   skipped: parsed.skipped,
 });
 
-const { elements, typeCounts } = assembleFeed(toRows(parsed), { view: 'everything', types: ALL_STORY_TYPES, sort: 'activity' });
+const { elements, typeCounts } = assembleFeed(toRows(parsed), { types: ALL_STORY_TYPES, sort: 'activity' });
 console.log('assemble', { typeCounts, elements: elements.length });
 for (const element of elements) {
   if (element.kind !== 'item') continue;

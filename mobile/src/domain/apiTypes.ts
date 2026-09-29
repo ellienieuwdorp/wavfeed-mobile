@@ -1,5 +1,5 @@
 /**
- * The view response shapes the web renders, kept so the phone renders exactly what the web does; seen and starred are always false here.
+ * The view response shapes the phone's screens render.
  * Ported from server/packages/core/src/apiTypes.ts (task 0036).
  */
 
@@ -44,8 +44,6 @@ export type ApiFeedItem = {
   readonly wishlisters: readonly ApiFanRef[];
   readonly hasNewRelease: boolean;
   readonly reviews: readonly ApiReview[];
-  readonly seen: boolean;
-  readonly starred: boolean;
   readonly featuredTrackId: string | null;
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
@@ -61,8 +59,6 @@ export type ApiBurstItem = {
   readonly artId: string | null;
   readonly itemUrl: string;
   readonly storyDate: string;
-  readonly seen: boolean;
-  readonly starred: boolean;
 };
 
 export type ApiBurst = {
@@ -77,42 +73,13 @@ export type ApiBurst = {
 
 export type ApiFeedElement = ApiFeedItem | ApiBurst;
 
-export type ApiFeedView = 'unseen' | 'everything' | 'starred';
 export type ApiFeedSort = 'activity' | 'anchor';
-
-export type ApiFeedMeta = {
-  /** Distinct Releases in the current view scope with at least one Story of the type. */
-  readonly typeCounts: Readonly<Record<ApiStoryType, number>>;
-  /** Global unseen Feed Item count, view-independent (sidebar and meta line). */
-  readonly unseenCount: number;
-  /** When this user's data was last refreshed; the UI says 'updated N min ago'. */
-  readonly updatedAt: string | null;
-};
-
-export type ApiFeedResponse = {
-  readonly elements: readonly ApiFeedElement[];
-  /** Opaque; pass back as `cursor` for the next page. Null means the end. */
-  readonly nextCursor: string | null;
-  readonly meta: ApiFeedMeta;
-};
 
 /** Our own account, as the client sees it. Never carries credential material. */
 export type ApiUser = {
   readonly username: string;
   readonly displayName: string | null;
   readonly avatarUrl: string | null;
-};
-
-export type ApiOverviewResponse = {
-  /** When this user's data was last refreshed; the sidebar says 'updated N min ago'. */
-  readonly updatedAt: string | null;
-  readonly unseenCount: number;
-  /** Unseen Releases carrying a new-release Story: the New releases view's sidebar count. */
-  readonly newReleaseUnseenCount: number;
-  readonly starredCount: number;
-  /** Rendered next to 'All pages' in the sidebar. */
-  readonly pageCount: number;
-  readonly user: ApiUser;
 };
 
 export type ApiBoughtWeek = {
@@ -178,8 +145,6 @@ export type ApiUpcomingRelease = {
   readonly wishlisters: readonly ApiFanRef[];
   readonly hasNewRelease: boolean;
   readonly reviews: readonly ApiReview[];
-  readonly seen: boolean;
-  readonly starred: boolean;
   readonly featuredTrackId: string | null;
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;

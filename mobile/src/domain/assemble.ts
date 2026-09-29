@@ -1,5 +1,5 @@
 /**
- * The de-noise rules: flat Stories in, ordered Feed Items and Bursts out; type filter, then Bursts, then aggregation, then the view (ADR-0005).
+ * The de-noise rules: flat Stories in, ordered Feed Items and Bursts out; type filter, then Bursts, then aggregation, then the sort (ADR-0005).
  * Ported from server/apps/api/src/feed/assemble.ts (task 0036).
  */
 import type {
@@ -9,7 +9,6 @@ import type {
   ApiFeedElement,
   ApiFeedItem,
   ApiFeedSort,
-  ApiFeedView,
   ApiReview,
   ApiStoryType,
 } from './apiTypes';
@@ -25,7 +24,6 @@ export const ALL_STORY_TYPES: readonly ApiStoryType[] = ['new_release', 'purchas
 const FAN_ACTED_TYPES: readonly ApiStoryType[] = ['purchase', 'wishlist'];
 
 export type AssembleOptions = {
-  readonly view: ApiFeedView;
   readonly types: readonly ApiStoryType[];
   readonly sort: ApiFeedSort;
 };
@@ -134,8 +132,6 @@ export function buildFeedItem(rows: readonly FeedStoryRow[]): ApiFeedItem {
     wishlisters: signal.wishlisters,
     hasNewRelease: signal.hasNewRelease,
     reviews: signal.reviews,
-    seen: false,
-    starred: false,
     featuredTrackId: newest.featuredTrackId === null ? null : String(newest.featuredTrackId),
     featuredTrackTitle: newest.featuredTrackTitle,
     featuredTrackDuration: newest.featuredTrackDuration,
@@ -170,8 +166,6 @@ function buildBurst(chain: readonly FeedStoryRow[]): ApiBurst {
       artId: row.artId === null ? null : String(row.artId),
       itemUrl: row.url,
       storyDate: row.storyDate.toISOString(),
-      seen: false,
-      starred: false,
     });
   }
 
@@ -225,19 +219,9 @@ export function detectBursts(rows: readonly FeedStoryRow[]): DetectedBursts {
   return { bursts, memberStoryIds };
 }
 
-function elementInView(element: ApiFeedElement, view: ApiFeedView): boolean {
-  if (view === 'everything') return true;
-  if (element.kind === 'item') return view === 'unseen' ? !element.seen : element.starred;
-  return view === 'unseen' ? element.items.some((item) => !item.seen) : element.items.some((item) => item.starred);
-}
-
 /** Blind to the type filter and to Burst collapse: the chips count Releases in the collection. */
-export function countTypesInView(
-  rows: readonly FeedStoryRow[],
-  view: ApiFeedView,
-): Readonly<Record<ApiStoryType, number>> {
+export function countTypes(rows: readonly FeedStoryRow[]): Readonly<Record<ApiStoryType, number>> {
   const counts: Record<ApiStoryType, number> = { purchase: 0, new_release: 0, wishlist: 0 };
-  if (view === 'starred') return counts;
   for (const itemRows of groupByItem(rows).values()) {
     for (const type of ALL_STORY_TYPES) {
       if (itemRows.some((row) => row.storyType === type)) counts[type] += 1;
@@ -267,10 +251,9 @@ export function compareSortKeys(a: ElementSortKey, b: ElementSortKey): number {
 }
 
 export function assembleFeed(rows: readonly FeedStoryRow[], options: AssembleOptions): AssembledFeed {
-  const typeCounts = countTypesInView(rows, options.view);
+  const typeCounts = countTypes(rows);
   const kept = rows.filter((row) => options.types.includes(row.storyType));
-  const collapse = options.view !== 'starred';
-  const { bursts, memberStoryIds } = collapse ? detectBursts(kept) : { bursts: [], memberStoryIds: new Set<number>() };
+  const { bursts, memberStoryIds } = detectBursts(kept);
 
   const items: ApiFeedElement[] = [];
   for (const itemRows of groupByItem(kept).values()) {
@@ -278,8 +261,8 @@ export function assembleFeed(rows: readonly FeedStoryRow[], options: AssembleOpt
     if (outsideBursts.length > 0) items.push(buildFeedItem(outsideBursts));
   }
 
-  const elements = [...items, ...bursts]
-    .filter((element) => elementInView(element, options.view))
-    .sort((a, b) => compareSortKeys(elementSortKey(a, options.sort), elementSortKey(b, options.sort)));
+  const elements = [...items, ...bursts].sort((a, b) =>
+    compareSortKeys(elementSortKey(a, options.sort), elementSortKey(b, options.sort)),
+  );
   return { elements, typeCounts };
 }

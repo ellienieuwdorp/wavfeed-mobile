@@ -256,7 +256,7 @@ async function main(): Promise<void> {
   await time('rules only: bought', async () => buildBoughtChart(rows));
   await time('rules only: crossed 2', async () => buildCrossedList(rows, 2));
   await time('rules only: curated', async () => buildCurated(rows));
-  const { elements } = assembleFeed(rows, { view: 'everything', types: ['new_release'], sort: 'anchor' });
+  const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
   const upcomingRows = await listUpcomingReleases(db, NOW);
   const wanted = new Set(upcomingRows.map(itemKey));
   same('readNewReleases', newReleases, buildNewReleases(elements, buildUpcoming(upcomingRows, rows.filter((row) => wanted.has(itemKey(row)))), NOW));
