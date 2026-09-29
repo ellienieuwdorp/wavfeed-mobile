@@ -26,7 +26,7 @@ import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useSampleStart } from '@/dev/useSampleData';
 import { formatDatePart, releaseDay } from '@/lib/dates';
 import { playerCopy } from '@/player/copy';
-import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { pressedOpacity, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
@@ -40,8 +40,6 @@ const SEEK = 62;
 const MAIN = ios ? 72 : 80;
 const ACTIONS = ios ? 44 : 48;
 const ART_RADIUS = ios ? 14 : 24;
-/** Where Material's full-height sheet stops below the status bar. */
-const SHEET_TOP = 24;
 
 function open(release: PlayableRelease) {
   openURL(release.url).catch(() => undefined);

@@ -6,7 +6,7 @@
  */
 import { openURL } from 'expo-linking';
 import { useLocalSearchParams } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FanFace } from '@/components/AvatarStack';
@@ -14,7 +14,7 @@ import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { fanPageUrl } from '@/lib/format';
-import { PRESS_FLASH, ripple, useTokens } from '@/theme/tokens';
+import { PRESS_FLASH, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
@@ -65,16 +65,20 @@ export default function BoughtBy() {
   const { c } = useTokens();
   const { fans } = useLocalSearchParams<{ fans?: string }>();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const list = readFans(fans);
+  // Android's fitToContents sheet takes the content's full height and clips what passes the window, so the sheet is
+  // capped where Material's full-height sheet stops and the list shrinks into it and scrolls.
+  const cap = ios ? undefined : height - insets.top - SHEET_TOP;
   return (
-    <View style={{ backgroundColor: c.surface, paddingTop: ios ? 20 : 8, paddingBottom: insets.bottom + 12 }}>
+    <View style={{ maxHeight: cap, backgroundColor: c.surface, paddingTop: ios ? 20 : 8, paddingBottom: insets.bottom + 12 }}>
       <Text
         accessibilityRole="header"
         style={ios ? { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center', paddingBottom: 12 } : { fontSize: 22, color: c.ink, paddingHorizontal: 24, paddingBottom: 12 }}
       >
         {copy.boughtBy.title}
       </Text>
-      <ScrollView style={{ flexGrow: 0 }}>
+      <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
         {list.map((fan) => (
           <FanRow key={fan.fanId} fan={fan} />
         ))}
