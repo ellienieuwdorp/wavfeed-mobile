@@ -10,15 +10,8 @@
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
 import type { BandcampAnswer, BandcampDocument, Identity } from '../bandcamp/wire';
-import type { GatherFailure, GatherSink, GatherState, SweepTier, WalkState } from './sink';
-import {
-  bandDetailsBreaker,
-  failureBackoffMs,
-  nextDueFor,
-  readDiscographyDates,
-  SWEEP_TURN_MAX,
-  tierFor,
-} from './sweep';
+import type { GatherFailure, GatherSink, GatherState, WalkState } from './sink';
+import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
 
 export type GatherSession = Pick<
   BandcampSession,
@@ -37,7 +30,6 @@ export type GatherOptions = {
   readonly now: () => number;
   readonly reason: GatherReason;
   readonly budgetMs: number;
-  readonly random?: () => number;
 };
 
 export type TurnOutcome = 'done' | 'out_of_budget' | 'paused' | 'failed';
@@ -68,7 +60,6 @@ type Ctx = {
   readonly now: () => number;
   readonly budgetMs: number;
   deadline: number;
-  readonly random: () => number;
 };
 
 type Step = 'go' | 'paused' | 'unreachable';
@@ -96,7 +87,6 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     now: options.now,
     budgetMs: options.budgetMs,
     deadline: options.now() + options.budgetMs,
-    random: options.random ?? Math.random,
   };
   let summary: TurnSummary;
   try {
@@ -414,18 +404,15 @@ async function runSweep(ctx: Ctx, quota: number): Promise<number> {
 
     if (answer.kind === 'ok') {
       bandDetailsBreaker.recordSuccess();
-      let tier: SweepTier = 'cold';
       if (answer.value.kind === 'details') {
         await store(ctx, answer.value.document);
         wrote = true;
-        tier = tierFor(readDiscographyDates(answer.value.bandDetails), at);
       }
-      await sink.markSwept(band.bandId, at, true, { tier, nextDueAt: nextDueFor(tier, at, ctx.random), failures: 0 });
+      await sink.markSwept(band.bandId, at, true);
       continue;
     }
 
-    const failures = (band.failures ?? 0) + 1;
-    await sink.markSwept(band.bandId, at, false, { tier: null, nextDueAt: at + failureBackoffMs(failures), failures });
+    await sink.markSwept(band.bandId, at, false);
     const opened = bandDetailsBreaker.recordFailure(at, answer.kind === 'error' ? answer.status : 0);
     if (opened || answer.kind === 'unreachable') {
       await note(ctx, answer.kind === 'unreachable' ? 'bandcamp_unreachable' : 'bandcamp_error');

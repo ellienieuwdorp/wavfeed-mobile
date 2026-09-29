@@ -71,15 +71,6 @@ export const EMPTY_GATHER_STATE: GatherState = {
   releasesUndated: 0,
 };
 
-export type SweepTier = 'hot' | 'warm' | 'cold';
-
-/** Where a swept Page goes next (ADR-0017); a null `tier` keeps the Page's tier, after a failure. */
-export type SweepBooking = {
-  readonly tier: SweepTier | null;
-  readonly nextDueAt: number;
-  readonly failures: number;
-};
-
 export type GatherSink = {
   putRaw(doc: BandcampDocument): Promise<{ deduped: boolean }>;
   readWalk(): Promise<WalkState | null>;
@@ -87,9 +78,10 @@ export type GatherSink = {
   readGatherState(): Promise<GatherState>;
   patchGatherState(p: Partial<GatherState>): Promise<void>;
   readFollowedBands(): Promise<{ bandId: number; name: string }[]>;
-  /** Never-swept first; `failures` counts as 0 when absent. */
-  readSweepDue(nowMs: number, limit: number): Promise<{ bandId: number; failures?: number }[]>;
-  markSwept(bandId: number, nowMs: number, ok: boolean, booking: SweepBooking): Promise<void>;
+  /** Never-swept first. */
+  readSweepDue(nowMs: number, limit: number): Promise<{ bandId: number }[]>;
+  /** The store books the Page's next visit from the band details `putRaw` last held for it (ADR-0017). */
+  markSwept(bandId: number, nowMs: number, ok: boolean): Promise<void>;
   afterDocuments(): Promise<void>;
   /** Undated Releases whose page is due a visit, newest Story first (ADR-0011). */
   readUndatedReleases(nowMs: number, limit: number): Promise<readonly UndatedRelease[]>;

@@ -1,9 +1,8 @@
 /**
  * The gather turn's sink over the phone's store (task 0036, decisions 2 and 4): responses go verbatim into raw_documents
  * (ADR-0004), the walk and the gather state live in the kv table, and every change to the gather state is published to
- * the screen. The store books the band details sweep by tier from the discography it was handed (ADR-0017), so the
- * turn's own `SweepBooking` is not stored: the sink keeps the last band details payload per Page from `putRaw` and
- * hands it to the store's `markSwept`.
+ * the screen. The store books the band details sweep by tier from the discography it was handed (ADR-0017): the sink
+ * keeps the last band details payload per Page from `putRaw` and hands it to the store's `markSwept`.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -134,9 +133,9 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       return (await readFollowedBands(db)).map((band) => ({ bandId: band.bandId, name: band.name ?? '' }));
     },
     async readSweepDue(nowMs, limit) {
-      return (await readSweepDue(db, new Date(nowMs), limit)).map((due) => ({ bandId: due.bandId, failures: due.failures }));
+      return (await readSweepDue(db, new Date(nowMs), limit)).map((due) => ({ bandId: due.bandId }));
     },
-    async markSwept(bandId, nowMs, ok, _booking) {
+    async markSwept(bandId, nowMs, ok) {
       const at = new Date(nowMs);
       if (!ok) {
         await markSwept(db, { bandId, at, outcome: 'failed' });
