@@ -2,8 +2,8 @@
  * Connect Bandcamp (the v2 client canvas, task 0036 decision 1): the lead, the custody paragraph and two buttons; the
  * sign-in press swaps in Bandcamp's own login page full-bleed under a bar with Cancel. Each time the page leaves
  * /login the probe asks who is signed in: a Fan this phone's feed does not belong to gets the refusal line and the page
- * stays; otherwise the identity is written, the modal closes and a turn starts. The rig's sample bundle never opens the
- * login page (ADR-0001).
+ * stays; otherwise the identity is written, the modal closes and a turn starts. A page that fails to load raises its own
+ * line over it. The rig's sample bundle never opens the login page (ADR-0001).
  */
 import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -106,7 +106,7 @@ function SignIn({ onCancel }: { onCancel: () => void }) {
         </Text>
       ) : null}
       <View style={{ flex: 1 }}>
-        <SignInWebView onMaybeSignedIn={() => void onMaybeSignedIn()} />
+        <SignInWebView onMaybeSignedIn={() => void onMaybeSignedIn()} onError={() => setLine(copy.connect.pageFailed)} />
       </View>
     </View>
   );

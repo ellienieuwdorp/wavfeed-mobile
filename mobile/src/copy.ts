@@ -397,6 +397,7 @@ export const copy = {
     refusal: (other: string | null, owner: string) =>
       `That is a different Bandcamp account${other === null ? '' : ` (${other})`}. ${ThisDevice}'s feed belongs to ${owner}.`,
     unreachable: 'Bandcamp did not answer. Try again in a moment.',
+    pageFailed: "Bandcamp's sign-in did not load. Cancel, then try again.",
   },
   notice: {
     signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,

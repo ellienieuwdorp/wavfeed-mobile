@@ -16,12 +16,17 @@ export function isLoginPage(url: string): boolean {
   return LOGIN_PAGE.test(url);
 }
 
+/** Why the sign-in page did not show: a code, never the WebView's description (ADR-0003). */
+export type SignInFailure = 'page_failed';
+
 type SignInProps = {
   /** Called each time the page leaves `/login`. */
   readonly onMaybeSignedIn: () => void;
+  /** Called when a load fails below HTTP (offline, no DNS, TLS); redirects the WebView cancels do not count. */
+  readonly onError: (failure: SignInFailure) => void;
 };
 
-export function SignInWebView({ onMaybeSignedIn }: SignInProps) {
+export function SignInWebView({ onMaybeSignedIn, onError }: SignInProps) {
   const onLogin = useRef(true);
   const onNavigationStateChange = (state: WebViewNavigation): void => {
     if (state.loading) return;
@@ -38,6 +43,7 @@ export function SignInWebView({ onMaybeSignedIn }: SignInProps) {
       sharedCookiesEnabled
       thirdPartyCookiesEnabled
       onNavigationStateChange={onNavigationStateChange}
+      onError={() => onError('page_failed')}
     />
   );
 }
