@@ -3,6 +3,8 @@
  * next visit (store/queries.ts `markSwept`). Ported from server/apps/poller/src/circuitBreaker.ts and config.ts
  * (task 0036, decision 4).
  */
+import { REFUSAL_STATUSES } from '../bandcamp/wire';
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -12,7 +14,6 @@ const BREAKER_FAILURE_THRESHOLD = 3;
 const BREAKER_COOLDOWN_MS = 5 * MINUTE_MS;
 const BREAKER_MAX_COOLDOWN_MS = HOUR_MS;
 const BREAKER_RECOVERY_SUCCESSES = 5;
-const REFUSAL_STATUSES: readonly number[] = [403, 429];
 
 /**
  * Opens on a 403 or 429 or three failures running; the cooldown doubles per reopening, an hour at most. In memory,

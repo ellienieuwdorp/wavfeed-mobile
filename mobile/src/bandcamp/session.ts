@@ -67,8 +67,10 @@ import {
   onBandcampHost,
   originOf,
   parseJson,
+  readProbe,
   UNCOLLECT_ITEM_ENDPOINT,
   UNCOLLECT_ITEM_PATH,
+  type Wire,
   WISHLIST_ITEMS_PATH,
 } from './wire';
 
@@ -148,14 +150,6 @@ type SendSpec = {
   readonly headers: Readonly<Record<string, string>>;
   readonly body?: string;
   readonly credentials: Credentials;
-};
-
-type Wire = {
-  readonly status: number;
-  readonly ok: boolean;
-  readonly contentType: string;
-  readonly url: string;
-  readonly text: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -265,26 +259,12 @@ export class BandcampSession {
     }
   }
 
-  /** The only place logged-out is decided: signed in means JSON with a numeric `fan_id`. */
   async probeIdentity(): Promise<BandcampAnswer<Identity>> {
     const wire = await this.send(`${this.baseUrl}${COLLECTION_SUMMARY_PATH}`, {
       headers: { Accept: JSON_ACCEPT },
       credentials: 'include',
     });
-    if (wire === null) return { kind: 'unreachable' };
-    if (wire.status >= 500) return { kind: 'error', status: wire.status };
-    if (!wire.ok || !wire.contentType.includes('json')) return { kind: 'logged_out' };
-
-    const body = asRecord(parseJson(wire.text));
-    const fanId = body?.fan_id;
-    if (body === undefined || typeof fanId !== 'number' || !Number.isFinite(fanId)) {
-      return { kind: 'logged_out' };
-    }
-    const summary = asRecord(body.collection_summary);
-    const username = [body.username, summary?.username].find(
-      (value): value is string => typeof value === 'string' && value !== '',
-    );
-    return { kind: 'ok', value: { fanId, username: username ?? null } };
+    return readProbe(wire);
   }
 
   /**

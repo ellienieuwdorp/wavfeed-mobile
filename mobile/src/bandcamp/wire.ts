@@ -3,6 +3,7 @@
  * and the fetch-target guard. Ported from extension/lib/bandcamp.ts and server/packages/bandcamp/src; the names Raw
  * Documents carry live in `domain/endpoints.ts` (task 0036, decision 3).
  */
+import { asRecord } from '../domain/wire';
 
 export const DEFAULT_BANDCAMP_BASE_URL = 'https://bandcamp.com';
 
@@ -51,12 +52,43 @@ export type Identity = {
   readonly username: string | null;
 };
 
+/** A response as the session reads it; `contentType` is lowercased. */
+export type Wire = {
+  readonly status: number;
+  readonly ok: boolean;
+  readonly contentType: string;
+  readonly url: string;
+  readonly text: string;
+};
+
+/** Bandcamp asking for fewer requests; the Sweep breaker opens on one (ADR-0017). */
+export const REFUSAL_STATUSES: readonly number[] = [403, 429];
+
 export function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The only place logged-out is decided: signed in means JSON with a numeric `fan_id`. A 5xx or a refusal status is
+ * Bandcamp's state, not the session's, so it answers `error` with the status and pauses nothing.
+ */
+export function readProbe(wire: Wire | null): BandcampAnswer<Identity> {
+  if (wire === null) return { kind: 'unreachable' };
+  if (wire.status >= 500 || REFUSAL_STATUSES.includes(wire.status)) return { kind: 'error', status: wire.status };
+  if (!wire.ok || !wire.contentType.includes('json')) return { kind: 'logged_out' };
+
+  const body = asRecord(parseJson(wire.text));
+  const fanId = body?.fan_id;
+  if (body === undefined || typeof fanId !== 'number' || !Number.isFinite(fanId)) return { kind: 'logged_out' };
+  const summary = asRecord(body.collection_summary);
+  const username = [body.username, summary?.username].find(
+    (value): value is string => typeof value === 'string' && value !== '',
+  );
+  return { kind: 'ok', value: { fanId, username: username ?? null } };
 }
 
 export function formBody(fields: Readonly<Record<string, string>>): string {
