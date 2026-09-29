@@ -2,15 +2,17 @@
  * The gather runner the app state calls (task 0036, decision 4): one chain of turns at a time over the store's sink, a
  * minute's budget when the app opens or the timer fires and two when the person pulls to refresh, and the schedule's
  * answer to whether a turn is due: always while the first walk is pending or a cursor is held, else once the last turn
- * is fifteen minutes old.
+ * is fifteen minutes old. While the first walk is pending, turns chain back to back with no count cap for as long as
+ * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was (task 0040).
  * A phone signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot
  * turn the person's own sign-out into Bandcamp's.
  */
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';
+import { AppState as NativeAppState } from 'react-native';
 
 import { dueFrom, useGatherSchedule, type Due } from '@/fetcher/schedule';
-import type { GatherState } from '@/fetcher/sink';
+import type { GatherState, WalkState } from '@/fetcher/sink';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
 import { readKv } from '@/store';
 
@@ -27,11 +29,12 @@ async function signedOutHere(app: RunnerDeps): Promise<boolean> {
   return state?.pausedReason === 'not_connected' && (await readStoredIdentity(app.db)) !== null;
 }
 
-/** While the first walk is still pending, turns chain back to back so the history fills in one sitting. */
-export const MAX_CHAINED_TURNS = 12;
+/** Turns in a row that leave the stored walk as it was, cursor and depth probe alike, after which the chain stops. */
+export const STALL_TURNS = 3;
 /**
  * A walk turn that failed unanswered or on the store retries twice, in case the first request after a wake fails
  * (unconfirmed). One that Bandcamp failed with a status does not: a 403, 429 or 5xx asks for fewer requests (ADR-0017).
+ * A turn that moves the walk gives the retries back (task 0040).
  */
 export const FAILED_RETRIES = 2;
 export const RETRY_AFTER_MS = 10_000;
@@ -43,9 +46,14 @@ export async function runner(reason: GatherReason, app: RunnerDeps): Promise<voi
     app.invalidate();
     return;
   }
-  chain = runChain(reason, app).finally(() => {
-    chain = null;
-  });
+  // A store closed under the chain (Remove all) ends it here, as a store error ends a turn inside `runGatherTurn`.
+  chain = runChain(reason, app)
+    .catch((error: unknown) => {
+      console.warn('gather chain stopped on the store:', error instanceof Error ? error.message : String(error));
+    })
+    .finally(() => {
+      chain = null;
+    });
   await chain;
 }
 
@@ -53,13 +61,27 @@ async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
   if (await signedOutHere(app)) return;
   const sink = createGatherSink(app);
   let retries = 0;
-  for (let turn = 0; turn < MAX_CHAINED_TURNS; turn += 1) {
+  let stalled = 0;
+  for (let turn = 0; ; turn += 1) {
+    // iOS freezes JS in the background and Android gathers in the foreground only (task 0036, decision 4), so a chain
+    // ends when the app leaves the foreground and the schedule's 'open' wake resumes it (task 0040). A sign-out from
+    // Settings mid-chain ends it too, before the next probe can turn it into Bandcamp's.
+    if (turn > 0 && (NativeAppState.currentState !== 'active' || (await signedOutHere(app)))) return;
+    const before = await walkSpot(app.db);
     running = runGatherTurn(app.session, sink, { now: Date.now, reason, budgetMs: BUDGET_MS[reason] }).finally(() => {
       running = null;
     });
     const summary = await running;
     console.log('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
+    // A chain with no count cap ends once turns stop moving the walk; a turn that moved it resets the stall run and
+    // gives the retries back (task 0040).
+    if ((await walkSpot(app.db)) === before) stalled += 1;
+    else {
+      stalled = 0;
+      retries = 0;
+    }
+    if (stalled >= STALL_TURNS) return;
     if (summary.outcome === 'failed' && summary.status === null && summary.walkPending && retries < FAILED_RETRIES) {
       retries += 1;
       await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
@@ -67,6 +89,14 @@ async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
     }
     if (summary.outcome !== 'out_of_budget' || !summary.walkPending) return;
   }
+}
+
+/** The stored walk's cursor, page count and depth probe bounds as one comparable key, or null while no walk is held. */
+async function walkSpot(db: AppState['db']): Promise<string | null> {
+  const walk = await readKv<Partial<WalkState>>(db, WALK_KEY);
+  return walk === null
+    ? null
+    : `${walk.olderThan}:${walk.pagesDone}:${walk.probed}:${walk.probeLower}:${walk.probeOldest?.length}`;
 }
 
 /** Waits out a turn already on the wire, so a wake that lands mid-turn decides on what that turn left behind. */
