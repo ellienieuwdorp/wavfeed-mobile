@@ -15,7 +15,7 @@ import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
 import { Heart } from '@/components/Heart';
 import { playerCopy } from '@/player/copy';
-import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { usePlayer, usePlayerRelease, type Player, type PlayableRelease } from './playerState';
 
@@ -78,17 +78,18 @@ function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number
   );
 }
 
+/** On iOS every mini player sits on glass, so its words take the system's label colours (task 0040, decision 7). */
 function Titles({ release, single = false }: { release: PlayableRelease; single?: boolean }) {
   const { c } = useTokens();
   const player = usePlayer();
   const note = playerNote(player);
   return (
     <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-      <Text numberOfLines={1} style={{ fontSize: ios ? 15 : 14, lineHeight: 20, fontWeight: ios ? '600' : '500', color: c.ink }}>
+      <Text numberOfLines={1} style={{ fontSize: ios ? 15 : 14, lineHeight: 20, fontWeight: ios ? '600' : '500', color: ON_GLASS?.ink ?? c.ink }}>
         {trackLine(player, release)}
       </Text>
       {single ? null : (
-        <Text numberOfLines={1} style={{ fontSize: ios ? 13 : 12, lineHeight: ios ? 17 : 16, color: c.sub }}>
+        <Text numberOfLines={1} style={{ fontSize: ios ? 13 : 12, lineHeight: ios ? 17 : 16, color: ON_GLASS?.sub ?? c.sub }}>
           {note ?? release.artist}
         </Text>
       )}

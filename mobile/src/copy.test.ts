@@ -1,12 +1,12 @@
 /// <reference types="node" />
 /**
- * The catch-up strip's words for how far back the first walk has reached (task 0040), the count an Upcoming card and a
- * Drop row state, and the release day a Drop row names (task 0041, decisions 9 and 10).
+ * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
+ * Upcoming card and a Drop row state, and the release day a Drop row names (task 0041, decisions 9 and 10).
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backTo, outOnPhrase, tracksOutPhrase } from './copy';
+import { backTo, catchUpHeader, outOnPhrase, soFar, tracksOutPhrase } from './copy';
 
 const at = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -24,6 +24,11 @@ test('the reach names the month and year the phone is in, as ADR-0011 reads date
     if (zone === undefined) delete process.env.TZ;
     else process.env.TZ = zone;
   }
+});
+
+test('while something plays, the catch-up reads as one line under the large title (task 0040, decision 6)', () => {
+  assert.equal(catchUpHeader(soFar(2960), 'back to June 2026'), '2,960 so far, back to June 2026');
+  assert.equal(catchUpHeader('getting set up', null), 'Getting set up');
 });
 
 test('the count shows once a Track plays and the total is known, plural by the total', () => {

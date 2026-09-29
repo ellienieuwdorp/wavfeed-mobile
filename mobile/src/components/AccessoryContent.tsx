@@ -1,7 +1,7 @@
 /**
  * What rides in the iOS 26 tab bar's bottom accessory (task 0036 decision 5, DESIGN-UI section 9): the mini player once
  * something has played, otherwise the catch-up capsule while the first walk runs; once the player takes the accessory,
- * the catch-up moves to the strip in the dock (see Dock). The system renders one copy per placement, so neither half
+ * the catch-up moves to the line under each large title (task 0040, decision 6, see ScreenHeader). The system renders one copy per placement, so neither half
  * holds state of its own.
  */
 import { NativeTabs } from 'expo-router/unstable-native-tabs';

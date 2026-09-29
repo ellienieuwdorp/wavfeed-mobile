@@ -6,7 +6,7 @@
  * inert there.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Animated, Platform, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { Animated, Platform, Text, View, type NativeScrollEvent, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTokens } from '@/theme/tokens';
@@ -44,8 +44,11 @@ export function useAppBarAtRest(): void {
   }, [setCollapsed]);
 }
 
-/** The expanded half, first in the list: the title and, when there is one, the subtitle line. */
-export function AppBarTitle({ subtitle }: { subtitle: string | null }) {
+/**
+ * The expanded half, first in the list: the title and, when there is one, the subtitle line, with `below` under it
+ * (the catch-up's indicator while something plays, task 0040 decision 6) and `a11y` on the pair.
+ */
+export function AppBarTitle({ subtitle, below = null, a11y = {} }: { subtitle: string | null; below?: ReactNode; a11y?: ViewProps }) {
   const frame = useContext(FrameContext);
   const insets = useSafeAreaInsets();
   const { c, type } = useTokens();
@@ -57,7 +60,12 @@ export function AppBarTitle({ subtitle }: { subtitle: string | null }) {
   return (
     <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null ? 16 : 12 }}>
       <Text accessibilityRole="header" numberOfLines={1} style={{ fontSize: type.viewTitle, lineHeight: TITLE_LINE, color: c.ink }}>{frame.title}</Text>
-      {subtitle === null ? null : <Text numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Text>}
+      {subtitle === null ? null : (
+        <View {...a11y} style={{ gap: 8 }}>
+          <Text numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Text>
+          {below}
+        </View>
+      )}
     </View>
   );
 }

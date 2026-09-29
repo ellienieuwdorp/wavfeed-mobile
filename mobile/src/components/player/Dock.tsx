@@ -1,7 +1,8 @@
 /**
  * What floats on the bottom edge of a tab's safe area, top to bottom as DESIGN-UI section 11 stacks it: the notice line
- * (section 12), the catch-up strip, and the mini player, each where the iOS 26 tab bar's accessory is not carrying it
- * (task 0036 decision 5). Lists pad past it with `useDockClearance()`.
+ * (section 12), then the catch-up strip while nothing plays or the mini player once something does, each where the iOS
+ * 26 tab bar's accessory is not carrying it (task 0036 decision 5). The strip and the mini player never stack: while
+ * something plays the header carries the catch-up (task 0040, decision 6). Lists pad past it with `useDockClearance()`.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Platform, View } from 'react-native';
@@ -27,8 +28,8 @@ export function WithDock({ children }: { children: ReactNode }) {
   const bottom = Platform.OS === 'ios' ? insets.bottom + GAP : GAP;
   const current = usePlayerRelease();
   const accessory = playerInAccessory();
-  // The accessory holds the catch-up only until something plays; after that the strip carries it here.
-  const strip = !accessory || current !== null;
+  // Once something plays, the header carries the catch-up on both platforms (task 0040, decision 6).
+  const strip = !accessory && current === null;
   return (
     <Clearance value={height ? height + GAP : 0}>
       <View style={{ flex: 1 }}>

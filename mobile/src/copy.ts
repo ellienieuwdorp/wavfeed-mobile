@@ -304,6 +304,15 @@ export function backTo(unixSeconds: number): string {
   return `back to ${LONG_MONTHS[date.getMonth()] ?? ''} ${date.getFullYear()}`;
 }
 
+/**
+ * "2,960 so far, back to June 2026": the catch-up as the one line under each large title while something plays (task
+ * 0040, decision 6), its first letter raised as that line's other forms start.
+ */
+export function catchUpHeader(primary: string, secondary: string | null): string {
+  const line = secondary === null ? primary : `${primary}, ${secondary}`;
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
 const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   probing: 'reaching Bandcamp',
   walking: 'gathering your feed',

@@ -20,9 +20,9 @@ import {
   WISHLIST_ITEMS_ENDPOINT,
 } from '@/domain/endpoints';
 import type { ItemType } from '@/domain/types';
-import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
-import { CONNECT_SHOWN_KEY, DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
-import { fold, IDENTITY_KEY, insertRawDocument, readKv, type StoredIdentity, writeKv } from '@/store';
+import { EMPTY_GATHER_STATE, type GatherState, type StorySample, type WalkState } from '@/fetcher/sink';
+import { CONNECT_SHOWN_KEY, DEVICE_ADDED_KEY, GATHER_KEY, patchGather, type SinkDeps, WALK_KEY } from '@/state/gatherSink';
+import { deleteKv, fold, IDENTITY_KEY, insertRawDocument, readKv, type StoredIdentity, writeKv } from '@/store';
 
 const DAY = 24 * 60 * 60_000;
 const ANCHOR = Date.UTC(2026, 8, 24, 18, 0, 0);
@@ -695,4 +695,67 @@ export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
     wishlistAskedAt: gatheredAt,
   };
   await writeKv(db, GATHER_KEY, gather);
+}
+
+const DAY_S = 24 * 60 * 60;
+/** The author's first walk from task 0040's amendment, at 2,960 Stories and back to 15 June 2026. */
+const WALK_STARTED_AT = 1790701174376;
+const WALK_CURSOR = Date.UTC(2026, 5, 15) / 1000;
+const WALK_FLOOR = 1281827215;
+export const SAMPLE_WALK_STORIES = 2960;
+
+function day(y: number, m: number, d: number): number {
+  return Date.UTC(y, m, d) / 1000;
+}
+
+/** Five pages of twenty Stories, most of a day each, down to the cursor. */
+const WALK_RECENT: StorySample[] = Array.from({ length: 5 }, (_, i) => ({
+  newest: WALK_CURSOR + (5 - i) * 0.8 * DAY_S,
+  oldest: WALK_CURSOR + (4 - i) * 0.8 * DAY_S,
+  count: 20,
+}));
+
+export function sampleWalk(): WalkState {
+  return {
+    kind: 'feed_walk',
+    fanId: SAMPLE_FAN_ID,
+    username: 'sample',
+    olderThan: WALK_CURSOR,
+    pagesDone: 148,
+    dedupedRun: 0,
+    maxPages: 500,
+    poked: true,
+    startedAt: WALK_STARTED_AT,
+    sinceTs: null,
+    newestSeen: Math.floor(WALK_STARTED_AT / 1000) - 3600,
+    probed: true,
+    floor: WALK_FLOOR,
+    probeOldest: [],
+    samples: [
+      { newest: day(2017, 4, 20), oldest: day(2017, 4, 16), count: 20 },
+      { newest: day(2012, 5, 1), oldest: day(2012, 5, 1) - 293 * DAY_S, count: 20 },
+      { newest: WALK_FLOOR, oldest: WALK_FLOOR, count: 1 },
+    ],
+    recent: WALK_RECENT,
+  };
+}
+
+/**
+ * The rig's first walk (`sim.sh open 'releases?walk=1'`): on, it stores `sampleWalk` with the gather state of a walk
+ * between turns, so the catch-up shows mid-way with a fill; off, it finishes the walk again. A store that holds another
+ * Fan keeps its own walk and gather state, as `loadSampleData` keeps its identity.
+ */
+export async function setSampleWalk(deps: SinkDeps, on: boolean): Promise<void> {
+  if ((await readKv<StoredIdentity>(deps.db, IDENTITY_KEY))?.fanId !== SAMPLE_FAN_ID) {
+    console.warn('sample walk skipped: this store holds another Fan');
+    return;
+  }
+  if (on) {
+    await writeKv(deps.db, WALK_KEY, sampleWalk());
+    await patchGather(deps, { initialWalkDone: false, storiesSoFar: SAMPLE_WALK_STORIES, phase: 'idle', pausedReason: null, lastError: null });
+  } else {
+    await deleteKv(deps.db, WALK_KEY);
+    await patchGather(deps, { initialWalkDone: true, phase: 'idle' });
+  }
+  deps.invalidate();
 }

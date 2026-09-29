@@ -5,8 +5,9 @@
  * (which sends `store_removed` first while sharing is on), and a feedback mail naming the build; the canvas's one
  * notification switch waits for notifications to exist. Android draws the status as one list item and its actions as
  * Material buttons under the custody line, as the canvas's Settings board does. A development build adds the store's
- * facts under the custody line. The wavfeed account rows (email, password, log out, delete) wait for the account this
- * slice does not have (task 0036).
+ * facts under the custody line. While something plays, the catch-up of a first walk sits under the large title as on
+ * every tab (task 0040, decision 6). The wavfeed account rows (email, password, log out, delete) wait for the account
+ * this slice does not have (task 0036).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
@@ -16,10 +17,11 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
-import { AppBarTitle, useAppBar } from '@/components/AppBar';
+import { useAppBar } from '@/components/AppBar';
 import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
 import { useDockClearance } from '@/components/player/Dock';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
@@ -180,7 +182,7 @@ export default function Settings() {
 
   return (
     <ScrollView {...appBar.scroll} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 16 : 0, paddingBottom: 40 + clearance }}>
-      {ios ? null : <AppBarTitle subtitle={null} />}
+      <ScreenHeader quiet />
       {identity !== null ? (
         <Group>
           <Cell
