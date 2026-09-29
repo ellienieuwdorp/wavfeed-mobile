@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "wavfeed",
+    "owner": "ellienieuwdorp",
     "slug": "wavfeed",
     "scheme": "wavfeed",
     "version": "1.0.0",
@@ -8,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/images/icon.png",
     "runtimeVersion": { "policy": "fingerprint" },
+    "updates": { "url": "https://u.expo.dev/aee7a6ee-3c1e-4408-a0c5-d5a1e67edecd" },
     "ios": {
       "bundleIdentifier": "com.wavfeed.app",
       "icon": "./assets/expo.icon",
@@ -58,6 +60,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": { "projectId": "aee7a6ee-3c1e-4408-a0c5-d5a1e67edecd" }
     }
   }
 }
