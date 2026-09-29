@@ -84,14 +84,14 @@ beforeEach(async () => {
 describe('the gather diff', () => {
   test('the chain that finishes the first walk sends one sync_run_finished, and later chains none', async () => {
     const first = await chain(600_000);
-    assert.equal(pagesAsked, 6, 'five full pages and the empty one that ends the walk');
+    assert.equal(pagesAsked, 14, "the depth probe's eight (task 0040), five full pages and the empty one that ends the walk");
     assert.deepEqual(first, [
-      { name: 'sync_run_finished', props: { pages: '6 to 20', stories: '21 to 100', took: '3 to 10s' } },
+      { name: 'sync_run_finished', props: { pages: '6 to 20', stories: '21 to 100', took: '10 to 60s' } },
       {
         name: 'gather_finished',
         props: {
           reason: 'open', outcome: 'done', turns: '1', retries: '0', walk_pending: false, failure: 'none', paused: 'none',
-          status_class: 'none', took: '3 to 10s', release_pages_failed: '0', sweep_breaker_opened: false,
+          status_class: 'none', took: '10 to 60s', release_pages_failed: '0', sweep_breaker_opened: false,
         },
       },
     ]);
@@ -106,9 +106,10 @@ describe('the gather diff', () => {
     clock += 20 * 60_000;
     pagesAsked = 0;
     const [sync, gather] = await chain(600_000);
-    assert.equal(pagesAsked, 2);
+    // The cut came mid-probe (task 0040): the probe searches on between its kept bounds, then the walk's two pages.
+    assert.equal(pagesAsked, 10);
     assert.equal(sync?.name === 'sync_run_finished' && sync.props.took, '10m+');
-    assert.equal(gather?.name === 'gather_finished' && gather.props.took, '1 to 3s');
+    assert.equal(gather?.name === 'gather_finished' && gather.props.took, '10 to 60s');
   });
 
   test('an unreachable Bandcamp ends the chain failed with its code, and no Sync Run', async () => {

@@ -89,6 +89,12 @@ export async function writeIdentity(db: SQLiteDatabase, identity: Identity, nowM
   if ((await readKv<number>(db, DEVICE_ADDED_KEY)) === null) await writeKv(db, DEVICE_ADDED_KEY, nowMs);
 }
 
+/** The stored walk; one stored before task 0040 lacks the depth probe's fields and reads as not probed, with no floor. */
+export async function readStoredWalk(db: SQLiteDatabase): Promise<WalkState | null> {
+  const stored = await readKv<Partial<WalkState>>(db, WALK_KEY);
+  return stored === null ? null : ({ probed: false, floor: null, probeOldest: [], ...stored } as WalkState);
+}
+
 export function createGatherSink(deps: SinkDeps): GatherSink {
   const { db, invalidate } = deps;
   const details = new Map<number, unknown>();
@@ -102,7 +108,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       }
       return { deduped };
     },
-    readWalk: () => readKv<WalkState>(db, WALK_KEY),
+    readWalk: () => readStoredWalk(db),
     writeWalk: (walk) => (walk === null ? deleteKv(db, WALK_KEY) : writeKv(db, WALK_KEY, walk)),
     async readGatherState() {
       const state = await readStoredGather(db);

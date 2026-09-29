@@ -1,14 +1,15 @@
 /**
  * One gather turn in the foreground (task 0036, decision 4): probe; the wishlist and the follow list when six hours
  * old; while the first walk is pending a small band details sweep of due followed Pages (ADR-0017), so hearts and
- * Upcoming hold truth while the history fills; the feed walk or poll with the Extension's rules (extension/lib/poll.ts)
- * plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011), a few while the walk is
- * pending, with budget held back from the walk for them; then the rest of the sweep. A list that fails is noted and
- * the walk still runs; a feed page Bandcamp answers with an error fails the turn before the release pages and the rest
- * of the sweep, since a 403, 429 or 5xx asks for fewer requests (ADR-0017). The cursor is written after every page, so
- * a turn out of budget or killed with the app resumes for free, and the store folds after every batch while the walk
- * runs. `lastSuccessAt` moves once the feed step ends and again when the turn does, never per answer: a pull to refresh
- * lets its spinner go when it moves (state/refresh.ts).
+ * Upcoming hold truth while the history fills; before a first walk's first page, a depth probe that binary searches the
+ * feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or poll with the Extension's rules
+ * (extension/lib/poll.ts) plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011),
+ * a few while the walk is pending, with budget held back from the walk for them; then the rest of the sweep. A list
+ * that fails is noted and the walk still runs; a feed page or a depth probe Bandcamp answers with an error fails the
+ * turn before the release pages and the rest of the sweep, since a 403, 429 or 5xx asks for fewer requests
+ * (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app resumes for free,
+ * and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed step ends and again
+ * when the turn does, never per answer: a pull to refresh lets its spinner go when it moves (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -58,6 +59,11 @@ export const RELEASE_PAGES_WALKING = 5;
 export const RELEASE_PAGES_CAUGHT_UP = 25;
 /** Held back from the walk per queued release page: the pacing gap and a slow answer. */
 export const RELEASE_PAGE_RESERVE_MS = 2_000;
+/** The depth probe (task 0040): requests per first walk, the date it starts from and how close it gets. */
+export const DEPTH_PROBE_MAX = 8;
+/** 2008-01-01 UTC, before Bandcamp's feed existed. */
+export const DEPTH_PROBE_LOWER = 1199145600;
+export const DEPTH_PROBE_RESOLUTION_S = 30 * 24 * 60 * 60;
 
 type Ctx = {
   readonly session: GatherSession;
@@ -242,6 +248,10 @@ function planWalk(state: GatherState, identity: Identity, nowMs: number): WalkSt
     startedAt: nowMs,
     sinceTs: walk ? null : state.newestStoryDate,
     newestSeen: null,
+    // A poll never probes (task 0040).
+    probed: !walk,
+    floor: null,
+    probeOldest: [],
   };
 }
 
@@ -265,6 +275,13 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
     }
     walk = { ...walk, poked: true };
     await sink.writeWalk(walk);
+  }
+
+  if (catchingUp && walk.kind === 'feed_walk' && !walk.probed) {
+    if (outOfBudget(ctx, reserveMs)) return 'pending';
+    const probed = await probeDepth(ctx, walk, reserveMs);
+    if (typeof probed === 'string') return probed;
+    walk = probed;
   }
 
   let sinceFold = 0;
@@ -291,7 +308,15 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
 
     const { entryCount, oldestStoryDate: oldest, newestStoryDate } = page.value;
     const deduped = await store(ctx, page.value.document);
-    if (catchingUp && !deduped) {
+    // A page the depth probe already landed is new to the walk: it counts, and neither extends nor breaks a dedup run
+    // (task 0040). Its bytes match the probe's when the probe's cursor fell in the gap above that page. Its date leaves
+    // `probeOldest` before the count is written, so a turn killed before the cursor moves does not count it again.
+    const probedPage = deduped && oldest !== null && walk.probeOldest.includes(oldest);
+    if (probedPage) {
+      walk = { ...walk, probeOldest: walk.probeOldest.filter((date) => date !== oldest) };
+      await sink.writeWalk(walk);
+    }
+    if (catchingUp && (!deduped || probedPage)) {
       storiesSoFar += entryCount;
       await sink.patchGatherState({ storiesSoFar });
     }
@@ -299,7 +324,7 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
     walk = {
       ...walk,
       pagesDone: walk.pagesDone + 1,
-      dedupedRun: deduped ? walk.dedupedRun + 1 : 0,
+      dedupedRun: probedPage ? walk.dedupedRun : deduped ? walk.dedupedRun + 1 : 0,
       newestSeen:
         newestStoryDate === null ? walk.newestSeen : Math.max(walk.newestSeen ?? newestStoryDate, newestStoryDate),
     };
@@ -327,6 +352,57 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
       await sink.afterDocuments();
     }
   }
+}
+
+/**
+ * The depth probe (task 0040): the feed's answers carry no total, but `older_than` takes any time, so a binary search
+ * from DEPTH_PROBE_LOWER to the walk's cursor finds the oldest Story to within DEPTH_PROBE_RESOLUTION_S. An empty
+ * answer raises the lower bound, an answer with entries lowers the upper one to its oldest Story, and anything else
+ * ends the search. Each answer lands as a Raw Document (ADR-0004) and the Projection folds its Stories, but the walk's
+ * count and cursor are left to the walk. The walk is marked probed whatever the search found, except when the budget,
+ * a signed-out answer or a Bandcamp error cuts it short: the bounds and dates found so far are kept, and the next turn
+ * searches on between them. A Bandcamp error fails the turn as a feed page's does (ADR-0017).
+ */
+async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise<WalkState | FeedEnd> {
+  let lo = walk.probeLower ?? DEPTH_PROBE_LOWER;
+  let known = walk.floor;
+  const probeOldest = [...walk.probeOldest];
+  let stored = false;
+  let cut: 'budget' | Refusal | null = null;
+
+  const wide = () => (known ?? walk.olderThan) - lo > DEPTH_PROBE_RESOLUTION_S;
+  for (let asked = probeOldest.length; asked < DEPTH_PROBE_MAX && wide(); asked += 1) {
+    if (outOfBudget(ctx, reserveMs)) {
+      cut = 'budget';
+      break;
+    }
+    const cursor = Math.floor((lo + (known ?? walk.olderThan)) / 2);
+    const answer = await ctx.session.fetchFeedUpdates(walk.fanId, cursor);
+    if (answer.kind === 'logged_out' || answer.kind === 'error') {
+      cut = answer;
+      break;
+    }
+    // An offline phone fails the walk's first page too, which is where the turn notes it.
+    if (answer.kind !== 'ok') {
+      warnAnswer('depth probe', answer);
+      break;
+    }
+
+    await store(ctx, answer.value.document);
+    stored = true;
+    const { entryCount, oldestStoryDate: oldest } = answer.value;
+    if (entryCount === 0) lo = cursor;
+    else if (oldest !== null && oldest < cursor) {
+      known = Math.min(known ?? oldest, oldest);
+      probeOldest.push(oldest);
+    } else break;
+  }
+
+  const probed: WalkState = { ...walk, probed: cut === null, floor: known, probeOldest, probeLower: lo };
+  await ctx.sink.writeWalk(probed);
+  if (stored) await ctx.sink.afterDocuments();
+  if (cut !== null && cut !== 'budget') return await settle(ctx, 'depth probe', cut);
+  return probed;
 }
 
 async function finishWalk(ctx: Ctx, walk: WalkState): Promise<FeedEnd> {

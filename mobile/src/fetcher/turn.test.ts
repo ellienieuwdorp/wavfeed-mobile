@@ -11,25 +11,33 @@ import { FAN_ID, feedPayload, purchaseAt, releasePagePayload } from '../../test/
 import { openTestStore } from '../../test/nodeDb';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
 import type { BandDetails, FeedUpdatesPage, ReleasePage } from '../bandcamp/session';
-import { createGatherSink } from '../state/gatherSink';
+import { createGatherSink, WALK_KEY } from '../state/gatherSink';
 import { readUndatedReleases } from '../store/enrichment';
+import { writeKv } from '../store/kv';
 import { fold } from '../store/projection';
 import { insertRawDocument } from '../store/rawDocuments';
 import { EMPTY_GATHER_STATE, type GatherSink, type GatherState } from './sink';
-import { type GatherReason, type GatherSession, POLL_MAX_PAGES, runGatherTurn } from './turn';
+import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, POLL_MAX_PAGES, runGatherTurn } from './turn';
 
 const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
 const REQUEST_MS = 1_000;
 const FAN: Identity = { fanId: FAN_ID, username: 'diggerfan' };
 const OTHER_FAN: Identity = { fanId: FAN_ID + 1, username: 'mara.dj' };
+const START_S = Math.floor(START / 1000);
+const DAY_S = 86_400;
 
 type Story = { readonly itemId: number; readonly at: number };
 
-/** `count` Stories a minute apart, the newest `newestAgoS` seconds before START; item ids from `firstId` up. */
-function stories(count: number, firstId: number, newestAgoS = 3600): Story[] {
-  const newest = Math.floor(START / 1000) - newestAgoS;
-  return Array.from({ length: count }, (_, i) => ({ itemId: firstId + i, at: newest - 60 * i }));
+/** `count` Stories `stepS` apart, the newest `newestAgoS` seconds before START; item ids from `firstId` up. */
+function stories(count: number, firstId: number, newestAgoS = 3600, stepS = 60): Story[] {
+  const newest = START_S - newestAgoS;
+  return Array.from({ length: count }, (_, i) => ({ itemId: firstId + i, at: newest - stepS * i }));
+}
+
+/** `count` Stories a day apart, the newest on the given UTC day. */
+function daily(count: number, firstId: number, year: number, month: number, day: number): Story[] {
+  return stories(count, firstId, START_S - Date.UTC(year, month, day) / 1000, DAY_S);
 }
 
 let db: SQLiteDatabase;
@@ -44,7 +52,8 @@ let releasePages: number[];
 let bandDetailsAsked: number[];
 let bandDetails: BandcampAnswer<BandDetails>;
 let probe: BandcampAnswer<Identity>;
-let feedFailure: BandcampAnswer<FeedUpdatesPage> | null;
+/** A refusal for the feed request with this index in `cursors`, or null to answer it. */
+let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number) => BandcampAnswer<ReleasePage>;
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
@@ -63,7 +72,8 @@ const session: GatherSession = {
   async fetchFeedUpdates(_fanId, olderThan): Promise<BandcampAnswer<FeedUpdatesPage>> {
     clock += REQUEST_MS;
     cursors.push(olderThan);
-    if (feedFailure !== null) return feedFailure;
+    const refusal = refuseFeed(cursors.length - 1);
+    if (refusal !== null) return refusal;
     const cursor = replayFloor === null ? olderThan : Math.max(olderThan, replayFloor);
     const page = feed.filter((story) => story.at < cursor).sort((a, b) => b.at - a.at).slice(0, PAGE_SIZE);
     const dates = page.map((story) => story.at);
@@ -112,7 +122,7 @@ beforeEach(async () => {
   bandDetailsAsked = [];
   bandDetails = { kind: 'error', status: 429 };
   probe = ok(FAN);
-  feedFailure = null;
+  refuseFeed = () => null;
   releasePage = datedPage;
 });
 
@@ -127,7 +137,7 @@ describe('the feed walk', () => {
     feed = [...stories(2, 2000, 60), ...feed];
     cursors = [];
     assert.equal((await turn(600_000, 'timer')).outcome, 'done');
-    assert.equal(cursors.length, 1, 'the first page already reaches held Stories');
+    assert.equal(cursors.length, 1, 'the first page already reaches held Stories, and a poll asks no depth probe');
     assert.equal(await storyCount(), 25);
   });
 
@@ -192,6 +202,128 @@ describe('the feed walk', () => {
   });
 });
 
+describe('the depth probe (task 0040)', () => {
+  test('a first walk finds the oldest Story first, and every Story counts once, when the walk reaches it', async () => {
+    feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
+    const oldest = Math.min(...feed.map((story) => story.at));
+    assert.equal((await turn(10_000)).outcome, 'out_of_budget');
+
+    const held = await sink.readWalk();
+    assert.ok(held?.probed && held.floor !== null);
+    assert.ok(held.floor >= oldest && held.floor - oldest <= DEPTH_PROBE_RESOLUTION_S, `floor ${held.floor}`);
+    assert.equal(gather.storiesSoFar, held.pagesDone * PAGE_SIZE, 'only the walk counts');
+    assert.ok((await storyCount()) > gather.storiesSoFar, "the probe's answers are folded");
+
+    cursors = [];
+    assert.equal((await turn()).outcome, 'done');
+    assert.equal(cursors[0], held.olderThan, 'a resumed walk goes on from its cursor without probing again');
+    assert.equal(gather.storiesSoFar, feed.length);
+    assert.equal(await storyCount(), feed.length);
+  });
+
+  test('pages identical to what the probe landed do not end a first walk as already held', async () => {
+    // The probe lands the 2016 and the 2011 runs, then finds nothing older than 2010-12-10; the walk meets both runs
+    // again, byte for byte, before the 2010 run it never saw.
+    feed = [...stories(5, 1000), ...daily(5, 2000, 2016, 5, 1), ...daily(5, 3000, 2011, 0, 1), ...daily(5, 4000, 2010, 11, 20)];
+    assert.equal((await turn()).outcome, 'done');
+    assert.equal(await storyCount(), feed.length);
+    assert.equal(gather.storiesSoFar, feed.length);
+  });
+
+  test('a probe the budget cuts short searches on in the next turn, down to the oldest Story', async () => {
+    // Four years of Stories four days apart, far below the first answer's oldest.
+    feed = [...stories(40, 1000), ...stories(360, 2000, START_S - Date.UTC(2014, 2, 10) / 1000, 4 * DAY_S)];
+    const oldest = Math.min(...feed.map((story) => story.at));
+    assert.equal((await turn(2_500)).outcome, 'out_of_budget');
+    assert.equal((await sink.readWalk())?.probed, false);
+
+    assert.equal((await turn(20_000)).outcome, 'out_of_budget');
+    const held = await sink.readWalk();
+    assert.ok(held?.probed && held.floor !== null);
+    assert.ok(held.floor >= oldest && held.floor - oldest <= DEPTH_PROBE_RESOLUTION_S, `floor ${held.floor}`);
+  });
+
+  test('a turn killed between counting a page the probe landed and moving the cursor counts it once', async () => {
+    feed = [...stories(5, 1000), ...daily(5, 2000, 2016, 5, 1), ...daily(5, 3000, 2011, 0, 1), ...daily(5, 4000, 2010, 11, 20)];
+    const store = sink;
+    let walking = false;
+    let armed = false;
+    let killed = false;
+    // The app dies at the first walk write after the walk, past its probe, meets a page the probe already landed.
+    sink = {
+      ...store,
+      async putRaw(doc) {
+        const put = await store.putRaw(doc);
+        armed ||= walking && put.deduped && doc.endpoint === 'fan_dash_feed_updates';
+        return put;
+      },
+      async writeWalk(walk) {
+        if (armed && !killed) {
+          killed = true;
+          throw new Error('killed');
+        }
+        await store.writeWalk(walk);
+        walking ||= walk?.probed === true;
+      },
+    };
+    assert.equal((await turn()).outcome, 'failed');
+    assert.ok(killed);
+    assert.equal((await turn()).outcome, 'done');
+    assert.equal(gather.storiesSoFar, feed.length);
+  });
+
+  test('a signed-out answer mid-probe pauses the turn, and the next turn probes again', async () => {
+    feed = stories(40, 1000);
+    refuseFeed = (asked) => (asked === 1 ? { kind: 'logged_out' } : null);
+    assert.equal((await turn()).outcome, 'paused');
+    assert.equal(gather.pausedReason, 'logged_out');
+    const held = await sink.readWalk();
+    assert.equal(held?.probed, false);
+
+    refuseFeed = () => null;
+    cursors = [];
+    assert.equal((await turn()).outcome, 'done');
+    assert.ok((cursors[0] ?? Infinity) < held.olderThan, 'the first request is a probe below the cursor');
+    assert.equal(await storyCount(), 40);
+  });
+
+  test('a Bandcamp error mid-probe fails the turn with its status, and the next turn searches on', async () => {
+    feed = stories(40, 1000);
+    refuseFeed = (asked) => (asked === 1 ? { kind: 'error', status: 429 } : null);
+    const failed = await turn();
+    assert.equal(failed.outcome, 'failed');
+    assert.equal(failed.status, 429);
+    assert.equal(cursors.length, 2, 'nothing is asked after the refusal');
+    const held = await sink.readWalk();
+    assert.equal(held?.probed, false);
+    assert.equal(held.pagesDone, 0);
+
+    refuseFeed = () => null;
+    assert.equal((await turn()).outcome, 'done');
+    assert.equal(await storyCount(), 40);
+  });
+
+  test('a probe answer that does not arrive ends the probe and the walk still runs', async () => {
+    feed = stories(40, 1000);
+    refuseFeed = (asked) => (asked === 0 ? { kind: 'unreachable' } : null);
+    assert.equal((await turn()).outcome, 'done');
+    assert.equal(cursors[1], START_S, "the walk's first page follows the failed probe");
+    assert.equal(await storyCount(), 40);
+  });
+
+  test('a poll stored before the probe existed resumes, through a page already held', async () => {
+    feed = stories(20, 1000);
+    await turn();
+    // The shape a walk had before task 0040, at the cursor the first walk's first page was asked with.
+    const poll = { kind: 'feed_poll', fanId: FAN.fanId, username: FAN.username, olderThan: START_S, pagesDone: 0, dedupedRun: 0, maxPages: POLL_MAX_PAGES, poked: true, startedAt: START, sinceTs: gather.newestStoryDate, newestSeen: null };
+    await writeKv(db, WALK_KEY, poll);
+    cursors = [];
+    assert.equal((await turn(600_000, 'timer')).outcome, 'done');
+    assert.deepEqual(cursors, [START_S]);
+    assert.equal(await sink.readWalk(), null);
+  });
+});
+
 describe('the probe', () => {
   test('a signed-out probe pauses as not connected before any Fan, and as logged out after one', async () => {
     probe = { kind: 'logged_out' };
@@ -228,12 +360,12 @@ describe('the probe', () => {
 describe('a feed page Bandcamp fails', () => {
   test('fails the turn with its status, and keeps the status beside the failure until a probe answers again', async () => {
     feed = stories(3, 1000);
-    feedFailure = { kind: 'error', status: 503 };
+    refuseFeed = () => ({ kind: 'error', status: 503 });
     assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: 503 });
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 503);
 
-    feedFailure = null;
+    refuseFeed = () => null;
     assert.equal((await turn(600_000, 'timer')).outcome, 'done');
     assert.equal(gather.lastError, null);
     assert.equal(gather.lastStatus, null);
@@ -249,7 +381,7 @@ describe('a feed page Bandcamp fails', () => {
     releasePages = [];
 
     clock += 15 * 60_000;
-    feedFailure = { kind: 'error', status: 429 };
+    refuseFeed = () => ({ kind: 'error', status: 429 });
     const summary = await turn(600_000, 'timer');
     assert.equal(summary.outcome, 'failed');
     assert.equal(summary.status, 429);
@@ -257,14 +389,14 @@ describe('a feed page Bandcamp fails', () => {
     assert.deepEqual(bandDetailsAsked, []);
 
     clock += 15 * 60_000;
-    feedFailure = null;
+    refuseFeed = () => null;
     assert.equal((await turn(600_000, 'timer')).outcome, 'done');
     assert.equal(releasePages.length, 3);
     assert.deepEqual(bandDetailsAsked, [1, 2]);
   });
 
   test('unanswered fails the turn with no status', async () => {
-    feedFailure = { kind: 'unreachable' };
+    refuseFeed = () => ({ kind: 'unreachable' });
     assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: null });
     assert.equal(gather.lastError, 'bandcamp_unreachable');
   });

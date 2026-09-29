@@ -11,7 +11,10 @@ export type WalkKind = 'feed_walk' | 'feed_poll';
 
 /**
  * The Extension's walk (extension/lib/storage.ts) less its server fields. Unix seconds: `olderThan` is the next
- * cursor, `sinceTs` the server's stop line, `newestSeen` the next stop line once this walk finishes.
+ * cursor, `sinceTs` the server's stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
+ * (task 0040) runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
+ * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before task 0040 reads as not
+ * probed, with no floor.
  */
 export type WalkState = {
   readonly kind: WalkKind;
@@ -25,6 +28,11 @@ export type WalkState = {
   readonly startedAt: number;
   readonly sinceTs: number | null;
   readonly newestSeen: number | null;
+  readonly probed: boolean;
+  readonly floor: number | null;
+  readonly probeOldest: readonly number[];
+  /** Where a probe cut short by the budget or a sign-out goes on searching from; absent until one is. */
+  readonly probeLower?: number;
 };
 
 export type PausedReason = 'logged_out' | 'not_connected';
