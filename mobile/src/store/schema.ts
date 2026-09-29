@@ -12,10 +12,16 @@ export type Store = { readonly db: SQLiteDatabase };
 
 export const STORE_FILE = 'wavfeed.db';
 
+/** A store that opens but will not migrate is closed again, so the failure screen's "Try again" starts clean. */
 export async function openStore(file: string = STORE_FILE): Promise<Store> {
   const db = await openDatabaseAsync(file);
-  await db.execAsync(`pragma journal_mode = wal; pragma busy_timeout = ${BUSY_TIMEOUT_MS};`);
-  await migrate(db);
+  try {
+    await db.execAsync(`pragma journal_mode = wal; pragma busy_timeout = ${BUSY_TIMEOUT_MS};`);
+    await migrate(db);
+  } catch (error) {
+    await db.closeAsync().catch(() => undefined);
+    throw error;
+  }
   return { db };
 }
 
