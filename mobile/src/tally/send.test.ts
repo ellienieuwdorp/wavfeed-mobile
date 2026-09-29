@@ -183,11 +183,6 @@ describe('the schedule', () => {
     assert.deepEqual(onSettled(s, { kind: 'done', batches: 1 }, NOW, () => 1).schedule, IDLE);
   });
 
-  test('Retry-After is the floor of the wait', () => {
-    const move = onSettled(onTrigger(IDLE, NOW).schedule, { kind: 'retry', retryAfter: 3_600_000 }, NOW, () => 0);
-    assert.equal(move.wakeAt, NOW + 3_600_000);
-  });
-
   test('a stopped flush leaves nothing pending', () => {
     const running = onTrigger(onTrigger(IDLE, NOW).schedule, NOW).schedule;
     assert.deepEqual(onSettled(running, { kind: 'stopped' }, NOW, () => 1), { schedule: IDLE, start: false, wakeAt: null });

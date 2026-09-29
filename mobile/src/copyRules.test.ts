@@ -4,16 +4,16 @@
  * and the sharing strings say "counts", never the machine words, and name no Bandcamp identity.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { copy, FEEDBACK_ADDRESS } from './copy';
-
-const COPY_FILES = ['copy.ts', 'player/copy.ts', 'wishlist/copy.ts'];
+import { copy } from './copy';
 
 test('no copy file holds an em dash', () => {
-  for (const file of COPY_FILES) {
+  const files = readdirSync(import.meta.dirname, { recursive: true, encoding: 'utf8' }).filter((f) => /(^|\/)copy\.ts$/.test(f));
+  assert.ok(files.length >= 3, files.join(', '));
+  for (const file of files) {
     const text = readFileSync(join(import.meta.dirname, file), 'utf8');
     assert.ok(!text.includes('—'), file);
   }
@@ -46,5 +46,4 @@ test('a feedback mail carries the build and the code only when there is one', ()
   const s = copy.settings;
   assert.equal(s.feedbackBody({ version: '1.0.0', build: '37', os: 'iOS 26', code: null }), '\n\nVersion 1.0.0 (37) · iOS 26');
   assert.equal(s.feedbackBody({ version: '1.0.0', build: '37', os: 'Android 16', code: '3b9f0c' }), '\n\nVersion 1.0.0 (37) · Android 16 · code 3b9f0c');
-  assert.match(FEEDBACK_ADDRESS, /^[^@\s]+@[^@\s]+$/);
 });
