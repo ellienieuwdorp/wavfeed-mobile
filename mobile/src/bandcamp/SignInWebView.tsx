@@ -7,6 +7,8 @@ import { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
+import { useTokens } from '@/theme/tokens';
+
 export const BANDCAMP_LOGIN_URL = 'https://bandcamp.com/login';
 export const BANDCAMP_LOGOUT_URL = 'https://bandcamp.com/logout';
 
@@ -27,6 +29,7 @@ type SignInProps = {
 };
 
 export function SignInWebView({ onMaybeSignedIn, onError }: SignInProps) {
+  const { c } = useTokens();
   const onLogin = useRef(true);
   const onNavigationStateChange = (state: WebViewNavigation): void => {
     if (state.loading) return;
@@ -44,6 +47,8 @@ export function SignInWebView({ onMaybeSignedIn, onError }: SignInProps) {
       thirdPartyCookiesEnabled
       onNavigationStateChange={onNavigationStateChange}
       onError={() => onError('page_failed')}
+      // The library's error view prints the platform's error domain, code and text; the caller's line speaks instead.
+      renderError={() => <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]} />}
     />
   );
 }
