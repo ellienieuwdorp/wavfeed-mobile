@@ -22,6 +22,7 @@ const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
 const REQUEST_MS = 1_000;
 const FAN: Identity = { fanId: FAN_ID, username: 'diggerfan' };
+const OTHER_FAN: Identity = { fanId: FAN_ID + 1, username: 'mara.dj' };
 
 type Story = { readonly itemId: number; readonly at: number };
 
@@ -42,6 +43,7 @@ let cursors: number[];
 let releasePages: number[];
 let bandDetailsAsked: number[];
 let probe: BandcampAnswer<Identity>;
+let feedRefusal: BandcampAnswer<FeedUpdatesPage> | null;
 let releasePage: (itemId: number) => BandcampAnswer<ReleasePage>;
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
@@ -60,6 +62,7 @@ const session: GatherSession = {
   async fetchFeedUpdates(_fanId, olderThan): Promise<BandcampAnswer<FeedUpdatesPage>> {
     clock += REQUEST_MS;
     cursors.push(olderThan);
+    if (feedRefusal !== null) return feedRefusal;
     const cursor = replayFloor === null ? olderThan : Math.max(olderThan, replayFloor);
     const page = feed.filter((story) => story.at < cursor).sort((a, b) => b.at - a.at).slice(0, PAGE_SIZE);
     const dates = page.map((story) => story.at);
@@ -100,6 +103,7 @@ beforeEach(async () => {
   releasePages = [];
   bandDetailsAsked = [];
   probe = ok(FAN);
+  feedRefusal = null;
   releasePage = datedPage;
 });
 
@@ -190,6 +194,40 @@ describe('the probe', () => {
     assert.equal((await turn()).outcome, 'paused');
     assert.equal(gather.pausedReason, 'logged_out');
     assert.equal(gather.identity?.fanId, FAN.fanId);
+  });
+
+  test('a different Fan signed in pauses the store as signed out and files other_fan, not a store error', async () => {
+    await turn();
+    probe = ok(OTHER_FAN);
+    assert.equal((await turn()).outcome, 'paused');
+    assert.equal(gather.pausedReason, 'logged_out');
+    assert.equal(gather.lastError, 'other_fan');
+    assert.equal(gather.identity?.fanId, FAN.fanId);
+    assert.equal(gather.phase, 'idle');
+  });
+
+  test('a 429 on the probe is a Bandcamp error with its status, not a sign-out', async () => {
+    await turn();
+    probe = { kind: 'error', status: 429 };
+    assert.equal((await turn()).outcome, 'failed');
+    assert.equal(gather.pausedReason, null);
+    assert.equal(gather.lastError, 'bandcamp_error');
+    assert.equal(gather.lastStatus, 429);
+  });
+});
+
+describe('a refused feed page', () => {
+  test('keeps its HTTP status beside the failure until a probe answers again', async () => {
+    feed = stories(3, 1000);
+    feedRefusal = { kind: 'error', status: 503 };
+    await turn();
+    assert.equal(gather.lastError, 'bandcamp_error');
+    assert.equal(gather.lastStatus, 503);
+
+    feedRefusal = null;
+    assert.equal((await turn(600_000, 'timer')).outcome, 'done');
+    assert.equal(gather.lastError, null);
+    assert.equal(gather.lastStatus, null);
   });
 });
 

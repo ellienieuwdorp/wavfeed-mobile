@@ -9,7 +9,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Identity } from '@/bandcamp/wire';
 import { BAND_DETAILS_ENDPOINT } from '@/domain/endpoints';
 import { asRecord } from '@/domain/wire';
-import { EMPTY_GATHER_STATE, type GatherSink, type GatherState, type WalkState } from '@/fetcher/sink';
+import { EMPTY_GATHER_STATE, ForeignFanError, type GatherSink, type GatherState, type WalkState } from '@/fetcher/sink';
 import { fanAvatarUrl } from '@/lib/format';
 import {
   deleteKv,
@@ -31,13 +31,6 @@ export const GATHER_KEY = 'gather';
 export const CONNECT_SHOWN_KEY = 'connectShown';
 /** Epoch milliseconds of the first identity this store held, the device row's "added" date. */
 export const DEVICE_ADDED_KEY = 'deviceAddedAt';
-
-/** Thrown from `patchGatherState` when the probe answers as a Fan this store does not belong to; the turn ends there. */
-export class ForeignFanError extends Error {
-  constructor() {
-    super('a different Fan is signed in');
-  }
-}
 
 export type SinkDeps = {
   readonly db: SQLiteDatabase;

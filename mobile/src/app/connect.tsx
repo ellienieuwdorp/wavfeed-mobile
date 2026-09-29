@@ -82,7 +82,7 @@ function SignIn({ onCancel }: { onCancel: () => void }) {
         return;
       }
       await writeIdentity(app.db, probe.value, Date.now());
-      await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null });
+      await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null, lastStatus: null });
       app.invalidate();
       close();
       void app.runGather('open');

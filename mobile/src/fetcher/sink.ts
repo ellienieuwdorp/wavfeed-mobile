@@ -29,8 +29,15 @@ export type WalkState = {
 
 export type PausedReason = 'logged_out' | 'not_connected';
 
-/** A code, never a message (ADR-0003). */
-export type GatherFailure = 'bandcamp_unreachable' | 'bandcamp_error' | 'store_error';
+/** A code, never a message (ADR-0003). `other_fan`: the probe answered as a Fan this store does not belong to. */
+export type GatherFailure = 'bandcamp_unreachable' | 'bandcamp_error' | 'store_error' | 'other_fan';
+
+/** Thrown from `patchGatherState` when the probe answers as a Fan this store does not belong to; the turn ends there. */
+export class ForeignFanError extends Error {
+  constructor() {
+    super('a different Fan is signed in');
+  }
+}
 
 export type GatherPhase = 'idle' | 'probing' | 'walking' | 'lists' | 'sweeping' | 'dating';
 
@@ -39,6 +46,8 @@ export type GatherState = {
   readonly identity: Identity | null;
   readonly pausedReason: PausedReason | null;
   readonly lastError: GatherFailure | null;
+  /** The HTTP status behind `lastError`, written with it: 0 when none explains it, null for a failure with no answer. */
+  readonly lastStatus: number | null;
   readonly lastTurnAt: number | null;
   readonly lastSuccessAt: number | null;
   readonly initialWalkDone: boolean;
@@ -58,6 +67,7 @@ export const EMPTY_GATHER_STATE: GatherState = {
   identity: null,
   pausedReason: null,
   lastError: null,
+  lastStatus: null,
   lastTurnAt: null,
   lastSuccessAt: null,
   initialWalkDone: false,

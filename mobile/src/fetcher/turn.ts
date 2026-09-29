@@ -11,7 +11,7 @@
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
 import type { BandcampAnswer, BandcampDocument, Identity } from '../bandcamp/wire';
-import type { GatherFailure, GatherSink, GatherState, WalkState } from './sink';
+import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
 
 export type GatherSession = Pick<
@@ -103,7 +103,7 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
   } catch (error) {
     // The sink threw: a store message, never a Bandcamp body (the session returns values).
     console.warn('gather turn stopped on the store:', error instanceof Error ? error.message : String(error));
-    await sink.patchGatherState({ lastError: 'store_error', phase: 'idle', ...landed(ctx) }).catch(() => undefined);
+    await sink.patchGatherState({ lastError: 'store_error', lastStatus: null, phase: 'idle', ...landed(ctx) }).catch(() => undefined);
     summary = { reason: options.reason, outcome: 'failed', walkPending: false };
   }
   return summary;
@@ -123,8 +123,8 @@ function outOfBudget(ctx: Ctx, reserveMs = 0): boolean {
   return at >= ctx.deadline - reserveMs;
 }
 
-async function note(ctx: Ctx, failure: GatherFailure): Promise<void> {
-  await ctx.sink.patchGatherState({ lastError: failure });
+async function note(ctx: Ctx, failure: GatherFailure, status: number | null = null): Promise<void> {
+  await ctx.sink.patchGatherState({ lastError: failure, lastStatus: status });
 }
 
 type Refusal = Exclude<BandcampAnswer<unknown>, { kind: 'ok' }>;
@@ -144,7 +144,7 @@ async function settle(ctx: Ctx, what: string, answer: Refusal): Promise<FeedEnd>
     await note(ctx, 'bandcamp_unreachable');
     return 'unreachable';
   }
-  await note(ctx, 'bandcamp_error');
+  await note(ctx, 'bandcamp_error', answer.status);
   return 'error';
 }
 
@@ -164,22 +164,34 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
     await sink.patchGatherState({ pausedReason: before.identity === null ? 'not_connected' : 'logged_out' });
     return 'paused';
   }
-  if (probe.kind !== 'ok') {
-    await note(ctx, probe.kind === 'unreachable' ? 'bandcamp_unreachable' : 'bandcamp_error');
+  if (probe.kind === 'unreachable') {
+    await note(ctx, 'bandcamp_unreachable');
+    return 'failed';
+  }
+  if (probe.kind === 'error') {
+    await note(ctx, 'bandcamp_error', probe.status);
     return 'failed';
   }
 
   const identity = probe.value;
   const otherFan = before.identity !== null && before.identity.fanId !== identity.fanId;
-  await sink.patchGatherState({
-    identity,
-    pausedReason: null,
-    lastError: null,
-    // A different Fan signed in: nothing gathered for the last one speaks for this one.
-    ...(otherFan
-      ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, wishlistFetchedAt: null, wishlistAskedAt: null }
-      : {}),
-  });
+  try {
+    await sink.patchGatherState({
+      identity,
+      pausedReason: null,
+      lastError: null,
+      lastStatus: null,
+      // A different Fan signed in: nothing gathered for the last one speaks for this one.
+      ...(otherFan
+        ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, wishlistFetchedAt: null, wishlistAskedAt: null }
+        : {}),
+    });
+  } catch (error) {
+    if (!(error instanceof ForeignFanError)) throw error;
+    // The sink has paused the store as logged out, so the signed-out notice asks for this store's Fan again.
+    await note(ctx, 'other_fan');
+    return 'paused';
+  }
 
   // An unreachable list is noted and left for the next turn; the walk behind it still runs.
   if ((await runLists(ctx, identity)) === 'paused') return 'paused';
@@ -429,9 +441,14 @@ async function runSweep(ctx: Ctx, quota: number): Promise<number> {
     }
 
     await sink.markSwept(band.bandId, at, false);
-    const opened = bandDetailsBreaker.recordFailure(at, answer.kind === 'error' ? answer.status : 0);
-    if (opened || answer.kind === 'unreachable') {
-      await note(ctx, answer.kind === 'unreachable' ? 'bandcamp_unreachable' : 'bandcamp_error');
+    const status = answer.kind === 'error' ? answer.status : 0;
+    const opened = bandDetailsBreaker.recordFailure(at, status);
+    if (answer.kind === 'unreachable') {
+      await note(ctx, 'bandcamp_unreachable');
+      break;
+    }
+    if (opened) {
+      await note(ctx, 'bandcamp_error', status);
       break;
     }
   }
