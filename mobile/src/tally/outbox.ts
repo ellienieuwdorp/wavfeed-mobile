@@ -16,6 +16,8 @@ import { tallyWire, type OutboxRow, type TallyAt } from './wire';
 
 export const SHARING_KEY = 'tally_sharing';
 export const DROPPED_KEY = 'tally_dropped';
+/** Set while the app is in the foreground with sharing on (src/tally/lifecycle.ts); part of the sharing state. */
+export const FOREGROUND_KEY = 'tally_foreground';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** ceiling: 2,000 Tallies and 30 days queued offline, oldest dropped first; raise with the Worker's 31-day clock window. */
@@ -27,7 +29,8 @@ export const MAX_ERRORS_PER_LAUNCH = 10;
 /** ceiling: 60,000 bytes of rows a batch, under the Worker's 64 KB with room for the envelope; gzip once Hermes can. */
 export const BATCH_BYTES = 60_000;
 
-const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)`;
+/** A SQL condition true only while the yes is held, so a write that carries it does nothing after an off. */
+export const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)`;
 
 export async function readSharing(db: SQLiteDatabase): Promise<Sharing | null> {
   const sharing = await readKv<Sharing>(db, SHARING_KEY);
@@ -46,11 +49,11 @@ export async function turnSharingOn(db: SQLiteDatabase, install: string, now: nu
   return (await readSharing(db)) ?? sharing;
 }
 
-/** The yes, the Install id, the drop counter and every queued row go together; the dropped Sharing is returned. */
+/** The yes, the Install id, the drop counter, the foreground marker and every queued row go together; the dropped Sharing is returned. */
 export async function turnSharingOff(db: SQLiteDatabase): Promise<Sharing | null> {
   const held = await readSharing(db);
   await db.withTransactionAsync(async () => {
-    await db.execAsync(`delete from kv where key in ('${SHARING_KEY}', '${DROPPED_KEY}'); delete from tally_outbox;`);
+    await db.execAsync(`delete from kv where key in ('${SHARING_KEY}', '${DROPPED_KEY}', '${FOREGROUND_KEY}'); delete from tally_outbox;`);
   });
   return held;
 }
@@ -90,6 +93,11 @@ export async function enqueueTally(db: SQLiteDatabase, tally: Tally, at: TallyAt
   );
   await bump(db, 'full', over.changes);
   return true;
+}
+
+/** Rows waiting, stamped or not; the sender flushes early at 20. */
+export async function countQueued(db: SQLiteDatabase): Promise<number> {
+  return (await db.getFirstAsync<{ n: number }>('select count(*) as n from tally_outbox'))?.n ?? 0;
 }
 
 /** Error Reports written so far in this launch, held by the caller for the life of the process. */
