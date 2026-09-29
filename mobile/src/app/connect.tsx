@@ -1,41 +1,31 @@
 /**
- * Connect Bandcamp, the first screen (task 0044 decision 4, task 0036 decision 1): the mark, one line on what wavfeed
- * is, Sign in to Bandcamp, "Look around first" for the Demo while the store holds no Fan (task 0043 decisions 2 and
- * 8), a quiet Not now, and the one line that the sign-in stays on this phone. The lead reads what the store holds: a
- * Demo is told a sign-in replaces the sample, a Fan whose feed is here is asked to sign in again. The sign-in press
- * swaps in Bandcamp's own login page full-bleed under a bar with Cancel. Each time the page leaves /login the probe
- * asks who is signed in: a Fan this phone's feed does not belong to gets the refusal line and the page stays; a sign-in
- * from the Demo empties the store once the probe names a Fan; otherwise the identity is written, the modal closes and
- * a turn starts. A page that fails to load raises its own line over it. The rig's sample bundle never opens the login
- * page (ADR-0001). Each visit counts the door it came through (`connect_opened`) and ends in one `sign_in_finished`:
- * signed in, else the last failure line the visit showed, else closed (task 0038, `src/tally/actions.ts`).
+ * Connect Bandcamp, a sheet holding Bandcamp's own login page under a bar with Cancel (task 0036 decision 1, task 0044
+ * decision 4). The first screen opens it, and so do Settings' Sign in and the sign-in notices, each naming its door.
+ * Each time the page leaves /login the probe asks who is signed in: a Fan this phone's feed does not belong to gets
+ * the refusal line and the page stays; a sign-in from the Demo empties the store once the probe names a Fan (task
+ * 0043 decision 8); otherwise the sheet closes, then the identity is written and a turn starts, so on a first run the
+ * root guard trades the first screen for the tabs with no sheet over them. A page that fails to load raises its own
+ * line over it. The rig's sample bundle never opens the login page (ADR-0001). Each visit counts the door it came
+ * through (`connect_opened`) and ends in one `sign_in_finished`: signed in, else the last failure line the visit
+ * showed, else closed (task 0038, `src/tally/actions.ts`).
  */
-import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
-
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
-import { isDemoFan, loadDemo } from '@/demo/demo';
+import { isDemoFan } from '@/demo/demo';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState } from '@/state/appState';
-import { loadGatherState, patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
+import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
 import { emptyStore } from '@/store';
 import { Glyph } from '@/components/Glyph';
-import { WideButton } from '@/components/WideButton';
 import { connectFrom, failSignIn, finishSignIn, openSignIn, type SignInFailure, type SignInVisit } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
-/** The bare W in white on nothing (docs/design/2026-09-29-waveform-icon), tinted with the accent of the theme in force. */
-const MARK = require('../../assets/images/splash-icon.png');
-const MARK_WIDTH = 88;
-const MARK_HEIGHT = Math.round((MARK_WIDTH * 138) / 300);
-
 /** The header's Cancel reads the tokens itself: `Stack.Screen` hands `headerLeft` over in a layout effect, one render late. */
 function Cancel({ onCancel }: { onCancel: () => void }) {
   const { c } = useTokens();
@@ -129,11 +119,12 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
         setLine(copy.connect.refusal(probe.value.username, held.username || held.name || String(held.fanId)));
         return;
       }
+      // The sheet goes before the Fan is written, so a first run's guard swaps the first screen for the tabs beneath it.
+      visit.signedIn();
+      close();
       await writeIdentity(app.db, probe.value, Date.now());
       await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null, lastStatus: null });
       app.invalidate();
-      visit.signedIn();
-      close();
       void app.runGather('open');
     } finally {
       probing.current = false;
@@ -144,7 +135,6 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Stack.Screen
         options={{
-          headerShown: true,
           title: copy.connect.host,
           headerLargeTitle: false,
           headerLeft: () => <Cancel onCancel={onCancel} />,
@@ -169,47 +159,11 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
 }
 
 export default function Connect() {
-  const { c, type } = useTokens();
-  const insets = useSafeAreaInsets();
-  const app = useAppState();
-  const [signingIn, setSigningIn] = useState(false);
   const visit = useVisit();
-  const [loading, setLoading] = useState(false);
-  if (signingIn) return <SignIn onCancel={() => setSigningIn(false)} visit={visit} />;
-
-  const held = app.gather.identity;
-  const lead = copy.connect.lead[held === null ? 'none' : isDemoFan(held.fanId) ? 'demo' : 'held'];
-  const lookAround = () => {
-    setLoading(true);
-    void (async () => {
-      await loadDemo(app.db);
-      await loadGatherState(app);
-      app.invalidate();
-      close();
-    })()
-      .catch((error: unknown) => console.warn('the Demo did not load:', error instanceof Error ? error.message : String(error)))
-      .finally(() => setLoading(false));
-  };
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: c.bg }}
-      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: type.gutter, paddingTop: ios ? 40 : insets.top + 32, paddingBottom: (ios ? 0 : insets.bottom) + 28 }}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-      <Image source={MARK} tintColor={c.accent} accessible accessibilityLabel={copy.connect.mark} style={{ width: MARK_WIDTH, height: MARK_HEIGHT }} />
-      <View style={{ paddingTop: 28, gap: 10 }}>
-        <Text accessibilityRole="header" style={ios ? { fontSize: 28, fontWeight: '700', color: c.ink } : { fontSize: 28, lineHeight: 36, color: c.ink }}>
-          {lead.title}
-        </Text>
-        <Text style={{ fontSize: 17, lineHeight: 24, color: c.sub }}>{lead.sub}</Text>
-      </View>
-      <View style={{ flex: 1, minHeight: 40 }} />
-      <View style={{ gap: 10 }}>
-        <WideButton label={copy.connect.signIn} kind="filled" onPress={SAMPLE_MODE ? close : () => setSigningIn(true)} />
-        {held === null ? <WideButton label={copy.connect.lookAround} kind="tonal" busy={loading} onPress={lookAround} /> : null}
-        <WideButton label={copy.connect.notNow} kind="plain" onPress={close} />
-      </View>
-      <Text style={{ fontSize: type.fact, lineHeight: 18, color: c.sub, textAlign: 'center', paddingTop: 14 }}>{copy.connect.custody}</Text>
-    </ScrollView>
-  );
+  // The rig's sample Fan has no Bandcamp session to start, so the sheet closes at once (ADR-0001).
+  useEffect(() => {
+    if (SAMPLE_MODE) close();
+  }, []);
+  if (SAMPLE_MODE) return null;
+  return <SignIn onCancel={close} visit={visit} />;
 }

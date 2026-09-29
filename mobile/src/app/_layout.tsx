@@ -3,8 +3,9 @@
  * or Settings > Appearance (see `setAppearance`), the status bar styled from the same tokens because expo-status-bar's
  * `auto` reads React Native's scheme, which learns of a pick a native round trip later, the app state with its gather
  * runner and schedule (task 0036 decision 4), the player and notice state, and a stack holding the tabs, the player
- * sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036 decision 5). The first launch with no Fan held
- * presents Connect once by itself, and the usage ask follows a sign-in once (task 0044); the sharing provider under the app
+ * sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036 decision 5). While the store holds no Fan the
+ * stack guards everything but the first screen and Connect, so the first screen is the whole app until a sign-in or
+ * the Demo writes one, and the usage ask follows a sign-in once (task 0044); the sharing provider under the app
  * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
@@ -19,13 +20,12 @@ import { Platform } from 'react-native';
 
 import { AppFailed } from '@/components/Failed';
 import { FirstRunAsk } from '@/components/FirstRunAsk';
-import { FirstRunConnect } from '@/components/FirstRunConnect';
 import { NoticeProvider } from '@/components/noticeState';
 import { PlayerProvider } from '@/components/player/playerState';
 import { copy } from '@/copy';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { SampleGate } from '@/dev/useSampleData';
-import { AppStateProvider } from '@/state/appState';
+import { AppStateProvider, useAppState } from '@/state/appState';
 import { GatherSchedule, runner } from '@/state/gather';
 import { errorReports, installErrorCapture } from '@/tally/errors';
 import { SharingProvider, useSharing } from '@/tally/Sharing';
@@ -85,65 +85,77 @@ export default function RootLayout() {
         <SampleGate>
           <SharingProvider>
             <GatherSchedule />
-            <FirstRunConnect>
-              <FirstRunAsk />
-            </FirstRunConnect>
+            <FirstRunAsk />
             <ScreenTally />
             <PlayerProvider>
               <NoticeProvider>
                 <StatusBar style={dark ? 'light' : 'dark'} />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="player"
-                    options={
-                      ios
-                        ? { presentation: 'modal', gestureEnabled: true, contentStyle: { backgroundColor: c.surface } }
-                        : { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetCornerRadius: 28, contentStyle: { backgroundColor: c.surface } }
-                    }
-                  />
-                  <Stack.Screen
-                    name="bought-by"
-                    options={{
-                      presentation: 'formSheet',
-                      sheetAllowedDetents: 'fitToContents',
-                      sheetGrabberVisible: true,
-                      sheetCornerRadius: ios ? undefined : 28,
-                      contentStyle: { backgroundColor: c.surface },
-                    }}
-                  />
-                  <Stack.Screen
-                    name="usage"
-                    options={
-                      ios
-                        ? { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true, contentStyle: { backgroundColor: c.surface } }
-                        : { presentation: 'modal', contentStyle: { backgroundColor: c.bg } }
-                    }
-                  />
-                  <Stack.Screen
-                    name="connect"
-                    options={{
-                      presentation: 'modal',
-                      // The first screen draws its own top (task 0044 decision 4); the sign-in page turns the bar on.
-                      headerShown: false,
-                      title: copy.connect.title,
-                      headerLargeTitle: false,
-                      headerShadowVisible: false,
-                      headerLargeTitleShadowVisible: false,
-                      headerStyle: { backgroundColor: c.bg },
-                      headerLargeStyle: { backgroundColor: c.bg },
-                      headerTintColor: ios ? c.accent : c.ink,
-                      headerTitleStyle: ios ? { color: c.ink } : { fontSize: 22, fontWeight: '400', color: c.ink },
-                      headerLargeTitleStyle: { color: c.ink },
-                      contentStyle: { backgroundColor: c.bg },
-                    }}
-                  />
-                </Stack>
+                <GuardedStack />
               </NoticeProvider>
             </PlayerProvider>
           </SharingProvider>
         </SampleGate>
       </AppStateProvider>
     </ThemeProvider>
+  );
+}
+
+/** The routes a phone with no Fan may not reach sit behind `hasFan`; the first screen only before one (task 0044). */
+function GuardedStack() {
+  const { c } = useTokens();
+  const hasFan = useAppState().gather.identity !== null;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!hasFan}>
+        <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={hasFan}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="player"
+          options={
+            ios
+              ? { presentation: 'modal', gestureEnabled: true, contentStyle: { backgroundColor: c.surface } }
+              : { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetCornerRadius: 28, contentStyle: { backgroundColor: c.surface } }
+          }
+        />
+        <Stack.Screen
+          name="bought-by"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            sheetCornerRadius: ios ? undefined : 28,
+            contentStyle: { backgroundColor: c.surface },
+          }}
+        />
+        <Stack.Screen
+          name="usage"
+          options={
+            ios
+              ? { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true, contentStyle: { backgroundColor: c.surface } }
+              : { presentation: 'modal', contentStyle: { backgroundColor: c.bg } }
+          }
+        />
+      </Stack.Protected>
+      <Stack.Screen
+        name="connect"
+        options={{
+          presentation: 'modal',
+          // Always shown: a modal whose header comes and goes remounts and drops its state.
+          headerShown: true,
+          title: copy.connect.host,
+          headerLargeTitle: false,
+          headerShadowVisible: false,
+          headerLargeTitleShadowVisible: false,
+          headerStyle: { backgroundColor: c.bg },
+          headerLargeStyle: { backgroundColor: c.bg },
+          headerTintColor: ios ? c.accent : c.ink,
+          headerTitleStyle: ios ? { color: c.ink } : { fontSize: 22, fontWeight: '400', color: c.ink },
+          headerLargeTitleStyle: { color: c.ink },
+          contentStyle: { backgroundColor: c.bg },
+        }}
+      />
+    </Stack>
   );
 }

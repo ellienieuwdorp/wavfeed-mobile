@@ -39,8 +39,6 @@ import { reportCode } from '@/tally/errors';
 
 export const WALK_KEY = 'walk';
 export const GATHER_KEY = 'gather';
-/** Set once the first launch has presented Connect Bandcamp by itself. */
-export const CONNECT_SHOWN_KEY = 'connectShown';
 /** Epoch milliseconds of the first identity this store held, the device row's "added" date. */
 export const DEVICE_ADDED_KEY = 'deviceAddedAt';
 

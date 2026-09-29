@@ -13,7 +13,7 @@ import { readTralbumTracks } from '@/domain/tralbumTracks';
 import type { ItemType } from '@/domain/types';
 import { asRecord, asTralbumType, readDate, readId, readText } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
-import { CONNECT_SHOWN_KEY, DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
+import { DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
 import { fold, IDENTITY_KEY, insertRawDocument, type StoredIdentity, writeKv } from '@/store';
 
 import { DEMO_FAN_ID } from './fan';
@@ -256,7 +256,6 @@ export async function loadDemo(db: SQLiteDatabase, now: number = Date.now()): Pr
 
   const identity: StoredIdentity = { fanId: DEMO_FAN_ID, username: '', name: null, avatarUrl: null };
   await writeKv(db, IDENTITY_KEY, identity);
-  await writeKv(db, CONNECT_SHOWN_KEY, true);
   await writeKv(db, DEVICE_ADDED_KEY, gatheredAt);
   const gather: GatherState = {
     ...EMPTY_GATHER_STATE,

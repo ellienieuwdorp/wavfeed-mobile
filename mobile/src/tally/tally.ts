@@ -58,6 +58,8 @@ const SCREEN_PATHS: Readonly<Record<string, Screen>> = {
   '/settings': 'settings',
   '/player': 'player',
   '/connect': 'connect',
+  // The first screen is Connect's first door, so both count as one screen.
+  '/welcome': 'connect',
   '/bought-by': 'bought_by',
   // The ask shows only while sharing is off and holds the same switch as the Settings group, so it counts as settings.
   '/usage': 'settings',
@@ -140,7 +142,7 @@ export type AskState = {
 
 /**
  * The ask is due once the store holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open
- * (task 0044 decision 2): after the sign-in that closes Connect, never after "Not now" or while looking around.
+ * (task 0044 decision 2): after the sign-in that closes Connect, never on the first screen or while looking around.
  */
 export function usageAskDue(state: AskState): boolean {
   if (!state.canSend || !state.loaded || state.sharing !== null) return false;

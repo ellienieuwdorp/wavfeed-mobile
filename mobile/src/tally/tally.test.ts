@@ -50,7 +50,8 @@ describe('screenFor', () => {
     const paths = routePaths();
     assert.ok(paths.includes('/') && paths.includes('/bought/upcoming'), paths.join(', '));
     assert.equal(screenFor('/usage'), 'settings', 'the ask shares its screen with the switch it sets');
-    const screens = paths.filter((p) => p !== '/usage').map(screenFor);
+    assert.equal(screenFor('/welcome'), 'connect', "the first screen is Connect's first door");
+    const screens = paths.filter((p) => p !== '/usage' && p !== '/welcome').map(screenFor);
     assert.ok(!screens.includes('other'), `unmapped: ${paths.filter((p) => screenFor(p) === 'other').join(', ')}`);
     assert.equal(new Set(screens).size, screens.length);
     assert.deepEqual([...screens].sort(), SCREENS.filter((s) => s !== 'other').sort());
@@ -150,8 +151,8 @@ describe('the ask', () => {
     assert.equal(usageAskDue({ ...signedIn, pathname: '/settings' }), true, 'a sign-in from Settings');
   });
 
-  test('never after Not now, never in the Demo, never while Connect is open', () => {
-    assert.equal(usageAskDue({ ...signedIn, fanId: null }), false, 'Not now holds no Fan');
+  test('never before a sign-in, never in the Demo, never while Connect is open', () => {
+    assert.equal(usageAskDue({ ...signedIn, fanId: null }), false, 'the first screen holds no Fan');
     assert.equal(usageAskDue({ ...signedIn, fanId: DEMO_FAN_ID }), false, 'the Demo');
     assert.equal(usageAskDue({ ...signedIn, pathname: '/connect' }), false);
     assert.equal(usageAskDue({ ...signedIn, pathname: '/connect?from=first_run' }), false);

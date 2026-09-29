@@ -461,18 +461,16 @@ export const copy = {
     no: 'No thanks',
   },
   /** The first screen (task 0044 decision 4): the lead reads what the store holds, and the rest is the same for all three. */
-  connect: {
-    title: 'Connect Bandcamp',
+  /** The first screen, the whole app until a sign-in or the Demo (task 0044 decision 4). */
+  welcome: {
     mark: 'wavfeed',
-    lead: {
-      none: { title: 'Your Bandcamp feed, as a list of releases', sub: 'New from pages you follow and bought by people you follow, with previews.' },
-      demo: { title: 'Your own feed', sub: 'Sign in to Bandcamp and it replaces the sample.' },
-      held: { title: 'Your feed is already here', sub: 'Sign in to Bandcamp again to keep it fresh.' },
-    },
-    custody: `Your Bandcamp sign-in stays on ${thisDevice}.`,
+    title: 'Your Bandcamp feed, as a list of releases',
+    sub: 'New from pages you follow and bought by people you follow, with previews.',
     signIn: 'Sign in to Bandcamp',
-    notNow: 'Not now',
     lookAround: 'Look around first',
+    custody: `Your Bandcamp sign-in stays on ${thisDevice}.`,
+  },
+  connect: {
     cancel: 'Cancel',
     host: 'bandcamp.com',
     refusal: (other: string | null, owner: string) =>

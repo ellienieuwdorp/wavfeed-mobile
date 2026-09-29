@@ -22,7 +22,7 @@ import {
 } from '@/domain/endpoints';
 import type { ItemType } from '@/domain/types';
 import { EMPTY_GATHER_STATE, type GatherState, type StorySample, type WalkState } from '@/fetcher/sink';
-import { CONNECT_SHOWN_KEY, DEVICE_ADDED_KEY, GATHER_KEY, patchGather, type SinkDeps, WALK_KEY } from '@/state/gatherSink';
+import { DEVICE_ADDED_KEY, GATHER_KEY, patchGather, type SinkDeps, WALK_KEY } from '@/state/gatherSink';
 import { deleteKv, fold, IDENTITY_KEY, insertRawDocument, readKv, type StoredIdentity, writeKv } from '@/store';
 
 const DAY = 24 * 60 * 60_000;
@@ -655,7 +655,6 @@ export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
   if ((await readKv<StoredIdentity>(db, IDENTITY_KEY)) !== null) return;
   const identity: StoredIdentity = { fanId: SAMPLE_FAN_ID, username: 'sample', name: 'Sample listener', avatarUrl: null };
   await writeKv(db, IDENTITY_KEY, identity);
-  await writeKv(db, CONNECT_SHOWN_KEY, true);
   await writeKv(db, DEVICE_ADDED_KEY, gatheredAt);
   const gather: GatherState = {
     ...EMPTY_GATHER_STATE,

@@ -63,8 +63,9 @@ test('every line under a Settings group or on the first screen is two sentences 
     s.turnedOff(CODE),
     copy.demo.foot,
     copy.demo.statusSub,
-    copy.connect.custody,
-    ...Object.values(copy.connect.lead).flatMap((lead) => [lead.title, lead.sub]),
+    copy.welcome.title,
+    copy.welcome.sub,
+    copy.welcome.custody,
     ...copy.usageAsk.body,
   ];
   for (const text of lines) {
@@ -76,12 +77,11 @@ test('every line under a Settings group or on the first screen is two sentences 
 
 test('the first screen and Settings keep the facts that matter for trust, in the house words', () => {
   const s = copy.settings;
-  for (const text of [copy.connect.custody, s.custody]) assert.match(text, /Bandcamp sign-in stays on this (iPhone|phone)/, text);
-  assert.match(copy.connect.lead.none.sub, /pages you follow/);
-  assert.doesNotMatch(copy.connect.lead.none.sub, /labels you follow/);
-  assert.match(copy.connect.lead.demo.sub, /sample/);
+  for (const text of [copy.welcome.custody, s.custody]) assert.match(text, /Bandcamp sign-in stays on this (iPhone|phone)/, text);
+  assert.match(copy.welcome.sub, /pages you follow/);
+  assert.doesNotMatch(copy.welcome.sub, /labels you follow/);
   assert.match(copy.demo.foot, /sample/);
-  for (const text of [copy.connect.lead.none.title, copy.connect.lead.none.sub, copy.connect.custody, copy.demo.foot]) {
+  for (const text of [copy.welcome.title, copy.welcome.sub, copy.welcome.custody, copy.demo.foot]) {
     assert.doesNotMatch(text, /demo|user|sync|scrap|crawl|—/i, text);
   }
 });
