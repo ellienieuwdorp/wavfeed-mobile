@@ -30,13 +30,39 @@ describe('the scrubber', () => {
     assert.equal(scrubMessage('see www.example.com/x and `id` 1234 then 12345'), 'see <url> and <str> 1234 then <n>');
   });
 
+  test('takes out emails, hosts without a scheme, file paths, ids and IP addresses', () => {
+    const cases: [string, string][] = [
+      ['mail ellie@nieuwdorp.me failed', 'mail <email> failed'],
+      ['no page at diggerfan.bandcamp.com', 'no page at <url>'],
+      ['art f4.bcbits.com/img/a1.jpg gone', 'art <url> gone'],
+      ['open vortex.example/album/x', 'open <url>'],
+      ['cannot open /Users/me/Library/wavfeed.db', 'cannot open <path>'],
+      ['at /data/user/0/com.wavfeed.app/files/x.db: locked', 'at <path> locked'],
+      ['container 5F1C2E0A-1111-4C2B-9E0F-3A6D2B7E9C10 gone', 'container <id> gone'],
+      ['hash 9f86d081884c7d659a2feaa0c55ad015 differs', 'hash <id> differs'],
+      ['no route to 192.168.1.23 on 100.72.58.62', 'no route to <ip> on <ip>'],
+      ['undefined is not an object', 'undefined is not an object'],
+    ];
+    for (const [text, scrubbed] of cases) assert.equal(scrubMessage(text), scrubbed, text);
+  });
+
+  test('a quoted string over several lines goes too', () => {
+    assert.equal(scrubMessage('parse "diggerfan\nvortex" failed'), 'parse <str> failed');
+  });
+
   test('cuts to 200 characters and gives the same answer when run again, as the Worker does', () => {
     const long = `${'a'.repeat(150)} "x" ${'b'.repeat(150)}`;
     const once = scrubMessage(long);
     assert.equal(once.length, WIRE.maxMessage);
-    for (const text of [long, 'item 4102938475 at https://x.bandcamp.com/album/y', "it's 'quoted'"]) {
-      assert.equal(scrubMessage(scrubMessage(text)), scrubMessage(text));
-    }
+    const cases = [
+      long,
+      `${'a'.repeat(199)} b`,
+      'item 4102938475 at https://x.bandcamp.com/album/y',
+      "it's 'quoted'",
+      "line 'a\nb' end",
+      'ellie@nieuwdorp.me at /Users/me/x on 10.0.2.2 as 5F1C2E0A-1111-4C2B-9E0F-3A6D2B7E9C10',
+    ];
+    for (const text of cases) assert.equal(scrubMessage(scrubMessage(text)), scrubMessage(text), text);
   });
 });
 
@@ -48,6 +74,11 @@ describe('the Hermes stack parser', () => {
       ['forEach', 'native', 0, 0],
       ['loadAndStart', 'index.bundle', 4821, 17],
     ]);
+  });
+
+  test('keeps function and file names to ASCII without long digit runs', () => {
+    const [frame] = parseHermesStack('    at get 4102938475 ✓ (address at /Users/me/müsic.bundle:1:9)');
+    assert.deepEqual(frame, ['get', 'msic.bundle', 1, 9]);
   });
 
   test('keeps at most 50 frames', () => {
@@ -75,6 +106,18 @@ describe('buildErrorReport', () => {
     assert.equal(report.message, 'lost <url>');
     assert.equal(report.code, 'fold_failed');
     assert.deepEqual(report.frames, []);
+  });
+
+  test('a thrown value whose getters throw or that has no string form still makes a report', () => {
+    const hostile = new Error('x');
+    Object.defineProperty(hostile, 'message', { get: () => { throw new Error('no'); } });
+    Object.defineProperty(hostile, 'stack', { get: () => { throw new Error('no'); } });
+    assert.deepEqual(
+      [buildErrorReport(hostile, at).message, buildErrorReport(hostile, at).frames],
+      ['', []],
+    );
+    assert.equal(buildErrorReport(Object.create(null), at).message, '');
+    assert.equal(buildErrorReport(Symbol('s'), at).message, 'Symbol(s)');
   });
 
   test('an error name outside the Worker pattern is cleaned to fit it', () => {
