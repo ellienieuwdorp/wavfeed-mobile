@@ -5,7 +5,7 @@
  * 20 queued rows. It folds AppState into `app_opened` and the foreground marker (`lifecycle.ts`). A build the gate can
  * never open (`sendEnv` null: a development bundle without the override, Expo Go, no URL or key) reads nothing and
  * writes nothing, and every write is also guarded in SQL by the stored yes. While the store holds the Demo the gate
- * reads as unable to send too, so nobody looking around is asked and nothing is queued (task 0044 decision 1).
+ * reads as unable to send too, so nobody looking around is asked and nothing is queued or sent (task 0044 decision 1).
  * `removeStore` remounts it with the store. `track` is the one way a Tally is queued; the gather runner above it
  * reaches it through the app state's `bindTally`.
  */
@@ -68,6 +68,9 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   const sender = useRef<Sender | null>(null);
   const chain = useRef<Promise<void>>(Promise.resolve());
   const install = ENV !== null && sharing !== null ? sharing.install : null;
+  // The Demo cannot send (task 0044 decision 1): no sender runs, and the ask and the Usage group stay away, until a
+  // sign-in replaces it.
+  const demo = isDemoFan(app.gather.identity?.fanId);
   // Set with the state it mirrors, not after the render, since child effects such as the screen Tally run first.
   const held = useRef<string | null>(null);
   useEffect(() => {
@@ -130,7 +133,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   }, [db]);
 
   useEffect(() => {
-    if (install === null || CTX === null || !BUILD.url || !BUILD.key) return;
+    if (install === null || demo || CTX === null || !BUILD.url || !BUILD.key) return;
     const current = new Sender({
       db,
       url: BUILD.url,
@@ -150,7 +153,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
       current.dispose();
       if (sender.current === current) sender.current = null;
     };
-  }, [db, install]);
+  }, [db, install, demo]);
 
   // Runs at mount and whenever the gate opens or closes, so a yes mid-session is that Install's cold open. A layout
   // effect runs before any child's effect, so `app_opened` queues ahead of the first `screen_viewed`.
@@ -209,8 +212,6 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     [enqueue, later],
   );
 
-  // The Demo cannot send (task 0044 decision 1): the ask and the Usage group stay away until a sign-in replaces it.
-  const demo = isDemoFan(app.gather.identity?.fanId);
   const value = useMemo<SharingApi>(
     () => ({
       canSend: ENV !== null && !demo,
