@@ -55,6 +55,7 @@ async function runChain(reason: GatherReason, app: AppState): Promise<void> {
       running = null;
     });
     const summary = await running;
+    console.log('gather turn:', summary.reason, summary.outcome, 'walk pending', summary.walkPending);
     app.invalidate();
     if (summary.outcome === 'failed' && summary.walkPending && retries < FAILED_RETRIES) {
       retries += 1;

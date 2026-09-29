@@ -119,7 +119,15 @@ async function note(ctx: Ctx, failure: GatherFailure): Promise<void> {
   await ctx.sink.patchGatherState({ lastError: failure });
 }
 
-async function settle(ctx: Ctx, answer: Exclude<BandcampAnswer<unknown>, { kind: 'ok' }>): Promise<FeedEnd> {
+type Refusal = Exclude<BandcampAnswer<unknown>, { kind: 'ok' }>;
+
+/** One line per answer that is not ok, for device checks: its kind and status, never a header or a body (ADR-0003). */
+function warnAnswer(what: string, answer: Refusal): void {
+  console.warn(`${what} answered ${answer.kind}${answer.kind === 'error' ? ` ${answer.status}` : ''}`);
+}
+
+async function settle(ctx: Ctx, what: string, answer: Refusal): Promise<FeedEnd> {
+  warnAnswer(what, answer);
   if (answer.kind === 'logged_out') {
     await ctx.sink.patchGatherState({ pausedReason: 'logged_out' });
     return 'paused';
@@ -217,7 +225,7 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
     if (walk.username !== null) {
       if (outOfBudget(ctx, reserveMs)) return 'pending';
       const poke = await session.pokeFeedPage(walk.username);
-      if (poke.kind !== 'ok') return await settle(ctx, poke);
+      if (poke.kind !== 'ok') return await settle(ctx, 'feed poke', poke);
       await store(ctx, poke.value);
     }
     walk = { ...walk, poked: true };
@@ -243,7 +251,7 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
     const page = await session.fetchFeedUpdates(walk.fanId, walk.olderThan);
     if (page.kind !== 'ok') {
       await sink.afterDocuments();
-      return await settle(ctx, page);
+      return await settle(ctx, 'feed page', page);
     }
 
     const { entryCount, oldestStoryDate: oldest, newestStoryDate } = page.value;
@@ -317,8 +325,7 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
     const wishlist = await session.fetchWishlistItems(identity.fanId, onDocument);
     if (wishlist.kind === 'ok') await sink.patchGatherState({ wishlistFetchedAt: ctx.now(), wishlistAskedAt: ctx.now() });
     else {
-      console.warn(`wishlist walk answered ${wishlist.kind}${wishlist.kind === 'error' ? ` ${wishlist.status}` : ''}`);
-      const end = await settle(ctx, wishlist);
+      const end = await settle(ctx, 'wishlist walk', wishlist);
       if (end === 'paused') return finishLists(ctx, wrote, end);
       await sink.patchGatherState({ wishlistAskedAt: ctx.now() });
       if (end === 'unreachable') return finishLists(ctx, wrote, end);
@@ -329,7 +336,7 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   if (identity.username !== null && isDue(state.followsFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
     const follows = await session.fetchFollowingBands(identity.fanId, identity.username, onDocument);
     if (follows.kind === 'ok') await sink.patchGatherState({ followsFetchedAt: ctx.now() });
-    else if ((await settle(ctx, follows)) === 'unreachable') return finishLists(ctx, wrote, 'unreachable');
+    else if ((await settle(ctx, 'follows', follows)) === 'unreachable') return finishLists(ctx, wrote, 'unreachable');
   }
   return finishLists(ctx, wrote, 'go');
 }
@@ -367,7 +374,7 @@ async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
       if (answer.kind === 'error' && answer.status < 500 && answer.status !== 429) {
         await sink.markReleasePageAttempt(key, 'failed', ctx.now());
       }
-      console.warn(`release page answered ${answer.kind}${answer.kind === 'error' ? ` ${answer.status}` : ''}`);
+      warnAnswer('release page', answer);
       break;
     }
     const page = answer.value;
