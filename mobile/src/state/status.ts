@@ -1,23 +1,23 @@
 /**
  * What every view says about gathering (DESIGN-UI section 9, in the phone's places): the line under the large title,
  * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open (task 0040); the catch-up
- * pair (the tab bar's accessory on iOS 26 until something plays, a strip above the mini player otherwise) with how far
- * back the walk has reached and, once the depth probe has a floor, a fill towards it; and which empty state a view with
- * no rows draws. The first walk counts as running between turns too, until it finishes or Bandcamp pauses it; only a
- * turn in flight moves the indeterminate sweep.
+ * pair with how far back the walk has reached and the fill `walkProgress` estimates, never moving back while the app
+ * runs, which the tab bar's accessory or the strip carries while nothing plays and the header while something does
+ * (see ScreenHeader); and which empty state a view with no rows draws. The first walk counts as running between turns
+ * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep.
  */
 import { backTo, soFar, updatedAgo, copy } from '@/copy';
 import { useNow } from '@/lib/useNow';
 
 import { useAppState, useLiveQuery } from './appState';
 import { readStoredIdentity, readStoredWalk } from './gatherSink';
-import { walkProgress } from './walkProgress';
+import { forwardOnly, walkProgress } from './walkProgress';
 
 export type CatchUpLine = {
   readonly primary: string;
   readonly secondary: string | null;
   readonly moving: boolean;
-  /** 0 to 1 once the walk has a floor to fill towards; null draws the indeterminate sweep. */
+  /** 0 to 0.99 once there is a floor and a sample to estimate from; null draws the indeterminate sweep. */
   readonly fraction: number | null;
 };
 
@@ -43,7 +43,8 @@ export function useGatherStatus(): GatherStatus {
 
   let catchUp: CatchUpLine | null = null;
   if (catchingUp) {
-    const { reachedAt, fraction } = walkProgress(walk);
+    const { reachedAt, fraction: estimate } = walkProgress(walk, gather.storiesSoFar);
+    const fraction = estimate === null || walk === null ? null : forwardOnly(walk.startedAt, estimate);
     catchUp =
       gather.storiesSoFar === 0 && gather.phase === 'probing'
         ? { primary: copy.catchUp.settingUp, secondary: null, moving: true, fraction: null }

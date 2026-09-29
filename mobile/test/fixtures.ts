@@ -152,6 +152,9 @@ type FeedPayloadParts = {
   readonly entries: readonly unknown[];
   readonly fanInfo?: Record<string, unknown>;
   readonly bandInfo?: Record<string, unknown>;
+  /** The page's Story dates, unix seconds, when a test reads them back from the payload. */
+  readonly newestStoryDate?: number;
+  readonly oldestStoryDate?: number;
 };
 
 /** A whole `fan_dash_feed_updates` payload, with the envelope fields the real endpoint returns. */
@@ -161,8 +164,8 @@ export function feedPayload(parts: FeedPayloadParts): Record<string, unknown> {
     stories: {
       entries: parts.entries,
       track_list: [],
-      newest_story_date: 1787045307,
-      oldest_story_date: 1786958907,
+      newest_story_date: parts.newestStoryDate ?? 1787045307,
+      oldest_story_date: parts.oldestStoryDate ?? 1786958907,
       feed_timestamp: 1787045400,
     },
     fan_info: parts.fanInfo ?? { [String(FAN_ID)]: fanInfo() },

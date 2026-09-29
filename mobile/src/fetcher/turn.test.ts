@@ -30,7 +30,7 @@ import { fold } from '../store/projection';
 import { listDrops } from '../store/queries';
 import { insertRawDocument } from '../store/rawDocuments';
 import { EMPTY_GATHER_STATE, type GatherSink, type GatherState } from './sink';
-import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, POLL_MAX_PAGES, runGatherTurn } from './turn';
+import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, POLL_MAX_PAGES, RATE_PAGES, runGatherTurn } from './turn';
 
 const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
@@ -91,11 +91,14 @@ const session: GatherSession = {
     const cursor = replayFloor === null ? olderThan : Math.max(olderThan, replayFloor);
     const page = feed.filter((story) => story.at < cursor).sort((a, b) => b.at - a.at).slice(0, PAGE_SIZE);
     const dates = page.map((story) => story.at);
+    const oldestStoryDate = page.length === 0 ? undefined : Math.min(...dates);
+    const newestStoryDate = page.length === 0 ? undefined : Math.max(...dates);
+    const payload = feedPayload({ entries: page.map((story) => purchaseAt(story.itemId, story.at)), oldestStoryDate, newestStoryDate });
     return ok({
-      document: { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: page.map((story) => purchaseAt(story.itemId, story.at)) }), fetchedAt: at() },
+      document: { endpoint: 'fan_dash_feed_updates', payload, fetchedAt: at() },
       entryCount: page.length,
-      oldestStoryDate: page.length === 0 ? null : Math.min(...dates),
-      newestStoryDate: page.length === 0 ? null : Math.max(...dates),
+      oldestStoryDate: oldestStoryDate ?? null,
+      newestStoryDate: newestStoryDate ?? null,
     });
   },
   async fetchReleasePage(url, key) {
@@ -235,6 +238,37 @@ describe('the depth probe (task 0040)', () => {
     assert.equal(cursors[0], held.olderThan, 'a resumed walk goes on from its cursor without probing again');
     assert.equal(gather.storiesSoFar, feed.length);
     assert.equal(await storyCount(), feed.length);
+  });
+
+  test('a first walk keeps each probe answer and its own last pages as samples for the fill (decision 5)', async () => {
+    feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
+    assert.equal((await turn(10_000)).outcome, 'out_of_budget');
+    const held = await sink.readWalk();
+    assert.ok(held !== null && held.samples !== undefined && held.recent !== undefined);
+    assert.equal(held.samples.length, held.probeOldest.length, 'one sample per probe answer with entries');
+    for (const sample of held.samples) {
+      assert.ok(held.probeOldest.includes(sample.oldest) && sample.newest >= sample.oldest && sample.count > 0);
+    }
+    assert.equal(held.recent.length, Math.min(held.pagesDone, RATE_PAGES));
+    assert.equal(held.recent.at(-1)?.oldest, held.olderThan, "the last page's oldest Story is the cursor");
+    assert.ok(held.recent.every((page) => page.count === PAGE_SIZE));
+  });
+
+  test('a walk probed before decision 5 reads its samples once from the answers the probe landed', async () => {
+    feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
+    await turn(10_000);
+    const held = await sink.readWalk();
+    assert.ok(held?.samples !== undefined && held.samples.length > 0);
+    const { samples, recent: _recent, ...before } = held;
+    await writeKv(db, WALK_KEY, before);
+
+    cursors = [];
+    assert.equal((await turn(12_000)).outcome, 'out_of_budget');
+    assert.equal(cursors[0], held.olderThan, 'the walk goes on from its cursor without probing again');
+    const read = await sink.readWalk();
+    const byDate = (list: readonly { oldest: number }[]) => [...list].sort((a, b) => a.oldest - b.oldest);
+    assert.deepEqual(byDate(read?.samples ?? []), byDate(samples), 'the same three facts, from the Raw Documents');
+    assert.equal(read?.recent?.at(-1)?.oldest, read?.olderThan, "the walk's own pages are kept again from here");
   });
 
   test('pages identical to what the probe landed do not end a first walk as already held', async () => {

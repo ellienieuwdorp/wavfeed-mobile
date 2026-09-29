@@ -9,12 +9,17 @@ import type { DueRelease, OwedTrackPage, ReleaseDateCounts, ReleasePageOutcome, 
 
 export type WalkKind = 'feed_walk' | 'feed_poll';
 
+/** One feed answer with entries: its newest and oldest Story dates, unix seconds, and how many Stories it held. */
+export type StorySample = { readonly newest: number; readonly oldest: number; readonly count: number };
+
 /**
  * The Extension's walk (extension/lib/storage.ts) less its server fields. Unix seconds: `olderThan` is the next
  * cursor, `sinceTs` the server's stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
  * (task 0040) runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
  * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before task 0040 reads as not
- * probed, with no floor.
+ * probed, with no floor. `samples` and `recent` are what the fill estimates the Stories still to come from (task 0040,
+ * decision 5): each probe answer with entries, and the walk's own last pages. A walk stored before that decision has
+ * no `samples` until the turn reads them from the Raw Documents the probe landed.
  */
 export type WalkState = {
   readonly kind: WalkKind;
@@ -33,6 +38,9 @@ export type WalkState = {
   readonly probeOldest: readonly number[];
   /** Where a probe cut short by the budget or a sign-out goes on searching from; absent until one is. */
   readonly probeLower?: number;
+  readonly samples?: readonly StorySample[];
+  /** The walk's last `RATE_PAGES` pages with entries, oldest last. */
+  readonly recent?: readonly StorySample[];
 };
 
 export type PausedReason = 'logged_out' | 'not_connected';
@@ -92,6 +100,8 @@ export const EMPTY_GATHER_STATE: GatherState = {
 export type GatherSink = {
   putRaw(doc: BandcampDocument): Promise<{ deduped: boolean }>;
   readWalk(): Promise<WalkState | null>;
+  /** Feed answers with entries landed since `sinceMs` whose oldest Story is older than `below` (task 0040, decision 5). */
+  readFeedSamples(sinceMs: number, below: number): Promise<readonly StorySample[]>;
   writeWalk(w: WalkState | null): Promise<void>;
   readGatherState(): Promise<GatherState>;
   patchGatherState(p: Partial<GatherState>): Promise<void>;

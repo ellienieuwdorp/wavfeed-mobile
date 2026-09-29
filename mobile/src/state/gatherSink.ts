@@ -13,6 +13,7 @@ import { EMPTY_GATHER_STATE, ForeignFanError, type GatherSink, type GatherState,
 import { fanAvatarUrl } from '@/lib/format';
 import {
   deleteKv,
+  feedAnswerSpans,
   fold,
   IDENTITY_KEY,
   insertRawDocument,
@@ -116,6 +117,9 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       return { deduped };
     },
     readWalk: () => readStoredWalk(db),
+    async readFeedSamples(sinceMs, below) {
+      return (await feedAnswerSpans(db, new Date(sinceMs))).filter((span) => span.oldest < below);
+    },
     writeWalk: (walk) => (walk === null ? deleteKv(db, WALK_KEY) : writeKv(db, WALK_KEY, walk)),
     async readGatherState() {
       const state = await readStoredGather(db);

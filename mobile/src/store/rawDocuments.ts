@@ -3,6 +3,7 @@
  * so the Fetcher's walk can stop at a page already held (task 0036, ADR-0004).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { FEED_UPDATES_ENDPOINT } from '../domain/endpoints';
 import { sha256Hex } from '../domain/hash';
 import type { ItemType } from '../domain/types';
 
@@ -85,6 +86,30 @@ export async function latestReleasePageDocument(
     [itemType, itemId, beforeId],
   );
   return row === null ? null : toRawDocument(row);
+}
+
+/**
+ * Each feed answer with entries fetched at or after `since`, as its payload states it: the newest and oldest Story
+ * dates, unix seconds, and the number of entries. What a walk probed before task 0040's decision 5 reads its samples from.
+ */
+export async function feedAnswerSpans(
+  db: SQLiteDatabase,
+  since: Date,
+): Promise<readonly { readonly newest: number; readonly oldest: number; readonly count: number }[]> {
+  const rows = await db.getAllAsync<{ newest: unknown; oldest: unknown; count: unknown }>(
+    `select json_extract(payload, '$.stories.newest_story_date') as newest,
+            json_extract(payload, '$.stories.oldest_story_date') as oldest,
+            json_array_length(payload, '$.stories.entries') as count
+     from raw_documents
+     where endpoint = ? and fetched_at >= ?
+     order by id`,
+    [FEED_UPDATES_ENDPOINT, since.toISOString()],
+  );
+  return rows.flatMap(({ newest, oldest, count }) =>
+    typeof newest === 'number' && typeof oldest === 'number' && typeof count === 'number' && count > 0
+      ? [{ newest, oldest, count }]
+      : [],
+  );
 }
 
 /** The "updated N min ago" line: the newest Raw Document, read off the raw side so a lagging fold cannot hide it. */

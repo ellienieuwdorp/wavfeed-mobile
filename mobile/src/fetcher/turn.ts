@@ -20,7 +20,7 @@ import { newlyOutTracks } from '../domain/tralbumTracks';
 import { type BandcampAnswer, type BandcampDocument, type Identity, originOf } from '../bandcamp/wire';
 import type { ReleaseKey } from '../domain/endpoints';
 import type { DueRelease } from '../store/enrichment';
-import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type WalkState } from './sink';
+import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type StorySample, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
 
 export type GatherSession = Pick<
@@ -70,6 +70,8 @@ export const DEPTH_PROBE_MAX = 8;
 /** 2008-01-01 UTC, before Bandcamp's feed existed. */
 export const DEPTH_PROBE_LOWER = 1199145600;
 export const DEPTH_PROBE_RESOLUTION_S = 30 * 24 * 60 * 60;
+/** The walk's own last pages its rate at the cursor is read over (task 0040, decision 5). */
+export const RATE_PAGES = 5;
 
 type Ctx = {
   readonly session: GatherSession;
@@ -258,7 +260,13 @@ function planWalk(state: GatherState, identity: Identity, nowMs: number): WalkSt
     probed: !walk,
     floor: null,
     probeOldest: [],
+    samples: [],
+    recent: [],
   };
+}
+
+function sampleOf(count: number, oldest: number | null, newest: number | null): StorySample | null {
+  return count > 0 && oldest !== null && newest !== null ? { newest, oldest, count } : null;
 }
 
 async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise<FeedEnd> {
@@ -267,6 +275,10 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
   const resumed = await sink.readWalk();
   let walk = resumed !== null && resumed.fanId === identity.fanId ? resumed : planWalk(state, identity, ctx.now());
   const catchingUp = !state.initialWalkDone;
+  // A first walk probed before task 0040's decision 5 reads its samples once from the answers the probe landed.
+  if (walk.kind === 'feed_walk' && walk.samples === undefined) {
+    walk = { ...walk, samples: await sink.readFeedSamples(walk.startedAt, walk.olderThan) };
+  }
   let storiesSoFar = resumed === null ? 0 : state.storiesSoFar;
 
   await sink.writeWalk(walk);
@@ -327,8 +339,10 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
       await sink.patchGatherState({ storiesSoFar });
     }
 
+    const sample = sampleOf(entryCount, oldest, newestStoryDate);
     walk = {
       ...walk,
+      ...(sample === null ? {} : { recent: [...(walk.recent ?? []), sample].slice(-RATE_PAGES) }),
       pagesDone: walk.pagesDone + 1,
       dedupedRun: probedPage ? walk.dedupedRun : deduped ? walk.dedupedRun + 1 : 0,
       newestSeen:
@@ -365,14 +379,16 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
  * from DEPTH_PROBE_LOWER to the walk's cursor finds the oldest Story to within DEPTH_PROBE_RESOLUTION_S. An empty
  * answer raises the lower bound, an answer with entries lowers the upper one to its oldest Story, and anything else
  * ends the search. Each answer lands as a Raw Document (ADR-0004) and the Projection folds its Stories, but the walk's
- * count and cursor are left to the walk. The walk is marked probed whatever the search found, except when the budget,
- * a signed-out answer or a Bandcamp error cuts it short: the bounds and dates found so far are kept, and the next turn
- * searches on between them. A Bandcamp error fails the turn as a feed page's does (ADR-0017).
+ * count and cursor are left to the walk; an answer with entries is kept as a sample for the fill (decision 5). The
+ * walk is marked probed whatever the search found, except when the budget, a signed-out answer or a Bandcamp error
+ * cuts it short: the bounds, dates and samples found so far are kept, and the next turn searches on between them. A
+ * Bandcamp error fails the turn as a feed page's does (ADR-0017).
  */
 async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise<WalkState | FeedEnd> {
   let lo = walk.probeLower ?? DEPTH_PROBE_LOWER;
   let known = walk.floor;
   const probeOldest = [...walk.probeOldest];
+  const samples = [...(walk.samples ?? [])];
   let stored = false;
   let cut: 'budget' | Refusal | null = null;
 
@@ -396,15 +412,17 @@ async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise
 
     await store(ctx, answer.value.document);
     stored = true;
-    const { entryCount, oldestStoryDate: oldest } = answer.value;
+    const { entryCount, oldestStoryDate: oldest, newestStoryDate } = answer.value;
     if (entryCount === 0) lo = cursor;
     else if (oldest !== null && oldest < cursor) {
       known = Math.min(known ?? oldest, oldest);
       probeOldest.push(oldest);
+      const sample = sampleOf(entryCount, oldest, newestStoryDate);
+      if (sample !== null) samples.push(sample);
     } else break;
   }
 
-  const probed: WalkState = { ...walk, probed: cut === null, floor: known, probeOldest, probeLower: lo };
+  const probed: WalkState = { ...walk, probed: cut === null, floor: known, probeOldest, samples, probeLower: lo };
   await ctx.sink.writeWalk(probed);
   if (stored) await ctx.sink.afterDocuments();
   if (cut !== null && cut !== 'budget') return await settle(ctx, 'depth probe', cut);

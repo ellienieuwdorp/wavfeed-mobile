@@ -4,6 +4,7 @@
 export { BUSY_TIMEOUT_MS, emptyStore, openStore, STORE_FILE, type Store } from './schema';
 export {
   countRawDocuments,
+  feedAnswerSpans,
   insertRawDocument,
   lastFetchedAt,
   latestReleasePageDocument,
