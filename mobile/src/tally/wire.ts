@@ -3,16 +3,16 @@
  * per-batch `ctx`, and the `POST /v1/batch` body assembled from outbox rows. The ingest Worker imports these shapes by
  * relative path, so this file imports only its neighbours.
  */
-import { WIRE, type Env, type Tally, type TallyPlatform } from './catalogue';
+import { FLAGS, WIRE, type Env, type Tally, type TallyPlatform } from './catalogue';
 import type { ErrorReport } from './errorReport';
 
-/** When a Tally happened, and the two globals that change within a session, carried as flag bits 0 and 1. */
+/** When a Tally happened, and the two globals that ride in its `flags`. */
 export type TallyAt = { readonly t: number; readonly signedIn: boolean; readonly walkDone: boolean };
 
 export type TallyWire = readonly [t: number, name: Tally['name'], flags: number, props: Tally['props']];
 
 export function tallyWire(tally: Tally, at: TallyAt): TallyWire {
-  return [at.t, tally.name, (at.signedIn ? 1 : 0) | (at.walkDone ? 2 : 0), tally.props];
+  return [at.t, tally.name, (at.signedIn ? FLAGS.signedIn : 0) | (at.walkDone ? FLAGS.walkDone : 0), tally.props];
 }
 
 export type TallyContext = {

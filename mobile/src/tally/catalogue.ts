@@ -147,6 +147,9 @@ export type ErrorSource = (typeof ERROR_SOURCES)[number];
 export const ERROR_CODES = ['store_open_failed', 'projection_replay_failed', 'fold_failed'] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/** A Tally's `flags`: the two globals that change within a session, as bits; the Worker refuses any other bit. */
+export const FLAGS = { signedIn: 1, walkDone: 2 } as const;
+
 /** The ingest contract's envelope rules, shared by the phone that builds a batch and the Worker that checks it. */
 export const WIRE = {
   version: 1,
