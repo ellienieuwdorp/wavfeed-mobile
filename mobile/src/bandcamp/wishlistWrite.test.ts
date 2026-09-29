@@ -226,6 +226,13 @@ describe('the crumb', () => {
       });
     }
   });
+
+  test('a page with no crumb and a probe Bandcamp turns away with a 429 is unreachable, not signed out', async (t) => {
+    const wire = bandcamp(t, [page({}), html('<!DOCTYPE html><html><title>Too Many Requests</title>', 429)]);
+    const outcome = await new BandcampSession().collectItem(ITEM);
+    assert.equal(failureOf(outcome), 'bandcamp_unreachable');
+    assert.deepEqual(wire.trace(), [`GET ${RELEASE_URL}`, `GET ${PROBE}`]);
+  });
 });
 
 describe('a refused crumb', () => {
