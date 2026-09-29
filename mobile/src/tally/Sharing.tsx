@@ -114,14 +114,24 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     [db],
   );
 
-  // One chain for every write, so Tallies queue in the order they were asked for.
-  const later = useCallback((work: () => Promise<void>): Promise<void> => {
-    const next = chain.current.then(work).catch(() => undefined);
-    chain.current = next;
+  // One chain for every write, the yes and the off included, so each runs in the order it was asked for.
+  const later = useCallback(<T,>(work: () => Promise<T>): Promise<T> => {
+    const next = chain.current.then(work);
+    chain.current = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
   }, []);
 
-  const track = useCallback((tally: Tally) => void later(() => enqueue(tally)), [later, enqueue]);
+  const track = useCallback((tally: Tally) => void later(() => enqueue(tally)).catch(() => undefined), [later, enqueue]);
+
+  // The switch shows what the store holds once each yes or off has run, whatever order two quick presses land in.
+  const settleSharing = useCallback(async (): Promise<void> => {
+    const answer = await readSharing(db);
+    held.current = answer?.install ?? null;
+    setSharing(answer);
+  }, [db]);
 
   useEffect(() => {
     if (install === null || CTX === null || !BUILD.url || !BUILD.key) return;
@@ -152,14 +162,17 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     const apply = (phase: string): void => {
       const step = lifeStep(life, phase, held.current);
       life = step.life;
-      void later(async () => {
+      later(async () => {
         if (step.checkEnded && (await takeEndedUnexpectedly(db))) await enqueue({ name: 'app_ended_unexpectedly', props: {} });
         if (step.launch !== null) await enqueue({ name: 'app_opened', props: { launch: step.launch } });
         if (step.marker === 'set') await setForegroundMarker(db, Date.now());
         if (step.marker === 'clear') await clearForegroundMarker(db);
-      }).then(() => {
-        if (phase === 'active' || phase === 'background') sender.current?.request();
-      });
+      }).then(
+        () => {
+          if (phase === 'active' || phase === 'background') sender.current?.request();
+        },
+        () => undefined,
+      );
     };
     apply(AppState.currentState);
     const subscription = AppState.addEventListener('change', apply);
@@ -174,18 +187,21 @@ export function SharingProvider({ children }: { children: ReactNode }) {
 
   const turnOn = useCallback(async () => {
     if (ENV === null) return;
-    const answer = await turnSharingOn(db, randomUUID(), Date.now());
-    held.current = answer.install;
-    setSharing(answer);
-  }, [db]);
+    await later(async () => {
+      await turnSharingOn(db, randomUUID(), Date.now());
+      await settleSharing();
+    });
+  }, [db, later, settleSharing]);
 
+  // Nothing more is queued or sent from the press on; the store's rows go in the chained write.
   const turnOff = useCallback(async () => {
     held.current = null;
     sender.current?.dispose();
-    const dropped = await turnSharingOff(db);
-    setSharing(null);
-    return dropped === null ? null : sharingCode(dropped.install);
-  }, [db]);
+    return later(async () => {
+      const dropped = await turnSharingOff(db).finally(settleSharing);
+      return dropped === null ? null : sharingCode(dropped.install);
+    });
+  }, [db, later, settleSharing]);
 
   const trackAndFlush = useCallback(
     async (tally: Tally) => {
