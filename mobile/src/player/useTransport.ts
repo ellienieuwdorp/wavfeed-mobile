@@ -86,7 +86,10 @@ function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, rele
 }
 
 export function useTransport(deps: TransportDeps): { transport: Transport; clock: PlayerClock } {
-  const audio = useAudioPlayer(null, { updateInterval: UPDATE_INTERVAL_MS });
+  // expo-audio deactivates the iOS audio session 100 ms after a pause or a Track's end unless something is playing,
+  // and the next Track is still buffering then; in the background an inactive session gets the app suspended before
+  // it starts. Keeping the session active is what lets a Release play on with the screen locked (task 0036).
+  const audio = useAudioPlayer(null, { updateInterval: UPDATE_INTERVAL_MS, keepAudioSessionActive: true });
   const [state, setState] = useState<TransportState>(IDLE);
   const [clock, setClock] = useState<PlayerClock>(ZERO);
   const stateRef = useRef<TransportState>(IDLE);
