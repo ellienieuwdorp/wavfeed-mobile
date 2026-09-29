@@ -6,6 +6,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { WishlistEnd } from '../bandcamp/wishlist';
+import type { GatherFailure, PausedReason } from '../fetcher/sink';
+import type { GatherReason, TurnOutcome } from '../fetcher/turn';
 import { CATALOGUE, TALLY_NAMES, type Tally } from './catalogue';
 
 test('every name is object_action in lower snake case', () => {
@@ -58,4 +61,18 @@ test('the Tally type takes only declared properties and values', () => {
   // @ts-expect-error a URL is not a screen
   const url: Tally = { name: 'screen_viewed', props: { screen: 'https://bandcamp.com/diggerfan' } };
   assert.equal([...fine, title, exact, url].length, 5);
+});
+
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Values<N extends keyof typeof CATALOGUE, K extends string> = (typeof CATALOGUE)[N]['props'] extends Record<K, readonly (infer V)[]> ? V : never;
+
+test('the lists spelled out in the catalogue match the app types they copy', () => {
+  const pinned: [
+    Same<Values<'wishlist_action_finished', 'end'>, WishlistEnd | 'none'>,
+    Same<Values<'gather_finished', 'reason'>, GatherReason>,
+    Same<Values<'gather_finished', 'outcome'>, TurnOutcome>,
+    Same<Values<'gather_finished', 'paused'>, PausedReason | 'none'>,
+    Same<Values<'gather_finished', 'failure'>, GatherFailure | 'none'>,
+  ] = [true, true, true, true, true];
+  assert.equal(pinned.length, 5);
 });

@@ -8,7 +8,8 @@ import { test } from 'node:test';
 
 import { openTestStore } from '../../test/nodeDb';
 import { CATALOGUE, TALLY_NAMES, type Tally } from './catalogue';
-import { enqueueTally, takeBatch, turnSharingOn } from './outbox';
+import { buildErrorReport } from './errorReport';
+import { enqueueErrorSync, enqueueTally, takeBatch, turnSharingOn } from './outbox';
 import { batchBody } from './wire';
 
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
@@ -63,4 +64,28 @@ test('no Tally key or value on the wire names a Fan, a Release, a URL, a cookie 
   }
   assert.equal(seen.length, all.length);
   assert.deepEqual([...new Set(seen)].sort(), [...TALLY_NAMES].sort());
+});
+
+test('an Error Report on the wire carries no name, URL, path, address or id from the thrown error', async () => {
+  const { db } = await openTestStore();
+  await turnSharingOn(db, INSTALL, NOW);
+  const error = new TypeError(
+    `no feed for "diggerfan" (fan 2214537) at https://bandcamp.com/diggerfan, vortex.bandcamp.com and ` +
+      `/Users/me/Library/wavfeed.db from 192.168.1.23, mail ellie@nieuwdorp.me, token 3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10`,
+  );
+  error.stack = [
+    '    at loadAndStart (http://100.72.58.62:8081/index.bundle?platform=ios:4821:17)',
+    '    at p (address at /var/mobile/Containers/Data/Application/5F1C2E0A-1111-4C2B-9E0F-3A6D2B7E9C10/a1b2.hbc:1:132161)',
+  ].join('\n');
+  enqueueErrorSync(db, { errorsWritten: 0 }, buildErrorReport(error, { t: NOW, source: 'global', fatal: true, screen: 'feed' }));
+
+  const taken = await takeBatch(db, () => crypto.randomUUID(), NOW);
+  assert.ok(taken !== null);
+  const body = batchBody({ key: 'wf_prod_x', install: INSTALL, batch: taken.batch, sentAt: NOW, ctx: CTX }, taken.rows);
+  const [sent] = body.errors;
+  const text = JSON.stringify([sent?.name, sent?.message, sent?.frames.map(([fn, file]) => [fn, file])]);
+  for (const leak of [/diggerfan|vortex|ellie|bandcamp|Users|Containers/i, /\d{5,}/, /[0-9a-f]{8}-[0-9a-f]{4}/i, /@/, /\d+\.\d+\.\d+\.\d+/]) {
+    assert.doesNotMatch(text, leak);
+  }
+  assert.deepEqual(sent?.frames.map((frame) => frame[1]), ['index.bundle', 'a1b2.hbc']);
 });
