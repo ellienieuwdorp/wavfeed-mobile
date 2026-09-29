@@ -64,6 +64,11 @@ export type Wire = {
 /** Bandcamp asking for fewer requests; the Sweep breaker opens on one (ADR-0017). */
 export const REFUSAL_STATUSES: readonly number[] = [403, 429];
 
+/** A 5xx or a refusal status is Bandcamp's state, not the session's, so no answer carrying one reads as signed out. */
+export function refusedOrDown(status: number): boolean {
+  return status >= 500 || REFUSAL_STATUSES.includes(status);
+}
+
 export function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
@@ -72,13 +77,10 @@ export function parseJson(text: string): unknown {
   }
 }
 
-/**
- * The only place logged-out is decided: signed in means JSON with a numeric `fan_id`. A 5xx or a refusal status is
- * Bandcamp's state, not the session's, so it answers `error` with the status and pauses nothing.
- */
+/** The identity probe's answer: JSON with a numeric `fan_id` is signed in, any other readable answer signed out. */
 export function readProbe(wire: Wire | null): BandcampAnswer<Identity> {
   if (wire === null) return { kind: 'unreachable' };
-  if (wire.status >= 500 || REFUSAL_STATUSES.includes(wire.status)) return { kind: 'error', status: wire.status };
+  if (refusedOrDown(wire.status)) return { kind: 'error', status: wire.status };
   if (!wire.ok || !wire.contentType.includes('json')) return { kind: 'logged_out' };
 
   const body = asRecord(parseJson(wire.text));

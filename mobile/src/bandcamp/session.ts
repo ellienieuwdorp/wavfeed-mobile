@@ -68,6 +68,7 @@ import {
   originOf,
   parseJson,
   readProbe,
+  refusedOrDown,
   UNCOLLECT_ITEM_ENDPOINT,
   UNCOLLECT_ITEM_PATH,
   type Wire,
@@ -388,7 +389,7 @@ export class BandcampSession {
         credentials: 'include',
       });
       if (wire === null) return { kind: 'unreachable' };
-      if (wire.status >= 500) return { kind: 'error', status: wire.status };
+      if (refusedOrDown(wire.status)) return { kind: 'error', status: wire.status };
       const body = asRecord(parseJson(wire.text));
       // Status is not the question: a signed-out answer is an error envelope under an HTTP 200.
       if (looksSignedOut(body, wire.text)) return { kind: 'logged_out' };
