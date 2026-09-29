@@ -10,7 +10,7 @@
  * tab host's native scheme set in that same commit (see the tabs layouts).
  */
 import { useSyncExternalStore } from 'react';
-import { Appearance, DynamicColorIOS, Platform, PlatformColor, type ColorValue } from 'react-native';
+import { Appearance, Platform, PlatformColor, type ColorValue } from 'react-native';
 
 export type Palette = {
   bg: string;
@@ -96,17 +96,10 @@ export function ripple(colour: string, radius?: number) {
 /** A pressed row's fill: the system grey flash on iOS; Android draws the ripple instead. */
 export const PRESS_FLASH: ColorValue | undefined = ios ? PlatformColor('systemGray4') : undefined;
 /**
- * Words and the hairline on iOS glass (task 0040, decision 7): the system's label colours and fill, which follow the
- * theme and what the glass sits over, and the accent as a colour that resolves per scheme. Null on Android.
+ * Words on iOS glass (task 0040, decision 7): the system's label colours, which follow the theme and what the glass
+ * sits over. Null on Android.
  */
-export const ON_GLASS: { ink: ColorValue; sub: ColorValue; track: ColorValue; accent: ColorValue } | null = ios
-  ? {
-      ink: PlatformColor('label'),
-      sub: PlatformColor('secondaryLabel'),
-      track: PlatformColor('systemFill'),
-      accent: DynamicColorIOS({ light: light.accent, dark: dark.accent }),
-    }
-  : null;
+export const ON_GLASS: { ink: ColorValue; sub: ColorValue } | null = ios ? { ink: PlatformColor('label'), sub: PlatformColor('secondaryLabel') } : null;
 /** A pressed control's opacity on iOS, UIKit's highlighted button; Android shows the ripple and keeps its opacity. */
 export const PRESS_DIM = 0.5;
 

@@ -2,8 +2,7 @@
  * What every view says about gathering (DESIGN-UI section 9, in the phone's places): the line under the large title,
  * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open (task 0040); the catch-up
  * pair with how far back the walk has reached and the fill `walkProgress` estimates, never moving back while the app
- * runs, which the tab bar's accessory or the strip carries while nothing plays and the header while something does
- * (see ScreenHeader); and which empty state a view with no rows draws. The first walk counts as running between turns
+ * runs, which the header carries over that note (see ScreenHeader); and which empty state a view with no rows draws. The first walk counts as running between turns
  * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep.
  */
 import { backTo, soFar, updatedAgo, copy } from '@/copy';

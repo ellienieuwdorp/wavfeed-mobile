@@ -2,7 +2,7 @@
  * The one-screen native stack each tab wraps its view in (task 0036 decision 5, the v2 client canvas, sections 6 and
  * 7): on iOS the large title that collapses into the bar on scroll, transparent on iOS 26 so the system draws its
  * scroll edge; on Android no native header, because the view draws Material's medium flexible app bar itself (see
- * AppBar). The dock floats over the view with the notice, the catch-up strip and the mini player (see Dock).
+ * AppBar). The dock floats over the view with the notice and the mini player (see Dock).
  */
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';

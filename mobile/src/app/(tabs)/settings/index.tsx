@@ -5,8 +5,8 @@
  * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
  * mail naming the build; the canvas's one notification switch waits for notifications to exist. Android draws the
  * status as one list item and its actions as Material buttons under the custody line, as the canvas's Settings board
- * does. A development build adds the store's facts under the custody line. While something plays, the catch-up of a
- * first walk sits under the large title as on every tab (task 0040, decision 6). The wavfeed account rows (email,
+ * does. A development build adds the store's facts under the custody line. The catch-up of a first walk sits under the
+ * large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
  * password, log out, delete) wait for the account this slice does not have (task 0036).
  */
 import * as Device from 'expo-device';

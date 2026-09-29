@@ -46,7 +46,7 @@ export function useAppBarAtRest(): void {
 
 /**
  * The expanded half, first in the list: the title and, when there is one, the subtitle line, with `below` under it
- * (the catch-up's indicator while something plays, task 0040 decision 6) and `a11y` on the pair.
+ * (the note to keep the app open and the catch-up's hairline, task 0040 decision 8) and `a11y` on the pair.
  */
 export function AppBarTitle({ subtitle, below = null, a11y = {} }: { subtitle: string | null; below?: ReactNode; a11y?: ViewProps }) {
   const frame = useContext(FrameContext);

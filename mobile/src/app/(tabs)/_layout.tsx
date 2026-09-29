@@ -1,8 +1,8 @@
 /**
  * The four tabs on Android as native tabs (task 0036 decision 5, the v2 client canvas, section 7): Material's bottom
  * navigation with the pill indicator behind the active icon, Material Symbols in canvas order, labels always shown,
- * tinted with the accent. iOS uses `_layout.ios.tsx`. Each tab owns a stack for its app bar; the catch-up strip and
- * the floating player ride inside the tab's stack, above this bar (see TabStack). The tab host takes the token scheme
+ * tinted with the accent. iOS uses `_layout.ios.tsx`. Each tab owns a stack for its app bar; the floating player
+ * rides inside the tab's stack, above this bar (see TabStack). The tab host takes the token scheme
  * as its day or night mode in the same mount as the bar's colours, so the configuration change
  * `Appearance.setColorScheme` sends cannot restyle the bar ahead of them.
  */
