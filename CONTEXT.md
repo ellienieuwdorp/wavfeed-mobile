@@ -47,14 +47,14 @@ _Avoid_: scraper, crawler
 
 **Poller**:
 The v1 server-side Fetcher: a worker that polls each user's feed on a schedule
-using their stored Identity Cookie. It stops at the switch (ADR-0022).
+using their stored Identity Cookie. It stopped at the switch (ADR-0022).
 _Avoid_: cron job, scheduler (those are mechanisms, not the component)
 
 **Extension**:
 The browser-extension Fetcher (ADR-0018) that runs on the user's own machine and
 fetches with the browser's own session, so the server never sees that user's
 Identity Cookie. Built for Chrome and Firefox. Its only destination, `/ingest`,
-goes at the switch (ADR-0022), and its store listings wait on `docs/V2-PLAN.md`
+went at the switch (ADR-0022), and its store listings wait on `docs/V2-PLAN.md`
 section 8 open decision 3.
 
 **Sweep**:
@@ -214,7 +214,7 @@ first": real Releases read once from public label pages, bought and wishlisted
 by made-up Fans, held in the store under its own Fan id until a sign-in
 replaces it (task 0043). Nothing is asked, queued or sent while it is held
 (task 0044). In the UI it is "a sample".
-_Avoid_: demo account (the v1 box's, which goes with the API at the switch,
+_Avoid_: demo account (the v1 box's, which went with the API at the switch,
 ADR-0022), sample (the simulator rig's made-up data in `src/dev/sample.ts`),
 guest mode
 
