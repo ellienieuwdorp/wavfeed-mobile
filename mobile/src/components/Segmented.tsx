@@ -58,7 +58,7 @@ function ConnectedGroup<K extends string>({ segments, value, onChange }: Props<K
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'hidden',
-              backgroundColor: on ? c.accent : c.raised,
+              backgroundColor: on ? c.accentText : c.raised,
               borderWidth: on ? 0 : 1,
               borderColor: c.border,
               borderTopLeftRadius: start,

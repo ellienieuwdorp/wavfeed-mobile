@@ -30,7 +30,7 @@ function Snackbar() {
           hitSlop={{ top: 4, bottom: 4 }}
           style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 20, overflow: 'hidden' }}
         >
-          <Text style={{ fontSize: 14, fontWeight: '500', color: inverse.accent }}>{notice.action.label}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: c.inverseAccent }}>{notice.action.label}</Text>
         </Pressable>
       ) : null}
       <Pressable
@@ -58,7 +58,7 @@ function Line() {
       <Text numberOfLines={2} style={{ flex: 1, fontSize: type.fact, color: c.ink, paddingVertical: 6 }}>{notice.text}</Text>
       {notice.action ? (
         <Pressable accessibilityRole="button" onPress={notice.action.onPress} hitSlop={6} style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', paddingHorizontal: 4, opacity: pressedOpacity(pressed) })}>
-          <Text style={{ fontSize: type.fact, fontWeight: '600', color: c.accent }}>{notice.action.label}</Text>
+          <Text style={{ fontSize: type.fact, fontWeight: '600', color: c.accentText }}>{notice.action.label}</Text>
         </Pressable>
       ) : null}
       <Pressable accessibilityRole="button" accessibilityLabel={copy.notice.dismiss} onPress={dismiss} style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressedOpacity(pressed) })}>

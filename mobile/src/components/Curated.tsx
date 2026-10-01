@@ -29,7 +29,7 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
       <Text accessibilityRole="header" style={{ fontSize: type.moduleHead, fontWeight: ios ? '700' : '600', color: c.ink }}>{title}</Text>
       {more ? (
         <Pressable accessibilityRole="link" hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }} android_ripple={ripple(c.track, 40)} onPress={() => router.navigate(more)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-          <Text style={{ fontSize: ios ? 15 : 14, fontWeight: '500', color: c.accent }}>{copy.feed.viewMore}</Text>
+          <Text style={{ fontSize: ios ? 15 : 14, fontWeight: '500', color: c.accentText }}>{copy.feed.viewMore}</Text>
         </Pressable>
       ) : null}
     </View>

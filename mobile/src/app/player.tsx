@@ -267,7 +267,7 @@ function Titles({ release }: { release: PlayableRelease }) {
       <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
         <View style={{ height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
-          <Text style={{ fontSize: 16, color: c.accent }}>{playerCopy.linkOut}</Text>
+          <Text style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Text>
         </View>
         <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Text>
       </Pressable>
@@ -289,7 +289,7 @@ function Actions({ release }: { release: PlayableRelease }) {
         android_ripple={ripple(c.track)}
         style={({ pressed }) => (ios ? { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', opacity: pressedOpacity(pressed) } : { minHeight: 48, justifyContent: 'center', paddingHorizontal: 22, borderRadius: 24, overflow: 'hidden', backgroundColor: c.tint })}
       >
-        <Text style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accent : c.ink }}>{playerCopy.bandcampLink}</Text>
+        <Text style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accentText : c.ink }}>{playerCopy.bandcampLink}</Text>
       </Pressable>
     </View>
   );

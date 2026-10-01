@@ -71,18 +71,18 @@ function DropdownChip({ options, value, onChange, enabled, label }: Props) {
             return (
               <DropdownMenuItem
                 key={o.value}
-                elementColors={{ textColor: on ? c.accent : c.ink, trailingIconColor: c.accent }}
+                elementColors={{ textColor: on ? c.accentText : c.ink, trailingIconColor: c.accent }}
                 onClick={() => {
                   setOpen(false);
                   if (!on) onChange(o.value);
                 }}
               >
                 <DropdownMenuItem.Text>
-                  <ComposeText color={on ? c.accent : c.ink} style={{ fontSize: 16, fontWeight: on ? '500' : 'normal' }}>{o.label}</ComposeText>
+                  <ComposeText color={on ? c.accentText : c.ink} style={{ fontSize: 16, fontWeight: on ? '500' : 'normal' }}>{o.label}</ComposeText>
                 </DropdownMenuItem.Text>
                 {on ? (
                   <DropdownMenuItem.TrailingIcon>
-                    <ComposeText color={c.accent}>{copy.menu.checked}</ComposeText>
+                    <ComposeText color={c.accentText}>{copy.menu.checked}</ComposeText>
                   </DropdownMenuItem.TrailingIcon>
                 ) : null}
               </DropdownMenuItem>

@@ -26,7 +26,7 @@ export function GroupHead({ label }: { label: string }) {
   return ios ? (
     <Text accessibilityRole="header" style={{ fontSize: 13, color: c.sub, textTransform: 'uppercase', paddingHorizontal: MARGIN + INSET, paddingTop: 24, paddingBottom: 7 }}>{label}</Text>
   ) : (
-    <Text accessibilityRole="header" style={{ fontSize: 14, fontWeight: '500', color: c.accent, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>{label}</Text>
+    <Text accessibilityRole="header" style={{ fontSize: 14, fontWeight: '500', color: c.accentText, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>{label}</Text>
   );
 }
 
@@ -75,7 +75,7 @@ export function Cell({
 }) {
   const { c } = useTokens();
   const first = useContext(FirstInGroup);
-  const colour = tone === 'accent' ? c.accent : tone === 'danger' ? c.danger : c.ink;
+  const colour = tone === 'accent' ? c.accentText : tone === 'danger' ? c.danger : c.ink;
   return (
     <Pressable
       onPress={onPress}
@@ -106,8 +106,8 @@ export type ButtonKind = 'filled' | 'tonal' | 'outlined';
 /** A 40dp Material button, fully round, its touch target stretched to 48dp. */
 export function ListButton({ label, kind, busy = false, onPress }: { label: string; kind: ButtonKind; busy?: boolean; onPress?: () => void }) {
   const { c } = useTokens();
-  const fill = kind === 'filled' ? c.accent : kind === 'tonal' ? c.tint : undefined;
-  const ink = kind === 'filled' ? c.onAccent : kind === 'tonal' ? c.ink : c.accent;
+  const fill = kind === 'filled' ? c.accentText : kind === 'tonal' ? c.tint : undefined;
+  const ink = kind === 'filled' ? c.onAccent : kind === 'tonal' ? c.ink : c.accentText;
   const enabled = onPress !== undefined && !busy;
   return (
     <Pressable

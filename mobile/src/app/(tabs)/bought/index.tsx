@@ -188,7 +188,7 @@ function ShowAll({ label, onPress }: { label: string; onPress: () => void }) {
       android_ripple={{ color: c.track }}
       style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', paddingHorizontal: type.gutter, backgroundColor: pressed ? PRESS_FLASH : undefined })}
     >
-      <Text style={{ fontSize: 15, color: c.accent }}>{label}</Text>
+      <Text style={{ fontSize: 15, color: c.accentText }}>{label}</Text>
     </Pressable>
   );
 }

@@ -21,8 +21,8 @@ export function WideButton({
   onPress: () => void;
 }) {
   const { c } = useTokens();
-  const fill = kind === 'filled' ? c.accent : kind === 'tonal' ? c.tint : undefined;
-  const ink = kind === 'filled' ? c.onAccent : kind === 'tonal' ? c.ink : c.accent;
+  const fill = kind === 'filled' ? c.accentText : kind === 'tonal' ? c.tint : undefined;
+  const ink = kind === 'filled' ? c.onAccent : kind === 'tonal' ? c.ink : c.accentText;
   return (
     <Pressable
       onPress={busy ? undefined : onPress}

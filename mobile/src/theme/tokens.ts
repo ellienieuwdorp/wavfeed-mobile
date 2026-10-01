@@ -1,10 +1,9 @@
 /**
- * Colour and type tokens for the phone app (DESIGN-UI sections 6 and 7). React
- * Native has no oklch, so every colour is an sRGB hex approximation of the oklch
- * value in DESIGN-UI section 6; `online` is the canvas's signed-in dot and
- * `track` its segmented-control track (ink at 8 percent). Type sizes follow the
- * v2 client canvas: SF on iOS, the system Roboto on Android at Material's body-large
- * and body-medium, no web font. A pressed row takes the platform's own highlight.
+ * Colour and type tokens for the phone app (DESIGN-UI sections 6 and 7). The
+ * palettes live in palette.ts, free of React Native so their contrast is tested
+ * (review VIS-3). Type sizes follow the v2 client canvas: SF on iOS, the
+ * system Roboto on Android at Material's body-large and body-medium, no web
+ * font. A pressed row takes the platform's own highlight.
  * The scheme is one store: Settings > Appearance's choice for the session over the
  * system's, read by every `useTokens` so a switch lands in one React commit, with the
  * tab host's native scheme set in that same commit (see the tabs layouts).
@@ -12,65 +11,9 @@
 import { useSyncExternalStore } from 'react';
 import { Appearance, Platform, PlatformColor, type ColorValue } from 'react-native';
 
-export type Palette = {
-  bg: string;
-  surface: string;
-  raised: string;
-  border: string;
-  borderLight: string;
-  ink: string;
-  sub: string;
-  faint: string;
-  accent: string;
-  tint: string;
-  wishlist: string;
-  danger: string;
-  onAccent: string;
-  avatarBg: string;
-  avatarInk: string;
-  online: string;
-  track: string;
-};
+import { dark, light, type Palette } from './palette';
 
-export const light: Palette = {
-  bg: '#fafbfc',
-  surface: '#ffffff',
-  raised: '#f4f5f7',
-  border: '#e3e5e9',
-  borderLight: '#edeef1',
-  ink: '#2a2d33',
-  sub: '#66696f',
-  faint: '#85888e',
-  accent: '#0687f5',
-  tint: '#e2ecfb',
-  wishlist: '#ff9c00',
-  danger: '#c8352a',
-  onAccent: '#ffffff',
-  avatarBg: '#cddcf3',
-  avatarInk: '#2f4f86',
-  online: '#43b966',
-  track: '#2a2d3314',
-};
-
-export const dark: Palette = {
-  bg: '#1e2024',
-  surface: '#2b2e33',
-  raised: '#232529',
-  border: '#3b3f46',
-  borderLight: '#33363c',
-  ink: '#e6e7ea',
-  sub: '#a9acb2',
-  faint: '#9c9fa5',
-  accent: '#66a8f4',
-  tint: '#2b4a73',
-  wishlist: '#ffab33',
-  danger: '#f07a6a',
-  onAccent: '#10203a',
-  avatarBg: '#3f5a86',
-  avatarInk: '#e3ecfa',
-  online: '#43b966',
-  track: '#e6e7ea14',
-};
+export { dark, light, type Palette };
 
 const ios = Platform.OS === 'ios';
 

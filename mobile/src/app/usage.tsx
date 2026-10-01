@@ -53,8 +53,8 @@ export default function Usage() {
         hitSlop={8}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, opacity: pressedOpacity(pressed) })}
       >
-        <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.accent }}>{a.link}</Text>
-        <Glyph name="external" size={ios ? 12 : 16} weight="regular" colour={c.accent} />
+        <Text style={{ fontSize: ios ? 15 : 14, lineHeight: ios ? 21 : 20, color: c.accentText }}>{a.link}</Text>
+        <Glyph name="external" size={ios ? 12 : 16} weight="regular" colour={c.accentText} />
       </Pressable>
       <View style={{ gap: 10, paddingTop: 12 }}>
         <WideButton label={a.yes} kind="tonal" onPress={yes} />

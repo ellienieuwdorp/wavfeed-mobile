@@ -23,7 +23,7 @@ export function EmptyState({ filling, nothing }: { filling: string; nothing: str
           onPress={() => router.push(connectHref('empty_state'))}
           accessibilityRole="button"
           android_ripple={ripple(c.onAccent)}
-          style={({ pressed }) => ({ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, overflow: ios ? undefined : 'hidden', backgroundColor: c.accent, opacity: pressedOpacity(pressed) })}
+          style={({ pressed }) => ({ minHeight: ios ? 52 : 48, alignItems: 'center', justifyContent: 'center', borderRadius: ios ? 16 : 24, overflow: ios ? undefined : 'hidden', backgroundColor: c.accentText, opacity: pressedOpacity(pressed) })}
         >
           <Text style={{ fontSize: ios ? 17 : 15, fontWeight: ios ? '600' : '500', color: c.onAccent }}>{copy.empty.signIn}</Text>
         </Pressable>

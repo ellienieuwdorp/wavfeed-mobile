@@ -32,7 +32,7 @@ function Cancel({ onCancel }: { onCancel: () => void }) {
   const { c } = useTokens();
   return ios ? (
     <Pressable onPress={onCancel} accessibilityRole="button" hitSlop={10} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-      <Text style={{ fontSize: 17, color: c.accent }}>{copy.connect.cancel}</Text>
+      <Text style={{ fontSize: 17, color: c.accentText }}>{copy.connect.cancel}</Text>
     </Pressable>
   ) : (
     <Pressable

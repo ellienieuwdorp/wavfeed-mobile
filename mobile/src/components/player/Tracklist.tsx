@@ -95,7 +95,7 @@ function TrackRow({ release, track, index, current, playing, ready, first, side 
   const { playAt } = usePlayerActions();
   const [down, setDown] = useState(false);
   const live = isStreamable(track);
-  const title = !live ? c.faint : current ? c.accent : c.ink;
+  const title = !live ? c.faint : current ? c.accentText : c.ink;
   const quiet = live ? c.sub : c.faint;
   const time = trailing(track, live);
   const label = rowLabel(track, current, playing);
