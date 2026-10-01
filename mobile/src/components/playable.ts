@@ -4,7 +4,7 @@
  */
 import { usePlayerActions, type PlayableRelease } from '@/components/player/playerState';
 import type { ApiItemType } from '@/domain/apiTypes';
-import { ART_SIZE_LARGE, hueFor, releaseArtUrl } from '@/lib/format';
+import { hueFor, releaseArtUrl } from '@/lib/format';
 
 export type RowRelease = {
   readonly itemType: ApiItemType;
@@ -29,7 +29,7 @@ export function toPlayable(item: RowRelease): PlayableRelease {
     title: item.title,
     artist: item.artist,
     url: item.itemUrl,
-    artUrl: releaseArtUrl(item.artId, ART_SIZE_LARGE),
+    artUrl: releaseArtUrl(item.artId),
     hue: hueFor(item.itemId),
     label: item.label,
     releaseDate: item.releaseDate,

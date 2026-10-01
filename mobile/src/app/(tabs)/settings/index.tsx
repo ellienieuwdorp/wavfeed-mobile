@@ -15,7 +15,7 @@ import { Image } from 'expo-image';
 import { openURL } from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, PixelRatio, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
 import { useAppBar } from '@/components/AppBar';
@@ -27,7 +27,7 @@ import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
 import { isDemoFan } from '@/demo/demo';
-import { fanInitials } from '@/lib/format';
+import { fanInitials, sizedImageUrl } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState, useLiveQuery } from '@/state/appState';
@@ -60,7 +60,11 @@ function Dot({ colour }: { colour: string }) {
 function Avatar({ url, initials }: { url: string | null; initials: string }) {
   const { c } = useTokens();
   const size = ios ? 36 : 40;
-  if (url !== null) return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg }} />;
+  if (url !== null) {
+    // The stored address names Bandcamp's 50px size; the face asks for the one this screen draws (finding VIS-M3).
+    const sized = sizedImageUrl(url, PixelRatio.getPixelSizeForLayoutSize(size));
+    return <Image source={{ uri: sized }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg }} />;
+  }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 13, fontWeight: '600', color: c.avatarInk }}>{initials}</Text>

@@ -11,7 +11,6 @@ import { Platform, Pressable, Text, useWindowDimensions, View } from 'react-nati
 
 import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
-import { ART_SIZE_LARGE, ART_SIZE_ROW } from '@/lib/format';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -42,7 +41,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   return (
     <RowMenu release={item} width={COVER}>
       {(openMenu) => (
-        <PlayArt release={item} art={ART_SIZE_LARGE} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
+        <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
             <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
             <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Text>
@@ -65,7 +64,7 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
       {(openMenu) => (
         <RowSurface open={openMenu} style={{ backgroundColor: c.surface, borderRadius: ios ? 14 : 16, padding: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <PlayArt release={item} art={ART_SIZE_LARGE} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} />
+            <PlayArt release={item} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} />
             <View style={{ flex: 1, gap: 4 }}>
               <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
               <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.artist, item.label].filter(Boolean).join(sep)}</Text>
@@ -94,7 +93,7 @@ export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date })
     <RowMenu release={quote.item} width={width}>
       {(openMenu) => (
         <RowSurface open={openMenu} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: type.gutter, paddingVertical: 12 }}>
-          <PlayArt release={quote.item} art={ART_SIZE_ROW} size={56} radius={ios ? 4 : 8} onLongPress={openMenu} />
+          <PlayArt release={quote.item} size={56} radius={ios ? 4 : 8} onLongPress={openMenu} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 13, color: c.sub }}>
               <Text style={{ fontWeight: '600', color: c.ink }}>{fanName(quote.fan)}</Text>

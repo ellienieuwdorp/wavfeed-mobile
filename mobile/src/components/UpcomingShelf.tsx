@@ -11,7 +11,6 @@ import { FlatList, Platform, Text, View } from 'react-native';
 
 import { copy, spokenFacts } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
-import { ART_SIZE_LARGE } from '@/lib/format';
 import { useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -48,7 +47,6 @@ function Card({ card }: { card: ShelfCard }) {
         {(openMenu) => (
           <PlayArt
             release={card.release}
-            art={ART_SIZE_LARGE}
             size={CARD}
             radius={ios ? 8 : 12}
             onLongPress={openMenu}

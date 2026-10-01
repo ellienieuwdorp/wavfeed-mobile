@@ -5,21 +5,27 @@
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { PixelRatio, Platform, Pressable, Text, View } from 'react-native';
 
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
-import { fanAvatarInitials, fanAvatarUrl } from '@/lib/format';
+import { fanAvatarInitials, fanAvatarUrl, sizedImageUrl } from '@/lib/format';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 export const AVATAR_CAP = 5;
 const DISC = 20;
 const TARGET = Platform.OS === 'ios' ? 44 : 48;
 
+/** A Fan's image at the size that covers `size` in this screen's pixels (finding VIS-M3). */
+function faceUrl(fan: ApiFanRef, size: number): string | null {
+  const url = fanAvatarUrl(fan.imageId);
+  return url === null ? null : sizedImageUrl(url, PixelRatio.getPixelSizeForLayoutSize(size));
+}
+
 /** One Fan's face at `size`, the image or the initials on the avatar tone. */
 export function FanFace({ fan, size }: { fan: ApiFanRef; size: number }) {
   const { c } = useTokens();
-  const url = fanAvatarUrl(fan.imageId);
+  const url = faceUrl(fan, size);
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       {url === null ? (
@@ -45,7 +51,7 @@ export function AvatarStack({ fans, ring, opens = false }: { fans: readonly ApiF
   const stack = (
     <View style={{ flexDirection: 'row', alignItems: 'center' }} accessibilityLabel={opens ? undefined : names}>
       {shown.map((fan, n) => {
-        const url = fanAvatarUrl(fan.imageId);
+        const url = faceUrl(fan, 16);
         return (
           <View
             key={fan.fanId}

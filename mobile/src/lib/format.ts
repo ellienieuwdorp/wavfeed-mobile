@@ -1,18 +1,38 @@
 /**
  * Bandcamp image addresses, avatar initials and the colour a Release falls back to, ported from
- * server/apps/web/src/lib/format.ts (task 0036, decision 3). The words live in `copy.ts`.
+ * server/apps/web/src/lib/format.ts (task 0036, decision 3). The words live in `copy.ts`. An image address carries
+ * Bandcamp's size id after the underscore; `sizedImageUrl` swaps it for the smallest size that covers what the screen
+ * draws (findings VIS-7, VIS-M3).
  */
 import type { ApiFanRef } from '@/domain/apiTypes';
 
-export const ART_SIZE_ROW = 3;
-export const ART_SIZE_LARGE = 16;
+type Size = readonly [id: number, edge: number];
 
-export function releaseArtUrl(artId: string | null, size: number = ART_SIZE_ROW): string | null {
-  return artId === null ? null : `https://f4.bcbits.com/img/a${artId}_${size}.jpg`;
+/**
+ * Bandcamp's square sizes by id and edge in pixels, the same for art and a Fan's image, measured on 2026-10-01 with
+ * cookie-free requests for public images. Art also comes square at 1200px as `_10`; a Fan's `_10` is the uncropped original.
+ */
+const SQUARE: readonly Size[] = [[42, 50], [3, 100], [7, 150], [9, 210], [2, 350], [16, 700]];
+const ART: readonly Size[] = [...SQUARE, [10, 1200]];
+
+const IMAGE_URL = /^(https:\/\/f4\.bcbits\.com\/img\/(a?)\d+)_\d+\.jpg$/;
+
+/** Art at 700px: the size the lock screen gets, and the address a drawn cover resizes from. */
+export function releaseArtUrl(artId: string | null): string | null {
+  return artId === null ? null : `https://f4.bcbits.com/img/a${artId}_16.jpg`;
 }
 
 export function fanAvatarUrl(imageId: string | number | null): string | null {
   return imageId === null ? null : `https://f4.bcbits.com/img/${imageId}_42.jpg`;
+}
+
+/** A Bandcamp image at the smallest square size at least `pixels` wide, else its largest; any other address as given. */
+export function sizedImageUrl(url: string, pixels: number): string {
+  const match = IMAGE_URL.exec(url);
+  if (match === null) return url;
+  const sizes = match[2] === 'a' ? ART : SQUARE;
+  const [id] = sizes.find(([, edge]) => edge >= pixels) ?? sizes[sizes.length - 1];
+  return `${match[1]}_${id}.jpg`;
 }
 
 export function fanInitials(name: string): string {

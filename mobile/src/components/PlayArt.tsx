@@ -38,8 +38,6 @@ type Props = {
   release: RowRelease;
   size: number;
   radius: number;
-  /** Bandcamp's image size id for `releaseArtUrl`. */
-  art?: number;
   onLongPress: OpenMenu;
   /** The Track a press starts at, a Drop's newest (task 0041, decision 10); the first that streams when absent. */
   from?: string | null;
@@ -87,7 +85,7 @@ function Live({ size, radius, onPause }: { size: number; radius: number; onPause
   return size >= CORNER_MIN ? <Corner size={size} glyph={glyph} live /> : <Scrim size={size} radius={radius} glyph={glyph} />;
 }
 
-export function PlayArt({ release, size, radius, art, onLongPress, from, spoken, hitSlop, style, children }: Props) {
+export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitSlop, style, children }: Props) {
   const play = usePlay();
   const live = isCurrent(usePlayerRelease(), release);
   const [pause, setPause] = useState(false);
@@ -108,7 +106,7 @@ export function PlayArt({ release, size, radius, art, onLongPress, from, spoken,
       style={style}
     >
       <Animated.View style={[{ width: size, height: size }, lift]}>
-        <Artwork hue={hueFor(release.itemId)} url={releaseArtUrl(release.artId, art)} size={size} radius={radius} />
+        <Artwork hue={hueFor(release.itemId)} url={releaseArtUrl(release.artId)} size={size} radius={radius} />
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: SHADE }, shade]} />
         {live ? <Live size={size} radius={radius} onPause={setPause} /> : size >= CORNER_MIN ? <Corner size={size} glyph="play" live={false} /> : null}
       </Animated.View>
