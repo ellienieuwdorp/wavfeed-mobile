@@ -29,6 +29,7 @@ import {
   readSharing,
   retryAfterMs,
   settleBatch,
+  SHARING_KEY,
   takeBatch,
   turnSharingOff,
   turnSharingOn,
@@ -91,6 +92,14 @@ describe('sharing', () => {
     assert.deepEqual(await readDropped(db), { full: 0, old: 0, refused: 0 });
     const again = await turnSharingOn(db, 'd4e5f6a7-0000-4000-8000-000000000001', NOW + 1);
     assert.notEqual(again.install, INSTALL);
+  });
+
+  test('an off over a malformed stored yes still lands and answers no yes', async () => {
+    await db.runAsync('insert into kv (key, value) values (?, ?)', [SHARING_KEY, '{"on": tru']);
+    await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '{}', ?)", [NOW]);
+    assert.equal(await turnSharingOff(db), null);
+    assert.equal(await db.getFirstAsync('select value from kv where key = ?', [SHARING_KEY]), null);
+    assert.equal(await rows(), 0);
   });
 
   test('two presses of yes in flight keep one Install id, and an id that is not a UUID is refused', async () => {

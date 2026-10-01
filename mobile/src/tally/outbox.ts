@@ -71,8 +71,18 @@ export async function turnSharingOff(db: SQLiteDatabase): Promise<Sharing | null
     held = (await txn.getFirstAsync<{ value: string }>('delete from kv where key = ? returning value', [SHARING_KEY]))?.value;
     await txn.execAsync(`delete from kv where key in ('${DROPPED_KEY}', '${FOREGROUND_KEY}'); delete from tally_outbox;`);
   });
-  const sharing = held === undefined ? null : (JSON.parse(held) as Sharing);
-  return sharing?.on === true ? sharing : null;
+  return heldYes(held);
+}
+
+/** The dropped value read after the commit; a malformed one counts as no yes, since the off has already landed. */
+function heldYes(value: string | undefined): Sharing | null {
+  if (value === undefined) return null;
+  try {
+    const sharing = JSON.parse(value) as Sharing | null;
+    return sharing?.on === true ? sharing : null;
+  } catch {
+    return null;
+  }
 }
 
 export type DropReason = 'full' | 'old' | 'refused';
