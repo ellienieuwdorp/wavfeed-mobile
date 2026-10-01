@@ -1,10 +1,10 @@
 /// <reference types="node" />
-/** The row menu as a screen reader's actions (VIS-9, FLOW-13). */
+/** The row menu as a screen reader's actions, and the heart's state the iOS row says (VIS-9, FLOW-13). */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { copy } from '../copy';
-import { PLAY_ACTION, spokenActions, type RowAction } from './rowActions';
+import { heardWishlist, PLAY_ACTION, spokenActions, type RowAction } from './rowActions';
 
 function menu(ran: string[], enabled: Partial<Record<string, boolean>> = {}): RowAction[] {
   const item = (key: string, label: string): RowAction => ({ key, label, enabled: enabled[key] ?? true, run: () => ran.push(key) });
@@ -44,4 +44,15 @@ test('an action runs its own item, and a greyed item is neither offered nor run'
   );
   for (const name of ['share', 'wishlist', 'open', PLAY_ACTION, 'activate']) spoken.onAccessibilityAction(act(name));
   assert.deepEqual(ran, ['share']);
+});
+
+test('the iOS row says the heart it hides: on, adding, removing, and nothing when off or not asked yet', () => {
+  const cases = [
+    [{ known: false }, null, null],
+    [{ known: true, wishlisted: false }, null, null],
+    [{ known: true, wishlisted: true }, null, copy.heart.on],
+    [{ known: true, wishlisted: false }, 'add', copy.heart.adding],
+    [{ known: true, wishlisted: true }, 'remove', copy.heart.removing],
+  ] as const;
+  for (const [membership, pending, heard] of cases) assert.equal(heardWishlist(membership, pending), heard);
 });

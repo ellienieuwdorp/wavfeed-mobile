@@ -406,6 +406,10 @@ export const copy = {
   heart: {
     add: (title: string) => `Add ${title} to your Bandcamp wishlist`,
     remove: (title: string) => `Remove ${title} from your Bandcamp wishlist`,
+    /** After the facts on a row VoiceOver meets as one element, standing for the heart it hides (VIS-9). */
+    on: 'on your Bandcamp wishlist',
+    adding: 'adding to your wishlist',
+    removing: 'removing from your wishlist',
   },
   /** The long-press menu on a row, the canvas's four items (sections 6, 7 and 8). */
   rowMenu: {
