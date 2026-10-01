@@ -479,11 +479,16 @@ export class BandcampSession {
     };
   }
 
-  /** The iOS WebView copies cookies it gains into the app's jar, never ones it loses: this clears the app's. */
+  /**
+   * The iOS WebView copies cookies it gains into the app's jar, never ones it loses: this clears the app's. No answer or
+   * a 5xx leaves the session in the jar, which is `unreachable`, and Settings keeps the phone signed in (review REL-3).
+   * The rig's sample Fan holds no session, so its sign-out is `ok`.
+   */
   async signOut(): Promise<'ok' | 'unreachable'> {
     this.crumbs.clear();
+    if (SAMPLE_MODE) return 'ok';
     const wire = await this.send(`${this.baseUrl}${LOGOUT_PATH}`, { headers: { Accept: HTML_ACCEPT }, credentials: 'include' });
-    return wire === null ? 'unreachable' : 'ok';
+    return wire === null || wire.status >= 500 ? 'unreachable' : 'ok';
   }
 
   collectItem(item: WishlistItem): Promise<WishlistWriteOutcome> {

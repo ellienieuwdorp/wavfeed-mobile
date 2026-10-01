@@ -419,6 +419,8 @@ export const copy = {
     phase: (phase: GatherPhase) => (phase === 'idle' ? '' : PHASES[phase]),
     signOut: `Sign out of Bandcamp on ${thisDevice}`,
     custody: `Your Bandcamp sign-in stays on ${thisDevice} and goes when you sign out.`,
+    /** In place of the custody foot after a sign-out Bandcamp never answered (review REL-3); proposed, DESIGN-UI section 8. */
+    signOutUnreachable: `Bandcamp could not be reached, so your sign-in is still on ${thisDevice}. Try again when you are online.`,
     devicesHead: 'Connected devices',
     thisDevice,
     deviceName: ThisDevice,

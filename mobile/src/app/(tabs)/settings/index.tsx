@@ -101,11 +101,14 @@ export default function Settings() {
   // off that did not land says so there, with the switch still on (review SEC-2).
   const [droppedCode, setDroppedCode] = useState<string | null>(null);
   const [offFailed, setOffFailed] = useState(false);
+  // A sign-out that never reached Bandcamp says so in the custody foot until Settings is left (review REL-3).
+  const [signOutUnreachable, setSignOutUnreachable] = useState(false);
   useFocusEffect(
     useCallback(
       () => () => {
         setDroppedCode(null);
         setOffFailed(false);
+        setSignOutUnreachable(false);
       },
       [],
     ),
@@ -151,10 +154,12 @@ export default function Settings() {
       .finally(() => setGathering(false));
   };
 
+  // A logout Bandcamp never answered leaves the session in the jar, so the phone stays as it was (review REL-3).
   const finishSignOut = async () => {
     const result = await app.session.signOut();
     usage.track({ name: 'signed_out', props: { result } });
-    await patchGather(app, { pausedReason: 'not_connected' });
+    if (result === 'ok') await patchGather(app, { pausedReason: 'not_connected' });
+    setSignOutUnreachable(result === 'unreachable');
     setSigningOut(false);
   };
 
@@ -211,7 +216,7 @@ export default function Settings() {
       <Cell leading={<Dot colour={c.faint} />} title={s.notConnected} sub={s.notGathering} />
     );
   const hasSignOut = status === 'connected' || status === 'signedOut';
-  const custody = status === 'demo' ? copy.demo.foot : s.custody;
+  const custody = status === 'demo' ? copy.demo.foot : signOutUnreachable ? s.signOutUnreachable : s.custody;
 
   return (
     <ScrollView {...appBar.scroll} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: ios ? 16 : 0, paddingBottom: 40 + clearance }}>

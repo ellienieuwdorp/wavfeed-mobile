@@ -63,6 +63,7 @@ test('every line under a Settings group or on the first screen is two sentences 
     s.usageFoot(CODE),
     s.turnedOff(CODE),
     s.turnOffFailed,
+    s.signOutUnreachable,
     copy.demo.foot,
     copy.demo.statusSub,
     copy.welcome.title,
