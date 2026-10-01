@@ -213,11 +213,12 @@ function SeekLine() {
 /** The note's line: two of them at the row cap, 2 x 18 x 1.6 = 58, fit the seek block it stands in for (review VIS-1). */
 const NOTE_LINE = 18;
 
+/** The note is spoken where it first appears, the mini player or here, by NoticeProvider (VIS-2). */
 function Note({ text }: { text: string }) {
   const { c } = useTokens();
   return (
     <View style={{ height: SEEK, justifyContent: 'center' }}>
-      <Type accessibilityLiveRegion="polite" numberOfLines={2} style={{ fontSize: 15, lineHeight: NOTE_LINE, color: c.sub, textAlign: 'center' }}>{text}</Type>
+      <Type numberOfLines={2} style={{ fontSize: 15, lineHeight: NOTE_LINE, color: c.sub, textAlign: 'center' }}>{text}</Type>
     </View>
   );
 }

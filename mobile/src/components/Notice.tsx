@@ -1,7 +1,8 @@
 /**
  * The notice line (DESIGN-UI section 12): pinned above the player with its action in accent and a dismiss. On iOS the
  * raised surface under a rule; on Android Material's snackbar, the platform's one transient line: 4dp corners on the
- * inverse surface at elevation 3, 16dp from the edges, the action in the inverse primary.
+ * inverse surface at elevation 3, 16dp from the edges, the action in the inverse primary. TalkBack reads the snackbar
+ * as a live region; iOS has none, so NoticeProvider announces each line to VoiceOver (VIS-2).
  */
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -52,7 +53,6 @@ function Line() {
   if (!notice) return null;
   return (
     <View
-      accessibilityLiveRegion="polite"
       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingLeft: type.gutter, backgroundColor: c.raised, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }}
     >
       <Text numberOfLines={2} style={{ flex: 1, fontSize: type.fact, color: c.ink, paddingVertical: 6 }}>{notice.text}</Text>

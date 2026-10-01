@@ -5,7 +5,8 @@
  * open, then the hairline at the text column's width, heard as the bar's value (task 0040, decisions 3 and 8), a paused
  * walk's catch-up too, without the note. No line before the first gather. Settings passes `quiet`: its status
  * row says when it gathered, so its title takes the catch-up alone and no line otherwise. Its lines grow as row facts,
- * capped below the large title, so the title stays the header's largest text (review VIS-1).
+ * capped below the large title, so the title stays the header's largest text (review VIS-1). The catch-up is no live
+ * region: a screen reader hears it on focus, and only the walk's end and pause unprompted (NoticeProvider, VIS-2).
  */
 import { Platform, View } from 'react-native';
 
@@ -29,7 +30,7 @@ export function ScreenHeader({ quiet = false }: { quiet?: boolean }) {
     return <Type style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{note}</Type>;
   }
   const text = catchUpHeader(line.primary, line.secondary);
-  const a11y = { accessible: true, accessibilityValue: progressValue(line.fraction), accessibilityLiveRegion: 'polite' as const };
+  const a11y = { accessible: true, accessibilityValue: progressValue(line.fraction) };
   const below = (
     <>
       {note === null ? null : <Type style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{note}</Type>}

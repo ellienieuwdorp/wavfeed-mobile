@@ -356,6 +356,9 @@ export const copy = {
     label: 'Catching up on your Bandcamp history',
     /** Under each large title while the first walk runs, in the slot "Updated 12 min ago" takes after it (task 0040). */
     keepOpen: 'Keep wavfeed open while it catches up',
+    /** Spoken to a screen reader once, when the first walk ends or a sign-out stops it (VIS-2). */
+    finished: 'Caught up on your Bandcamp history',
+    paused: 'Catching up paused until you sign in again',
   },
   empty: {
     nothing: 'Nothing here yet.',
