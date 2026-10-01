@@ -183,8 +183,7 @@ type RowMenuProps = {
 
 export function RowMenu({ release, width, boughtBy, children }: RowMenuProps) {
   const actions = useRowActions(release);
-  const fans = boughtBy ?? [];
-  const spoken = spokenActions(fans.length === 0 ? actions : [...actions, { key: 'bought_by', label: copy.boughtBy.title, enabled: true, run: () => openBoughtBy(fans) }]);
+  const spoken = spokenActions(actions, boughtBy ?? [], openBoughtBy);
   let menu: ReactElement;
   if (!ios) menu = <AnchoredMenu actions={actions}>{(open) => children(open, spoken)}</AnchoredMenu>;
   else if (!IOS_CONTEXT_MENU) menu = children(() => showSheet(release.title, actions), spoken);
