@@ -5,7 +5,7 @@
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { PixelRatio, Platform, Pressable, Text, View } from 'react-native';
+import { PixelRatio, Pressable, Text, View } from 'react-native';
 
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
@@ -14,12 +14,12 @@ import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 export const AVATAR_CAP = 5;
 const DISC = 20;
-const TARGET = Platform.OS === 'ios' ? 44 : 48;
 /**
  * 2pt above the faces and 8pt below: on a row the stack sits in the fact line, 2pt under the title, above the body's
- * 8pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11).
- * ceiling: that makes the target 30pt tall, short of TARGET; the stack in a trailing slot outside the row body, as the
- * canvas's Bought board draws it, is the upgrade.
+ * 8pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11). Android's ripple
+ * is bounded to the stack for the same reason; a borderless one would spread past the slop into the title.
+ * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; the stack in a trailing slot outside the row body,
+ * as the canvas's Bought board draws it, is the upgrade.
  */
 const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 
@@ -94,7 +94,7 @@ export function AvatarStack({ fans, ring, opens = false }: { fans: readonly ApiF
       accessibilityLabel={copy.boughtBy.stack(names)}
       accessibilityHint={copy.boughtBy.hint}
       hitSlop={SLOP}
-      android_ripple={ripple(c.track, TARGET / 2)}
+      android_ripple={ripple(c.track)}
       style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}
     >
       {stack}
