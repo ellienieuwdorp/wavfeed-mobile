@@ -44,7 +44,8 @@ const s = copy.settings;
 /** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices (task 0036). */
 const SHOW_DEVICES = false;
 // ceiling: nothing here schedules or receives a notification (no expo-notifications), so the canvas's Notifications
-// group with its one switch returns with push, between the devices and appearance.
+// group with its one switch is left out. The upgrade is a local notification from a gather on the phone, which needs no
+// server (review STRAT-13); no task holds it yet. The group then sits between the devices and appearance.
 
 /** On Android the dot sits in a 24dp icon slot, so its row's text starts at 56dp with the device row's. */
 function Dot({ colour }: { colour: string }) {
