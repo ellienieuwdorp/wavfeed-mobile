@@ -2,9 +2,10 @@
  * Every interface glyph in each platform's own set (task 0036 decision 5, DESIGN-UI section 10 for the player's): an SF
  * Symbol on iOS and the Material Symbol on Android, both through expo-symbols, in a fixed `size` square so play turning
  * into pause moves nothing around it. On Android expo-symbols draws the symbol as text in its font, which the font
- * scale grows past the square, so it is asked for at `size` over the scale and lands at `size`, as an SF Symbol does
- * (review VIS-1). The Ionicon is only the fallback where a symbol cannot draw. The heart is not a glyph: it is
- * Bandcamp's silhouette everywhere (DESIGN-UI section 12).
+ * scale grows past the square, so it is asked for at `size` over the scale (review VIS-1). That lands at `size` where
+ * the scale is linear; Android 14 and later scale large text by less, so there a glyph above about 24dp draws a little
+ * under its square at a large font scale, never past it. The Ionicon is only the fallback where a symbol cannot draw.
+ * The heart is not a glyph: it is Bandcamp's silhouette everywhere (DESIGN-UI section 12).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SymbolView, type SymbolWeight } from 'expo-symbols';
