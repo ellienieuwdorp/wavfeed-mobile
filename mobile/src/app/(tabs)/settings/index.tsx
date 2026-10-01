@@ -14,7 +14,7 @@ import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import { openURL } from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, PixelRatio, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
@@ -170,10 +170,12 @@ export default function Settings() {
   // The rig's sample Fan has no Bandcamp session to end, so its sign out skips the logout page (ADR-0001).
   const signOut = () => (SAMPLE_MODE ? void finishSignOut() : setSigningOut(true));
 
-  // Pressable mid-gather too (finding FLOW-6): the count goes first, then the turn on the wire is waited out and the
-  // store closed straight after it, so the chain's next store call fails and ends it (gather.ts `runner`). A second
-  // confirm while one runs does nothing.
-  const removing = useRef(false);
+  // Pressable mid-gather too (finding FLOW-6). `store_removed` goes first, then the turn on the wire is waited out (up
+  // to its budget) and the store closed straight after it, so the chain's next store call fails and ends it (gather.ts
+  // `runner`) before another turn starts. That order means an app killed during the wait has counted a removal that did
+  // not happen. The row shows a spinner and takes no press while it runs. Bandcamp's art and Fan faces that expo-image
+  // keeps on disk go too, so nothing gathered outlives the press (finding PRIV-3, site/privacy.html).
+  const [removing, setRemoving] = useState(false);
   const removeAll = () =>
     Alert.alert(s.removeAllTitle, s.removeAllBody(status === 'connected'), [
       { text: s.cancel, style: 'cancel' },
@@ -181,15 +183,13 @@ export default function Settings() {
         text: s.removeAllConfirm,
         style: 'destructive',
         onPress: () => {
-          if (removing.current) return;
-          removing.current = true;
+          setRemoving(true);
           void (async () => {
             await usage.trackAndFlush({ name: 'store_removed', props: {} });
             await turnRunning()?.catch(() => undefined);
             await app.removeStore();
-          })().finally(() => {
-            removing.current = false;
-          });
+            await Promise.all([Image.clearDiskCache(), Image.clearMemoryCache()]).catch(() => undefined);
+          })().finally(() => setRemoving(false));
         },
       },
     ]);
@@ -325,7 +325,12 @@ export default function Settings() {
       )}
 
       <Group gapAbove>
-        <Cell title={s.removeAll} tone="danger" onPress={removeAll} />
+        <Cell
+          title={s.removeAll}
+          tone="danger"
+          trailing={removing ? <ActivityIndicator size="small" /> : undefined}
+          onPress={removing ? undefined : removeAll}
+        />
       </Group>
 
       <Group gapAbove>
