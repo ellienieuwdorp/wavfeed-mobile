@@ -31,12 +31,27 @@ export async function openStore(file: string = STORE_FILE): Promise<Store> {
 
 /**
  * Deletes the store file, then the `-wal` and `-shm` beside it, which `deleteDatabaseAsync` leaves and a fresh file of
- * the same name would replay (review REL-4). Throws while a connection holds the file; a missing sidecar is the usual
- * case after a clean close.
+ * the same name would replay (review REL-4). Throws while a connection holds the file; a missing main file counts as
+ * deleted, since an open that failed before creating it leaves none, and a missing sidecar is the usual case after a
+ * clean close.
  */
 export async function deleteStoreFile(file: string = STORE_FILE): Promise<void> {
-  await deleteDatabaseAsync(file);
+  await deleteDatabaseAsync(file).catch((error: unknown) => {
+    if (!storeFileMissing(error)) throw error;
+  });
   for (const sidecar of ['-wal', '-shm']) await deleteDatabaseAsync(`${file}${sidecar}`).catch(() => undefined);
+}
+
+/**
+ * expo-sqlite 57's not-found from `deleteDatabaseAsync`: Android's `DatabaseNotFoundException` takes the inferred code
+ * `ERR_DATABASE_NOT_FOUND`, and iOS gives it the code its open-file and delete failures share, so only its reason
+ * ("Database <path> not found") tells them apart.
+ */
+function storeFileMissing(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  if (code === 'ERR_DATABASE_NOT_FOUND') return true;
+  return code === 'E_SQLITE_DELETE_DATABASE' && typeof message === 'string' && / not found$/m.test(message);
 }
 
 /** "Remove everything gathered" when the file will not go: every table emptied but the migration record. */
