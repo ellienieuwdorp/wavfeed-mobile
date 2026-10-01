@@ -60,6 +60,11 @@ export function useScreenReader(): boolean {
   return useLiveSetting(SCREEN_READER, false);
 }
 
+/**
+ * ceiling: on Android this is React Native's TYPE_ANNOUNCEMENT event, which API 36 deprecates; TalkBack 16 on the
+ * API 36 emulator still speaks it. When TalkBack drops it, the player's note and the walk's
+ * milestones move to a polite live region on the Android mini player and catch-up line.
+ */
 export function announce(text: string): void {
   AccessibilityInfo.announceForAccessibilityWithOptions(text, { queue: true });
 }
