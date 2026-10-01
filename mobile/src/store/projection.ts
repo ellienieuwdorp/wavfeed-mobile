@@ -571,10 +571,21 @@ function tallyDocument(tally: Tally, outcome: ProjectDocumentResult | 'failed'):
 }
 
 /**
+ * SQLite's messages for a store that failed, not a document: full, I/O, memory, interrupt, corruption, lock, open and
+ * read-only. Matched on the message, since expo-sqlite's Android binding prints the code as a character.
+ */
+const STORE_FAILURE =
+  /database or disk is full|disk I\/O error|out of memory|interrupted|database disk image is malformed|file is not a database|database (table )?is locked|unable to open database file|readonly database|locking protocol/i;
+
+function storeFailed(error: unknown): boolean {
+  return error instanceof Error && STORE_FAILURE.test(error.message);
+}
+
+/**
  * One document behind a savepoint, then its cursor. A throw from its fold is the document's own outcome: its writes
  * roll back, its id and the error's name go to `projection_failures`, and the cursor passes it, so the documents after
- * it still fold (ARCH-M1). A throw that also ended the transaction leaves no savepoint to roll back to and fails the
- * stretch, as a store failure does.
+ * it still fold (ARCH-M1). A store failure, which the next fold may not meet, and a throw that also ended the
+ * transaction, which leaves no savepoint to roll back to, fail the stretch with the cursor where it was.
  */
 async function foldDocument(folding: Folding, doc: RawDocument): Promise<ProjectDocumentResult | 'failed'> {
   const { db, run } = folding;
@@ -583,6 +594,7 @@ async function foldDocument(folding: Folding, doc: RawDocument): Promise<Project
   try {
     outcome = await projectRawDocument(folding, doc);
   } catch (error) {
+    if (storeFailed(error)) throw error;
     try {
       await db.execAsync('rollback to fold_document');
     } catch {

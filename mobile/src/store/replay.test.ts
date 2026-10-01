@@ -1,8 +1,9 @@
 /// <reference types="node" />
 /**
  * The fold's quarantine and the launch replay's resume (review findings ARCH-M1, ARCH-1 and ARCH-13) on the real
- * store: a document whose fold throws is rolled back, recorded, reported once and passed, and a rebuild retries it; a
- * replay cut short resumes from the cursors without emptying the tables again; a Projection newer than the code stays.
+ * store: a document whose fold throws is rolled back, recorded, reported once and passed, and a rebuild retries it,
+ * while a store failure fails the fold; a replay cut short resumes from the cursors without emptying the tables again;
+ * a Projection newer than the code stays.
  */
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
@@ -73,6 +74,22 @@ test('a document whose upsert throws is rolled back and passed, the ones after i
   await rebuild(db);
   assert.deepEqual(await ids('stories'), [7000, POISON, 7002]);
   assert.deepEqual(await db.getAllAsync('select * from projection_failures'), []);
+});
+
+test('a store failure fails the fold with the cursor where it was, and the next fold projects the document', async () => {
+  // SQLite's own message for SQLITE_FULL from a write that rolled back only its statement. A real full disk in node:sqlite
+  // ends the whole transaction, which already failed the stretch, so a trigger stands in for the statement-only case.
+  await db.execAsync(`create trigger full before insert on stories begin select raise(abort, 'database or disk is full'); end`);
+  await putPurchases(7000, 7001);
+
+  await assert.rejects(fold(db), /database or disk is full/);
+
+  assert.deepEqual(await db.getAllAsync('select * from projection_failures'), []);
+  assert.deepEqual(await db.getAllAsync('select * from projection_progress'), []);
+  assert.deepEqual(await reportedCodes(), []);
+  await db.execAsync('drop trigger full');
+  assert.equal((await fold(db)).documentsProcessed, 2);
+  assert.deepEqual(await ids('stories'), [7000, 7001]);
 });
 
 test('a replay cut short resumes from the cursors on the next launch and empties nothing', async () => {
