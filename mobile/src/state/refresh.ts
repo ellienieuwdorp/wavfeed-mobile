@@ -1,12 +1,12 @@
 /**
  * Pull to refresh on a collection tab (task 0036, decision 4): a refresh turn, with the native spinner held until the
  * feed step lands (the turn moves `lastSuccessAt`, so "Updated just now" and the spinner change in one render), the
- * turn returns, or a ceiling passes. Release pages and the sweep after the feed run on without it. A refresh during
- * the first walk joins a chain of turns that can run for minutes, and the catch-up line already says so, so the
- * spinner lets go after a beat there. The spinner reads as stopped while its tab is out of view and as refreshing again
- * on return: iOS stills a UIRefreshControl that leaves the window, and React Native's only restart is `refreshing`
- * turning true on a control that has ended. Each pull ends in one `feed_refreshed` naming its tab and whether the
- * ceiling let the spinner go before the feed step landed (task 0038).
+ * turn returns, or a ceiling passes. The lists when due, release pages and the sweep after the feed run on without it
+ * (task 0046, decision 1). A refresh during the first walk joins a chain of turns that can run for minutes, and the
+ * catch-up line already says so, so the spinner lets go after a beat there. The spinner reads as stopped while its tab
+ * is out of view and as refreshing again on return: iOS stills a UIRefreshControl that leaves the window, and React
+ * Native's only restart is `refreshing` turning true on a control that has ended. Each pull ends in one
+ * `feed_refreshed` naming its tab and whether the ceiling let the spinner go before the feed step landed (task 0038).
  */
 import { useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';

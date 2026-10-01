@@ -31,7 +31,7 @@ import { fold } from '../store/projection';
 import { listDrops } from '../store/queries';
 import { insertRawDocument } from '../store/rawDocuments';
 import { EMPTY_GATHER_STATE, type GatherSink, type GatherState } from './sink';
-import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, POLL_MAX_PAGES, RATE_PAGES, runGatherTurn } from './turn';
+import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, LIST_INTERVAL_MS, POLL_MAX_PAGES, RATE_PAGES, runGatherTurn } from './turn';
 
 const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
@@ -72,6 +72,8 @@ let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
 /** Followed Pages the follow list answers with, as one stored page; none answers with no page. */
 let followed: readonly number[];
+/** The lists and the feed, each named once per request, in the order the turn asked them. */
+let asked: ('wishlist' | 'follows' | 'feed')[];
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
 const at = (): string => new Date(clock).toISOString();
@@ -79,8 +81,12 @@ const at = (): string => new Date(clock).toISOString();
 const session: GatherSession = {
   probeIdentity: async () => probe,
   pokeFeedPage: async (username) => ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() }),
-  fetchWishlistItems: async () => ok({ pages: 0, seen: 0, complete: true }),
+  async fetchWishlistItems() {
+    asked.push('wishlist');
+    return ok({ pages: 0, seen: 0, complete: true });
+  },
   async fetchFollowingBands(_fanId, _username, onDocument) {
+    asked.push('follows');
     if (followed.length === 0) return ok({ pages: 0, seen: 0, complete: true });
     clock += REQUEST_MS;
     await onDocument({ endpoint: 'following_bands', payload: followingBandsFirstPage(followed, at()), fetchedAt: at() });
@@ -93,6 +99,7 @@ const session: GatherSession = {
   },
   async fetchFeedUpdates(_fanId, olderThan): Promise<BandcampAnswer<FeedUpdatesPage>> {
     clock += REQUEST_MS;
+    asked.push('feed');
     cursors.push(olderThan);
     const refusal = refuseFeed(cursors.length - 1);
     if (refusal !== null) return refusal;
@@ -152,6 +159,7 @@ beforeEach(async () => {
   refuseFeed = () => null;
   releasePage = datedPage;
   followed = [];
+  asked = [];
 });
 
 describe('the feed walk', () => {
@@ -225,7 +233,7 @@ describe('the feed walk', () => {
     const dating = seen.findIndex((state) => state.phase === 'dating');
     assert.ok(dating > 0);
     const moved = seen.findIndex((state) => state.lastSuccessAt !== before);
-    assert.equal(moved, dating - 1, 'it moves once the feed ends, not on an answer and not at the turn end');
+    assert.ok(moved < dating && seen[moved]?.phase === 'walking', 'it moves as the feed step ends');
     assert.ok((seen[moved]?.lastSuccessAt ?? 0) > (before ?? 0));
     assert.equal(gather.lastSuccessAt, seen[moved]?.lastSuccessAt, 'the release pages after the feed do not move it');
   });
@@ -248,6 +256,36 @@ describe('the feed walk', () => {
     refuseFeed = () => ({ kind: 'unreachable' });
     assert.equal((await turn(600_000, 'refresh')).outcome, 'failed');
     assert.equal(gather.lastSuccessAt, read);
+  });
+});
+
+describe('the order of a turn (task 0046, decision 1)', () => {
+  const firsts = () => [...new Set(asked)];
+
+  test('while the first walk is pending the lists come before the feed, and once it is done the feed comes first', async () => {
+    feed = stories(3, 1000);
+    assert.equal((await turn()).outcome, 'done');
+    assert.deepEqual(firsts(), ['wishlist', 'follows', 'feed']);
+
+    clock += LIST_INTERVAL_MS;
+    asked = [];
+    assert.equal((await turn(600_000, 'refresh')).outcome, 'done');
+    assert.deepEqual(asked, ['feed', 'wishlist', 'follows']);
+  });
+
+  test('a walk still held after the first is done keeps the lists before the feed', async () => {
+    feed = stories(3, 1000);
+    await turn();
+    const newer = POLL_MAX_PAGES * PAGE_SIZE + 7;
+    feed = [...stories(newer, 5000, 60), ...feed];
+    clock += LIST_INTERVAL_MS;
+    // A poll capped short of what the store holds walks on, and the budget ends the turn mid-walk.
+    assert.equal((await turn((POLL_MAX_PAGES + 1) * REQUEST_MS, 'timer')).outcome, 'out_of_budget');
+    assert.equal((await sink.readWalk())?.kind, 'feed_walk');
+    clock += LIST_INTERVAL_MS;
+    asked = [];
+    await turn(600_000, 'timer');
+    assert.deepEqual(firsts(), ['wishlist', 'follows', 'feed']);
   });
 });
 

@@ -1,17 +1,18 @@
 /**
- * One gather turn in the foreground (task 0036, decision 4): probe; the wishlist and the follow list when six hours
- * old; while the first walk is pending a small band details sweep of due followed Pages (ADR-0017), so hearts and
- * Upcoming hold truth while the history fills; before a first walk's first page, a depth probe that binary searches the
- * feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or poll with the Extension's rules
- * (extension/lib/poll.ts) plus the server's stop line (feed.ts); public release pages for undated Releases (ADR-0011),
- * then the Track pages a Drop owes and the pages of Upcoming ones due a read, with the Track pages of any Drop (task
- * 0041, decision 8), a few while the walk is pending, with budget held back from the walk for the undated; then the
- * rest of the sweep. A list that fails is noted and the walk still runs; a feed page or a depth probe Bandcamp answers
- * with an error fails the turn before the release pages and the rest of the sweep, since a 403, 429 or 5xx asks for
+ * One gather turn in the foreground (task 0036, decision 4): probe; while a walk is pending (the first walk, or a held
+ * feed walk), the wishlist and the follow list when six hours old, then a small band details sweep of due followed
+ * Pages (ADR-0017), so hearts and Upcoming hold truth while the history fills; before a first walk's first page, a
+ * depth probe that binary searches the feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or
+ * poll with the Extension's rules (extension/lib/poll.ts) plus the server's stop line (feed.ts); once caught up, the
+ * lists when due come after the feed, so a pull reads the feed first (task 0046, decision 1); public release pages for
+ * undated Releases (ADR-0011), then the Track pages a Drop owes and the pages of Upcoming ones due a read, with the
+ * Track pages of any Drop (task 0041, decision 8), a few while the walk is pending, with budget held back from the walk
+ * for the undated; then the rest of the sweep. A list that fails is noted and the turn goes on; a feed page or a depth
+ * probe Bandcamp answers with an error fails the turn before any step after the feed, since a 403, 429 or 5xx asks for
  * fewer requests (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app
- * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of the
- * feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer landed,
- * and a pull to refresh lets its spinner go when it moves (state/refresh.ts; task 0046, decision 2).
+ * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of
+ * the feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer
+ * landed (task 0046, decision 2), and a pull to refresh lets its spinner go when it moves (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -221,12 +222,13 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
     return 'paused';
   }
 
-  // An unreachable list is noted and left for the next turn; the walk behind it still runs.
-  if ((await runLists(ctx, identity)) === 'paused') return 'paused';
-
   const state = await sink.readGatherState();
   const held = await sink.readWalk();
   const walkPending = !state.initialWalkDone || held?.kind === 'feed_walk';
+  // While a walk is pending the lists come first, as the sweep before the walk reads only followed Pages; a caught-up
+  // turn reads the feed first and the lists after it (task 0046, decision 1). An unreachable list is noted and left
+  // for the next turn; the steps behind it still run.
+  if (walkPending && (await runLists(ctx, identity)) === 'paused') return 'paused';
   const swept = walkPending && !outOfBudget(ctx) ? await runSweep(ctx, PRE_WALK_SWEEP) : 0;
 
   // A poll is a few pages, so only a walk, which spends the whole budget, holds time back for release pages.
@@ -237,6 +239,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   if (feed === 'unreachable' || feed === 'error') return 'failed';
   if (ctx.feedReadAt !== null) await sink.patchGatherState({ lastSuccessAt: ctx.feedReadAt });
 
+  if (!walkPending && (await runLists(ctx, identity)) === 'paused') return 'paused';
   if (!outOfBudget(ctx)) await runReleasePages(ctx, dating);
   if (!outOfBudget(ctx)) await runSweep(ctx, SWEEP_TURN_MAX - swept);
   return feed === 'pending' || outOfBudget(ctx) ? 'out_of_budget' : 'done';
