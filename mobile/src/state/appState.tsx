@@ -46,6 +46,9 @@ export type TallyTrack = (tally: Tally) => void;
 
 const AppStateContext = createContext<AppState | null>(null);
 
+/** Stores "Remove everything gathered" has closed, whose reads still racing it fail with nothing to report (ARCH-2). */
+const removed = new WeakSet<SQLiteDatabase>();
+
 /** The fastest the version moves, so a long first walk re-reads each screen every two seconds, not every fold. */
 export const INVALIDATE_EVERY_MS = 2_000;
 /** A screen out of view follows the version once it has held still this long, or at once when it comes back into view. */
@@ -135,6 +138,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
 
   const removeStore = useCallback(async () => {
     if (!db) return;
+    removed.add(db);
     setDb(null);
     errorReports.setSink(null);
     await db.closeAsync().catch(() => undefined);
@@ -192,10 +196,10 @@ type Live<T> =
 
 /**
  * Re-runs `read` whenever the Projection folds, and at once when `key` changes; `null` until the first answer. A
- * rejection is dropped only once its read is stale: the screen left, or the store or version moved on, as a read
- * racing "Remove everything gathered" does, and the next read answers. Any other is a `query_failed` report, thrown
- * while the screen draws so the tab's boundary offers Try again (ARCH-2). `key` is one value, so the effect's
- * dependencies are static and the React Compiler keeps this hook (TECH-12).
+ * rejection from a store "Remove everything gathered" closed is dropped. Any other is a `query_failed` report, and
+ * thrown while the screen draws, unless a newer read has replaced it, so the tab's boundary offers Try again (ARCH-2).
+ * A thrown value that is not an object is wrapped first, so the boundary knows it as the one already reported.
+ * `key` is one value, so the effect's dependencies are static and the React Compiler keeps this hook (TECH-12).
  */
 export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, key: string | number | null = null): T | null {
   const { db, version: live } = useAppState();
@@ -208,10 +212,11 @@ export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, key: s
       (value) => {
         if (alive) setAnswer({ status: 'ok', value });
       },
-      (error: unknown) => {
-        if (!alive) return;
+      (thrown: unknown) => {
+        if (removed.has(db)) return;
+        const error = typeof thrown === 'object' && thrown !== null ? thrown : new Error(String(thrown));
         reportCode('query_failed', error);
-        setAnswer({ status: 'error', error });
+        if (alive) setAnswer({ status: 'error', error });
       },
     );
     return () => {
