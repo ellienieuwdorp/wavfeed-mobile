@@ -119,7 +119,7 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
     const summary = await running;
     last = summary;
     turns += 1;
-    devLog('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
+    if (__DEV__) devLog('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
     // A chain with no count cap ends once turns stop moving the walk; a turn that moved it resets the stall run and
     // gives the retries back (task 0040).
