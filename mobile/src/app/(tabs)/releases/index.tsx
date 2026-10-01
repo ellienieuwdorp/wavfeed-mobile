@@ -63,7 +63,7 @@ export default function NewReleases() {
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
-  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), [day]);
+  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), day);
   const { refreshing, onRefresh } = useRefresh('releases');
   const appBar = useAppBar();
 

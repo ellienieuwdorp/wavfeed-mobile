@@ -58,7 +58,11 @@ export function createErrorReports(now: () => number): ErrorReports {
   };
 
   return {
-    report: (thrown, source, fatal, code) => write(thrown, { source, fatal, code }),
+    report(thrown, source, fatal, code) {
+      // A coded error a screen then throws while it draws (useLiveQuery) reaches its boundary as the same object.
+      if (code !== undefined && typeof thrown === 'object' && thrown !== null) caught.add(thrown);
+      write(thrown, { source, fatal, code });
+    },
     reportCaught(thrown, at) {
       if (typeof thrown === 'object' && thrown !== null) {
         if (caught.has(thrown)) return;

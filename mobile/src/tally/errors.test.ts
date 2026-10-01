@@ -189,3 +189,10 @@ test('a boundary writes an error React hands it twice once', async () => {
     ['boundary', false, 'thrown text'],
   ]);
 });
+
+test('a boundary does not write again an error already reported with a code, as a failed query a screen throws', async () => {
+  const error = new Error('no such column');
+  reports.report(error, 'code', false, 'query_failed');
+  reports.reportCaught(error, 'releases');
+  assert.deepEqual((await written()).map((r) => [r.source, r.code, r.message]), [['code', 'query_failed', 'no such column']]);
+});

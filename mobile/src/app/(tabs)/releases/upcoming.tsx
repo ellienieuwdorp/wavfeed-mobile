@@ -45,7 +45,7 @@ export default function UpcomingReleases() {
   useAppBarAtRest();
   const clearance = useDockClearance();
   const day = dayKey(useNow());
-  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), [day]);
+  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), day);
 
   const items = useMemo(() => {
     const list: Item[] = [];

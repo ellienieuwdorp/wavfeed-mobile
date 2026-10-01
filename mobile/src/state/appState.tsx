@@ -7,11 +7,12 @@
  * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
  * will not open shows the failure screen, whose "Try again" opens it once more; the open store is where Error Reports
  * are written, and a failed replay is a coded one (task 0038 decisions 10 and 11). A replay after a parser change
- * that outlasts its first stretch shows its progress in place of the app (review finding ARCH-1).
+ * that outlasts its first stretch shows its progress in place of the app (review finding ARCH-1). A screen's query
+ * that throws is reported and thrown again while the screen draws, for the tab's boundary to offer Try again (ARCH-2).
  */
 import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
@@ -23,7 +24,7 @@ import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
 import { emptyStore, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
 import type { Tally } from '@/tally/catalogue';
-import { errorReports } from '@/tally/errors';
+import { errorReports, reportCode } from '@/tally/errors';
 
 import { loadGatherState, replayAtLaunch } from './gatherSink';
 
@@ -184,24 +185,39 @@ function useFollowedVersion(version: number): number {
   return followed;
 }
 
-/** Re-runs `read` whenever the Projection folds, and at once when `deps` change; `null` until the first answer. */
-export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, deps: readonly unknown[] = []): T | null {
+type Live<T> =
+  | { readonly status: 'loading' }
+  | { readonly status: 'ok'; readonly value: T }
+  | { readonly status: 'error'; readonly error: unknown };
+
+/**
+ * Re-runs `read` whenever the Projection folds, and at once when `key` changes; `null` until the first answer. A
+ * rejection is dropped only once its read is stale: the screen left, or the store or version moved on, as a read
+ * racing "Remove everything gathered" does, and the next read answers. Any other is a `query_failed` report, thrown
+ * while the screen draws so the tab's boundary offers Try again (ARCH-2). `key` is one value, so the effect's
+ * dependencies are static and the React Compiler keeps this hook (TECH-12).
+ */
+export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, key: string | number | null = null): T | null {
   const { db, version: live } = useAppState();
   const version = useFollowedVersion(live);
-  const [value, setValue] = useState<T | null>(null);
+  const [answer, setAnswer] = useState<Live<T>>({ status: 'loading' });
+  const readNow = useEffectEvent(read);
   useEffect(() => {
     let alive = true;
-    read(db).then(
-      (v) => {
-        if (alive) setValue(v);
+    readNow(db).then(
+      (value) => {
+        if (alive) setAnswer({ status: 'ok', value });
       },
-      // A read racing a store being removed has nothing to show; the next version re-reads.
-      () => undefined,
+      (error: unknown) => {
+        if (!alive) return;
+        reportCode('query_failed', error);
+        setAnswer({ status: 'error', error });
+      },
     );
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, version, ...deps]);
-  return value;
+  }, [db, version, key]);
+  if (answer.status === 'error') throw answer.error;
+  return answer.status === 'ok' ? answer.value : null;
 }

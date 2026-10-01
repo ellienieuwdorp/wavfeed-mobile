@@ -146,7 +146,7 @@ export type ErrorSource = (typeof ERROR_SOURCES)[number];
 /**
  * `store_open_failed` travels only in the failure screen's `mailto:`, since no yes can be read then. Append only: a
  * phone on an older bundle still sends the codes it knows. `schema_newer` and `projection_newer` are a store a newer
- * bundle wrote, opened by an older one (review finding ARCH-13).
+ * bundle wrote, opened by an older one; `query_failed` is a screen's read that threw (review findings ARCH-13, ARCH-2).
  */
 export const ERROR_CODES = [
   'store_open_failed',
@@ -154,6 +154,7 @@ export const ERROR_CODES = [
   'fold_failed',
   'schema_newer',
   'projection_newer',
+  'query_failed',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
