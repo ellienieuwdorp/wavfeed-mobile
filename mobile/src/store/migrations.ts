@@ -1,8 +1,13 @@
 /**
  * The store's numbered migrations and the runner that applies each once, recorded in `schema_migrations` (task 0036,
- * ADR-0004). Kept apart from `openStore` so a Node check can build the same store over `node:sqlite`.
+ * ADR-0004). Kept apart from `openStore` so a Node check can build the same store over `node:sqlite`. Migrations ship
+ * over the air with the JavaScript, and expo-updates can roll a phone back to an older bundle that runs on the newer
+ * schema, so every migration is additive only: new tables and new columns with defaults, never a rename, a drop or a
+ * changed meaning. A store newer than the code is reported and opened as it is (review finding ARCH-13).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
+
+import { reportCode } from '../tally/errors';
 
 /** A fold transaction on its own connection waits this long for the Fetcher's write, and the other way round. */
 export const BUSY_TIMEOUT_MS = 5000;
@@ -206,6 +211,18 @@ const MIGRATIONS: readonly Migration[] = [
       update release_page_attempts set asked_as_phone = 1;
     `,
   },
+  {
+    // The documents whose fold threw, each rolled back and passed so the ones after it still fold; derived, so a
+    // rebuild empties it and retries each (review finding ARCH-M1, projection.ts).
+    version: 8,
+    sql: `
+      create table projection_failures (
+        raw_document_id integer primary key,
+        endpoint text not null,
+        error text not null
+      );
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {
@@ -214,6 +231,8 @@ export async function migrate(db: SQLiteDatabase): Promise<number> {
   );
   const row = await db.getFirstAsync<{ version: number | null }>('select max(version) as version from schema_migrations');
   const current = row?.version ?? 0;
+  const latest = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;
+  if (current > latest) reportCode('schema_newer', new Error(`store schema ${current} is newer than the code's ${latest}`));
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue;
     await db.withTransactionAsync(async () => {
@@ -224,5 +243,5 @@ export async function migrate(db: SQLiteDatabase): Promise<number> {
       ]);
     });
   }
-  return MIGRATIONS[MIGRATIONS.length - 1]?.version ?? current;
+  return latest;
 }

@@ -54,18 +54,26 @@ export async function insertRawDocument(
   return { id: held.id, deduped: true };
 }
 
+const PAST_CURSOR = `from raw_documents r
+     left join projection_progress p on p.endpoint = r.endpoint
+     where r.id > coalesce(p.last_raw_id, 0)`;
+
 /** The next documents past each endpoint's projection cursor, in fetch order across endpoints. */
 export async function listForProjection(db: SQLiteDatabase, limit: number): Promise<readonly RawDocument[]> {
   const rows = await db.getAllAsync<RawDocumentRow>(
     `select r.id, r.endpoint, r.payload, r.fetched_at
-     from raw_documents r
-     left join projection_progress p on p.endpoint = r.endpoint
-     where r.id > coalesce(p.last_raw_id, 0)
+     ${PAST_CURSOR}
      order by r.id
      limit ?`,
     [limit],
   );
   return rows.map(toRawDocument);
+}
+
+/** How many documents wait past the cursors, and how many are held, for a replay's progress. */
+export async function countForProjection(db: SQLiteDatabase): Promise<{ readonly waiting: number; readonly held: number }> {
+  const waiting = await db.getFirstAsync<{ n: number }>(`select count(*) as n ${PAST_CURSOR}`);
+  return { waiting: waiting?.n ?? 0, held: await countRawDocuments(db) };
 }
 
 /** The newest release page held for a Release; with `beforeId`, the newest the fold had reached before that document. */

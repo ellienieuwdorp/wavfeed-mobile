@@ -4,7 +4,8 @@
  * go, their crumbs with them down to the database file's bytes, and every other Raw Document stays. Migration 5 and the
  * replay after it on a store that filed a pre-order by its feed date: the Release is Upcoming again (task 0041, decision 2).
  * Migration 7 on a store whose release pages were asked for as a phone: each Upcoming page, and each Track page a Drop
- * still dated by its read came back with, is due once more, and never again for that reason (decision 11).
+ * still dated by its read came back with, is due once more, and never again for that reason (decision 11). A store a
+ * newer bundle migrated past the code opens as it is and is reported (review finding ARCH-13).
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -27,6 +28,9 @@ import {
 } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
 import { FEED_UPDATES_ENDPOINT, RELEASE_PAGE_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
+import type { ErrorReport } from '../tally/errorReport';
+import { errorReports } from '../tally/errors';
+import { turnSharingOn } from '../tally/outbox';
 import { markReleasePageAttempt, readOwedTrackPages, readUndatedReleases, readUpcomingDue } from './enrichment';
 import { migrate } from './migrations';
 import { ensureProjectionVersion, fold, PROJECTION_VERSION_KEY } from './projection';
@@ -35,6 +39,7 @@ import { insertRawDocument, type RawDocumentInput } from './rawDocuments';
 
 /** Undoes the migrations after `version`, so a test starts from the store a device held then. */
 async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
+  if (version < 8) await db.execAsync('drop table projection_failures;');
   if (version < 7) await db.execAsync('alter table release_page_attempts drop column asked_as_phone;');
   if (version < 6) {
     await db.execAsync(`
@@ -93,7 +98,7 @@ test('migration 4 adds the Tally outbox to a store at version 3, whose rows are 
   await heldAt(db, 3);
   await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
 
-  assert.equal(await migrate(db), 7);
+  assert.equal(await migrate(db), 8);
 
   await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
   await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
@@ -240,5 +245,20 @@ test('migration 7 on a store whose clock ran ahead makes a page due once, not un
   await read(preorderTralbumBlob({}, [2]), '2026-10-01T10:01:00.000Z');
   assert.deepEqual(await due('2026-10-01T10:03:00.000Z'), []);
   assert.deepEqual(await due('2026-10-04T10:03:00.000Z'), []);
+  close();
+});
+
+test('a store a newer bundle migrated past the code opens as it is, reported as schema_newer', async () => {
+  const { db, close } = await openTestStore();
+  await turnSharingOn(db, '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10', Date.now());
+  errorReports.setSink(db);
+  await db.execAsync("create table later (x); insert into schema_migrations (version, applied_at) values (99, '2026-10-01')");
+
+  assert.equal(await migrate(db), 8);
+
+  assert.ok(await db.getFirstAsync("select name from sqlite_master where name = 'later'"));
+  const rows = await db.getAllAsync<{ body: string }>("select body from tally_outbox where kind = 'error'");
+  assert.deepEqual(rows.map((row) => (JSON.parse(row.body) as ErrorReport).code), ['schema_newer']);
+  errorReports.setSink(null);
   close();
 });

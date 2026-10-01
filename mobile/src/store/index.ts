@@ -20,8 +20,8 @@ export {
   type FoldSummary,
   type ProjectDocumentOutcome,
   type ProjectDocumentResult,
-  projectRawDocument,
   rebuild,
+  type ReplayProgress,
 } from './projection';
 export {
   type BoughtOptions,

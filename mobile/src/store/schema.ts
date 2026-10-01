@@ -12,11 +12,15 @@ export type Store = { readonly db: SQLiteDatabase };
 
 export const STORE_FILE = 'wavfeed.db';
 
-/** A store that opens but will not migrate is closed again, so the failure screen's "Try again" starts clean. */
+/**
+ * A store that opens but will not migrate is closed again, so the failure screen's "Try again" starts clean. Under WAL,
+ * `synchronous = normal` syncs at checkpoints, not at every commit, and stays durable across an app crash (review
+ * finding TECH-M2); the launch replay commits on this connection (projection.ts).
+ */
 export async function openStore(file: string = STORE_FILE): Promise<Store> {
   const db = await openDatabaseAsync(file);
   try {
-    await db.execAsync(`pragma journal_mode = wal; pragma busy_timeout = ${BUSY_TIMEOUT_MS};`);
+    await db.execAsync(`pragma journal_mode = wal; pragma synchronous = normal; pragma busy_timeout = ${BUSY_TIMEOUT_MS};`);
     await migrate(db);
   } catch (error) {
     await db.closeAsync().catch(() => undefined);

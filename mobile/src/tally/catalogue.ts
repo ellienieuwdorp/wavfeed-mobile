@@ -143,8 +143,18 @@ export type TallyPlatform = (typeof PLATFORMS)[number];
 
 export const ERROR_SOURCES = ['global', 'promise', 'boundary', 'code'] as const;
 export type ErrorSource = (typeof ERROR_SOURCES)[number];
-/** `store_open_failed` travels only in the failure screen's `mailto:`, since no yes can be read then. */
-export const ERROR_CODES = ['store_open_failed', 'projection_replay_failed', 'fold_failed'] as const;
+/**
+ * `store_open_failed` travels only in the failure screen's `mailto:`, since no yes can be read then. Append only: a
+ * phone on an older bundle still sends the codes it knows. `schema_newer` and `projection_newer` are a store a newer
+ * bundle wrote, opened by an older one (review finding ARCH-13).
+ */
+export const ERROR_CODES = [
+  'store_open_failed',
+  'projection_replay_failed',
+  'fold_failed',
+  'schema_newer',
+  'projection_newer',
+] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
 /** A Tally's `flags`: the two globals that change within a session, as bits; the Worker refuses any other bit. */

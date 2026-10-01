@@ -1,9 +1,14 @@
 /**
- * The Projection on the phone: every Raw Document past its endpoint's cursor, folded in fetch order with the server's upsert rules, one
- * transaction per document; `rebuild` empties the derived tables and replays from raw id 0 (task 0036, ADR-0004, ADR-0018 amendment).
- * Feed entries and release pages that count the Tracks of an Upcoming Release also fold into Drops (task 0041, drops.ts).
+ * The Projection on the phone: every Raw Document past its endpoint's cursor, folded in fetch order with the server's
+ * upsert rules (task 0036, ADR-0004, ADR-0018 amendment). Documents fold in stretches, one transaction each, that end
+ * after about `FOLD_STRETCH_MS` so the write lock never nears the busy timeout, each document behind a savepoint: one
+ * whose fold throws is rolled back, recorded in `projection_failures`, reported, and passed (review findings PERF-2 and
+ * ARCH-M1). `rebuild` empties the derived tables, marks the version it replays to in the same transaction, and replays
+ * from raw id 0 in longer stretches on the main connection, so a replay cut short resumes from the cursors on the next
+ * launch (ARCH-1, PERF-1). Feed entries and release pages that count the Tracks of an Upcoming Release also fold into
+ * Drops (task 0041, drops.ts).
  */
-import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
+import type { SQLiteBindValue, SQLiteDatabase, SQLiteStatement } from 'expo-sqlite';
 import {
   BAND_DETAILS_ENDPOINT,
   FEED_UPDATES_ENDPOINT,
@@ -17,12 +22,17 @@ import { FollowingBandsPayloadError, parseFollowingBands } from '../domain/parse
 import { parseReleasePage, ReleasePagePayloadError } from '../domain/parseReleasePage';
 import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWishlistItems';
 import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
+import { reportCode } from '../tally/errors';
 import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
-import { withFoldLock } from './foldLock';
+import { type FoldConnection, withFoldLock } from './foldLock';
 import { BUSY_TIMEOUT_MS } from './migrations';
-import { listForProjection, type RawDocument } from './rawDocuments';
+import { countForProjection, listForProjection, type RawDocument } from './rawDocuments';
 
 export const FOLD_BATCH_SIZE = 50;
+/** A fold beside a running gather commits after about this long, far inside `BUSY_TIMEOUT_MS` (PERF-2). */
+export const FOLD_STRETCH_MS = 250;
+/** The launch replay, which nothing waits on but the screen, commits about once a second, the progress a kill loses. */
+export const REPLAY_STRETCH_MS = 1000;
 
 /**
  * Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). Version 3 is how
@@ -32,16 +42,34 @@ export const FOLD_BATCH_SIZE = 50;
  */
 export const PROJECTION_VERSION = 5;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
+/** Set in the transaction that empties the derived tables, cleared in the one that writes the version (ARCH-1). */
+export const PROJECTION_REBUILDING_KEY = 'projectionRebuildingTo';
 
-export async function ensureProjectionVersion(db: SQLiteDatabase): Promise<boolean> {
-  const row = await db.getFirstAsync<{ value: string }>('select value from kv where key = ?', [PROJECTION_VERSION_KEY]);
-  const held = row === null || row === undefined ? null : Number(JSON.parse(row.value));
-  if (held === PROJECTION_VERSION) return false;
-  await rebuild(db);
-  await db.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [
-    PROJECTION_VERSION_KEY,
-    JSON.stringify(PROJECTION_VERSION),
-  ]);
+/** How far a replay has come: documents folded and documents held. */
+export type ReplayProgress = (done: number, total: number) => void;
+
+async function readVersion(db: SQLiteDatabase, key: string): Promise<number | null> {
+  const row = await db.getFirstAsync<{ value: string }>('select value from kv where key = ?', [key]);
+  return row === null || row === undefined ? null : Number(JSON.parse(row.value));
+}
+
+/**
+ * Replays when the held Projection is older than the code's, or resumes a replay to this version cut short; a newer
+ * one, which a rolled back update leaves, is reported and kept (ARCH-13). Answers whether it replayed.
+ */
+export async function ensureProjectionVersion(db: SQLiteDatabase, onProgress?: ReplayProgress): Promise<boolean> {
+  const held = await readVersion(db, PROJECTION_VERSION_KEY);
+  const rebuilding = await readVersion(db, PROJECTION_REBUILDING_KEY);
+  if (rebuilding === PROJECTION_VERSION) {
+    await replay(db, onProgress);
+    return true;
+  }
+  if (rebuilding === null && held === PROJECTION_VERSION) return false;
+  if (rebuilding === null && held !== null && held > PROJECTION_VERSION) {
+    reportCode('projection_newer', new Error(`projection version ${held} is newer than the code's ${PROJECTION_VERSION}`));
+    return false;
+  }
+  await rebuild(db, onProgress);
   return true;
 }
 
@@ -71,6 +99,7 @@ export type FoldSummary = Readonly<Writes> & {
   readonly documentsProcessed: number;
   readonly documentsSkipped: number;
   readonly documentsUnparsable: number;
+  readonly documentsFailed: number;
   readonly skipped: SkippedCounts;
 };
 
@@ -94,6 +123,29 @@ function result(outcome: ProjectDocumentOutcome, writes: Partial<Writes> = {}, s
   return { ...noWrites(), ...writes, outcome, skipped };
 }
 
+type Run = (sql: string, params: readonly SQLiteBindValue[]) => Promise<{ readonly changes: number }>;
+
+/** A fold's transaction and its writes, each statement prepared once per transaction (PERF-2). */
+type Folding = { readonly db: SQLiteDatabase; readonly run: Run };
+
+/** Every write statement a transaction runs, prepared on first use and finalized as the transaction ends. */
+function statementsFor(db: SQLiteDatabase): { readonly run: Run; readonly finalize: () => Promise<void> } {
+  const held = new Map<string, Promise<SQLiteStatement>>();
+  return {
+    async run(sql, params) {
+      let statement = held.get(sql);
+      if (statement === undefined) {
+        statement = db.prepareAsync(sql);
+        held.set(sql, statement);
+      }
+      return (await statement).executeAsync([...params]);
+    },
+    async finalize() {
+      for (const statement of held.values()) await statement.then((s) => s.finalizeAsync()).catch(() => undefined);
+    },
+  };
+}
+
 function iso(date: Date | null): string | null {
   return date === null ? null : date.toISOString();
 }
@@ -114,9 +166,9 @@ const PAGE_SHARED_SET = `
   first_seen_at = min(pages.first_seen_at, excluded.first_seen_at),
   last_seen_at = max(pages.last_seen_at, excluded.last_seen_at)`;
 
-async function upsertPage(db: SQLiteDatabase, page: ParsedPage, seenAt: string, source: Source): Promise<void> {
+async function upsertPage(run: Run, page: ParsedPage, seenAt: string, source: Source): Promise<void> {
   const set = source === 'catalog' ? PAGE_CATALOG_SET + PAGE_SHARED_SET : PAGE_SHARED_SET;
-  await db.runAsync(`${PAGE_INSERT} ${set}`, [page.bandId, page.name, page.url, page.imageId, page.genreId, seenAt, seenAt]);
+  await run(`${PAGE_INSERT} ${set}`, [page.bandId, page.name, page.url, page.imageId, page.genreId, seenAt, seenAt]);
 }
 
 /**
@@ -187,7 +239,7 @@ function releaseUpsertDateSource(release: ReleaseUpsert, source: Source): Releas
 }
 
 /** A source silent on `is_preorder` inserts the column default and never unlearns a stated `true` on update. */
-async function upsertRelease(db: SQLiteDatabase, release: ReleaseUpsert, seenAt: string, source: Source): Promise<void> {
+async function upsertRelease(run: Run, release: ReleaseUpsert, seenAt: string, source: Source): Promise<void> {
   const set = source === 'catalog' ? RELEASE_CATALOG_SET + RELEASE_SHARED_SET : RELEASE_SHARED_SET;
   const dateSource = releaseUpsertDateSource(release, source);
   const values: SQLiteBindValue[] = [
@@ -217,7 +269,7 @@ async function upsertRelease(db: SQLiteDatabase, release: ReleaseUpsert, seenAt:
     seenAt,
     flag(release.isPreorder),
   ];
-  await db.runAsync(`${RELEASE_INSERT} ${set}`, values);
+  await run(`${RELEASE_INSERT} ${set}`, values);
 }
 
 type Enrichment = {
@@ -234,13 +286,13 @@ type Enrichment = {
  * release page and the Sweep's item with no link both come through here, each naming itself as the date's source.
  */
 async function enrichReleaseFromPage(
-  db: SQLiteDatabase,
+  run: Run,
   input: Enrichment,
   seenAt: string,
   dateSource: 'page' | 'sweep',
 ): Promise<boolean> {
   const dated = input.releaseDate !== null;
-  const outcome = await db.runAsync(
+  const outcome = await run(
     `update releases set
        ${releaseDateSet('incoming', 'releases')},
        num_streamable_tracks = coalesce(incoming.num_streamable_tracks, releases.num_streamable_tracks),
@@ -265,8 +317,8 @@ async function enrichReleaseFromPage(
   return outcome.changes > 0;
 }
 
-async function upsertFan(db: SQLiteDatabase, fan: ParsedFan, seenAt: string): Promise<void> {
-  await db.runAsync(
+async function upsertFan(run: Run, fan: ParsedFan, seenAt: string): Promise<void> {
+  await run(
     `insert into fans (fan_id, username, name, location, image_id, first_seen_at, last_seen_at)
      values (?, ?, ?, ?, ?, ?, ?)
      on conflict (fan_id) do update set
@@ -281,8 +333,8 @@ async function upsertFan(db: SQLiteDatabase, fan: ParsedFan, seenAt: string): Pr
 }
 
 /** `fan_key` is 0 for a new release, which SQLite's unique index would otherwise treat as distinct from itself. */
-async function upsertStory(db: SQLiteDatabase, story: ParsedStory, rawDocumentId: number): Promise<void> {
-  await db.runAsync(
+async function upsertStory(run: Run, story: ParsedStory, rawDocumentId: number): Promise<void> {
+  await run(
     `insert into stories (story_type, fan_id, fan_key, item_type, item_id, story_date, raw_document_id, review_text)
      values (?, ?, ?, ?, ?, ?, ?, ?)
      on conflict (story_type, fan_key, item_type, item_id) do update set
@@ -301,7 +353,7 @@ async function upsertStory(db: SQLiteDatabase, story: ParsedStory, rawDocumentId
   );
 }
 
-async function projectFeedUpdates(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectFeedUpdates({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseFeedUpdates>;
   try {
     parsed = parseFeedUpdates(doc.payload);
@@ -309,10 +361,10 @@ async function projectFeedUpdates(db: SQLiteDatabase, doc: RawDocument): Promise
     if (err instanceof FeedPayloadError) return result('unparsable');
     throw err;
   }
-  for (const page of parsed.pages) await upsertPage(db, page, doc.fetchedAt, 'per-user');
-  for (const release of parsed.releases) await upsertRelease(db, release, doc.fetchedAt, 'per-user');
-  for (const fan of parsed.fans) await upsertFan(db, fan, doc.fetchedAt);
-  for (const story of parsed.stories) await upsertStory(db, story, doc.id);
+  for (const page of parsed.pages) await upsertPage(run, page, doc.fetchedAt, 'per-user');
+  for (const release of parsed.releases) await upsertRelease(run, release, doc.fetchedAt, 'per-user');
+  for (const fan of parsed.fans) await upsertFan(run, fan, doc.fetchedAt);
+  for (const story of parsed.stories) await upsertStory(run, story, doc.id);
   await foldNewReleaseCounts(db, doc, parsed);
   return result(
     'projected',
@@ -336,7 +388,7 @@ async function foldNewReleaseCounts(db: SQLiteDatabase, doc: RawDocument, parsed
   }
 }
 
-async function projectReleasePage(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectReleasePage({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseReleasePage>;
   try {
     parsed = parseReleasePage(doc.payload);
@@ -344,7 +396,7 @@ async function projectReleasePage(db: SQLiteDatabase, doc: RawDocument): Promise
     if (err instanceof ReleasePagePayloadError) return result('unparsable');
     throw err;
   }
-  const enriched = await enrichReleaseFromPage(db, parsed, doc.fetchedAt, 'page');
+  const enriched = await enrichReleaseFromPage(run, parsed, doc.fetchedAt, 'page');
   await foldPageTrackRead(db, doc, parsed);
   await foldTrackPage(db, parsed);
   return result('projected', { releasesEnriched: enriched ? 1 : 0 });
@@ -355,7 +407,7 @@ async function pageExists(db: SQLiteDatabase, bandId: number): Promise<boolean> 
 }
 
 /** An item with no link, or for a Page we hold no row for, can only fill in a Release already held (ADR-0017). */
-async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectBandDetails({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseBandDetails>;
   try {
     parsed = parseBandDetails(doc.payload);
@@ -367,7 +419,7 @@ async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise
   const knownBands = new Set<number>();
   const missingBands = new Set<number>();
   for (const page of parsed.pages) {
-    await upsertPage(db, page, seenAt, 'catalog');
+    await upsertPage(run, page, seenAt, 'catalog');
     knownBands.add(page.bandId);
   }
 
@@ -380,7 +432,7 @@ async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise
     }
     if (release.url !== null && knownBands.has(release.bandId)) {
       await upsertRelease(
-        db,
+        run,
         {
           ...release,
           url: release.url,
@@ -403,7 +455,7 @@ async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise
       upserted += 1;
       continue;
     }
-    const filled = await enrichReleaseFromPage(db, { ...release, numStreamableTracks: null, numTracks: null }, seenAt, 'sweep');
+    const filled = await enrichReleaseFromPage(run, { ...release, numStreamableTracks: null, numTracks: null }, seenAt, 'sweep');
     if (filled) enriched += 1;
   }
   return result(
@@ -414,7 +466,7 @@ async function projectBandDetails(db: SQLiteDatabase, doc: RawDocument): Promise
 }
 
 /** Only a terminal page of a walk that carried its start may sweep the follows it no longer lists. */
-async function projectFollowingBands(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectFollowingBands({ run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseFollowingBands>;
   try {
     parsed = parseFollowingBands(doc.payload);
@@ -424,7 +476,7 @@ async function projectFollowingBands(db: SQLiteDatabase, doc: RawDocument): Prom
   }
   const seenAt = iso(parsed.snapshotStartedAt) ?? doc.fetchedAt;
   for (const bandId of parsed.bandIds) {
-    await db.runAsync(
+    await run(
       `insert into follows (band_id, first_seen_at, last_seen_at) values (?, ?, ?)
        on conflict (band_id) do update set
          first_seen_at = min(follows.first_seen_at, excluded.first_seen_at),
@@ -434,14 +486,14 @@ async function projectFollowingBands(db: SQLiteDatabase, doc: RawDocument): Prom
   }
   let removed = 0;
   if (parsed.terminal && parsed.snapshotStartedAt !== null) {
-    const swept = await db.runAsync('delete from follows where last_seen_at < ?', [parsed.snapshotStartedAt.toISOString()]);
+    const swept = await run('delete from follows where last_seen_at < ?', [parsed.snapshotStartedAt.toISOString()]);
     removed = swept.changes;
   }
   return result('projected', { followsUpserted: parsed.bandIds.length, followsRemoved: removed }, parsed.skipped);
 }
 
 /** Items are stamped with the walk's start, and only a terminal page removes what the snapshot stopped seeing. */
-async function projectWishlistItems(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectWishlistItems({ run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseWishlistItems>;
   try {
     parsed = parseWishlistItems(doc.payload);
@@ -451,7 +503,7 @@ async function projectWishlistItems(db: SQLiteDatabase, doc: RawDocument): Promi
   }
   const snapshot = parsed.snapshotStartedAt.toISOString();
   for (const item of parsed.items) {
-    await db.runAsync(
+    await run(
       `insert into wishlist_items (item_type, item_id, band_id, added_at, last_seen_snapshot_at) values (?, ?, ?, ?, ?)
        on conflict (item_type, item_id) do update set
          band_id = coalesce(excluded.band_id, wishlist_items.band_id),
@@ -462,24 +514,24 @@ async function projectWishlistItems(db: SQLiteDatabase, doc: RawDocument): Promi
   }
   let removed = 0;
   if (parsed.terminal) {
-    removed = (await db.runAsync('delete from wishlist_items where last_seen_snapshot_at < ?', [snapshot])).changes;
+    removed = (await run('delete from wishlist_items where last_seen_snapshot_at < ?', [snapshot])).changes;
   }
   return result('projected', { wishlistItemsUpserted: parsed.items.length, wishlistItemsRemoved: removed }, parsed.skipped);
 }
 
 /** The `fan_feed_page` extract and anything unknown is skipped and kept on the raw side for a later parser. */
-export async function projectRawDocument(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
+async function projectRawDocument(folding: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   switch (doc.endpoint) {
     case FEED_UPDATES_ENDPOINT:
-      return projectFeedUpdates(db, doc);
+      return projectFeedUpdates(folding, doc);
     case RELEASE_PAGE_ENDPOINT:
-      return projectReleasePage(db, doc);
+      return projectReleasePage(folding, doc);
     case BAND_DETAILS_ENDPOINT:
-      return projectBandDetails(db, doc);
+      return projectBandDetails(folding, doc);
     case FOLLOWING_BANDS_ENDPOINT:
-      return projectFollowingBands(db, doc);
+      return projectFollowingBands(folding, doc);
     case WISHLIST_ITEMS_ENDPOINT:
-      return projectWishlistItems(db, doc);
+      return projectWishlistItems(folding, doc);
     default:
       return result('skipped');
   }
@@ -489,6 +541,7 @@ type Tally = Writes & {
   documentsProcessed: number;
   documentsSkipped: number;
   documentsUnparsable: number;
+  documentsFailed: number;
   skipped: MutableSkippedCounts;
 };
 
@@ -498,11 +551,16 @@ function emptyTally(): Tally {
     documentsProcessed: 0,
     documentsSkipped: 0,
     documentsUnparsable: 0,
+    documentsFailed: 0,
     skipped: { unknownStoryType: 0, unparsable: 0, missingFanInfo: 0 },
   };
 }
 
-function tallyDocument(tally: Tally, outcome: ProjectDocumentResult): void {
+function tallyDocument(tally: Tally, outcome: ProjectDocumentResult | 'failed'): void {
+  if (outcome === 'failed') {
+    tally.documentsFailed += 1;
+    return;
+  }
   if (outcome.outcome === 'projected') tally.documentsProcessed += 1;
   if (outcome.outcome === 'skipped') tally.documentsSkipped += 1;
   if (outcome.outcome === 'unparsable') tally.documentsUnparsable += 1;
@@ -513,47 +571,134 @@ function tallyDocument(tally: Tally, outcome: ProjectDocumentResult): void {
 }
 
 /**
- * A separate connection per document keeps the Fetcher's inserts on the main
- * connection out of a fold that rolls back; the cursor only moves forward, so two folds overlapping replay idempotently.
+ * One document behind a savepoint, then its cursor. A throw from its fold is the document's own outcome: its writes
+ * roll back, its id and the error's name go to `projection_failures`, and the cursor passes it, so the documents after
+ * it still fold (ARCH-M1). A throw that also ended the transaction leaves no savepoint to roll back to and fails the
+ * stretch, as a store failure does.
  */
-async function foldDocument(db: SQLiteDatabase, doc: RawDocument): Promise<ProjectDocumentResult> {
-  let outcome: ProjectDocumentResult = result('skipped');
-  await withFoldLock(db, async (txn) => {
-    await txn.execAsync(`pragma busy_timeout = ${BUSY_TIMEOUT_MS}`);
-    outcome = await projectRawDocument(txn, doc);
-    await txn.runAsync(
-      `insert into projection_progress (endpoint, last_raw_id) values (?, ?)
-       on conflict (endpoint) do update set last_raw_id = max(projection_progress.last_raw_id, excluded.last_raw_id)`,
-      [doc.endpoint, doc.id],
+async function foldDocument(folding: Folding, doc: RawDocument): Promise<ProjectDocumentResult | 'failed'> {
+  const { db, run } = folding;
+  let outcome: ProjectDocumentResult | 'failed';
+  await db.execAsync('savepoint fold_document');
+  try {
+    outcome = await projectRawDocument(folding, doc);
+  } catch (error) {
+    try {
+      await db.execAsync('rollback to fold_document');
+    } catch {
+      throw error;
+    }
+    await run(
+      `insert into projection_failures (raw_document_id, endpoint, error) values (?, ?, ?)
+       on conflict (raw_document_id) do update set error = excluded.error`,
+      [doc.id, doc.endpoint, error instanceof Error ? error.name : typeof error],
     );
-  });
+    reportCode('fold_failed', error);
+    outcome = 'failed';
+  }
+  await db.execAsync('release fold_document');
+  await run(
+    `insert into projection_progress (endpoint, last_raw_id) values (?, ?)
+     on conflict (endpoint) do update set last_raw_id = max(projection_progress.last_raw_id, excluded.last_raw_id)`,
+    [doc.endpoint, doc.id],
+  );
   return outcome;
 }
 
-export async function fold(db: SQLiteDatabase): Promise<FoldSummary> {
+/**
+ * An update that matches no row still takes the write lock. Expo opens a transaction with a deferred `begin`, and in
+ * WAL one that read before another connection committed cannot then write, so each stretch takes the lock before it
+ * lists what to fold.
+ */
+const TAKE_WRITE_LOCK = 'update projection_progress set last_raw_id = last_raw_id where 0';
+
+type FoldOptions = { readonly stretchMs: number; readonly connection: FoldConnection; readonly onProgress?: ReplayProgress };
+
+/**
+ * Folds every document past the cursors in stretches of about `stretchMs`, at least one document each, listing
+ * inside the stretch's lock so two folds that overlap never fold one document twice. `onProgress` hears after each
+ * stretch that leaves documents waiting.
+ */
+async function foldStretches(db: SQLiteDatabase, { stretchMs, connection, onProgress }: FoldOptions): Promise<FoldSummary> {
   const tally = emptyTally();
-  for (;;) {
-    const batch = await listForProjection(db, FOLD_BATCH_SIZE);
-    if (batch.length === 0) break;
-    for (const doc of batch) tallyDocument(tally, await foldDocument(db, doc));
+  const counted = onProgress === undefined ? null : await countForProjection(db);
+  let folded = 0;
+  for (let more = true; more; ) {
+    more = false;
+    await withFoldLock(
+      db,
+      async (txn) => {
+        await txn.execAsync(`pragma busy_timeout = ${BUSY_TIMEOUT_MS}; ${TAKE_WRITE_LOCK};`);
+        const statements = statementsFor(txn);
+        try {
+          const started = Date.now();
+          let batch = await listForProjection(txn, FOLD_BATCH_SIZE);
+          while (batch.length > 0 && !more) {
+            for (const doc of batch) {
+              tallyDocument(tally, await foldDocument({ db: txn, run: statements.run }, doc));
+              folded += 1;
+              more = Date.now() - started >= stretchMs;
+              if (more) break;
+            }
+            if (!more) batch = await listForProjection(txn, FOLD_BATCH_SIZE);
+          }
+        } finally {
+          await statements.finalize();
+        }
+      },
+      connection,
+    );
+    if (more && counted !== null) onProgress?.(counted.held - counted.waiting + folded, counted.held);
   }
   return { ...tally, skipped: { ...tally.skipped } };
 }
 
-/** `band_sweeps` and `kv` are the Fetcher's own state, which no Raw Document could bring back, so they stay. */
-export async function rebuild(db: SQLiteDatabase): Promise<FoldSummary> {
-  await withFoldLock(db, async (txn) => {
-    await txn.execAsync(`
-      pragma busy_timeout = ${BUSY_TIMEOUT_MS};
-      delete from stories;
-      delete from drops;
-      delete from releases;
-      delete from pages;
-      delete from fans;
-      delete from wishlist_items;
-      delete from follows;
-      delete from projection_progress;
-    `);
-  });
-  return fold(db);
+export function fold(db: SQLiteDatabase): Promise<FoldSummary> {
+  return foldStretches(db, { stretchMs: FOLD_STRETCH_MS, connection: 'own' });
+}
+
+/** The replay's fold, then the version written and the marker cleared in one transaction. */
+async function replay(db: SQLiteDatabase, onProgress?: ReplayProgress): Promise<FoldSummary> {
+  const summary = await foldStretches(db, { stretchMs: REPLAY_STRETCH_MS, connection: 'main', onProgress });
+  await withFoldLock(
+    db,
+    async (txn) => {
+      await txn.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [
+        PROJECTION_VERSION_KEY,
+        JSON.stringify(PROJECTION_VERSION),
+      ]);
+      await txn.runAsync('delete from kv where key = ?', [PROJECTION_REBUILDING_KEY]);
+    },
+    'main',
+  );
+  return summary;
+}
+
+/**
+ * The launch replay, on the main connection, which nothing else uses until it ends. `band_sweeps` and `kv` are the
+ * Fetcher's own state, which no Raw Document could bring back, so they stay.
+ */
+export async function rebuild(db: SQLiteDatabase, onProgress?: ReplayProgress): Promise<FoldSummary> {
+  await withFoldLock(
+    db,
+    async (txn) => {
+      await txn.execAsync(`
+        delete from stories;
+        delete from drops;
+        delete from releases;
+        delete from pages;
+        delete from fans;
+        delete from wishlist_items;
+        delete from follows;
+        delete from projection_progress;
+        delete from projection_failures;
+      `);
+      await txn.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [
+        PROJECTION_REBUILDING_KEY,
+        JSON.stringify(PROJECTION_VERSION),
+      ]);
+    },
+    'main',
+  );
+  return replay(db, onProgress);
 }

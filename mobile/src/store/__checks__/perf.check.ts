@@ -2,8 +2,9 @@
 /**
  * Times the store's view reads on a long history (task 0036): 10,000 synthetic Stories over 3,000 Releases, 500 Fans
  * and 400 Pages folded over `node:sqlite`, Bought's mode switch over Releases already read, the domain rules alone,
- * then a small fold and a rebuild. That each read answers what the rules answer is src/store/queries.test.ts.
- * Run: `npm run perf`.
+ * then a small fold, and the launch replay a PROJECTION_VERSION bump starts, with how many times it reported progress.
+ * The store is a file, so each fold stretch opens its own connection as on the phone (test/nodeDb.ts). That each read
+ * answers what the rules answer is src/store/queries.test.ts. Run: `npm run perf`.
  */
 import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +16,7 @@ import { openTestStore } from '../../../test/nodeDb';
 import { buildBoughtChart } from '../../domain/boughtChart';
 import { buildCrossedList } from '../../domain/boughtCrossed';
 import { buildCurated } from '../../domain/curate';
-import { fold, rebuild } from '../projection';
+import { ensureProjectionVersion, fold, PROJECTION_VERSION, PROJECTION_VERSION_KEY } from '../projection';
 import { boughtView, listStoryRows, readBoughtReleases, readCurated, readNewReleases } from '../queries';
 import { insertRawDocument } from '../rawDocuments';
 
@@ -62,9 +63,11 @@ async function main(): Promise<void> {
   const foldStart = performance.now();
   const summary = await fold(db);
   console.log(`${`fold of ${later.length} documents`.padEnd(28)} ${(performance.now() - foldStart).toFixed(1).padStart(14)} ms   (${summary.storiesUpserted} stories)`);
-  const rebuildStart = performance.now();
-  await rebuild(db);
-  console.log(`${'rebuild'.padEnd(28)} ${(performance.now() - rebuildStart).toFixed(1).padStart(14)} ms`);
+  await db.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [PROJECTION_VERSION_KEY, String(PROJECTION_VERSION - 1)]);
+  let reports = 0;
+  const replayStart = performance.now();
+  await ensureProjectionVersion(db, () => (reports += 1));
+  console.log(`${'launch replay'.padEnd(28)} ${(performance.now() - replayStart).toFixed(1).padStart(14)} ms   (${reports} progress reports)`);
   close();
 }
 
