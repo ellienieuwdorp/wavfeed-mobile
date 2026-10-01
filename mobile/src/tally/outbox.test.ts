@@ -8,11 +8,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { openTestStore } from '../../test/nodeDb';
 import { DEMO_FAN_ID } from '../demo/fan';
+import { withFoldLock } from '../store/foldLock';
 import { IDENTITY_KEY, writeKv } from '../store/kv';
 import { emptyStore } from '../store/schema';
 import { WIRE, type Tally } from './catalogue';
@@ -98,6 +100,53 @@ describe('sharing', () => {
     await turnSharingOff(db);
     await assert.rejects(turnSharingOn(db, 'abc', NOW));
     assert.equal(await readSharing(db), null);
+  });
+});
+
+describe('turning off beside a fold (review SEC-2)', () => {
+  /** Two connections to one file, as the fold's own and the main one are on the phone. */
+  async function twoConnections(t: { after: (run: () => void) => void }) {
+    const dir = mkdtempSync(join(tmpdir(), 'wavfeed-tally-'));
+    const file = join(dir, 'wavfeed.db');
+    const fold = await openTestStore(file);
+    const main = await openTestStore(file);
+    t.after(() => {
+      main.close();
+      fold.close();
+      rmSync(dir, { recursive: true, force: true });
+    });
+    return { file, fold: fold.db, main: main.db };
+  }
+
+  test('an off pressed while a fold holds the write lock lands once the fold lets go', async (t) => {
+    const { fold, main } = await twoConnections(t);
+    await turnSharingOn(main, INSTALL, NOW);
+    await enqueueTally(main, OPENED, at(NOW));
+    let letGo = (): void => undefined;
+    const folding = withFoldLock(fold, async (txn) => {
+      await txn.runAsync("insert into kv (key, value) values ('folded', '1')");
+      await new Promise<void>((resolve) => (letGo = resolve));
+    });
+    const off = turnSharingOff(main);
+    // The off waits on the lock in JavaScript; the fold's commit is what lets it through.
+    await new Promise((resolve) => setImmediate(resolve));
+    letGo();
+    await folding;
+    assert.equal((await off)?.install, INSTALL);
+    assert.equal(await readSharing(main), null);
+    assert.equal((await main.getFirstAsync<{ n: number }>('select count(*) as n from tally_outbox'))?.n, 0);
+    assert.equal((await main.getFirstAsync<{ value: string }>("select value from kv where key = 'folded'"))?.value, '1');
+  });
+
+  test('an off that cannot take the lock rejects and the yes stays, so Settings can say so', async (t) => {
+    const { file, main } = await twoConnections(t);
+    await turnSharingOn(main, INSTALL, NOW);
+    const other = new DatabaseSync(file);
+    other.exec('begin exclusive');
+    t.after(() => other.close());
+    await assert.rejects(turnSharingOff(main));
+    other.exec('rollback');
+    assert.equal((await readSharing(main))?.install, INSTALL);
   });
 });
 

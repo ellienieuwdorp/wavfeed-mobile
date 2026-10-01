@@ -9,7 +9,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { DEMO_FAN_ID } from '@/demo/fan';
 import { DAY_MS } from '@/lib/time';
+import { foldLockFree, withFoldLock } from '@/store/foldLock';
 import { IDENTITY_KEY, readKv } from '@/store/kv';
+import { BUSY_TIMEOUT_MS } from '@/store/migrations';
 
 import { WIRE, type Tally } from './catalogue';
 import type { ErrorReport } from './errorReport';
@@ -54,13 +56,23 @@ export async function turnSharingOn(db: SQLiteDatabase, install: string, now: nu
   return (await readSharing(db)) ?? sharing;
 }
 
-/** The yes, the Install id, the drop counter, the foreground marker and every queued row go together; the dropped Sharing is returned. */
+/**
+ * The yes, the Install id, the drop counter, the foreground marker and every queued row go together; the dropped Sharing
+ * is returned, and a write that did not land rejects. It waits until no fold holds the write lock, since a replay holds
+ * it past the busy timeout, then writes in its own exclusive transaction, which no gather write on the main connection
+ * can join, counted with the folds' so an Error Report waits in memory meanwhile (review SEC-2, src/store/foldLock.ts).
+ */
 export async function turnSharingOff(db: SQLiteDatabase): Promise<Sharing | null> {
-  const held = await readSharing(db);
-  await db.withTransactionAsync(async () => {
-    await db.execAsync(`delete from kv where key in ('${SHARING_KEY}', '${DROPPED_KEY}', '${FOREGROUND_KEY}'); delete from tally_outbox;`);
+  await foldLockFree();
+  let held: string | undefined;
+  await withFoldLock(db, async (txn) => {
+    await txn.execAsync(`pragma busy_timeout = ${BUSY_TIMEOUT_MS}`);
+    // A write first, so the deferred transaction waits on the busy timeout instead of failing on a stale read.
+    held = (await txn.getFirstAsync<{ value: string }>('delete from kv where key = ? returning value', [SHARING_KEY]))?.value;
+    await txn.execAsync(`delete from kv where key in ('${DROPPED_KEY}', '${FOREGROUND_KEY}'); delete from tally_outbox;`);
   });
-  return held;
+  const sharing = held === undefined ? null : (JSON.parse(held) as Sharing);
+  return sharing?.on === true ? sharing : null;
 }
 
 export type DropReason = 'full' | 'old' | 'refused';

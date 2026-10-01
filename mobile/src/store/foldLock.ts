@@ -4,7 +4,8 @@
  * window blocks the thread for the whole busy timeout and then fails. An Error Report waits in memory while one is
  * open and is written when the last closes (src/tally/errors.ts). The launch replay, which runs before any screen can
  * write, takes the main connection instead, so it opens no connection per transaction and commits at that
- * connection's `synchronous = normal` (review findings PERF-2 and TECH-M2, projection.ts).
+ * connection's `synchronous = normal` (review findings PERF-2 and TECH-M2, projection.ts). Turning sharing off takes
+ * the same lock once it is free (review SEC-2, src/tally/outbox.ts).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -23,6 +24,18 @@ export function foldHoldsLock(): boolean {
 /** `run` must not throw: it runs in the closing transaction's `finally`. */
 export function onFoldLockFree(run: () => void): void {
   freed.add(run);
+}
+
+/** Resolves at once while no fold holds the lock, else when the last one closes; each wait runs once. */
+export function foldLockFree(): Promise<void> {
+  if (open === 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const once = (): void => {
+      freed.delete(once);
+      resolve();
+    };
+    freed.add(once);
+  });
 }
 
 export async function withFoldLock(db: SQLiteDatabase, task: Task, connection: FoldConnection = 'own'): Promise<void> {

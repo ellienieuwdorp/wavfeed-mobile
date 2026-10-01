@@ -97,17 +97,34 @@ export default function Settings() {
   const identity = held?.identity ?? null;
   const connect = () => router.push(connectHref('settings'));
   const usage = useSharing();
-  // The code an off just dropped stays in the foot until Settings is left, so the tester can still ask for erasure.
+  // The code an off just dropped stays in the foot until Settings is left, so the tester can still ask for erasure; an
+  // off that did not land says so there, with the switch still on (review SEC-2).
   const [droppedCode, setDroppedCode] = useState<string | null>(null);
-  useFocusEffect(useCallback(() => () => setDroppedCode(null), []));
+  const [offFailed, setOffFailed] = useState(false);
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        setDroppedCode(null);
+        setOffFailed(false);
+      },
+      [],
+    ),
+  );
   const sharingOn = usage.sharing !== null;
   const setSharing = (on: boolean) => {
+    setOffFailed(false);
     if (on) {
       setDroppedCode(null);
       void usage.turnOn().catch(() => undefined);
-    } else void usage.turnOff().then(setDroppedCode, () => undefined);
+    } else void usage.turnOff().then(setDroppedCode, () => setOffFailed(true));
   };
-  const usageFoot = usage.code !== null ? s.usageFoot(usage.code) : droppedCode !== null ? s.turnedOff(droppedCode) : s.usageFoot(null);
+  const usageFoot = offFailed
+    ? s.turnOffFailed
+    : usage.code !== null
+      ? s.usageFoot(usage.code)
+      : droppedCode !== null
+        ? s.turnedOff(droppedCode)
+        : s.usageFoot(null);
   const sendFeedback = () => {
     const query = `subject=${encodeURIComponent(s.feedbackSubject)}&body=${encodeURIComponent(s.feedbackBody(feedbackFacts(usage.code)))}`;
     openURL(`mailto:${FEEDBACK_ADDRESS}?${query}`).catch(() => undefined);

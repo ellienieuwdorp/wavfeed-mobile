@@ -441,6 +441,8 @@ export const copy = {
         ? 'Counts of what gets used and what breaks. Never your Bandcamp sign-in, your name or what you play.'
         : `Counts of what gets used and what breaks, never your Bandcamp sign-in, your name or what you play. Your code is ${code}; quote it if you write in.`,
     turnedOff: (code: string) => `Turned off. Your code was ${code}; quote it to have what was sent deleted.`,
+    /** Under the switch when an off did not land (review SEC-2); proposed, DESIGN-UI section 8. */
+    turnOffFailed: 'Sharing did not turn off and is still on. Try again in a moment.',
     privacy: 'Privacy',
     feedback: 'Send feedback',
     feedbackSubject: 'wavfeed feedback',
