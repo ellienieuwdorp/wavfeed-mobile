@@ -1,27 +1,27 @@
 /**
  * The wishlist heart, one control everywhere (DESIGN-UI section 12, ADR-0016, task 0036): a 44pt target drawing each
- * state the section names. Not asked yet is the off outline taking no press; off is the faint outline; pending keeps
- * the last confirmed shape in the wishlist edge colour, pulsing between full and 0.6 opacity unless reduce motion is
- * on; on is filled in Bandcamp's orange under a rim in the edge colour, which clears 3:1 on a light page where the
- * orange does not (review VIS-3, VIS-M5).
+ * state the section names, as wishlist/look.ts sets it. Not asked yet is the off outline taking no press; off is the
+ * faint outline; on is filled in Bandcamp's orange under a rim in the edge colour, which clears 3:1 on a light page
+ * where the orange does not (review VIS-3, VIS-M5); pending keeps the last confirmed shape with the rim at full
+ * opacity, and only its fill, faint for a remove and empty for an add, pulses, unless reduce motion is on.
  * A failure puts the heart back on the truth and raises one notice line. With `trackId` it acts on that Track of the
  * Release, which is how the player's heart works; its title then names the Track. On Android it is a 48dp icon
  * button whose ripple is the 40dp state layer.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useReduceMotion } from '@/player/motion';
 import type { PressSurface } from '@/tally/actions';
 import { storeItemType, type PlayableRelease } from '@/player/transport';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
+import { heartLook } from '@/wishlist/look';
 import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
 
 const ios = Platform.OS === 'ios';
 const PULSE_MS = 900;
-const PULSE_LOW = 0.6;
 
 type HeartProps = {
   itemType: PlayableRelease['itemType'];
@@ -34,26 +34,23 @@ type HeartProps = {
   surface: PressSurface;
 };
 
+/** 0 at rest to 1 at the top of the pulse; it holds 0 while nothing is pending or reduce motion is on. */
 function usePulse(active: boolean): Animated.Value {
   const reduce = useReduceMotion();
-  const [opacity] = useState(() => new Animated.Value(1));
+  const [breath] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    if (!active) {
-      opacity.setValue(1);
-      return;
-    }
-    opacity.setValue(1);
-    if (reduce) return;
+    breath.setValue(0);
+    if (!active || reduce) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: PULSE_LOW, duration: PULSE_MS, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: PULSE_MS, useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 1, duration: PULSE_MS, useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0, duration: PULSE_MS, useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [active, opacity, reduce]);
-  return opacity;
+  }, [active, breath, reduce]);
+  return breath;
 }
 
 export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, surface }: HeartProps) {
@@ -63,11 +60,12 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, su
   const membership = useMembership(target.itemType, target.itemId);
   const pending = usePendingAction(target.itemType, target.itemId);
   const press = useWishlistPress(surface);
-  const opacity = usePulse(pending !== null);
+  const breath = usePulse(pending !== null);
   const box = boxSize ?? (ios ? 44 : 48);
   const size = icon ?? (ios ? 20 : 22);
 
   const wishlisted = membership.known && membership.wishlisted;
+  const look = heartLook({ known: membership.known, wishlisted, pending: pending !== null });
   const takesPress = membership.known && pending === null;
   const label = !membership.known
     ? wishlistCopy.unknown(title)
@@ -90,10 +88,14 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, su
       }}
       style={({ pressed }) => ({ width: Math.max(box, 44), height: Math.max(box, 44), alignItems: 'center', justifyContent: 'center', opacity: pressedOpacity(pressed && takesPress) })}
     >
-      <Animated.View style={{ opacity }}>
-        <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={size} color={wishlisted ? c.wishlist : pending !== null ? c.wishlistEdge : c.faint} />
-        {wishlisted ? <Ionicons name="heart-outline" size={size} color={c.wishlistEdge} style={StyleSheet.absoluteFill} /> : null}
-      </Animated.View>
+      <View>
+        {look.fill === null ? null : (
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: breath.interpolate({ inputRange: [0, 1], outputRange: [look.fill.rest, look.fill.peak] }) }]}>
+            <Ionicons name="heart" size={size} color={c.wishlist} />
+          </Animated.View>
+        )}
+        <Ionicons name="heart-outline" size={size} color={look.outline === 'edge' ? c.wishlistEdge : c.faint} />
+      </View>
     </Pressable>
   );
 }
