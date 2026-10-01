@@ -1,7 +1,7 @@
 /**
  * The faces of the Fans who bought it: 20pt discs, the Fan's Bandcamp image or one initial, overlapping by 6pt, capped
  * at five with a faint "+N" after (DESIGN-UI section 3, the v2 client canvas). With `opens` set the stack is a button
- * whose target reaches 44pt or 48dp, opening the Bought by sheet with these Fans (the canvas, sections 6 and 7).
+ * whose press area stays inside its own line, opening the Bought by sheet with these Fans (the canvas, sections 6 and 7).
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -15,6 +15,13 @@ import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 export const AVATAR_CAP = 5;
 const DISC = 20;
 const TARGET = Platform.OS === 'ios' ? 44 : 48;
+/**
+ * 2pt above the faces and 8pt below: on a row the stack sits in the fact line, 2pt under the title, above the body's
+ * 8pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11).
+ * ceiling: that makes the target 30pt tall, short of TARGET; the stack in a trailing slot outside the row body, as the
+ * canvas's Bought board draws it, is the upgrade.
+ */
+const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 
 /** A Fan's image at the size that covers `size` in this screen's pixels (finding VIS-M3). */
 function faceUrl(fan: ApiFanRef, size: number): string | null {
@@ -80,14 +87,13 @@ export function AvatarStack({ fans, ring, opens = false }: { fans: readonly ApiF
     </View>
   );
   if (!opens || fans.length === 0) return stack;
-  const slop = (TARGET - DISC) / 2;
   return (
     <Pressable
       onPress={() => openBoughtBy(fans)}
       accessibilityRole="button"
       accessibilityLabel={copy.boughtBy.stack(names)}
       accessibilityHint={copy.boughtBy.hint}
-      hitSlop={{ top: slop, bottom: slop, left: 8, right: 8 }}
+      hitSlop={SLOP}
       android_ripple={ripple(c.track, TARGET / 2)}
       style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}
     >
