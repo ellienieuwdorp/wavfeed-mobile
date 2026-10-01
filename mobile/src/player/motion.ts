@@ -5,15 +5,21 @@
  */
 import { useCallback } from 'react';
 import { AccessibilityInfo } from 'react-native';
-import { Easing, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Easing, useReducedMotion, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 
-import { useAccessibilitySetting } from '@/lib/a11y';
+import { liveSetting, useLiveSetting } from '@/lib/a11y';
 
-const REDUCE_MOTION = { read: () => AccessibilityInfo.isReduceMotionEnabled(), event: 'reduceMotionChanged' as const };
+const REDUCE_MOTION = liveSetting(
+  () => AccessibilityInfo.isReduceMotionEnabled(),
+  (set) => AccessibilityInfo.addEventListener('reduceMotionChanged', set),
+);
 
-/** The app's one reduce motion reading (VIS-14): every moving mark, the art's press included, asks here. */
+/**
+ * The app's one reduce motion reading (VIS-14): every moving mark, the art's press included, asks here. Until the
+ * native read answers it is Reanimated's reading at launch, a synchronous global, so the first frame is already right.
+ */
 export function useReduceMotion(): boolean {
-  return useAccessibilitySetting(REDUCE_MOTION);
+  return useLiveSetting(REDUCE_MOTION, useReducedMotion());
 }
 
 /** A pressed artwork's scale and the black it dims under, at full progress (DESIGN-UI section 11, the art plays). */
