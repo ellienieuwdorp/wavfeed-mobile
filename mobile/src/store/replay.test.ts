@@ -2,8 +2,8 @@
 /**
  * The fold's quarantine and the launch replay's resume (review findings ARCH-M1, ARCH-1 and ARCH-13) on the real
  * store: a document whose fold throws is rolled back, recorded, reported once and passed, and a rebuild retries it,
- * while a store failure fails the fold; a replay cut short resumes from the cursors without emptying the tables again;
- * a Projection newer than the code stays.
+ * while a store failure fails the fold; a replay counts its progress and, cut short, resumes from the cursors without
+ * emptying the tables again; a Projection newer than the code stays.
  */
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
@@ -15,7 +15,15 @@ import { FEED_UPDATES_ENDPOINT } from '../domain/endpoints';
 import type { ErrorReport } from '../tally/errorReport';
 import { errorReports } from '../tally/errors';
 import { turnSharingOn } from '../tally/outbox';
-import { ensureProjectionVersion, fold, PROJECTION_REBUILDING_KEY, PROJECTION_VERSION, PROJECTION_VERSION_KEY, rebuild } from './projection';
+import {
+  ensureProjectionVersion,
+  fold,
+  PROJECTION_REBUILDING_KEY,
+  PROJECTION_VERSION,
+  PROJECTION_VERSION_KEY,
+  REPLAY_STRETCH_MS,
+  rebuild,
+} from './projection';
 import { insertRawDocument } from './rawDocuments';
 
 const AT = Math.floor(Date.UTC(2026, 8, 29, 12, 0, 0) / 1000);
@@ -108,6 +116,22 @@ test('a replay cut short resumes from the cursors on the next launch and empties
   assert.deepEqual(await ids('stories'), [7000, 7001, 7002]);
   assert.equal(await db.getFirstAsync('select value from kv where key = ?', [PROJECTION_REBUILDING_KEY]), null);
   assert.equal(await ensureProjectionVersion(db), false);
+});
+
+test('a replay reports its progress after each stretch, counting a resumed one from where it starts', async (t) => {
+  await putPurchases(7000, 7001, 7002);
+  // A clock that moves a whole stretch every time it is read, so each document ends a stretch.
+  let clock = 0;
+  t.mock.method(Date, 'now', () => (clock += REPLAY_STRETCH_MS));
+  const fresh: [number, number][] = [];
+  await rebuild(db, (done, total) => fresh.push([done, total]));
+  assert.deepEqual(fresh, [[1, 3], [2, 3], [3, 3]]);
+
+  await setKv(PROJECTION_REBUILDING_KEY, PROJECTION_VERSION);
+  await db.runAsync('update projection_progress set last_raw_id = 1');
+  const resumed: [number, number][] = [];
+  await ensureProjectionVersion(db, (done, total) => resumed.push([done, total]));
+  assert.deepEqual(resumed, [[2, 3], [3, 3]]);
 });
 
 test('a replay cut short on its way to another version starts over', async () => {
