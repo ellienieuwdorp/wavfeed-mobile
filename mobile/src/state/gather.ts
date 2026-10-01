@@ -18,6 +18,7 @@ import { dueFrom, useGatherSchedule, type Due } from '@/fetcher/schedule';
 import type { GatherSink, GatherState, WalkState } from '@/fetcher/sink';
 import { bandDetailsBreaker } from '@/fetcher/sweep';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
+import { devLog } from '@/lib/devLog';
 import { readChainCounts, readKv } from '@/store';
 import { gatherTallies, projectionSkipped, type ChainFacts } from '@/tally/tally';
 
@@ -118,7 +119,7 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
     const summary = await running;
     last = summary;
     turns += 1;
-    console.log('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
+    devLog('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
     // A chain with no count cap ends once turns stop moving the walk; a turn that moved it resets the stall run and
     // gives the retries back (task 0040).

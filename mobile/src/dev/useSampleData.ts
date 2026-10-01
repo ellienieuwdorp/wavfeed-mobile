@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { toPlayable } from '@/components/playable';
 import { usePlayerActions } from '@/components/player/playerState';
+import { devLog } from '@/lib/devLog';
 import { useAppState } from '@/state/appState';
 import { loadGatherState } from '@/state/gatherSink';
 import { countRawDocuments } from '@/store';
@@ -28,7 +29,7 @@ export function useSampleData(): boolean {
       if ((await countRawDocuments(db)) === 0) {
         const started = Date.now();
         await loadSampleData(db);
-        console.log('sample data loaded in', Date.now() - started, 'ms');
+        devLog('sample data loaded in', Date.now() - started, 'ms');
       }
       await loadGatherState({ db, setGather, invalidate });
       invalidate();

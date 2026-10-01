@@ -12,6 +12,7 @@ import { BAND_DETAILS_ENDPOINT } from '@/domain/endpoints';
 import type { SkippedCounts } from '@/domain/types';
 import { asRecord } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, ForeignFanError, type GatherSink, type GatherState, type WalkState } from '@/fetcher/sink';
+import { devLog } from '@/lib/devLog';
 import { fanAvatarUrl } from '@/lib/format';
 import {
   deleteKv,
@@ -168,7 +169,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       let summary: FoldSummary;
       try {
         summary = await fold(db);
-        console.log('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
+        devLog('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
       } catch (error) {
         console.warn('fold failed:', error instanceof Error ? error.message : String(error));
         reportCode('fold_failed', error);

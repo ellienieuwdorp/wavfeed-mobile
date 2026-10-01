@@ -22,6 +22,7 @@ import { copy } from '@/copy';
 import { isDemoFan } from '@/demo/demo';
 import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
+import { devLog } from '@/lib/devLog';
 import { useAppState, type AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
 import { readNewestBandcampReleaseUrl, readTracklist, readWishlistState } from '@/store/queries';
@@ -207,7 +208,7 @@ function logPress(action: WishlistWriteKind, target: WishlistTarget, sent: Sent)
     ...(sent.wire?.said == null ? [] : [`shape="${sent.wire.said}"`]),
     sent.band === null ? 'band=none' : `band=${sent.band.id} from=${sent.band.from}`,
   ].join(' ');
-  if (sent.failure === null) console.log(facts);
+  if (sent.failure === null) devLog(facts);
   else console.warn(facts);
 }
 

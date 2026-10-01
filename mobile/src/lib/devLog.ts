@@ -1,0 +1,8 @@
+/**
+ * The app's development log (review PRIV-2): a `console.log` in a development bundle and nothing in a release one, so
+ * the device log of a tester's phone carries no gather turn, fold or press line. Warnings stay on `console.warn`.
+ */
+export function devLog(...parts: unknown[]): void {
+  // eslint-disable-next-line no-console -- the one home of the development log
+  if (__DEV__) console.log(...parts);
+}
