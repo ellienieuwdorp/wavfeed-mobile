@@ -147,6 +147,17 @@ case "${1:-}" in
   appearance)
     case "${2:-}" in light | dark) xcrun simctl ui "$(udid)" appearance "$2" ;; *) echo "usage: sim.sh appearance light|dark"; exit 1 ;; esac
     ;;
+  font)
+    # The Dynamic Type size, as simctl names it or by its short name; ax3 is accessibility-extra-large, AX3 in Settings.
+    case "${2:-}" in
+      default) SIZE=large ;;
+      ax1) SIZE=accessibility-medium ;; ax2) SIZE=accessibility-large ;; ax3) SIZE=accessibility-extra-large ;;
+      ax4) SIZE=accessibility-extra-extra-large ;; ax5) SIZE=accessibility-extra-extra-extra-large ;;
+      extra-small | small | medium | large | extra-large | extra-extra-large | extra-extra-extra-large | accessibility-*) SIZE="$2" ;;
+      *) echo "usage: sim.sh font default | ax1 to ax5 | <simctl content size>, e.g. extra-extra-large"; exit 1 ;;
+    esac
+    xcrun simctl ui "$(udid)" content_size "$SIZE"
+    ;;
   shot)
     [ -n "${2:-}" ] || { echo "usage: sim.sh shot <name>"; exit 1; }
     mkdir -p "$SHOTS"
@@ -158,7 +169,7 @@ case "${1:-}" in
     [ -n "$PID" ] && kill "$PID" && echo "stopped $PID" || echo "nothing on $PORT"
     ;;
   *)
-    echo "usage: sim.sh boot | serve | build | open <path> | play | reload | appearance light|dark | shot <name> | stop"
+    echo "usage: sim.sh boot | serve | build | open <path> | play | reload | appearance light|dark | font <size> | shot <name> | stop"
     exit 1
     ;;
 esac
