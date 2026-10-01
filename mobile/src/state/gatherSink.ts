@@ -3,7 +3,8 @@
  * (ADR-0004), the walk and the gather state live in the kv table, and every change to the gather state is published to
  * the screen. The store books the band details sweep by tier from the discography it was handed (ADR-0017): the sink
  * keeps the last band details payload per Page from `putRaw` and hands it to the store's `markSwept`. A failed fold
- * is a coded Error Report (task 0038 decision 10).
+ * is a coded Error Report (task 0038 decision 10). The launch's replay runs here too, since it changes what the gather
+ * state should fetch next (review finding ARCH-3).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -16,6 +17,7 @@ import { devLog } from '@/lib/devLog';
 import { fanAvatarUrl } from '@/lib/format';
 import {
   deleteKv,
+  ensureProjectionVersion,
   feedAnswerSpans,
   fold,
   type FoldSummary,
@@ -26,6 +28,7 @@ import {
   readFollowedBands,
   readKv,
   readSweepDue,
+  type ReplayProgress,
   type StoredIdentity,
   writeKv,
 } from '@/store';
@@ -78,6 +81,24 @@ export function patchGather({ db, setGather }: SinkDeps, patch: Partial<GatherSt
     setGather(next);
     return next;
   });
+}
+
+/**
+ * The launch's replay after a parser change (ADR-0004). A replay, or one that failed partway, leaves `wishlist_items`
+ * without the heart presses `wishlist/state.ts` writes straight into it, so the wishlist is due on the next turn
+ * (ARCH-3). A failed replay is a coded Error Report and resumes at the next launch; this never throws. Answers
+ * whether it replayed.
+ */
+export async function replayAtLaunch(deps: SinkDeps, onProgress?: ReplayProgress): Promise<boolean> {
+  let replayed = true;
+  try {
+    replayed = await ensureProjectionVersion(deps.db, onProgress);
+  } catch (error) {
+    console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
+    reportCode('projection_replay_failed', error);
+  }
+  if (replayed) await patchGather(deps, { wishlistFetchedAt: null }).catch(() => undefined);
+  return replayed;
 }
 
 export function readStoredIdentity(db: SQLiteDatabase): Promise<StoredIdentity | null> {

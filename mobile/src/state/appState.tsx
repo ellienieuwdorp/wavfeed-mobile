@@ -6,7 +6,8 @@
  * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
  * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
  * will not open shows the failure screen, whose "Try again" opens it once more; the open store is where Error Reports
- * are written, and a failed replay is a coded one (task 0038 decisions 10 and 11).
+ * are written, and a failed replay is a coded one (task 0038 decisions 10 and 11). A replay after a parser change
+ * that outlasts its first stretch shows its progress in place of the app (review finding ARCH-1).
  */
 import { useIsFocused } from 'expo-router';
 import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -16,14 +17,15 @@ import { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
 import { CRUMBS_PAGE_ENDPOINT } from '@/bandcamp/wire';
 import { StoreFailed } from '@/components/Failed';
+import { Replaying } from '@/components/Replaying';
 import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
-import { emptyStore, ensureProjectionVersion, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
+import { emptyStore, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
 import type { Tally } from '@/tally/catalogue';
-import { errorReports, reportCode } from '@/tally/errors';
+import { errorReports } from '@/tally/errors';
 
-import { loadGatherState } from './gatherSink';
+import { loadGatherState, replayAtLaunch } from './gatherSink';
 
 export type AppState = {
   readonly db: SQLiteDatabase;
@@ -60,18 +62,19 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   const session = useMemo(() => new BandcampSession(), []);
   const [generation, setGeneration] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [replaying, setReplaying] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
     void openStore().then(
       async (store) => {
         errorReports.setSink(store.db);
-        await ensureProjectionVersion(store.db).catch((error: unknown) => {
-          console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
-          reportCode('projection_replay_failed', error);
-        });
-        await loadGatherState({ db: store.db, setGather, invalidate: () => undefined }).catch(() => undefined);
-        if (alive) setDb(store.db);
+        const deps = { db: store.db, setGather, invalidate: () => undefined };
+        await replayAtLaunch(deps, (done, total) => alive && setReplaying({ done, total }));
+        await loadGatherState(deps).catch(() => undefined);
+        if (!alive) return;
+        setReplaying(null);
+        setDb(store.db);
       },
       () => alive && setFailed(true),
     );
@@ -156,7 +159,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
       />
     );
   }
-  if (!db) return null;
+  if (!db) return replaying === null ? null : <Replaying done={replaying.done} total={replaying.total} />;
   const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore, bindTally };
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

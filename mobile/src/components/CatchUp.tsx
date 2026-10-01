@@ -75,6 +75,6 @@ function MaterialSweep({ moving, fraction }: { moving: boolean; fraction: number
 }
 
 /** The hairline under the header's line (task 0040, decision 8). */
-export function CatchUpHairline({ line }: { line: CatchUpLine }) {
+export function CatchUpHairline({ line }: { line: Pick<CatchUpLine, 'moving' | 'fraction'> }) {
   return ios ? <Sweep moving={line.moving} fraction={line.fraction} /> : <MaterialSweep moving={line.moving} fraction={line.fraction} />;
 }

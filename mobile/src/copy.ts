@@ -488,6 +488,12 @@ export const copy = {
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
   },
+  /** The launch after an update whose parser change replays the history, shown once it takes over a second (ARCH-1). */
+  replay: {
+    title: 'Bringing your history up to date',
+    body: 'This update reads what wavfeed gathered once more. Keep wavfeed open until it finishes.',
+    done: (percent: number) => `${percent}% done`,
+  },
   /**
    * What shows in place of what failed (task 0038 decision 10): a tab's screen that could not draw, the whole app when
    * the root could not, and the store that would not open, which sends nothing by itself (decision 11).
