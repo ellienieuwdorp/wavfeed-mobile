@@ -1,8 +1,9 @@
 /**
  * The pure half of the player (DESIGN-UI section 10, ADR-0015, task 0036): what a press on a row hands over, where the
- * transport may go inside one Release (ported from the web's trackNav.ts), and the tracklist a play starts from. The
- * tracklist comes off the newest stored release page while that page is young enough, else a fresh page fetch that
- * lands through `putRaw` before it is read back (ADR-0004). No cookie goes near it: the page fetch is public.
+ * transport may go inside one Release (ported from the web's trackNav.ts), what play does and says in each state, and
+ * the tracklist a play starts from. The tracklist comes off the newest stored release page while that page is young
+ * enough, else a fresh page fetch that lands through `putRaw` before it is read back (ADR-0004). No cookie goes near it:
+ * the page fetch is public.
  */
 import type { AudioMetadata } from 'expo-audio';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -12,6 +13,8 @@ import type { BandcampDocument } from '@/bandcamp/wire';
 import type { ApiReleaseTrack, ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { readTracklist } from '@/store/queries';
+
+import { playerCopy } from './copy';
 
 export type PlayableRelease = {
   itemType: 'album' | 'track';
@@ -28,6 +31,23 @@ export type PlayableRelease = {
 };
 
 export type PlayerStatus = 'idle' | 'loading' | 'ready' | 'unplayable' | 'error';
+
+/** The line under the title: the Page, or the note when nothing can play (DESIGN-UI section 10). */
+export function playerNote(player: { readonly status: PlayerStatus }): string | null {
+  if (player.status === 'unplayable') return playerCopy.unplayable;
+  if (player.status === 'error') return playerCopy.error;
+  return null;
+}
+
+/**
+ * What a press on the player's play does (VIS-5): a loaded Release toggles, and a failed load or a stream that died
+ * asks again, as a press on the art does; a Release with no preview, a loading one and an empty player take no press.
+ */
+export function playPress(status: PlayerStatus): 'toggle' | 'retry' | null {
+  if (status === 'ready') return 'toggle';
+  if (status === 'error') return 'retry';
+  return null;
+}
 
 export type TransportDeps = {
   readonly db: SQLiteDatabase;

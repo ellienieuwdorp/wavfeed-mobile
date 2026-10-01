@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
 import { Glyph, type GlyphName } from '@/components/Glyph';
-import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/components/player/MiniPlayer';
+import { trackLine, TrackHeart, usePlayControl } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { Tracklist } from '@/components/player/Tracklist';
 import { Type } from '@/components/Type';
@@ -29,6 +29,7 @@ import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { formatDatePart, releaseDay } from '@/lib/dates';
 import { playerCopy } from '@/player/copy';
+import { playerNote } from '@/player/transport';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
@@ -240,23 +241,22 @@ function Skip({ name, label, onPress, enabled }: { name: GlyphName; label: strin
 
 function Transport() {
   const { c } = useTokens();
-  const player = usePlayer();
-  const { toggle, next, previous, canNext, canPrevious, status } = player;
+  const { next, previous, canNext, canPrevious, status } = usePlayer();
+  const control = usePlayControl();
   const ready = status === 'ready';
-  const pause = showsPause(player);
   return (
     <View style={{ height: MAIN, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: ios ? 36 : 20 }}>
       <Skip name="previous" label={playerCopy.previous} onPress={previous} enabled={ready && canPrevious} />
       <Pressable
-        onPress={toggle}
-        disabled={!ready}
+        onPress={control.onPress}
+        disabled={!control.enabled}
         accessibilityRole="button"
-        accessibilityLabel={pause ? playerCopy.pause : playerCopy.play}
-        accessibilityState={{ disabled: !ready }}
+        accessibilityLabel={control.label}
+        accessibilityState={{ disabled: !control.enabled }}
         android_ripple={ripple(c.onAccent)}
-        style={({ pressed }) => ({ width: MAIN, height: MAIN, borderRadius: 28, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: ios ? undefined : c.accent, opacity: pressedOpacity(pressed, isDead(player) ? 0.4 : 1) })}
+        style={({ pressed }) => ({ width: MAIN, height: MAIN, borderRadius: 28, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: ios ? undefined : c.accent, opacity: pressedOpacity(pressed, control.dim ? 0.4 : 1) })}
       >
-        <Glyph name={pause ? 'pause' : 'play'} size={ios ? 48 : 36} colour={ios ? c.ink : c.onAccent} />
+        <Glyph name={control.pause ? 'pause' : 'play'} size={ios ? 48 : 36} colour={ios ? c.ink : c.onAccent} />
       </Pressable>
       <Skip name="next" label={playerCopy.next} onPress={next} enabled={ready && canNext} />
     </View>

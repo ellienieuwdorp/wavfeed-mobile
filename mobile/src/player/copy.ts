@@ -3,6 +3,8 @@ export const playerCopy = {
   open: (title: string) => `Open the player for ${title}`,
   play: 'Play',
   pause: 'Pause',
+  /** Play's name after a failed load or a stream that died, since a press asks again (VIS-5). */
+  retry: 'Try again',
   close: 'Close the player',
   previous: 'Previous track',
   next: 'Next track',

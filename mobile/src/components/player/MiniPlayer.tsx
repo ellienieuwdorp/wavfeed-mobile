@@ -15,6 +15,7 @@ import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
 import { Heart } from '@/components/Heart';
 import { playerCopy } from '@/player/copy';
+import { playerNote, playPress } from '@/player/transport';
 import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { usePlayer, usePlayerRelease, type Player, type PlayableRelease } from './playerState';
@@ -27,13 +28,6 @@ export function playerInAccessory(): boolean {
   return ios && isLiquidGlassAvailable();
 }
 
-/** The line under the title: the Page, or the note when nothing can play (DESIGN-UI section 10). */
-export function playerNote(player: Pick<Player, 'status'>): string | null {
-  if (player.status === 'unplayable') return playerCopy.unplayable;
-  if (player.status === 'error') return playerCopy.error;
-  return null;
-}
-
 export function trackLine(player: Pick<Player, 'track'>, release: PlayableRelease): string {
   return player.track === null ? release.title : playerCopy.trackTitle(player.track.trackNum, player.track.title);
 }
@@ -43,8 +37,26 @@ export function showsPause(player: Pick<Player, 'playing' | 'status'>): boolean 
   return player.playing || player.status === 'loading';
 }
 
-export function isDead(player: Pick<Player, 'status'>): boolean {
-  return player.status === 'unplayable' || player.status === 'error';
+export type PlayControl = { enabled: boolean; pause: boolean; dim: boolean; label: string; onPress: () => void };
+
+/**
+ * The play control of the mini player and the sheet (VIS-5): after an error a press asks again at the Track that failed,
+ * which goes down the load path as the art's press does; only a Release with no preview is drawn dimmed.
+ */
+export function usePlayControl(): PlayControl {
+  const player = usePlayer();
+  const press = playPress(player.status);
+  const pause = showsPause(player);
+  return {
+    enabled: press !== null,
+    pause,
+    dim: player.status === 'unplayable',
+    label: press === 'retry' ? playerCopy.retry : pause ? playerCopy.pause : playerCopy.play,
+    onPress: () => {
+      if (press === 'toggle') player.toggle();
+      else if (press === 'retry' && player.release !== null) player.play(player.release, player.track?.trackId ?? null);
+    },
+  };
 }
 
 /** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
@@ -59,21 +71,19 @@ export function TrackHeart({ release, box, icon, surface }: { release: PlayableR
 
 function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number; primary?: boolean }) {
   const { c } = useTokens();
-  const player = usePlayer();
-  const pause = showsPause(player);
-  const enabled = player.status === 'ready';
+  const control = usePlayControl();
   return (
     <Pressable
-      onPress={player.toggle}
-      disabled={!enabled}
+      onPress={control.onPress}
+      disabled={!control.enabled}
       hitSlop={4}
       accessibilityRole="button"
-      accessibilityLabel={pause ? playerCopy.pause : playerCopy.play}
-      accessibilityState={{ disabled: !enabled }}
+      accessibilityLabel={control.label}
+      accessibilityState={{ disabled: !control.enabled }}
       android_ripple={ripple(primary ? c.onAccent : c.track)}
-      style={({ pressed }) => ({ width: box, height: box, borderRadius: primary ? 16 : box / 2, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: primary ? c.accent : undefined, opacity: pressedOpacity(pressed, isDead(player) ? 0.4 : 1) })}
+      style={({ pressed }) => ({ width: box, height: box, borderRadius: primary ? 16 : box / 2, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: primary ? c.accent : undefined, opacity: pressedOpacity(pressed, control.dim ? 0.4 : 1) })}
     >
-      <Glyph name={pause ? 'pause' : 'play'} size={glyph} colour={primary ? c.onAccent : c.ink} />
+      <Glyph name={control.pause ? 'pause' : 'play'} size={glyph} colour={primary ? c.onAccent : c.ink} />
     </Pressable>
   );
 }
