@@ -127,6 +127,15 @@ export function outOnPhrase(value: string | Date, now: Date): string {
   return `out ${formatDatePart(date, { weekday: true, year: date.getFullYear() !== now.getFullYear() })}`;
 }
 
+/**
+ * The player sheet's line under its title: the artist, then the Release's title unless the title line already says it,
+ * as it does before a Track loads and for a single named like its Release (finding VIS-17).
+ */
+export function sheetSubtitle(artist: string, releaseTitle: string, trackTitle: string | null): string {
+  const same = trackTitle === null || trackTitle.trim().toLowerCase() === releaseTitle.trim().toLowerCase();
+  return same ? artist : artist + sep + releaseTitle;
+}
+
 /** The facts a play control speaks after its title, comma separated as speech reads them. */
 export function spokenFacts(parts: readonly (string | null | undefined)[]): string {
   return parts.filter((part): part is string => Boolean(part)).join(', ');

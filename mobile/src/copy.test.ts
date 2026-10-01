@@ -1,12 +1,13 @@
 /// <reference types="node" />
 /**
  * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
- * Upcoming card and a Drop row state, and the release day a Drop row names (task 0041, decisions 9 and 10).
+ * Upcoming card and a Drop row state, the release day a Drop row names (task 0041, decisions 9 and 10), and the line
+ * under the player sheet's title.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backTo, catchUpHeader, outOnPhrase, soFar, tracksOutPhrase } from './copy';
+import { backTo, catchUpHeader, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase } from './copy';
 
 const at = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -43,6 +44,13 @@ test('a Drop row names the release day with its month', () => {
   const now = new Date(2026, 8, 29, 12);
   assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
   assert.equal(outOnPhrase(new Date(2026, 8, 29), now), 'out today');
+});
+
+test('the player names the Release under the Track only when the title line does not (finding VIS-17)', () => {
+  assert.equal(sheetSubtitle('Meridian Radio', 'Sun Signals Low', 'Sun Signals Low'), 'Meridian Radio');
+  assert.equal(sheetSubtitle('Meridian Radio', 'Sun Signals Low', 'sun signals low '), 'Meridian Radio');
+  assert.equal(sheetSubtitle('Meridian Radio', 'Sun Signals Low', null), 'Meridian Radio');
+  assert.equal(sheetSubtitle('Meridian Radio', 'Sun Signals Low', 'Tidewater'), 'Meridian Radio · Sun Signals Low');
 });
 
 test("a Drop out this month still names the month under the last month's week (finding VIS-6)", () => {

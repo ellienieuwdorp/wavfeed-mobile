@@ -21,7 +21,7 @@ import { Glyph, type GlyphName } from '@/components/Glyph';
 import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { Tracklist } from '@/components/player/Tracklist';
-import { SELF_RELEASED, sep } from '@/copy';
+import { SELF_RELEASED, sep, sheetSubtitle } from '@/copy';
 import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { formatDatePart, releaseDay } from '@/lib/dates';
@@ -269,7 +269,7 @@ function Titles({ release }: { release: PlayableRelease }) {
           <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
           <Text style={{ fontSize: 16, color: c.accent }}>{playerCopy.linkOut}</Text>
         </View>
-        <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{release.artist + sep + release.title}</Text>
+        <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Text>
       </Pressable>
       <Text numberOfLines={1} style={{ height: FACTS, marginTop: 4, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Text>
     </View>
