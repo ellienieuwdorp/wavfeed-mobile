@@ -2,7 +2,8 @@
  * The Curated Feed's three modules (DESIGN-UI section 5, the v2 client canvas): the cover strip of new Releases from
  * pages you follow, the one-up Bought-by cards with their heart, and the review quotes, each under a module head whose
  * "View more" switches to the tab holding the full view. The art plays everywhere (PlayArt, DESIGN-UI section 11): a
- * cover's captions share its control, a card's and a quote's art is the only press that plays. A long press on a
+ * cover's captions share its control, a card's and a quote's art is the only press that plays. At a larger text size a
+ * cover's title holds two lines, so the captions sit level along the strip (review VIS-1). A long press on a
  * cover, a card or a quote opens the row menu, and a card's faces open the Bought by sheet. Android takes the canvas's
  * Expressive shapes: 12dp covers, 16dp cards.
  */
@@ -11,7 +12,7 @@ import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
-import { captionLines } from '@/theme/textSize';
+import { captionTitle } from '@/theme/textSize';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -42,12 +43,13 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
 export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
+  const title = captionTitle(fontScale);
   return (
     <RowMenu release={item} width={COVER}>
       {(openMenu) => (
         <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
-            <Type numberOfLines={captionLines(fontScale)} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Type>
+            <Type numberOfLines={title.numberOfLines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{item.title}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Type>
           </View>

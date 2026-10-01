@@ -14,9 +14,17 @@ export function scaledSize(size: number, fontScale: number, scale: TextScale): n
   return size * Math.min(fontScale, SCALE_CAP[scale]);
 }
 
-/** A caption under a fixed-width cover or card takes a second line for its title once the text is larger than default. */
-export function captionLines(fontScale: number): 1 | 2 {
-  return fontScale > 1 ? 2 : 1;
+/** A caption title's line, its 15pt text's default line height. */
+const CAPTION_LINE = 20;
+
+/**
+ * The title of a cover or card caption: one line at the default size, and above it two lines whose height is held
+ * whether the title wraps or not, so the lines under it sit level across a shelf (review VIS-1). React Native grows the
+ * line height with the text, at the row cap.
+ */
+export function captionTitle(fontScale: number): { numberOfLines: 1 | 2; style: { lineHeight: number; minHeight: number } | null } {
+  const numberOfLines = fontScale > 1 ? 2 : 1;
+  return { numberOfLines, style: numberOfLines === 2 ? { lineHeight: CAPTION_LINE, minHeight: 2 * scaledSize(CAPTION_LINE, fontScale, 'row') } : null };
 }
 
 /** Apple's large title points per content size category, against React Native's multiplier for it (RCTAccessibilityManager). */

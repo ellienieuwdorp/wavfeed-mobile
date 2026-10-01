@@ -12,7 +12,7 @@ import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 
 import { copy, spokenFacts } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
-import { captionLines, scaledSize } from '@/theme/textSize';
+import { captionTitle } from '@/theme/textSize';
 import { useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -28,7 +28,6 @@ const CARD = 112;
 const GAP = 12;
 /** A blank count line keeps its height: a no-break space is a line where an empty string is none. */
 const BLANK = '\u00a0';
-const TITLE_LINE = 20;
 
 export type ShelfCard = {
   readonly key: string;
@@ -46,8 +45,7 @@ export type ShelfCard = {
 function Card({ card }: { card: ShelfCard }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
-  const lines = captionLines(fontScale);
-  const twoLines = lines === 2 ? { lineHeight: TITLE_LINE, minHeight: 2 * scaledSize(TITLE_LINE, fontScale, 'row') } : null;
+  const title = captionTitle(fontScale);
   return (
     <View style={{ width: CARD }}>
       <RowMenu release={card.release} width={CARD}>
@@ -62,7 +60,7 @@ function Card({ card }: { card: ShelfCard }) {
           >
             <View style={{ gap: 2, marginTop: 8 }}>
               <Type numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{card.day}</Type>
-              <Type numberOfLines={lines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, twoLines]}>{card.release.title}</Type>
+              <Type numberOfLines={title.numberOfLines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{card.release.title}</Type>
               <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.release.artist}</Type>
               <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.count ?? BLANK}</Type>
             </View>

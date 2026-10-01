@@ -1,11 +1,12 @@
 /**
  * The iOS large title's size for each text size (review VIS-1): Apple's large title points per content size category,
- * reached through React Native's multiplier for that category, and capped at AX1's 44pt like every head.
+ * reached through React Native's multiplier for that category, and capped at AX1's 44pt like every head. A caption
+ * title under a cover or card holds the height of two lines once the text is larger, wrapped or not.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { largeTitleSize } from './textSize';
+import { captionTitle, largeTitleSize } from './textSize';
 
 test('the large title follows Apple’s sizes up to AX1 and holds there', () => {
   const cases: readonly (readonly [string, number, number])[] = [
@@ -21,4 +22,10 @@ test('the large title follows Apple’s sizes up to AX1 and holds there', () => 
 
 test('a multiplier between categories takes the smaller category’s size', () => {
   assert.equal(largeTitleSize(1.2), 36);
+});
+
+test('a caption title is one line at the default size and holds two lines above it, at the row cap', () => {
+  assert.deepEqual(captionTitle(1), { numberOfLines: 1, style: null });
+  assert.deepEqual(captionTitle(1.2), { numberOfLines: 2, style: { lineHeight: 20, minHeight: 48 } });
+  assert.deepEqual(captionTitle(2.643), { numberOfLines: 2, style: { lineHeight: 20, minHeight: 64 } });
 });
