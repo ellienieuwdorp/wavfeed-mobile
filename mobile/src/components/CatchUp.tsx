@@ -1,17 +1,22 @@
 /**
  * The catch-up's hairline while the first walk runs (DESIGN-UI section 9), under the header's line of the count and the
  * month (see ScreenHeader, task 0040 decision 8). It fills with the share of Stories `walkProgress` estimates, and
- * sweeps indeterminate while there is none (task 0040). Android moves Compose's Material 3 linear indicator.
+ * sweeps indeterminate while there is none (task 0040). Under reduce motion nothing slides: the fill lands at once and
+ * the sweep becomes the whole track pulsing slowly in opacity (VIS-14). Android moves Compose's Material 3 linear
+ * indicator, which follows the system's animation scale.
  */
 import { LinearProgressIndicator, Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Platform, View } from 'react-native';
 
+import { useReduceMotion } from '@/player/motion';
 import type { CatchUpLine } from '@/state/status';
 import { useTokens } from '@/theme/tokens';
 
 const SWEEP_MS = 1400;
+/** Each half of the reduced sweep's pulse. */
+const PULSE_MS = 1600;
 const FILL_MS = 600;
 /** The moving segment's share of the track. */
 const SEGMENT = 0.3;
@@ -28,6 +33,7 @@ export function progressValue(fraction: number | null) {
  */
 function Sweep({ moving, fraction }: { moving: boolean; fraction: number | null }) {
   const { c } = useTokens();
+  const reduce = useReduceMotion();
   const [width, setWidth] = useState(0);
   const [at] = useState(() => new Animated.Value(0));
   const [fill] = useState(() => new Animated.Value(fraction ?? 0));
@@ -35,21 +41,30 @@ function Sweep({ moving, fraction }: { moving: boolean; fraction: number | null 
   useEffect(() => {
     at.setValue(0);
     if (!sweeping) return;
-    const loop = Animated.loop(Animated.timing(at, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
+    const step = (toValue: number) => Animated.timing(at, { toValue, duration: PULSE_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
+    const loop = reduce
+      ? Animated.loop(Animated.sequence([step(1), step(0)]))
+      : Animated.loop(Animated.timing(at, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [at, sweeping]);
+  }, [at, sweeping, reduce]);
   useEffect(() => {
     if (fraction === null) return;
+    if (reduce) {
+      fill.setValue(fraction);
+      return;
+    }
     const ease = Animated.timing(fill, { toValue: fraction, duration: FILL_MS, easing: Easing.out(Easing.quad), useNativeDriver: true });
     ease.start();
     return () => ease.stop();
-  }, [fill, fraction]);
+  }, [fill, fraction, reduce]);
   const segment = width * SEGMENT;
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ height: 2, borderRadius: 1, overflow: 'hidden', backgroundColor: c.track }}>
       {fraction !== null ? (
         <Animated.View style={{ height: 2, backgroundColor: c.accent, transformOrigin: 'left', transform: [{ scaleX: fill }] }} />
+      ) : sweeping && reduce ? (
+        <Animated.View style={{ height: 2, backgroundColor: c.accent, opacity: at.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.6] }) }} />
       ) : sweeping && width > 0 ? (
         <Animated.View
           style={{

@@ -1,26 +1,19 @@
 /**
  * The app's shared motion (DESIGN-UI sections 10 and 11, task 0036): the system's reduce motion setting as a live value,
- * for the player's moving marks, and the press every playable surface answers with, a progress from 0 at rest to 1 held
+ * for every moving mark, and the press every playable surface answers with, a progress from 0 at rest to 1 held
  * that Reanimated runs on the UI thread, so the feedback costs the JS thread one assignment and no re-render.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import { Easing, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 
+import { useAccessibilitySetting } from '@/lib/a11y';
+
+const REDUCE_MOTION = { read: () => AccessibilityInfo.isReduceMotionEnabled(), event: 'reduceMotionChanged' as const };
+
+/** The app's one reduce motion reading (VIS-14): every moving mark, the art's press included, asks here. */
 export function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((on) => {
-      if (alive) setReduce(on);
-    });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => {
-      alive = false;
-      subscription.remove();
-    };
-  }, []);
-  return reduce;
+  return useAccessibilitySetting(REDUCE_MOTION);
 }
 
 /** A pressed artwork's scale and the black it dims under, at full progress (DESIGN-UI section 11, the art plays). */

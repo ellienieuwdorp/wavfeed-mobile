@@ -12,11 +12,11 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type Insets, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { copy } from '@/copy';
 import { hueFor, releaseArtUrl } from '@/lib/format';
-import { PRESS_SCALE, PRESS_SHADE, usePressMotion } from '@/player/motion';
+import { PRESS_SCALE, PRESS_SHADE, usePressMotion, useReduceMotion } from '@/player/motion';
 import { SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
 
 import { Artwork } from './Artwork';
@@ -90,7 +90,7 @@ export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitS
   const live = isCurrent(usePlayerRelease(), release);
   const [pause, setPause] = useState(false);
   const { progress, onPressIn, onPressOut } = usePressMotion();
-  const reduced = useReducedMotion();
+  const reduced = useReduceMotion();
   const lift = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : 1 - (1 - PRESS_SCALE) * progress.get() }] }));
   const shade = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) * PRESS_SHADE }));
   return (
