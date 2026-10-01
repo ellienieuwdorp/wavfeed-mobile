@@ -6,7 +6,8 @@
  * dismisses from the art and from the top of the scroll; on Android a bottom sheet with 28dp corners at full height,
  * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist keeps one height for a
  * given text size, its text one line and its height at least the default's, so nothing moves when a Track changes;
- * the m:ss times in the seek block do not grow (review VIS-1).
+ * the seek block holds one height at every size, its m:ss times not growing and the note standing in for it fitting
+ * two lines (review VIS-1).
  */
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Host as ComposeHost, Slider as ComposeSlider } from '@expo/ui/jetpack-compose';
@@ -208,11 +209,14 @@ function SeekLine() {
   );
 }
 
+/** The note's line: two of them at the row cap, 2 x 18 x 1.6 = 58, fit the seek block it stands in for (review VIS-1). */
+const NOTE_LINE = 18;
+
 function Note({ text }: { text: string }) {
   const { c } = useTokens();
   return (
-    <View style={{ minHeight: SEEK, justifyContent: 'center' }}>
-      <Type accessibilityLiveRegion="polite" numberOfLines={2} style={{ fontSize: 15, color: c.sub, textAlign: 'center' }}>{text}</Type>
+    <View style={{ height: SEEK, justifyContent: 'center' }}>
+      <Type accessibilityLiveRegion="polite" numberOfLines={2} style={{ fontSize: 15, lineHeight: NOTE_LINE, color: c.sub, textAlign: 'center' }}>{text}</Type>
     </View>
   );
 }
