@@ -171,9 +171,10 @@ function logPress(action: WishlistWriteKind, target: WishlistTarget, sent: Sent)
 
 function noticeFor(failure: PressFailure | 'other', reason: string | null = null, url: string | null = null): NoticeLine {
   const signIn = { onPress: () => router.push(connectHref('wishlist_notice')) };
-  // A refusal leaves the Fan the Release's own page to wishlist it by hand (finding FLOW-17).
+  // A refusal leaves the Fan the Release's own page to wishlist it by hand (finding FLOW-17), under the row menu's
+  // label for the same page.
   const page = url === null ? null : webUrl(url);
-  const open = page === null ? {} : { action: { label: wishlistCopy.notice.open, onPress: () => void openURL(page).catch(() => undefined) } };
+  const open = page === null ? {} : { action: { label: copy.rowMenu.open, onPress: () => void openURL(page).catch(() => undefined) } };
   switch (failure) {
     case 'logged_out':
       return { code: 'wishlist_failed', text: wishlistCopy.notice.loggedOut, action: { label: copy.notice.signInAgain, ...signIn } };

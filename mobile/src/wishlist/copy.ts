@@ -18,7 +18,5 @@ export const wishlistCopy = {
     rejectedSaying: (reason: string) => `Bandcamp turned that one down: ${reason}`,
     other: "That didn't reach your wishlist. Try again in a bit.",
     signIn: 'Sign in',
-    /** The refusal's action: the Release's page on Bandcamp, where the wishlist press works (finding FLOW-17). */
-    open: 'Open on Bandcamp',
   },
 } as const;
