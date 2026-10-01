@@ -117,9 +117,14 @@ export function tracksOutPhrase(out: number | null, total: number | null): strin
   return `${out} of ${total} ${total === 1 ? 'track' : 'tracks'}`;
 }
 
-/** "out Tue 13 Oct", the release day in dayLabel's form (task 0041, decision 10); "out today" on the day. */
+/**
+ * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day. The month always shows, unlike in dayLabel, since a
+ * Drop row sits under the week it was let out in, often another month's (finding VIS-6).
+ */
 export function outOnPhrase(value: string | Date, now: Date): string {
-  return isSameDay(value, now) ? 'out today' : `out ${dayLabel(value, now)}`;
+  if (isSameDay(value, now)) return 'out today';
+  const date = toDate(value);
+  return `out ${formatDatePart(date, { weekday: true, year: date.getFullYear() !== now.getFullYear() })}`;
 }
 
 /** The facts a play control speaks after its title, comma separated as speech reads them. */

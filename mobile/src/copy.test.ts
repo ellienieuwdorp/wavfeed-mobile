@@ -39,8 +39,15 @@ test('the count shows once a Track plays and the total is known, plural by the t
   assert.deepEqual([tracksOutPhrase(0, 4), tracksOutPhrase(1, null), tracksOutPhrase(null, 4), tracksOutPhrase(3, 2)], [null, null, null, null]);
 });
 
-test("a Drop row names the release day in the day label's form", () => {
+test('a Drop row names the release day with its month', () => {
   const now = new Date(2026, 8, 29, 12);
   assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
   assert.equal(outOnPhrase(new Date(2026, 8, 29), now), 'out today');
+});
+
+test("a Drop out this month still names the month under the last month's week (finding VIS-6)", () => {
+  // 1 Oct 2026: the Drop sits under "Last week · Mon 21 – Sun 27 Sep", and its Release is out on Tue 13 Oct.
+  const now = new Date(2026, 9, 1, 12);
+  assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
+  assert.equal(outOnPhrase(new Date(2027, 0, 8), now), 'out Fri 8 Jan 2027');
 });
