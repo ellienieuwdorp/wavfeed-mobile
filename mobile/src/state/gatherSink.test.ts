@@ -2,6 +2,7 @@
 /**
  * The sink's fold hook behind `projection_skipped` (task 0038): each fold after a turn's documents hands its skipped
  * counts to `onFold`, on the real store. The launch's replay makes the wishlist due again (review finding ARCH-3).
+ * A store closed under it publishes nothing to the screen.
  */
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
@@ -13,7 +14,7 @@ import { EMPTY_GATHER_STATE, type GatherState } from '../fetcher/sink';
 import { readKv, writeKv } from '../store/kv';
 import { PROJECTION_VERSION, PROJECTION_VERSION_KEY } from '../store/projection';
 import { projectionSkipped } from '../tally/tally';
-import { createGatherSink, GATHER_KEY, replayAtLaunch } from './gatherSink';
+import { createGatherSink, GATHER_KEY, patchGather, replayAtLaunch } from './gatherSink';
 
 const AT = Math.floor(Date.UTC(2026, 8, 29, 12, 0, 0) / 1000);
 
@@ -35,6 +36,16 @@ test('a fold that skips an entry it cannot read and one of an unknown kind hands
     name: 'projection_skipped',
     props: { unparsable: '1', unknown_story_type: '1', missing_fan_info: '0' },
   });
+});
+
+test('a removed store publishes no gather state, so a chain Remove everything caught mid-walk cannot paint the fresh one (finding FLOW-6)', async () => {
+  const { db, close } = await openTestStore();
+  const published: unknown[] = [];
+  const deps = { db, setGather: (state: unknown) => published.push(state), invalidate: () => undefined };
+  close();
+  await assert.rejects(patchGather(deps, { phase: 'walking' }));
+  await assert.rejects(createGatherSink(deps).readGatherState());
+  assert.deepEqual(published, []);
 });
 
 test('a fold that skips nothing makes no Tally', async () => {

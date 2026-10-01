@@ -14,7 +14,7 @@ import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import { openURL } from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, PixelRatio, Platform, ScrollView, Text, View } from 'react-native';
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
@@ -170,6 +170,10 @@ export default function Settings() {
   // The rig's sample Fan has no Bandcamp session to end, so its sign out skips the logout page (ADR-0001).
   const signOut = () => (SAMPLE_MODE ? void finishSignOut() : setSigningOut(true));
 
+  // Pressable mid-gather too (finding FLOW-6): the count goes first, then the turn on the wire is waited out and the
+  // store closed straight after it, so the chain's next store call fails and ends it (gather.ts `runner`). A second
+  // confirm while one runs does nothing.
+  const removing = useRef(false);
   const removeAll = () =>
     Alert.alert(s.removeAllTitle, s.removeAllBody(status === 'connected'), [
       { text: s.cancel, style: 'cancel' },
@@ -177,11 +181,15 @@ export default function Settings() {
         text: s.removeAllConfirm,
         style: 'destructive',
         onPress: () => {
+          if (removing.current) return;
+          removing.current = true;
           void (async () => {
-            await turnRunning()?.catch(() => undefined);
             await usage.trackAndFlush({ name: 'store_removed', props: {} });
+            await turnRunning()?.catch(() => undefined);
             await app.removeStore();
-          })();
+          })().finally(() => {
+            removing.current = false;
+          });
         },
       },
     ]);
@@ -317,7 +325,7 @@ export default function Settings() {
       )}
 
       <Group gapAbove>
-        <Cell title={s.removeAll} tone="danger" onPress={busy ? undefined : removeAll} />
+        <Cell title={s.removeAll} tone="danger" onPress={removeAll} />
       </Group>
 
       <Group gapAbove>
