@@ -6,7 +6,7 @@
  * it is sent.
  */
 import type { ErrorBoundaryProps } from 'expo-router';
-// The boundary renders inside its route's node, which no public hook reads; a moved module fails the build, not the app.
+// The boundary renders inside its route's node, which no public hook reads; a moved module fails CI's tsc and Metro export.
 import { useRouteNode } from 'expo-router/build/Route';
 import { openURL } from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
