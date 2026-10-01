@@ -17,16 +17,13 @@ import {
   toDate,
   weeksBetween,
 } from '@/lib/dates';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/lib/time';
 
 const ios = Platform.OS === 'ios';
 const thisDevice = ios ? 'this iPhone' : 'this phone';
 const ThisDevice = ios ? 'This iPhone' : 'This phone';
 
 export const sep = ' · ';
-
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 const LONG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

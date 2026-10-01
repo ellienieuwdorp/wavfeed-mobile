@@ -8,6 +8,7 @@ import { isDemoFan } from '@/demo/fan';
 import type { SkippedCounts } from '@/domain/types';
 import type { GatherState, WalkState } from '@/fetcher/sink';
 import type { GatherReason, TurnSummary } from '@/fetcher/turn';
+import { MINUTE_MS as MINUTE, SECOND_MS as SECOND } from '@/lib/time';
 
 import {
   SCHEMA,
@@ -30,9 +31,6 @@ export function countBucket(n: number): CountBucket {
   if (n <= 100) return '21 to 100';
   return '100+';
 }
-
-const SECOND = 1_000;
-const MINUTE = 60 * SECOND;
 
 /** Each bucket holds its lower edge: 1,000 ms is `1 to 3s`, 60,000 ms is `1 to 10m`. */
 export function durationBucket(ms: number): DurationBucket {

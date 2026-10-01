@@ -22,10 +22,10 @@ import {
 } from '@/domain/endpoints';
 import type { ItemType } from '@/domain/types';
 import { EMPTY_GATHER_STATE, type GatherState, type StorySample, type WalkState } from '@/fetcher/sink';
+import { DAY_MS as DAY, DAY_S, HOUR_MS as HOUR } from '@/lib/time';
 import { DEVICE_ADDED_KEY, GATHER_KEY, patchGather, type SinkDeps, WALK_KEY } from '@/state/gatherSink';
 import { deleteKv, fold, IDENTITY_KEY, insertRawDocument, readKv, type StoredIdentity, writeKv } from '@/store';
 
-const DAY = 24 * 60 * 60_000;
 const ANCHOR = Date.UTC(2026, 8, 24, 18, 0, 0);
 const WINDOW = 84 * DAY;
 const STORY_TARGET = 1500;
@@ -272,8 +272,6 @@ type DropDemo = {
   readonly trackPage?: { readonly atMs: number; readonly trackNum: number; readonly modMs: number };
   readonly purchase?: { readonly fanIndex: number; readonly atMs: number };
 };
-
-const HOUR = 60 * 60_000;
 
 function dropTracks(first: number, titles: readonly string[]): Track[] {
   return titles.map((title, n) => ({ id: first + n, title, duration: 200 + n * 37.5, playable: true, capped: false }));
@@ -671,7 +669,6 @@ export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
   await writeKv(db, GATHER_KEY, gather);
 }
 
-const DAY_S = 24 * 60 * 60;
 /** The author's first walk from task 0040's amendment, at 2,960 Stories and back to 15 June 2026. */
 const WALK_STARTED_AT = 1790701174376;
 const WALK_CURSOR = Date.UTC(2026, 5, 15) / 1000;

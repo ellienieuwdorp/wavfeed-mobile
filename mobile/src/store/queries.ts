@@ -32,14 +32,13 @@ import { intervalFor, readDiscographyDates, type SweepTier, tierFor } from '../d
 import { readTralbumTracks } from '../domain/tralbumTracks';
 import type { ItemType, StoryType } from '../domain/types';
 import { aheadFrom, buildUpcoming, handoffFloor, UPCOMING_MAX_RELEASES } from '../domain/upcoming';
+import { DAY_MS } from '../lib/time';
 import { trackIds } from './drops';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
 /** A ceiling on one read's Stories, not a page size: the rules fold what a view needs in memory, as the server does (ADR-0005). */
 export const FEED_MAX_STORY_ROWS = 50_000;
-
-const DAY_MS = 24 * 60 * 60_000;
 
 export const STREAM_URL_TTL_MS = DAY_MS;
 

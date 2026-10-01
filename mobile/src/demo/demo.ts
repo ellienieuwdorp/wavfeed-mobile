@@ -13,6 +13,7 @@ import { readTralbumTracks } from '@/domain/tralbumTracks';
 import type { ItemType } from '@/domain/types';
 import { asRecord, asTralbumType, readDate, readId, readText } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
+import { DAY_MS as DAY, HOUR_MS as HOUR } from '@/lib/time';
 import { DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
 import { fold, IDENTITY_KEY, insertRawDocument, type StoredIdentity, writeKv } from '@/store';
 
@@ -22,8 +23,6 @@ import { type Rng, seeded, wireDate } from './wireShape';
 
 export { DEMO_FAN_ID, isDemoFan } from './fan';
 
-const HOUR = 60 * 60_000;
-const DAY = 24 * HOUR;
 const WINDOW = 56 * DAY;
 const NEW_RELEASE_WINDOW = 84 * DAY;
 const FEED_PAGE_SIZE = 50;

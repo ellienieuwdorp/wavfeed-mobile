@@ -3,9 +3,9 @@
  * is the reader's (ADR-0011). Ported from server/apps/web/src/lib/dates.ts with its function names (task 0036, decision 3);
  * `releaseDay` and `isOutYet` live in `domain/newReleases.ts` and are re-exported from there.
  */
-export { isOutYet, releaseDay } from '@/domain/newReleases';
+import { DAY_MS } from './time';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export { isOutYet, releaseDay } from '@/domain/newReleases';
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

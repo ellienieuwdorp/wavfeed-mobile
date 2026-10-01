@@ -2,11 +2,10 @@
  * The Upcoming band's rules: Releases around now, nearest first, each carrying only the signal its Stories give; release days are GMT days (ADR-0017).
  * Ported from server/apps/api/src/feed/upcoming.ts (task 0036).
  */
+import { DAY_MS } from '../lib/time';
 import type { ApiUpcomingRelease } from './apiTypes';
 import { buildSignal, itemKey } from './assemble';
 import type { FeedStoryRow, UpcomingReleaseRow } from './rows';
-
-const DAY_MS = 24 * 60 * 60_000;
 
 /** A fortnight back, so a Release only the sweep knows is still drawn on the morning it comes out. */
 export const UPCOMING_HANDOFF_DAYS = 14;

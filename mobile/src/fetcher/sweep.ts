@@ -4,9 +4,7 @@
  * (task 0036, decision 4).
  */
 import { REFUSAL_STATUSES } from '../bandcamp/wire';
-
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
+import { HOUR_MS, MINUTE_MS } from '../lib/time';
 
 export const SWEEP_TURN_MAX = 12;
 

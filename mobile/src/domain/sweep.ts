@@ -2,12 +2,10 @@
  * The band details sweep's tiers: a Page's own discography dates decide how often it is read again (ADR-0017); no jitter, since one phone enqueues no herd.
  * Ported from server/apps/poller/src/sweep.ts and config.ts (task 0036).
  */
+import { DAY_MS, HOUR_MS } from '../lib/time';
 import { asRecord, parseWireDate } from './wire';
 
 export type SweepTier = 'hot' | 'warm' | 'cold';
-
-const HOUR_MS = 60 * 60_000;
-const DAY_MS = 24 * HOUR_MS;
 
 export const SWEEP_TIER_HOT_WINDOW_MS = 90 * DAY_MS;
 export const SWEEP_TIER_WARM_WINDOW_MS = 365 * DAY_MS;

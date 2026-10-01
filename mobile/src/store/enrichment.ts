@@ -12,6 +12,7 @@ import { storedTralbum } from '../domain/releasePage';
 import { readTralbumTracks, type TralbumTrack } from '../domain/tralbumTracks';
 import type { ItemType } from '../domain/types';
 import { aheadFrom } from '../domain/upcoming';
+import { DAY_MS } from '../lib/time';
 import { REACHED_BY_FOLLOW_OR_STORY } from './queries';
 import { latestReleasePageDocument } from './rawDocuments';
 
@@ -25,7 +26,6 @@ export type UndatedRelease = DueRelease;
 
 export type ReleaseDateCounts = { readonly dated: number; readonly undated: number };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const RETRY_AFTER_MS = DAY_MS;
 export const BACKOFF_AFTER_FAILURES = 3;
 export const BACKOFF_MS = 7 * DAY_MS;

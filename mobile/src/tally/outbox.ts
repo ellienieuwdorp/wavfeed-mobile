@@ -8,6 +8,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { DEMO_FAN_ID } from '@/demo/fan';
+import { DAY_MS } from '@/lib/time';
 import { IDENTITY_KEY, readKv } from '@/store/kv';
 
 import { WIRE, type Tally } from './catalogue';
@@ -20,7 +21,6 @@ export const DROPPED_KEY = 'tally_dropped';
 /** Set while the app is in the foreground with sharing on (src/tally/lifecycle.ts); part of the sharing state. */
 export const FOREGROUND_KEY = 'tally_foreground';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** ceiling: 2,000 Tallies and 30 days queued offline, oldest dropped first; raise with the Worker's 31-day clock window. */
 export const MAX_TALLY_ROWS = 2_000;
 export const MAX_AGE_MS = 30 * DAY_MS;
