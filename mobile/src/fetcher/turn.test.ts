@@ -11,6 +11,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   FAN_ID,
   feedPayload,
+  followingBandsFirstPage,
   PREORDER_ITEM_ID,
   PREORDER_URL,
   preorderNrEntry,
@@ -69,6 +70,8 @@ let probe: BandcampAnswer<Identity>;
 /** A refusal for the feed request with this index in `cursors`, or null to answer it. */
 let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
+/** Followed Pages the follow list answers with, as one stored page; none answers with no page. */
+let followed: readonly number[];
 
 const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
 const at = (): string => new Date(clock).toISOString();
@@ -77,7 +80,12 @@ const session: GatherSession = {
   probeIdentity: async () => probe,
   pokeFeedPage: async (username) => ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() }),
   fetchWishlistItems: async () => ok({ pages: 0, seen: 0, complete: true }),
-  fetchFollowingBands: async () => ok({ pages: 0, seen: 0, complete: true }),
+  async fetchFollowingBands(_fanId, _username, onDocument) {
+    if (followed.length === 0) return ok({ pages: 0, seen: 0, complete: true });
+    clock += REQUEST_MS;
+    await onDocument({ endpoint: 'following_bands', payload: followingBandsFirstPage(followed, at()), fetchedAt: at() });
+    return ok({ pages: 1, seen: followed.length, complete: true });
+  },
   async fetchBandDetails(bandId) {
     clock += REQUEST_MS;
     bandDetailsAsked.push(bandId);
@@ -143,6 +151,7 @@ beforeEach(async () => {
   probe = ok(FAN);
   refuseFeed = () => null;
   releasePage = datedPage;
+  followed = [];
 });
 
 describe('the feed walk', () => {
@@ -218,6 +227,27 @@ describe('the feed walk', () => {
     const moved = seen.findIndex((state) => state.lastSuccessAt !== before);
     assert.equal(moved, dating - 1, 'it moves once the feed ends, not on an answer and not at the turn end');
     assert.ok((seen[moved]?.lastSuccessAt ?? 0) > (before ?? 0));
+    assert.equal(gather.lastSuccessAt, seen[moved]?.lastSuccessAt, 'the release pages after the feed do not move it');
+  });
+
+  test('a turn whose feed request fails leaves the last success where it was, whatever landed before it', async () => {
+    // A first walk: the follow list and the poke land, then the first feed request fails.
+    followed = [1, 2];
+    feed = stories(3, 1000);
+    refuseFeed = () => ({ kind: 'error', status: 503 });
+    assert.equal((await turn()).outcome, 'failed');
+    assert.equal(gather.lastSuccessAt, null);
+
+    refuseFeed = () => null;
+    await turn();
+    const read = gather.lastSuccessAt;
+    assert.notEqual(read, null);
+
+    // Caught up: the poke lands and the poll's page fails.
+    clock += 15 * 60_000;
+    refuseFeed = () => ({ kind: 'unreachable' });
+    assert.equal((await turn(600_000, 'refresh')).outcome, 'failed');
+    assert.equal(gather.lastSuccessAt, read);
   });
 });
 

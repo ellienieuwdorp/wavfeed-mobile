@@ -9,16 +9,16 @@
  * rest of the sweep. A list that fails is noted and the walk still runs; a feed page or a depth probe Bandcamp answers
  * with an error fails the turn before the release pages and the rest of the sweep, since a 403, 429 or 5xx asks for
  * fewer requests (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app
- * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` moves once the feed
- * step ends and again when the turn does, never per answer: a pull to refresh lets its spinner go when it moves
- * (state/refresh.ts).
+ * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of the
+ * feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer landed,
+ * and a pull to refresh lets its spinner go when it moves (state/refresh.ts; task 0046, decision 2).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
 import { storedTralbum } from '../domain/releasePage';
 import { newlyOutTracks } from '../domain/tralbumTracks';
 import { type BandcampAnswer, type BandcampDocument, type Identity, originOf } from '../bandcamp/wire';
-import type { ReleaseKey } from '../domain/endpoints';
+import { FEED_UPDATES_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
 import type { DueRelease } from '../store/enrichment';
 import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type StorySample, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
@@ -79,8 +79,11 @@ type Ctx = {
   readonly now: () => number;
   readonly budgetMs: number;
   deadline: number;
-  /** When this turn's last Raw Document landed; published as `lastSuccessAt` after the feed and at the turn's end. */
-  landedAt: number | null;
+  /**
+   * When this turn's last feed answer landed, a `fan_dash_feed_updates` page or a depth probe answer; published as
+   * `lastSuccessAt` once the feed step ends `done` or `pending` (task 0046, decision 2).
+   */
+  feedReadAt: number | null;
 };
 
 type Step = 'go' | 'paused' | 'unreachable';
@@ -108,7 +111,7 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     now: options.now,
     budgetMs: options.budgetMs,
     deadline: options.now() + options.budgetMs,
-    landedAt: null,
+    feedReadAt: null,
   };
   let summary: TurnSummary;
   try {
@@ -122,18 +125,14 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
       walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null,
       status: outcome === 'failed' ? after.lastStatus : null,
     };
-    await sink.patchGatherState({ phase: 'idle', ...landed(ctx) });
+    await sink.patchGatherState({ phase: 'idle' });
   } catch (error) {
     // The sink threw: a store message, never a Bandcamp body (the session returns values).
     console.warn('gather turn stopped on the store:', error instanceof Error ? error.message : String(error));
-    await sink.patchGatherState({ lastError: 'store_error', lastStatus: null, phase: 'idle', ...landed(ctx) }).catch(() => undefined);
+    await sink.patchGatherState({ lastError: 'store_error', lastStatus: null, phase: 'idle' }).catch(() => undefined);
     summary = { reason: options.reason, outcome: 'failed', walkPending: false, status: null };
   }
   return summary;
-}
-
-function landed(ctx: Ctx): Partial<GatherState> {
-  return ctx.landedAt === null ? {} : { lastSuccessAt: ctx.landedAt };
 }
 
 /**
@@ -173,7 +172,8 @@ async function settle(ctx: Ctx, what: string, answer: Refusal): Promise<FeedEnd>
 
 async function store(ctx: Ctx, doc: BandcampDocument): Promise<boolean> {
   const { deduped } = await ctx.sink.putRaw(doc);
-  ctx.landedAt = ctx.now();
+  // The walk's pages and the depth probe's answers share the endpoint; the poke's page does not (task 0046, decision 2).
+  if (doc.endpoint === FEED_UPDATES_ENDPOINT) ctx.feedReadAt = ctx.now();
   return deduped;
 }
 
@@ -235,7 +235,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   const feed = await runFeed(ctx, identity, queued * RELEASE_PAGE_RESERVE_MS);
   if (feed === 'paused') return 'paused';
   if (feed === 'unreachable' || feed === 'error') return 'failed';
-  if (ctx.landedAt !== null) await sink.patchGatherState({ lastSuccessAt: ctx.landedAt });
+  if (ctx.feedReadAt !== null) await sink.patchGatherState({ lastSuccessAt: ctx.feedReadAt });
 
   if (!outOfBudget(ctx)) await runReleasePages(ctx, dating);
   if (!outOfBudget(ctx)) await runSweep(ctx, SWEEP_TURN_MAX - swept);
