@@ -3,6 +3,7 @@
  * Every Track the page names is listed, those not out yet marked so (task 0041, decision 5).
  * Ported from server/packages/bandcamp/src/tralbumTracks.ts (task 0036).
  */
+import { asRecord } from './wire';
 
 export type TralbumTrack = {
   /** Null only on a Track not out: the page a phone is served names it by title and number alone. */
@@ -23,10 +24,6 @@ export type PlayingTrack = TralbumTrack & { readonly trackId: string; readonly s
 
 function plays(track: TralbumTrack): track is PlayingTrack {
   return track.trackId !== null && track.streamUrl !== null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 /** Bandcamp writes these flags as `1`, `null` or `true`. */
@@ -68,7 +65,7 @@ export function readTralbumTracks(tralbum: unknown): readonly TralbumTrack[] {
   const tracks: TralbumTrack[] = [];
   for (const [index, value] of trackinfo.entries()) {
     const entry = asRecord(value);
-    if (entry === null) continue;
+    if (entry === undefined) continue;
     const trackId = readId(entry.id) ?? readId(entry.track_id);
     const trackNum =
       typeof entry.track_num === 'number' && Number.isFinite(entry.track_num) ? Math.trunc(entry.track_num) : index + 1;

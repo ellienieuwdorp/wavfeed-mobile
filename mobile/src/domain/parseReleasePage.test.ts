@@ -143,6 +143,14 @@ describe('parseReleasePage', () => {
     assert.deepEqual([parsed.numStreamableTracks, parsed.numTracks], [null, null]);
   });
 
+  test('drops a track list entry that is a list, which a pre-order would otherwise count as a Track not out', () => {
+    const blob = preorderTralbumBlob();
+    const tralbum = { ...blob, trackinfo: [...(blob.trackinfo as unknown[]), ['Low Tide', 314.52]] };
+    const parsed = parseReleasePage(releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum }));
+
+    assert.deepEqual([parsed.numStreamableTracks, parsed.numTracks], [1, 4]);
+  });
+
   test('refuses a payload that is not a release page, or a page that names no Release', () => {
     const payloads: readonly unknown[] = [
       undefined,
