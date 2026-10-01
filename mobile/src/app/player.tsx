@@ -22,14 +22,16 @@ import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/compone
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { Tracklist } from '@/components/player/Tracklist';
 import { SELF_RELEASED, sep } from '@/copy';
+import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
-import { useSampleStart } from '@/dev/useSampleData';
 import { formatDatePart, releaseDay } from '@/lib/dates';
 import { playerCopy } from '@/player/copy';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
+
+const useSampleStart = sampleRig?.useSampleStart ?? ((_on: boolean) => undefined);
 
 const SIDE = 24;
 const GAP = 18;

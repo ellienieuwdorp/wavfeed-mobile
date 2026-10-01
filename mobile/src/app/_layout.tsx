@@ -15,7 +15,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
 import { AppFailed } from '@/components/Failed';
@@ -23,8 +23,8 @@ import { FirstRunAsk } from '@/components/FirstRunAsk';
 import { NoticeProvider } from '@/components/noticeState';
 import { PlayerProvider } from '@/components/player/playerState';
 import { copy } from '@/copy';
+import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
-import { SampleGate } from '@/dev/useSampleData';
 import { AppStateProvider, useAppState } from '@/state/appState';
 import { GatherSchedule, runner } from '@/state/gather';
 import { errorReports, installErrorCapture } from '@/tally/errors';
@@ -33,6 +33,8 @@ import { screenFor } from '@/tally/tally';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
+
+const SampleGate = sampleRig?.SampleGate ?? (({ children }: { children: ReactNode }) => children);
 
 installErrorCapture();
 

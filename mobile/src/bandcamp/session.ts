@@ -236,8 +236,9 @@ export class BandcampSession {
   }
 
   private async sendNow(url: string, spec: SendSpec): Promise<Wire | null> {
-    // The rig's sample Fan and items never reach Bandcamp: every call answers as unreachable (ADR-0001, ADR-0016).
-    if (SAMPLE_MODE) return null;
+    // The rig's sample Fan and items never reach Bandcamp: every call answers as unreachable (ADR-0001, ADR-0016); the
+    // literal `__DEV__` folds the check out of a release bundle (review ARCH-5).
+    if (__DEV__ && SAMPLE_MODE) return null;
     if (this.lastDoneAt !== null) {
       const gap = PACING_MIN_MS + Math.floor(Math.random() * (PACING_MAX_MS - PACING_MIN_MS));
       const wait = this.lastDoneAt + gap - Date.now();
