@@ -25,6 +25,7 @@ import { useDockClearance } from '@/components/player/Dock';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
+import { Type } from '@/components/Type';
 import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
 import { isDemoFan } from '@/demo/demo';
 import { fanInitials, sizedImageUrl } from '@/lib/format';
@@ -212,7 +213,7 @@ export default function Settings() {
         leading={<Dot colour={c.online} />}
         title={s.signedInAs(handle)}
         sub={ios ? undefined : (busy && s.phase(gather.phase)) || gatheredAgo}
-        trailing={ios ? <Text style={{ flexShrink: 1, maxWidth: '45%', textAlign: 'right', fontSize: 15, color: c.sub }}>{gatheredAgo}</Text> : undefined}
+        trailing={ios ? <Type style={{ flexShrink: 1, maxWidth: '45%', textAlign: 'right', fontSize: 15, color: c.sub }}>{gatheredAgo}</Type> : undefined}
       />
     ) : status === 'signedOut' ? (
       <Cell
@@ -305,8 +306,8 @@ export default function Settings() {
               leading={<Glyph name="phone" size={ios ? 20 : 24} weight="regular" colour={c.sub} />}
               title={
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: c.accentText, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Text>
+                  <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Type>
+                  <Type style={{ fontSize: 11, fontWeight: '600', color: c.accentText, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Type>
                 </View>
               }
               sub={[held?.addedAt != null ? s.added(new Date(held.addedAt), now) : null, gather.lastSuccessAt === null ? null : gatheredAgo].filter(Boolean).join(sep) || undefined}

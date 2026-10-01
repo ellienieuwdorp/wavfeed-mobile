@@ -3,12 +3,13 @@
  * grouped list, cards at the system corner radius with 17pt rows of at least 44pt, separators starting at the text
  * edge, the grey press flash and a chevron on rows that open something; on Android a flat Material list with accent
  * section heads and the ripple, and Material's small round buttons (filled, tonal, outlined) where the canvas draws
- * actions as buttons.
+ * actions as buttons. Row and group text grows as row facts, up to the row cap (review VIS-1).
  */
 import { Children, createContext, useContext, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type AccessibilityRole } from 'react-native';
 
 import { Glyph } from '@/components/Glyph';
+import { Type } from '@/components/Type';
 import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
@@ -24,16 +25,16 @@ const FirstInGroup = createContext(true);
 export function GroupHead({ label }: { label: string }) {
   const { c } = useTokens();
   return ios ? (
-    <Text accessibilityRole="header" style={{ fontSize: 13, color: c.sub, textTransform: 'uppercase', paddingHorizontal: MARGIN + INSET, paddingTop: 24, paddingBottom: 7 }}>{label}</Text>
+    <Type accessibilityRole="header" style={{ fontSize: 13, color: c.sub, textTransform: 'uppercase', paddingHorizontal: MARGIN + INSET, paddingTop: 24, paddingBottom: 7 }}>{label}</Type>
   ) : (
-    <Text accessibilityRole="header" style={{ fontSize: 14, fontWeight: '500', color: c.accentText, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>{label}</Text>
+    <Type accessibilityRole="header" style={{ fontSize: 14, fontWeight: '500', color: c.accentText, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>{label}</Type>
   );
 }
 
 export function GroupFoot({ text }: { text: string }) {
   const { c } = useTokens();
   if (text === '') return null;
-  return <Text style={ios ? { fontSize: 13, color: c.sub, paddingHorizontal: MARGIN + INSET, paddingTop: 7 } : { fontSize: 14, color: c.sub, paddingHorizontal: 16, paddingBottom: 8 }}>{text}</Text>;
+  return <Type style={ios ? { fontSize: 13, color: c.sub, paddingHorizontal: MARGIN + INSET, paddingTop: 7 } : { fontSize: 14, color: c.sub, paddingHorizontal: 16, paddingBottom: 8 }}>{text}</Type>;
 }
 
 export function Group({ children, gapAbove = false }: { children: ReactNode; gapAbove?: boolean }) {
@@ -91,8 +92,8 @@ export function Cell({
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: ios ? 44 : 56, paddingRight: INSET }}>
         {ios && !first ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: c.border }} /> : null}
         <View style={{ flex: 1, gap: 2, paddingVertical: ios ? 11 : 8 }}>
-          {typeof title === 'string' ? <Text style={{ fontSize: ios ? 17 : 16, color: colour }}>{title}</Text> : title}
-          {sub ? <Text style={{ fontSize: ios ? 13 : 14, color: c.sub }}>{sub}</Text> : null}
+          {typeof title === 'string' ? <Type style={{ fontSize: ios ? 17 : 16, color: colour }}>{title}</Type> : title}
+          {sub ? <Type style={{ fontSize: ios ? 13 : 14, color: c.sub }}>{sub}</Type> : null}
         </View>
         {trailing}
         {navigates && ios ? <Glyph name="chevron" size={13} colour={c.faint} /> : null}
