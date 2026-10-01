@@ -35,6 +35,7 @@ function render({ item }: { item: Item }) {
         <ReleaseRow
           release={item.release}
           spoken={spokenFacts([item.count, item.out])}
+          facts={spokenFacts([item.release.label ?? SELF_RELEASED, item.count, actorSentence(item.release), item.out])}
           detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, item.count, actorSentence(item.release)]} trailing={item.day} />}
         />
       );

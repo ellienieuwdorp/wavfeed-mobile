@@ -49,8 +49,10 @@ function render({ item }: { item: Item }) {
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'gap':
       return <GapRow text={item.text} />;
-    case 'release':
-      return <ReleaseRow release={item.release} detail={<FactLine parts={[item.release.label ?? SELF_RELEASED, actorSentence(item.release)]} trailing={item.day} />} />;
+    case 'release': {
+      const parts = [item.release.label ?? SELF_RELEASED, actorSentence(item.release)];
+      return <ReleaseRow release={item.release} facts={spokenFacts([...parts, item.day])} detail={<FactLine parts={parts} trailing={item.day} />} />;
+    }
     case 'drop': {
       const facts = [item.count, item.out];
       return <ReleaseRow release={item.release} from={item.from} spoken={spokenFacts(facts)} detail={<FactLine parts={facts} />} />;

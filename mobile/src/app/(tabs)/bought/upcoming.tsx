@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
-import { Buyers } from '@/components/Buyers';
+import { Buyers, buyersFacts } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
@@ -37,6 +37,8 @@ function render({ item }: { item: Item }) {
         <ReleaseRow
           release={item.release}
           spoken={spokenFacts([item.count, item.out])}
+          facts={buyersFacts(item.release, item.count, item.out)}
+          boughtBy={item.release.buyers}
           detail={<Buyers release={item.release} fact={item.count} trailing={item.day} />}
         />
       );

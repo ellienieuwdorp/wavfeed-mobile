@@ -11,7 +11,7 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } fro
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { useAppBar } from '@/components/AppBar';
-import { Buyers } from '@/components/Buyers';
+import { Buyers, buyersFacts } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { MenuSelect } from '@/components/MenuSelect';
@@ -176,7 +176,7 @@ function Header({ choice, switching, setMode, setThreshold }: { choice: Choice; 
 
 /** A cell re-rendered for its index or a rebuilt item ("Show all" shifts every cell after it) keeps its row while the Release is the same. */
 const BoughtRow = memo(function BoughtRow({ release }: { release: ApiFeedItem }) {
-  return <ReleaseRow release={release} detail={<Buyers release={release} />} />;
+  return <ReleaseRow release={release} facts={buyersFacts(release)} boughtBy={release.buyers} detail={<Buyers release={release} />} />;
 });
 
 function ShowAll({ label, onPress }: { label: string; onPress: () => void }) {

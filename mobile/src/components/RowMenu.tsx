@@ -4,25 +4,30 @@
  * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
  * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
  * wishlist item runs the heart's own press (ADR-0016) and is greyed whenever the heart would take no press. Only an
- * https address from the wire is opened or shared, and an open is counted as a hand-off (task 0038).
+ * https address from the wire is opened or shared, and an open is counted as a hand-off (task 0038). The same items,
+ * with Bought by where the row draws who bought it, are the screen reader's actions on the row and on its art
+ * (rowActions.ts, VIS-9 and FLOW-13): the render prop's second argument, and `useSpokenActions` under it.
  */
 import { Box, DropdownMenu, DropdownMenuItem, Host as ComposeHost, Text as ComposeText } from '@expo/ui/jetpack-compose';
 import { fillMaxSize } from '@expo/ui/jetpack-compose/modifiers';
 import { Button, ContextMenu, Host, RNHostView } from '@expo/ui/swift-ui';
 import { disabled } from '@expo/ui/swift-ui/modifiers';
 import { openURL } from 'expo-linking';
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import { ActionSheetIOS, Platform, Pressable, Share, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { copy } from '@/copy';
+import type { ApiFanRef } from '@/domain/apiTypes';
 import { webUrl } from '@/lib/format';
 import { useSharing } from '@/tally/Sharing';
 import { useTokens } from '@/theme/tokens';
 import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
 
+import { openBoughtBy } from './AvatarStack';
 import { usePlay, type RowRelease } from './playable';
 import { usePlayerActions } from './player/playerState';
+import { PLAY_ACTION, spokenActions, type RowAction, type SpokenActions } from './rowActions';
 
 const ios = Platform.OS === 'ios';
 // ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9 (task 0036). Its native
@@ -31,7 +36,7 @@ const ios = Platform.OS === 'ios';
 // true again once the app runs on a native side carrying that fix, a dev build or a later Expo Go.
 const IOS_CONTEXT_MENU = false;
 
-type Action = { key: string; label: string; icon: SFSymbol; enabled: boolean; run: () => void };
+type Action = RowAction & { icon: SFSymbol };
 
 /** The row takes this for its `onLongPress`: it opens the menu, except under SwiftUI's, where it only keeps a held press from playing. */
 export type OpenMenu = () => void;
@@ -50,7 +55,7 @@ function useRowActions(release: RowRelease): readonly Action[] {
   const key = { itemType: release.itemType, itemId: release.itemId };
   const target: WishlistTarget = { ...key, release: key };
   return [
-    { key: 'play', label: copy.rowMenu.play, icon: 'play', enabled: true, run: () => play(release) },
+    { key: PLAY_ACTION, label: copy.rowMenu.play, icon: 'play', enabled: true, run: () => play(release) },
     {
       key: 'wishlist',
       label: wishlisted ? copy.rowMenu.remove : copy.rowMenu.add,
@@ -160,10 +165,29 @@ export function RowSurface({ open, style, children }: { open: OpenMenu; style: S
   );
 }
 
-/** `children` draws the row, handing `onLongPress` to its own Pressable. */
-export function RowMenu({ release, width, children }: { release: RowRelease; width: number; children: (open: OpenMenu) => ReactElement }) {
+const SpokenContext = createContext<SpokenActions | undefined>(undefined);
+
+/** The screen reader's actions of the RowMenu around it, for a control it does not draw itself (PlayArt). */
+export function useSpokenActions(): SpokenActions | undefined {
+  return useContext(SpokenContext);
+}
+
+type RowMenuProps = {
+  release: RowRelease;
+  width: number;
+  /** The Fans the row's faces name, which a screen reader reaches as the Bought by action. */
+  boughtBy?: readonly ApiFanRef[];
+  /** Draws the row, handing `open` to its own Pressable's `onLongPress` and `spoken` to its screen reader element. */
+  children: (open: OpenMenu, spoken: SpokenActions) => ReactElement;
+};
+
+export function RowMenu({ release, width, boughtBy, children }: RowMenuProps) {
   const actions = useRowActions(release);
-  if (!ios) return <AnchoredMenu actions={actions}>{children}</AnchoredMenu>;
-  if (!IOS_CONTEXT_MENU) return children(() => showSheet(release.title, actions));
-  return <SystemMenu actions={actions} width={width} child={children(keepHeld)} />;
+  const fans = boughtBy ?? [];
+  const spoken = spokenActions(fans.length === 0 ? actions : [...actions, { key: 'bought_by', label: copy.boughtBy.title, enabled: true, run: () => openBoughtBy(fans) }]);
+  let menu: ReactElement;
+  if (!ios) menu = <AnchoredMenu actions={actions}>{(open) => children(open, spoken)}</AnchoredMenu>;
+  else if (!IOS_CONTEXT_MENU) menu = children(() => showSheet(release.title, actions), spoken);
+  else menu = <SystemMenu actions={actions} width={width} child={children(keepHeld, spoken)} />;
+  return <SpokenContext.Provider value={spoken}>{menu}</SpokenContext.Provider>;
 }

@@ -5,9 +5,10 @@
  * after the scrolling lists' short press delay. Art at CORNER_MIN or larger carries a small play badge in its corner,
  * accent filled while its Release is the one in the transport; smaller art draws the state only while it is that one,
  * as a scrim with the glyph. Pause shows while the transport plays or loads (showsPause), play otherwise, a dead
- * Release included, since a press on it asks again. Only the art in the transport reads usePlayer; every other one reads
- * the Release alone, whose identity changes only when another Release plays. Nothing above it may be a Pressable taking
- * the tap (RowSurface in RowMenu.tsx); `children` draw under the art inside the same control, as a cover's captions do.
+ * Release included, since a press on it asks again. Only the art in the transport reads usePlayer (useArtState); every
+ * other one reads the Release alone, whose identity changes only when another Release plays. Nothing above it may be a
+ * Pressable taking the tap (RowSurface in RowMenu.tsx); `children` draw under the art inside the same control, as a
+ * cover's captions do. A screen reader finds the row menu's items as its actions (VIS-9, FLOW-13).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useLayoutEffect, useState, type ReactNode } from 'react';
@@ -24,7 +25,7 @@ import { Glyph, type GlyphName } from './Glyph';
 import { showsPause } from './player/MiniPlayer';
 import { usePlayer, usePlayerRelease, type PlayableRelease } from './player/playerState';
 import { playableItemType, usePlay, type RowRelease } from './playable';
-import type { OpenMenu } from './RowMenu';
+import { useSpokenActions, type OpenMenu } from './RowMenu';
 
 /** The smallest art with room for a corner badge: the Feed's covers and cards have it, its quotes and the list rows do not. */
 const CORNER_MIN = 80;
@@ -77,22 +78,31 @@ function Scrim({ size, radius, glyph }: { size: number; radius: number; glyph: G
   );
 }
 
-/** Mounted only on the art in the transport: draws its state and hands pause up for the label, before paint. */
-function Live({ size, radius, onPause }: { size: number; radius: number; onPause: (pause: boolean) => void }) {
+/** Mounted only for the Release in the transport: hands pause up before paint, so the glyph and the label never lag. */
+function PauseWatch({ onPause }: { onPause: (pause: boolean) => void }) {
   const pause = showsPause(usePlayer());
   useLayoutEffect(() => onPause(pause), [pause, onPause]);
-  const glyph = pause ? 'pause' : 'play';
-  return size >= CORNER_MIN ? <Corner size={size} glyph={glyph} live /> : <Scrim size={size} radius={radius} glyph={glyph} />;
+  return null;
+}
+
+export type ArtState = { live: boolean; pause: boolean; watch: ReactNode };
+
+/** Whether `release` is the one in the transport and shows pause; render `watch` to keep `pause` current. */
+export function useArtState(release: RowRelease): ArtState {
+  const live = isCurrent(usePlayerRelease(), release);
+  const [pause, setPause] = useState(false);
+  return { live, pause: live && pause, watch: live ? <PauseWatch onPause={setPause} /> : null };
 }
 
 export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitSlop, style, children }: Props) {
   const play = usePlay();
-  const live = isCurrent(usePlayerRelease(), release);
-  const [pause, setPause] = useState(false);
+  const { live, pause, watch } = useArtState(release);
+  const actions = useSpokenActions();
   const { progress, onPressIn, onPressOut } = usePressMotion();
   const reduced = useReduceMotion();
   const lift = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : 1 - (1 - PRESS_SCALE) * progress.get() }] }));
   const shade = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) * PRESS_SHADE }));
+  const glyph = pause ? 'pause' : 'play';
   return (
     <Pressable
       onPress={() => play(release, from)}
@@ -102,13 +112,15 @@ export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitS
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       hitSlop={hitSlop}
       accessibilityRole="button"
-      accessibilityLabel={live && pause ? copy.pause(release.title, spoken) : copy.play(release.title, spoken)}
+      accessibilityLabel={pause ? copy.pause(release.title, spoken) : copy.play(release.title, spoken)}
+      {...actions}
       style={style}
     >
+      {watch}
       <Animated.View style={[{ width: size, height: size }, lift]}>
         <Artwork hue={hueFor(release.itemId)} url={releaseArtUrl(release.artId)} size={size} radius={radius} />
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: SHADE }, shade]} />
-        {live ? <Live size={size} radius={radius} onPause={setPause} /> : size >= CORNER_MIN ? <Corner size={size} glyph="play" live={false} /> : null}
+        {size >= CORNER_MIN ? <Corner size={size} glyph={glyph} live={live} /> : live ? <Scrim size={size} radius={radius} glyph={glyph} /> : null}
       </Animated.View>
       {children}
     </Pressable>
