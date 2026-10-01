@@ -1,7 +1,7 @@
 /**
  * The heart's truth and its press (DESIGN-UI section 12, ADR-0016, task 0036). Membership is `wishlist_items` as the
- * Projection last folded it, read once per store version into one set every heart shares. A press is one Wishlist
- * Action run on the device: the crumb read off the Release's page, or off the newest Story's Release on bandcamp.com
+ * Projection last folded it, read once per store version into one set every heart shares (`membership.ts`). A press is
+ * one Wishlist Action run on the device: the crumb read off the Release's page, or off the newest Story's Release on bandcamp.com
  * when it sits on a custom domain, and the write through the session (ADR-0016 amendment 2026-09-28), every response
  * through `putRaw` before the outcome is acted on (ADR-0004), then the item written into or out of `wishlist_items`
  * here, because the Projection folds only the wishlist walk and never a collect answer. A rebuild therefore forgets a press until the next walk brings it back.
@@ -27,11 +27,12 @@ import { devLog } from '@/lib/devLog';
 import { webUrl } from '@/lib/format';
 import { useAppState, type AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
-import { readNewestBandcampReleaseUrl, readTracklist, readWishlistState } from '@/store/queries';
+import { readNewestBandcampReleaseUrl, readTracklist } from '@/store/queries';
 import { connectHref, wishlistActionFinished, type PressSurface } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
 
 import { wishlistCopy } from './copy';
+import { keyOf, loadMembership, membershipOf, patchMembership, pendingOf, setPending, subscribe } from './membership';
 
 /** What a press acts on, and the Release whose Page the write has to name. */
 export type WishlistTarget = {
@@ -42,7 +43,6 @@ export type WishlistTarget = {
 
 export type Membership = { readonly known: false } | { readonly known: true; readonly wishlisted: boolean };
 
-type Held = { readonly db: SQLiteDatabase; readonly version: number; readonly keys: ReadonlySet<string> };
 export type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
 type BandSource = 'page' | 'fetched_page' | 'row';
 type Sent = {
@@ -54,67 +54,20 @@ type Sent = {
   readonly url?: string;
 };
 
-let held: Held | null = null;
-let pending: ReadonlyMap<string, WishlistWriteKind> = new Map();
-let generation = 0;
-const listeners = new Set<() => void>();
-
-function keyOf(itemType: ItemType, itemId: string): string {
-  return `${itemType}:${itemId}`;
-}
-
-function notify() {
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function load(db: SQLiteDatabase, version: number) {
-  if (held !== null && held.db === db && held.version >= version) return;
-  const started = generation;
-  void readWishlistState(db).then(
-    (answer) => {
-      if (started !== generation || (held !== null && held.db === db && held.version >= version)) return;
-      held = { db, version, keys: new Set(answer.items.map((item) => keyOf(item.itemType, item.itemId))) };
-      notify();
-    },
-    () => undefined,
-  );
-}
-
-function patch(key: string, on: boolean) {
-  if (held === null) return;
-  const keys = new Set(held.keys);
-  if (on) keys.add(key);
-  else keys.delete(key);
-  generation += 1;
-  held = { ...held, keys };
-  notify();
-}
-
-function setPending(key: string, action: WishlistWriteKind | null) {
-  const next = new Map(pending);
-  if (action === null) next.delete(key);
-  else next.set(key, action);
-  pending = next;
-  notify();
-}
-
+/** Each heart selects its own key's answer, so only the hearts a load or a press moves re-render (finding TECH-M1). */
 export function useMembership(itemType: ItemType, itemId: string): Membership {
   const { db, version, gather } = useAppState();
-  const snapshot = useSyncExternalStore(subscribe, () => held);
-  useEffect(() => load(db, version), [db, version]);
+  const key = keyOf(itemType, itemId);
+  const answer = useSyncExternalStore(subscribe, () => membershipOf(db, key));
+  useEffect(() => loadMembership(db, version), [db, version]);
   const asked = gather.wishlistFetchedAt !== null || gather.wishlistAskedAt !== null;
-  if (!asked || snapshot === null || snapshot.db !== db) return { known: false };
-  return { known: true, wishlisted: snapshot.keys.has(keyOf(itemType, itemId)) };
+  if (!asked || answer === 'unknown') return { known: false };
+  return { known: true, wishlisted: answer === 'on' };
 }
 
 export function usePendingAction(itemType: ItemType, itemId: string): WishlistWriteKind | null {
-  const map = useSyncExternalStore(subscribe, () => pending);
-  return map.get(keyOf(itemType, itemId)) ?? null;
+  const key = keyOf(itemType, itemId);
+  return useSyncExternalStore(subscribe, () => pendingOf(key));
 }
 
 type Band = { id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null; url: string };
@@ -246,7 +199,7 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
   return useCallback(
     (target, action) => {
       const key = keyOf(target.itemType, target.itemId);
-      if (pending.has(key)) return;
+      if (pendingOf(key) !== null) return;
       setPending(key, action);
       const onTrack = key !== keyOf(target.release.itemType, target.release.itemId);
       let told = false;
@@ -257,7 +210,7 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
           logPress(action, target, sent);
           if (sent.failure !== null) show(noticeFor(sent.failure, sent.reason, sent.url));
           else {
-            patch(key, action === 'add');
+            patchMembership(key, action === 'add');
             app.invalidate();
           }
         })
