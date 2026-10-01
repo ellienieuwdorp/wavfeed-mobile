@@ -12,6 +12,7 @@
  * `toDetail`, never a header, a crumb or a field named like a secret (task 0036, decision 1); a refusal's notice carries
  * that reason when Bandcamp gave one.
  */
+import { openURL } from 'expo-linking';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
@@ -23,6 +24,7 @@ import { isDemoFan } from '@/demo/demo';
 import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { devLog } from '@/lib/devLog';
+import { webUrl } from '@/lib/format';
 import { useAppState, type AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
 import { readNewestBandcampReleaseUrl, readTracklist, readWishlistState } from '@/store/queries';
@@ -48,6 +50,8 @@ type Sent = {
   readonly reason: string | null;
   readonly band: { readonly id: string; readonly from: BandSource } | null;
   readonly wire: WishlistWire | null;
+  /** The Release's page, where a refused press can be made by hand. */
+  readonly url?: string;
 };
 
 let held: Held | null = null;
@@ -184,7 +188,7 @@ async function send(app: AppState, target: WishlistTarget, action: WishlistWrite
   };
   const outcome = action === 'add' ? await app.session.collectItem(item) : await app.session.uncollectItem(item);
   for (const document of outcome.documents) await app.putRaw(document);
-  if (!outcome.ok) return { failure: outcome.failure, reason: outcome.reason, band, wire: outcome.wire };
+  if (!outcome.ok) return { failure: outcome.failure, reason: outcome.reason, band, wire: outcome.wire, url: found.url };
   await writeMembership(app.db, target, band.id, action === 'add');
   return { failure: null, reason: null, band, wire: outcome.wire };
 }
@@ -212,8 +216,11 @@ function logPress(action: WishlistWriteKind, target: WishlistTarget, sent: Sent)
   else console.warn(facts);
 }
 
-function noticeFor(failure: PressFailure | 'other', reason: string | null = null): NoticeLine {
+function noticeFor(failure: PressFailure | 'other', reason: string | null = null, url: string | null = null): NoticeLine {
   const signIn = { onPress: () => router.push(connectHref('wishlist_notice')) };
+  // A refusal leaves the Fan the Release's own page to wishlist it by hand (finding FLOW-17).
+  const page = url === null ? null : webUrl(url);
+  const open = page === null ? {} : { action: { label: wishlistCopy.notice.open, onPress: () => void openURL(page).catch(() => undefined) } };
   switch (failure) {
     case 'logged_out':
       return { code: 'wishlist_failed', text: wishlistCopy.notice.loggedOut, action: { label: copy.notice.signInAgain, ...signIn } };
@@ -222,7 +229,7 @@ function noticeFor(failure: PressFailure | 'other', reason: string | null = null
     case 'bandcamp_unreachable':
       return { code: 'wishlist_failed', text: wishlistCopy.notice.unreachable };
     case 'bandcamp_rejected':
-      return { code: 'wishlist_failed', text: reason === null ? wishlistCopy.notice.rejected : wishlistCopy.notice.rejectedSaying(reason) };
+      return { code: 'wishlist_failed', text: reason === null ? wishlistCopy.notice.rejected : wishlistCopy.notice.rejectedSaying(reason), ...open };
     default:
       return { code: 'wishlist_failed', text: wishlistCopy.notice.other };
   }
@@ -248,7 +255,7 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
           told = true;
           track(wishlistActionFinished({ action, surface, onTrack, failure: sent.failure, wire: sent.wire }));
           logPress(action, target, sent);
-          if (sent.failure !== null) show(noticeFor(sent.failure, sent.reason));
+          if (sent.failure !== null) show(noticeFor(sent.failure, sent.reason, sent.url));
           else {
             patch(key, action === 'add');
             app.invalidate();

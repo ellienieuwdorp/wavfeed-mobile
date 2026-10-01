@@ -2,8 +2,8 @@
  * The first screen (task 0044 decision 4): the whole screen while the store holds no Fan, since the root stack guards
  * every other route behind one (see `_layout.tsx`). The mark, one line on what wavfeed is, Sign in to Bandcamp, which
  * opens Bandcamp's own page as the Connect sheet, "Look around first", which loads the Demo (task 0043 decision 2), and
- * the one line that the sign-in stays on this phone. There is no way past it but those two: either one writes a Fan,
- * the guard lets the tabs in, and this screen goes.
+ * the one line that the sign-in stays on this phone, with a line over it when the Demo did not load. There is no way
+ * past it but those two: either one writes a Fan, the guard lets the tabs in, and this screen goes.
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -30,17 +30,23 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   const app = useAppState();
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const w = copy.welcome;
 
   const lookAround = () => {
     setLoading(true);
+    setFailed(false);
     void (async () => {
       await loadDemo(app.db);
       // The Demo Fan in the gather state is what opens the guard.
       await loadGatherState(app);
       app.invalidate();
     })()
-      .catch((error: unknown) => console.warn('the Demo did not load:', error instanceof Error ? error.message : String(error)))
+      .catch((error: unknown) => {
+        // A failure is never silent (DESIGN-UI section 12, finding FLOW-17): a line under the buttons says so.
+        console.warn('the Demo did not load:', error instanceof Error ? error.message : String(error));
+        setFailed(true);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -61,6 +67,11 @@ export default function Welcome() {
         <WideButton label={w.signIn} kind="filled" onPress={() => router.push(connectHref('first_run'))} />
         <WideButton label={w.lookAround} kind="tonal" busy={loading} onPress={lookAround} />
       </View>
+      {failed ? (
+        <Text accessibilityRole="alert" style={{ fontSize: type.fact, lineHeight: 18, color: c.ink, textAlign: 'center', paddingTop: 16 }}>
+          {w.demoFailed}
+        </Text>
+      ) : null}
       <Text style={{ fontSize: type.fact, lineHeight: 18, color: c.sub, textAlign: 'center', paddingTop: 16 }}>{w.custody}</Text>
     </ScrollView>
   );

@@ -69,6 +69,7 @@ test('every line under a Settings group or on the first screen is two sentences 
     copy.welcome.title,
     copy.welcome.sub,
     copy.welcome.custody,
+    copy.welcome.demoFailed,
     ...copy.usageAsk.body,
   ];
   for (const text of lines) {
@@ -84,7 +85,7 @@ test('the first screen and Settings keep the facts that matter for trust, in the
   assert.match(copy.welcome.sub, /pages you follow/);
   assert.doesNotMatch(copy.welcome.sub, /labels you follow/);
   assert.match(copy.demo.foot, /sample/);
-  for (const text of [copy.welcome.title, copy.welcome.sub, copy.welcome.custody, copy.demo.foot]) {
+  for (const text of [copy.welcome.title, copy.welcome.sub, copy.welcome.custody, copy.welcome.demoFailed, copy.demo.foot]) {
     assert.doesNotMatch(text, /demo|user|sync|scrap|crawl|—/i, text);
   }
 });
