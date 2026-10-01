@@ -1,11 +1,12 @@
 /**
  * Connect Bandcamp, a sheet holding Bandcamp's own login page under a bar with Cancel (task 0036 decision 1, task 0044
  * decision 4). The first screen opens it, and so do Settings' Sign in and the sign-in notices, each naming its door.
- * Each time the page leaves /login the probe asks who is signed in: a Fan this phone's feed does not belong to gets
- * the refusal line and the page stays; a sign-in from the Demo empties the store once the probe names a Fan (task
- * 0043 decision 8); otherwise the sheet closes, then the identity is written and a turn starts, so on a first run the
- * root guard trades the first screen for the tabs with no sheet over them. A page that fails to load raises its own
- * line over it. The rig's sample bundle never opens the login page (ADR-0001). Each visit counts the door it came
+ * After each page that settles off /login the probe asks who is signed in (`probeGate`, finding FLOW-5): a Fan this
+ * phone's feed does not belong to gets the refusal line and the page stays; a sign-in from the Demo empties the store
+ * once the probe names a Fan (task 0043 decision 8); otherwise the sheet closes, then the identity is written and a
+ * turn starts, so on a first run the root guard trades the first screen for the tabs with no sheet over them. A probe
+ * Bandcamp did not answer and a page that failed to load each raise a line with "Try again" (finding FLOW-18). The
+ * rig's sample bundle never opens the login page (ADR-0001). Each visit counts the door it came
  * through (`connect_opened`) and ends in one `sign_in_finished`: signed in, else the last failure line the visit
  * showed, else closed (task 0038, `src/tally/actions.ts`).
  */
@@ -92,21 +93,37 @@ function useVisit(): Visit {
   };
 }
 
+/** A line over the page, with "Try again" when pressing it can help (findings FLOW-5, FLOW-18). */
+type Line = { readonly text: string; readonly retry?: () => void };
+
 function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
   const { c, type } = useTokens();
   const app = useAppState();
-  const [line, setLine] = useState<string | null>(null);
+  const [line, setLine] = useState<Line | null>(null);
+  // A new key remounts the WebView, which loads the sign-in page afresh after one that failed (finding FLOW-5).
+  const [page, setPage] = useState(0);
   const probing = useRef(false);
+  // A page that settles while a probe runs asks once more after it, so the landing behind a detour is never dropped.
+  const again = useRef(false);
+  const retry = (work: () => void) => () => {
+    setLine(null);
+    work();
+  };
 
   const onMaybeSignedIn = async (): Promise<void> => {
-    if (probing.current) return;
+    if (probing.current) {
+      again.current = true;
+      return;
+    }
     probing.current = true;
+    again.current = false;
+    let signedIn = false;
     try {
       const probe = await app.session.probeIdentity();
       if (probe.kind === 'logged_out') return;
       if (probe.kind !== 'ok') {
         visit.fail(probe.kind === 'unreachable' ? 'unreachable' : 'bandcamp_error');
-        setLine(copy.connect.unreachable);
+        setLine({ text: copy.connect.unreachable, retry: retry(() => void onMaybeSignedIn()) });
         return;
       }
       let held = await readStoredIdentity(app.db);
@@ -116,10 +133,11 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       }
       if (held !== null && held.fanId !== probe.value.fanId) {
         visit.fail('other_fan_refused');
-        setLine(copy.connect.refusal(probe.value.username, held.username || held.name || String(held.fanId)));
+        setLine({ text: copy.connect.refusal(probe.value.username, held.username || held.name || String(held.fanId)) });
         return;
       }
       // The sheet goes before the Fan is written, so a first run's guard swaps the first screen for the tabs beneath it.
+      signedIn = true;
       visit.signedIn();
       close();
       await writeIdentity(app.db, probe.value, Date.now());
@@ -128,6 +146,7 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       void app.runGather('open');
     } finally {
       probing.current = false;
+      if (again.current && !signedIn) void onMaybeSignedIn();
     }
   };
 
@@ -141,16 +160,29 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
         }}
       />
       {line !== null ? (
-        <Text accessibilityRole="alert" style={{ fontSize: type.fact, color: c.ink, backgroundColor: c.raised, paddingHorizontal: type.gutter, paddingVertical: 10 }}>
-          {line}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.raised, paddingLeft: type.gutter, paddingRight: line.retry ? 4 : type.gutter }}>
+          <Text accessibilityRole="alert" style={{ flex: 1, fontSize: type.fact, color: c.ink, paddingVertical: 10 }}>
+            {line.text}
+          </Text>
+          {line.retry ? (
+            <Pressable
+              onPress={line.retry}
+              accessibilityRole="button"
+              android_ripple={ripple(c.track)}
+              style={({ pressed }) => ({ minHeight: ios ? 44 : 48, justifyContent: 'center', paddingHorizontal: 12, opacity: pressedOpacity(pressed) })}
+            >
+              <Text style={{ fontSize: type.fact, fontWeight: '600', color: c.accent }}>{copy.connect.tryAgain}</Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
       <View style={{ flex: 1 }}>
         <SignInWebView
+          key={page}
           onMaybeSignedIn={() => void onMaybeSignedIn()}
           onError={(failure) => {
             visit.fail(failure);
-            setLine(copy.connect.pageFailed);
+            setLine({ text: copy.connect.pageFailed, retry: retry(() => setPage((n) => n + 1)) });
           }}
         />
       </View>

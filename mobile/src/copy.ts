@@ -491,8 +491,10 @@ export const copy = {
     host: 'bandcamp.com',
     refusal: (other: string | null, owner: string) =>
       `That is a different Bandcamp account${other === null ? '' : ` (${other})`}. ${ThisDevice}'s feed belongs to ${owner}.`,
-    unreachable: 'Bandcamp did not answer. Try again in a moment.',
-    pageFailed: "Bandcamp's sign-in did not load. Cancel, then try again.",
+    /** Each carries "Try again" beside it: a probe asked again, or the sign-in page loaded afresh (findings FLOW-5, FLOW-18). */
+    unreachable: 'Bandcamp did not answer, so the sign-in is not checked yet.',
+    pageFailed: "Bandcamp's sign-in did not load.",
+    tryAgain: 'Try again',
   },
   /** The Demo's own lines (task 0043): under each large title, and Settings' status and foot while the store holds it. */
   demo: {

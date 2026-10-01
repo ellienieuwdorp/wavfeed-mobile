@@ -1,28 +1,25 @@
 /**
  * Bandcamp's own sign-in and sign-out pages in a WebView sharing the app's cookie jar (task 0036, decision 1): iOS
  * copies the WebView's cookies into `NSHTTPCookieStorage` under `sharedCookiesEnabled`, and Android's `CookieManager`
- * is already React Native's jar. Nothing here reads a cookie; the caller probes to learn whether sign-in took.
+ * is already React Native's jar. Nothing here reads a cookie; the caller probes to learn whether sign-in took, as
+ * often as `probeGate` says (finding FLOW-5).
  */
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { WebView, type WebViewNavigation } from 'react-native-webview';
+import { WebView } from 'react-native-webview';
 
 import { useTokens } from '@/theme/tokens';
 
+import { probeGate, type ProbeGate } from './signInProbe';
+
 export const BANDCAMP_LOGIN_URL = 'https://bandcamp.com/login';
 export const BANDCAMP_LOGOUT_URL = 'https://bandcamp.com/logout';
-
-const LOGIN_PAGE = /^https:\/\/([a-z0-9-]+\.)*bandcamp\.com\/login\/?([?#]|$)/i;
-
-export function isLoginPage(url: string): boolean {
-  return LOGIN_PAGE.test(url);
-}
 
 /** Why the sign-in page did not show: a code, never the WebView's description (ADR-0003). */
 export type SignInFailure = 'page_failed';
 
 type SignInProps = {
-  /** Called each time the page leaves `/login`. */
+  /** Called once for each page that settles anywhere but `/login`. */
   readonly onMaybeSignedIn: () => void;
   /** Called when a load fails below HTTP (offline, no DNS, TLS); redirects the WebView cancels do not count. */
   readonly onError: (failure: SignInFailure) => void;
@@ -30,22 +27,25 @@ type SignInProps = {
 
 export function SignInWebView({ onMaybeSignedIn, onError }: SignInProps) {
   const { c } = useTokens();
-  const onLogin = useRef(true);
-  const onNavigationStateChange = (state: WebViewNavigation): void => {
-    if (state.loading) return;
-    if (isLoginPage(state.url)) {
-      onLogin.current = true;
-    } else if (onLogin.current) {
-      onLogin.current = false;
-      onMaybeSignedIn();
-    }
-  };
+  const latest = useRef(onMaybeSignedIn);
+  useEffect(() => {
+    latest.current = onMaybeSignedIn;
+  });
+  const gate = useRef<ProbeGate | null>(null);
+  useEffect(() => {
+    const opened = probeGate(() => latest.current());
+    gate.current = opened;
+    return () => {
+      opened.cancel();
+      gate.current = null;
+    };
+  }, []);
   return (
     <WebView
       source={{ uri: BANDCAMP_LOGIN_URL }}
       sharedCookiesEnabled
       thirdPartyCookiesEnabled
-      onNavigationStateChange={onNavigationStateChange}
+      onNavigationStateChange={(state) => gate.current?.navigated(state)}
       onError={() => onError('page_failed')}
       // The library's error view prints the platform's error domain, code and text; the caller's line speaks instead.
       renderError={() => <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]} />}
