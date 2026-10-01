@@ -496,7 +496,8 @@ export const copy = {
   },
   /**
    * What shows in place of what failed (task 0038 decision 10): a tab's screen that could not draw, the whole app when
-   * the root could not, and the store that would not open, which sends nothing by itself (decision 11).
+   * the root could not, and the store that would not open, which sends nothing by itself (decision 11). Its body and
+   * the start-over lines are proposed copy (review REL-4, DESIGN-UI section 8).
    */
   failed: {
     screenTitle: 'This screen did not load',
@@ -505,10 +506,23 @@ export const copy = {
     appBody: 'Trying again usually helps. If it keeps happening, close wavfeed and open it again.',
     tryAgain: 'Try again',
     storeTitle: `${ThisDevice} could not open what wavfeed gathered.`,
-    storeBody: 'Restarting the app usually helps. If it keeps happening, send a report and a person will look.',
+    storeBody: 'Try again once. If it fails the same way, send a report so a person can look, or start over with an empty feed.',
     sendReport: 'Send a report by email',
     reportSubject: 'wavfeed could not open',
-    reportBody: (facts: FeedbackFacts) => `\n\n${joinMiddot(['store_open_failed', versionLine(facts.version, facts.build), facts.os])}`,
+    /** The cause is the Error Report's scrubbed name and message, in a mail the person reads before sending. */
+    reportBody: (facts: FeedbackFacts, cause: { readonly name: string; readonly message: string } | null) =>
+      `\n\n${joinMiddot([
+        'store_open_failed',
+        cause === null ? null : [cause.name, cause.message].filter(Boolean).join(': '),
+        versionLine(facts.version, facts.build),
+        facts.os,
+      ])}`,
+    startOver: 'Start over',
+    startOverTitle: `Start over on ${thisDevice}?`,
+    startOverBody: `Everything wavfeed gathered leaves ${thisDevice}, and it opens on its first screen. Bandcamp is not touched.`,
+    startOverConfirm: 'Start over',
+    startOverFailed: 'That did not work either. Close wavfeed, open it again, then start over once more.',
+    cancel: 'Cancel',
   },
   /** Dev builds only, never a release screen: the author's view of what the store holds (settings/index.tsx). */
   dev: {

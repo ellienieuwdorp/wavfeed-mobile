@@ -10,8 +10,8 @@ import type { ErrorBoundaryProps } from 'expo-router';
 import { useRouteNode } from 'expo-router/build/Route';
 import { openURL } from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, type ReactNode } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBarTitle, useAppBarAtRest } from '@/components/AppBar';
@@ -19,6 +19,7 @@ import { WideButton } from '@/components/WideButton';
 import { copy, FEEDBACK_ADDRESS } from '@/copy';
 import type { Screen } from '@/tally/catalogue';
 import { feedbackFacts } from '@/tally/appFacts';
+import { buildErrorReport } from '@/tally/errorReport';
 import { errorReports } from '@/tally/errors';
 import { screenForRoute } from '@/tally/tally';
 import { useTokens } from '@/theme/tokens';
@@ -80,15 +81,37 @@ export function AppFailed({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
-export function StoreFailed({ onRetry }: { onRetry: () => void }) {
+type StoreFailedProps = {
+  readonly error: unknown;
+  readonly onRetry: () => void;
+  /** Deletes the store file and opens a fresh one; rejects when the file would not go. */
+  readonly onStartOver: () => Promise<void>;
+};
+
+/**
+ * The store that would not open (review REL-4): "Try again" for a passing cause, the mail with the cause scrubbed as an
+ * Error Report's would be (task 0038 decision 11 sends nothing by itself), and "Start over" after a confirm for a cause
+ * that fails the same way on every open.
+ */
+export function StoreFailed({ error, onRetry, onStartOver }: StoreFailedProps) {
+  const [stuck, setStuck] = useState(false);
   const mail = () => {
-    const query = `subject=${encodeURIComponent(f.reportSubject)}&body=${encodeURIComponent(f.reportBody(feedbackFacts(null)))}`;
+    const at = { t: Date.now(), source: 'code', fatal: false, screen: 'other', code: 'store_open_failed' } as const;
+    const { name, message } = buildErrorReport(error, at);
+    const body = f.reportBody(feedbackFacts(null), { name, message });
+    const query = `subject=${encodeURIComponent(f.reportSubject)}&body=${encodeURIComponent(body)}`;
     openURL(`mailto:${FEEDBACK_ADDRESS}?${query}`).catch(() => undefined);
   };
+  const startOver = () =>
+    Alert.alert(f.startOverTitle, f.startOverBody, [
+      { text: f.cancel, style: 'cancel' },
+      { text: f.startOverConfirm, style: 'destructive', onPress: () => void onStartOver().catch(() => setStuck(true)) },
+    ]);
   return (
-    <FailedView title={f.storeTitle} body={f.storeBody} place="whole">
+    <FailedView title={f.storeTitle} body={stuck ? f.startOverFailed : f.storeBody} place="whole">
       <WideButton label={f.tryAgain} kind="filled" onPress={onRetry} />
       <WideButton label={f.sendReport} kind="tonal" onPress={mail} />
+      <WideButton label={f.startOver} kind="plain" onPress={startOver} />
     </FailedView>
   );
 }

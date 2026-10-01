@@ -92,10 +92,19 @@ test('a feedback mail carries the build and the code only when there is one', ()
   assert.equal(s.feedbackBody({ version: '1.0.0', build: '37', os: 'Android 16', code: CODE }), '\n\nVersion 1.0.0 (37) · Android 16 · code 3b9f0c');
 });
 
-test('the failure screens speak without machine words, and the store mail names its code and build', () => {
+test('the failure screens speak without machine words, and the store mail names its code, cause and build', () => {
   const f = copy.failed;
-  for (const text of [f.screenTitle, f.screenBody, f.appTitle, f.appBody, f.tryAgain, f.storeTitle, f.storeBody, f.sendReport, f.reportSubject]) {
+  const screens = [f.screenTitle, f.screenBody, f.appTitle, f.appBody, f.tryAgain, f.storeTitle, f.storeBody, f.sendReport, f.reportSubject];
+  const startOver = [f.startOver, f.startOverTitle, f.startOverBody, f.startOverConfirm, f.startOverFailed, f.cancel];
+  for (const text of [...screens, ...startOver]) {
     assert.doesNotMatch(text, /error|crash|exception|database|store|—/i, text);
   }
-  assert.equal(f.reportBody({ version: '1.0.0', build: '37', os: 'Android 16', code: null }), '\n\nstore_open_failed · Version 1.0.0 (37) · Android 16');
+  // A failure that repeats on every open is not helped by a restart (review REL-4).
+  assert.doesNotMatch(f.storeBody, /restart|usually helps/i);
+  const facts = { version: '1.0.0', build: '37', os: 'Android 16', code: null };
+  assert.equal(f.reportBody(facts, null), '\n\nstore_open_failed · Version 1.0.0 (37) · Android 16');
+  assert.equal(
+    f.reportBody(facts, { name: 'Error', message: 'no such column: <str>' }),
+    '\n\nstore_open_failed · Error: no such column: <str> · Version 1.0.0 (37) · Android 16',
+  );
 });

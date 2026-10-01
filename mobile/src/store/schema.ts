@@ -2,7 +2,7 @@
  * The phone's SQLite store: Raw Documents, the derived Projection tables under the server's names minus `user_id` and triage, and the
  * Fetcher's own state (task 0036, ADR-0004). Migrations are numbered, applied once each, and recorded in `schema_migrations`.
  */
-import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import { deleteDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 import { BUSY_TIMEOUT_MS, migrate } from './migrations';
 
@@ -27,6 +27,16 @@ export async function openStore(file: string = STORE_FILE): Promise<Store> {
     throw error;
   }
   return { db };
+}
+
+/**
+ * Deletes the store file, then the `-wal` and `-shm` beside it, which `deleteDatabaseAsync` leaves and a fresh file of
+ * the same name would replay (review REL-4). Throws while a connection holds the file; a missing sidecar is the usual
+ * case after a clean close.
+ */
+export async function deleteStoreFile(file: string = STORE_FILE): Promise<void> {
+  await deleteDatabaseAsync(file);
+  for (const sidecar of ['-wal', '-shm']) await deleteDatabaseAsync(`${file}${sidecar}`).catch(() => undefined);
 }
 
 /** "Remove everything gathered" when the file will not go: every table emptied but the migration record. */

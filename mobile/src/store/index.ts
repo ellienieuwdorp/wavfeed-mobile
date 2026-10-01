@@ -1,7 +1,7 @@
 /**
  * The phone's store: open it once, pass its `db` to every function here (task 0036).
  */
-export { BUSY_TIMEOUT_MS, emptyStore, openStore, STORE_FILE, type Store } from './schema';
+export { BUSY_TIMEOUT_MS, deleteStoreFile, emptyStore, openStore, STORE_FILE, type Store } from './schema';
 export {
   countRawDocuments,
   feedAnswerSpans,

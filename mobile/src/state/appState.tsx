@@ -5,13 +5,14 @@
  * enters the phone: verbatim into raw_documents, then folded (ADR-0004); a release page folds without moving the version.
  * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
  * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
- * will not open shows the failure screen, whose "Try again" opens it once more; the open store is where Error Reports
- * are written, and a failed replay is a coded one (task 0038 decisions 10 and 11). A replay after a parser change
- * that outlasts its first stretch shows its progress in place of the app (review finding ARCH-1). A screen's query
- * that throws is reported and thrown again while the screen draws, for the tab's boundary to offer Try again (ARCH-2).
+ * will not open shows the failure screen, whose "Try again" opens it once more and "Start over" deletes it first (review
+ * REL-4); the open store is where Error Reports are written, and a failed replay is a coded one (task 0038 decisions
+ * 10 and 11). A replay after a parser change that outlasts its first stretch shows its progress in place of the app
+ * (review finding ARCH-1). A screen's query that throws is reported and thrown again while the screen draws, for the
+ * tab's boundary to offer Try again (ARCH-2).
  */
 import { useIsFocused } from 'expo-router';
-import { deleteDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { BandcampSession } from '@/bandcamp/session';
@@ -22,7 +23,7 @@ import { Replaying } from '@/components/Replaying';
 import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
-import { emptyStore, fold, insertRawDocument, openStore, STORE_FILE } from '@/store';
+import { deleteStoreFile, emptyStore, fold, insertRawDocument, openStore } from '@/store';
 import type { Tally } from '@/tally/catalogue';
 import { errorReports, reportCode } from '@/tally/errors';
 
@@ -65,7 +66,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   const [version, setVersion] = useState(0);
   const session = useMemo(() => new BandcampSession(), []);
   const [generation, setGeneration] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<{ readonly error: unknown } | null>(null);
   const [replaying, setReplaying] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -80,7 +81,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
         setReplaying(null);
         setDb(store.db);
       },
-      () => alive && setFailed(true),
+      (error: unknown) => alive && setFailed({ error }),
     );
     return () => {
       alive = false;
@@ -143,7 +144,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
     errorReports.setSink(null);
     await db.closeAsync().catch(() => undefined);
     try {
-      await deleteDatabaseAsync(STORE_FILE);
+      await deleteStoreFile();
     } catch {
       // The file would not go (a connection still open): empty every table of a fresh open instead.
       const { db: fresh } = await openStore();
@@ -155,14 +156,16 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
   }, [db]);
 
   if (failed) {
-    return (
-      <StoreFailed
-        onRetry={() => {
-          setFailed(false);
-          setGeneration((g) => g + 1);
-        }}
-      />
-    );
+    const reopen = () => {
+      setFailed(null);
+      setGeneration((g) => g + 1);
+    };
+    // A store that fails the same way on every open is deleted and opened empty (review REL-4).
+    const startOver = async () => {
+      await deleteStoreFile();
+      reopen();
+    };
+    return <StoreFailed error={failed.error} onRetry={reopen} onStartOver={startOver} />;
   }
   if (!db) return replaying === null ? null : <Replaying done={replaying.done} total={replaying.total} />;
   const value: AppState = { db, session, gather, setGather, version, invalidate, putRaw, runGather, removeStore, bindTally };
