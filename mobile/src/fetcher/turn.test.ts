@@ -72,6 +72,8 @@ let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
 /** Followed Pages the follow list answers with, as one stored page; none answers with no page. */
 let followed: readonly number[];
+/** What the poke costs the clock; none unless a test sets it. */
+let pokeMs: number;
 /** The lists and the feed, each named once per request, in the order the turn asked them. */
 let asked: ('wishlist' | 'follows' | 'feed')[];
 
@@ -80,7 +82,10 @@ const at = (): string => new Date(clock).toISOString();
 
 const session: GatherSession = {
   probeIdentity: async () => probe,
-  pokeFeedPage: async (username) => ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() }),
+  async pokeFeedPage(username) {
+    clock += pokeMs;
+    return ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() });
+  },
   async fetchWishlistItems() {
     asked.push('wishlist');
     return ok({ pages: 0, seen: 0, complete: true });
@@ -159,6 +164,7 @@ beforeEach(async () => {
   refuseFeed = () => null;
   releasePage = datedPage;
   followed = [];
+  pokeMs = 0;
   asked = [];
 });
 
@@ -196,6 +202,7 @@ describe('the feed walk', () => {
   test('a turn out of budget resumes at its cursor', async () => {
     feed = stories(40, 1000);
     assert.deepEqual(await turn(3_500), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null });
+    assert.notEqual(gather.lastSuccessAt, null, 'a pending walk names its last feed read');
     assert.equal((await turn()).outcome, 'done');
     assert.equal(new Set(cursors).size, cursors.length, 'no page asked twice');
     assert.equal(await storyCount(), 40);
@@ -218,9 +225,12 @@ describe('the feed walk', () => {
     assert.notEqual(before, null);
 
     clock += 15 * 60_000;
-    feed = [...stories(2, 2000, 60), ...feed];
+    // A poll of three pages, so a stamp on every feed answer would show as more than one new value.
+    feed = [...stories(2 * PAGE_SIZE + 2, 2000, 60), ...feed];
+    cursors = [];
+    const polledFrom = clock;
     const seen: Pick<GatherState, 'phase' | 'lastSuccessAt'>[] = [];
-    sink = createGatherSink({
+    const watched = createGatherSink({
       db,
       setGather: (state) => {
         gather = state;
@@ -228,13 +238,26 @@ describe('the feed walk', () => {
       },
       invalidate: () => undefined,
     });
+    // The fold takes time on a phone, so the clock at the feed step's end is past the last page's landing.
+    sink = {
+      ...watched,
+      async afterDocuments() {
+        clock += 50;
+        await watched.afterDocuments();
+      },
+    };
     await turn(600_000, 'refresh');
     assert.ok(releasePages.length > 0, 'the new Stories send the turn on to release pages');
     const dating = seen.findIndex((state) => state.phase === 'dating');
     assert.ok(dating > 0);
     const moved = seen.findIndex((state) => state.lastSuccessAt !== before);
     assert.ok(moved < dating && seen[moved]?.phase === 'walking', 'it moves as the feed step ends');
-    assert.ok((seen[moved]?.lastSuccessAt ?? 0) > (before ?? 0));
+    assert.equal(cursors.length, 3);
+    assert.deepEqual(
+      [...new Set(seen.map((state) => state.lastSuccessAt))],
+      [before, polledFrom + cursors.length * REQUEST_MS],
+      'one new value, the moment the last feed page landed',
+    );
     assert.equal(gather.lastSuccessAt, seen[moved]?.lastSuccessAt, 'the release pages after the feed do not move it');
   });
 
@@ -251,10 +274,49 @@ describe('the feed walk', () => {
     const read = gather.lastSuccessAt;
     assert.notEqual(read, null);
 
-    // Caught up: the poke lands and the poll's page fails.
+    // Caught up: the poll's first page lands and its second fails.
     clock += 15 * 60_000;
-    refuseFeed = () => ({ kind: 'unreachable' });
+    feed = [...stories(2 * PAGE_SIZE + 2, 2000, 60), ...feed];
+    cursors = [];
+    refuseFeed = (asked) => (asked === 1 ? { kind: 'unreachable' } : null);
     assert.equal((await turn(600_000, 'refresh')).outcome, 'failed');
+    assert.equal(cursors.length, 2);
+    assert.equal(gather.lastSuccessAt, read);
+  });
+
+  test('a turn signed out after a feed page landed leaves the last success where it was', async () => {
+    feed = stories(3, 1000);
+    await turn();
+    const read = gather.lastSuccessAt;
+    assert.notEqual(read, null);
+
+    clock += 15 * 60_000;
+    feed = [...stories(2 * PAGE_SIZE + 2, 2000, 60), ...feed];
+    cursors = [];
+    refuseFeed = (asked) => (asked === 1 ? { kind: 'logged_out' } : null);
+    assert.equal((await turn(600_000, 'refresh')).outcome, 'paused');
+    assert.equal(cursors.length, 2);
+    assert.equal(gather.lastSuccessAt, read);
+  });
+
+  test('a turn the budget ends before its first feed answer leaves the last success where it was', async () => {
+    // A first walk: the follow list lands and spends the budget before the poke.
+    followed = [1, 2];
+    feed = stories(3, 1000);
+    assert.equal((await turn(REQUEST_MS)).outcome, 'out_of_budget');
+    assert.deepEqual(cursors, []);
+    assert.equal(gather.lastSuccessAt, null);
+
+    await turn();
+    const read = gather.lastSuccessAt;
+    assert.notEqual(read, null);
+
+    // Caught up: the poke lands and spends the budget before the poll's first page.
+    clock += 15 * 60_000;
+    cursors = [];
+    pokeMs = REQUEST_MS;
+    assert.equal((await turn(REQUEST_MS, 'refresh')).outcome, 'out_of_budget');
+    assert.deepEqual(cursors, []);
     assert.equal(gather.lastSuccessAt, read);
   });
 });
@@ -286,6 +348,20 @@ describe('the order of a turn (task 0046, decision 1)', () => {
     asked = [];
     await turn(600_000, 'timer');
     assert.deepEqual(firsts(), ['wishlist', 'follows', 'feed']);
+  });
+
+  test('a caught-up turn whose feed fails asks for no list after it (ADR-0017)', async () => {
+    feed = stories(3, 1000);
+    await turn();
+    const listed = gather.wishlistFetchedAt;
+    assert.notEqual(listed, null);
+
+    clock += LIST_INTERVAL_MS;
+    asked = [];
+    refuseFeed = () => ({ kind: 'error', status: 503 });
+    assert.equal((await turn(600_000, 'refresh')).outcome, 'failed');
+    assert.deepEqual(asked, ['feed']);
+    assert.equal(gather.wishlistFetchedAt, listed);
   });
 });
 
