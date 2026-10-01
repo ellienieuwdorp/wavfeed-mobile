@@ -480,15 +480,17 @@ export class BandcampSession {
   }
 
   /**
-   * The iOS WebView copies cookies it gains into the app's jar, never ones it loses: this clears the app's. No answer or
-   * a 5xx leaves the session in the jar, which is `unreachable`, and Settings keeps the phone signed in (review REL-3).
-   * The rig's sample Fan holds no session, so its sign-out is `ok`.
+   * The iOS WebView copies cookies it gains into the app's jar, never ones it loses: this clears the app's. Only a 2xx
+   * or an unfollowed 3xx is the logout page answering; no answer, a 4xx such as an edge's 403 or 429, or a 5xx leaves
+   * the session in the jar, which is `unreachable`, and Settings keeps the phone signed in (review REL-3). The rig's
+   * sample Fan holds no session, so its sign-out is `ok`.
    */
   async signOut(): Promise<'ok' | 'unreachable'> {
     this.crumbs.clear();
     if (SAMPLE_MODE) return 'ok';
     const wire = await this.send(`${this.baseUrl}${LOGOUT_PATH}`, { headers: { Accept: HTML_ACCEPT }, credentials: 'include' });
-    return wire === null || wire.status >= 500 ? 'unreachable' : 'ok';
+    const answered = wire !== null && (wire.ok || (wire.status >= 300 && wire.status < 400));
+    return answered ? 'ok' : 'unreachable';
   }
 
   collectItem(item: WishlistItem): Promise<WishlistWriteOutcome> {
