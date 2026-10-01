@@ -231,7 +231,7 @@ describe('over a long history', () => {
     const clamped = [
       [CROSSED_MIN_THRESHOLD - 1, CROSSED_MIN_THRESHOLD],
       [CROSSED_MAX_THRESHOLD + 1, CROSSED_MAX_THRESHOLD],
-    ];
+    ] as const;
     for (const [asked, placed] of clamped) {
       const crossed = { entries: buildCrossedList(rows, placed), nextCursor: null };
       assert.deepEqual(boughtView(held, { mode: 'crossed', threshold: asked }), crossed);

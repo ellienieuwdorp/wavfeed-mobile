@@ -213,7 +213,7 @@ describe('Bursts', () => {
 
   test('calls a run of purchases and wishlists mixed', () => {
     const rows = chain({ count: BURST_MIN_STORIES, gapMinutes: 10 });
-    rows[0] = { ...rows[0], storyType: 'wishlist' };
+    rows[0] = { ...rows[0]!, storyType: 'wishlist' };
 
     assert.equal(bursts(assemble(rows).elements)[0]?.storyType, 'mixed');
   });
@@ -280,7 +280,7 @@ describe('the type filter', () => {
 
   test('can dissolve a Burst, because four purchases are not a spree', () => {
     const rows = chain({ count: BURST_MIN_STORIES, gapMinutes: 5 });
-    rows[0] = { ...rows[0], storyType: 'wishlist' };
+    rows[0] = { ...rows[0]!, storyType: 'wishlist' };
 
     const { elements } = assemble(rows, { types: ['purchase'] });
 
