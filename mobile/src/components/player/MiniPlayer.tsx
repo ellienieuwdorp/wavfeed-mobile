@@ -4,7 +4,9 @@
  * Music's grammar, whose glass the system draws; without it, a GlassView capsule of its own; on Android a raised
  * floating toolbar at elevation 3, one tone up from the surface in dark (the canvas's toolbar), with the ripple on the
  * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
- * swaps glyphs and text.
+ * swaps glyphs and text. The whole bar opens the player to a touch; to VoiceOver, which reaches nothing inside an
+ * element, the art and titles are the open button beside play and the heart, while TalkBack reaches into the bar's own
+ * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { router } from 'expo-router';
@@ -89,17 +91,21 @@ function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number
 }
 
 /** On iOS every mini player sits on glass, so its words take the system's label colours (task 0040, decision 7). */
-function Titles({ release, single = false }: { release: PlayableRelease; single?: boolean }) {
+function Titles({ release, note, single = false }: { release: PlayableRelease; note: string | null; single?: boolean }) {
   const { c } = useTokens();
   const player = usePlayer();
-  const note = playerNote(player);
+  const sub = { fontSize: ios ? 13 : 12, lineHeight: ios ? 17 : 16, color: ON_GLASS?.sub ?? c.sub };
   return (
     <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-      <Text numberOfLines={1} style={{ fontSize: ios ? 15 : 14, lineHeight: 20, fontWeight: ios ? '600' : '500', color: ON_GLASS?.ink ?? c.ink }}>
-        {trackLine(player, release)}
-      </Text>
+      {single && note !== null ? (
+        <Text numberOfLines={1} style={sub}>{note}</Text>
+      ) : (
+        <Text numberOfLines={1} style={{ fontSize: ios ? 15 : 14, lineHeight: 20, fontWeight: ios ? '600' : '500', color: ON_GLASS?.ink ?? c.ink }}>
+          {trackLine(player, release)}
+        </Text>
+      )}
       {single ? null : (
-        <Text numberOfLines={1} style={{ fontSize: ios ? 13 : 12, lineHeight: ios ? 17 : 16, color: ON_GLASS?.sub ?? c.sub }}>
+        <Text numberOfLines={1} style={sub}>
           {note ?? release.artist}
         </Text>
       )}
@@ -109,17 +115,29 @@ function Titles({ release, single = false }: { release: PlayableRelease; single?
 
 function Contents({ release, inline = false }: { release: PlayableRelease; inline?: boolean }) {
   const { c } = useTokens();
+  const note = playerNote(usePlayer());
   const art = ios ? (inline ? 26 : 34) : 48;
+  const open = () => router.push('/player');
+  const label = playerCopy.open(release.title, note);
   return (
     <Pressable
-      onPress={() => router.push('/player')}
-      accessibilityRole="button"
-      accessibilityLabel={playerCopy.open(release.title)}
+      onPress={open}
+      accessible={!ios}
+      accessibilityRole={ios ? undefined : 'button'}
+      accessibilityLabel={ios ? undefined : label}
       android_ripple={ripple(c.track)}
       style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: ios ? 10 : 12, paddingLeft: ios ? (inline ? 6 : 10) : 8, paddingRight: ios ? 4 : 8, borderRadius: ios ? undefined : CAPSULE / 2, overflow: ios ? undefined : 'hidden', opacity: pressedOpacity(pressed) })}
     >
-      <Artwork hue={release.hue} url={release.artUrl} size={art} radius={ios ? (inline ? 5 : 6) : art / 2} />
-      <Titles release={release} single={inline} />
+      <View
+        accessible={ios}
+        accessibilityRole={ios ? 'button' : undefined}
+        accessibilityLabel={ios ? label : undefined}
+        onAccessibilityTap={ios ? open : undefined}
+        style={{ flex: 1, minWidth: 0, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: ios ? 10 : 12 }}
+      >
+        <Artwork hue={release.hue} url={release.artUrl} size={art} radius={ios ? (inline ? 5 : 6) : art / 2} />
+        <Titles release={release} note={note} single={inline} />
+      </View>
       {ios ? (
         <>
           <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} />

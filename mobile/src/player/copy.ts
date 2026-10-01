@@ -1,6 +1,7 @@
 /** The player's strings (DESIGN-UI sections 8 and 10, task 0036), from the web's PlayerBar.tsx, until `src/copy.ts` takes them. */
 export const playerCopy = {
-  open: (title: string) => `Open the player for ${title}`,
+  /** `note` from playerNote: why nothing plays, said where the inline accessory has no room to show it (VIS-M4). */
+  open: (title: string, note: string | null = null) => (note === null ? `Open the player for ${title}` : `Open the player for ${title}, ${note}`),
   play: 'Play',
   pause: 'Pause',
   /** Play's name after a failed load or a stream that died, since a press asks again (VIS-5). */
