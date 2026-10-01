@@ -105,6 +105,15 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
   const probing = useRef(false);
   // A page that settles while a probe runs asks once more after it, so the landing behind a detour is never dropped.
   const again = useRef(false);
+  // A probe outlives a Cancel: once the sheet is gone it neither asks again nor closes, since a second router.back()
+  // would pop the screen under the sheet. A Fan it finds is still written, as the session is already in the jar.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const retry = (work: () => void) => () => {
     setLine(null);
     work();
@@ -139,14 +148,14 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       // The sheet goes before the Fan is written, so a first run's guard swaps the first screen for the tabs beneath it.
       signedIn = true;
       visit.signedIn();
-      close();
+      if (mounted.current) close();
       await writeIdentity(app.db, probe.value, Date.now());
       await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null, lastStatus: null });
       app.invalidate();
       void app.runGather('open');
     } finally {
       probing.current = false;
-      if (again.current && !signedIn) void onMaybeSignedIn();
+      if (again.current && !signedIn && mounted.current) void onMaybeSignedIn();
     }
   };
 
