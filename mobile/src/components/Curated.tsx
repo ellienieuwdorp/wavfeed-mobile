@@ -7,10 +7,11 @@
  * Expressive shapes: 12dp covers, 16dp cards.
  */
 import { router, type Href } from 'expo-router';
-import { Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
+import { captionLines } from '@/theme/textSize';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -18,18 +19,20 @@ import { Heart } from './Heart';
 import { PlayArt } from './PlayArt';
 import { heartFor } from './ReleaseRow';
 import { RowMenu, RowSurface } from './RowMenu';
+import { Type } from './Type';
 
 const ios = Platform.OS === 'ios';
 const COVER = ios ? 132 : 136;
 
+/** The title and "View more" share a row; when the larger text sizes leave no room, "View more" wraps under the title (review VIS-1). */
 export function ModuleHead({ title, more }: { title: string; more?: Href }) {
   const { c, type } = useTokens();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: type.gutter, marginBottom: 12 }}>
-      <Text accessibilityRole="header" style={{ fontSize: type.moduleHead, fontWeight: ios ? '700' : '600', color: c.ink }}>{title}</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: 12, rowGap: 4, paddingHorizontal: type.gutter, marginBottom: 12 }}>
+      <Type scale="head" accessibilityRole="header" style={{ flexShrink: 1, fontSize: type.moduleHead, fontWeight: ios ? '700' : '600', color: c.ink }}>{title}</Type>
       {more ? (
         <Pressable accessibilityRole="link" hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }} android_ripple={ripple(c.track, 40)} onPress={() => router.navigate(more)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-          <Text style={{ fontSize: ios ? 15 : 14, fontWeight: '500', color: c.accentText }}>{copy.feed.viewMore}</Text>
+          <Type style={{ fontSize: ios ? 15 : 14, fontWeight: '500', color: c.accentText }}>{copy.feed.viewMore}</Type>
         </Pressable>
       ) : null}
     </View>
@@ -38,14 +41,15 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
 
 export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { c } = useTokens();
+  const { fontScale } = useWindowDimensions();
   return (
     <RowMenu release={item} width={COVER}>
       {(openMenu) => (
         <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
-            <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
-            <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Text>
-            <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Text>
+            <Type numberOfLines={captionLines(fontScale)} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Type>
+            <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Type>
+            <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Type>
           </View>
         </PlayArt>
       )}
@@ -66,8 +70,8 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <PlayArt release={item} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} />
             <View style={{ flex: 1, gap: 4 }}>
-              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Text>
-              <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.artist, item.label].filter(Boolean).join(sep)}</Text>
+              <Type numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Type>
+              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.artist, item.label].filter(Boolean).join(sep)}</Type>
               <View style={{ flexDirection: 'row' }}>
                 <AvatarStack fans={item.buyers} ring={c.surface} opens />
               </View>
@@ -76,10 +80,10 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
               <Heart {...heartFor(item)} />
             </View>
           </View>
-          <Text style={{ fontSize: 14, color: c.sub }}>
-            <Text style={{ fontWeight: '700', color: c.ink }}>{buyersPhrase(item.buyers)}</Text>
+          <Type style={{ fontSize: 14, color: c.sub }}>
+            <Type style={{ fontWeight: '700', color: c.ink }}>{buyersPhrase(item.buyers)}</Type>
             {boughtThisPhrase(item.latestStoryDate, now)}
-          </Text>
+          </Type>
         </RowSurface>
       )}
     </RowMenu>
@@ -95,11 +99,11 @@ export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date })
         <RowSurface open={openMenu} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: type.gutter, paddingVertical: 12 }}>
           <PlayArt release={quote.item} size={56} radius={ios ? 4 : 8} onLongPress={openMenu} />
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={{ fontSize: 13, color: c.sub }}>
-              <Text style={{ fontWeight: '600', color: c.ink }}>{fanName(quote.fan)}</Text>
+            <Type style={{ fontSize: 13, color: c.sub }}>
+              <Type style={{ fontWeight: '600', color: c.ink }}>{fanName(quote.fan)}</Type>
               {copy.feed.quoteOn + [quote.item.title, quote.item.artist, boughtOnPhrase(quote.date, now)].join(sep)}
-            </Text>
-            <Text style={{ fontSize: 15, fontStyle: 'italic', color: c.ink }}>{copy.feed.quoted(quote.text)}</Text>
+            </Type>
+            <Type style={{ fontSize: 15, fontStyle: 'italic', color: c.ink }}>{copy.feed.quoted(quote.text)}</Type>
           </View>
         </RowSurface>
       )}

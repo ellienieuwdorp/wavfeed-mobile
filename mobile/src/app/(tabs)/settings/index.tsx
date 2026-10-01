@@ -67,7 +67,7 @@ function Avatar({ url, initials }: { url: string | null; initials: string }) {
   }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.avatarBg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: c.avatarInk }}>{initials}</Text>
+      <Text allowFontScaling={false} style={{ fontSize: 13, fontWeight: '600', color: c.avatarInk }}>{initials}</Text>
     </View>
   );
 }
@@ -212,7 +212,7 @@ export default function Settings() {
         leading={<Dot colour={c.online} />}
         title={s.signedInAs(handle)}
         sub={ios ? undefined : (busy && s.phase(gather.phase)) || gatheredAgo}
-        trailing={ios ? <Text style={{ fontSize: 15, color: c.sub }}>{gatheredAgo}</Text> : undefined}
+        trailing={ios ? <Text style={{ flexShrink: 1, maxWidth: '45%', textAlign: 'right', fontSize: 15, color: c.sub }}>{gatheredAgo}</Text> : undefined}
       />
     ) : status === 'signedOut' ? (
       <Cell

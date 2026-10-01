@@ -2,14 +2,17 @@
  * Android's medium flexible app bar (task 0036 decision 5, the v2 client canvas, section 7): the view's title at 28sp
  * with "Updated 12 min ago" under it scrolls with the list, and once it has gone under the status bar a 64dp bar on the
  * surface-container tone fades in with the title at 22sp and the subtitle at 12sp. Edge to edge, the status bar's strip
- * always carries the page tone or the bar's. iOS draws its large title natively (see TabStack), so every hook here is
- * inert there.
+ * always carries the page tone or the bar's. With the font scale the expanded title grows as a head and its subtitle as
+ * a row fact, and both lines of the collapsed bar as heads, which keeps them inside its 64dp (review VIS-1). iOS
+ * draws its large title natively (see TabStack), so every hook here is inert there.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Animated, Platform, Text, View, type NativeScrollEvent, type NativeSyntheticEvent, type ViewProps } from 'react-native';
+import { Animated, Platform, View, type NativeScrollEvent, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTokens } from '@/theme/tokens';
+
+import { Type } from './Type';
 
 const BAR = 64;
 const TITLE_TOP = 8;
@@ -59,10 +62,10 @@ export function AppBarTitle({ subtitle, below = null, a11y = {} }: { subtitle: s
   if (frame === null) return null;
   return (
     <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null ? 16 : 12 }}>
-      <Text accessibilityRole="header" numberOfLines={1} style={{ fontSize: type.viewTitle, lineHeight: TITLE_LINE, color: c.ink }}>{frame.title}</Text>
+      <Type scale="head" accessibilityRole="header" numberOfLines={1} style={{ fontSize: type.viewTitle, lineHeight: TITLE_LINE, color: c.ink }}>{frame.title}</Type>
       {subtitle === null ? null : (
         <View {...a11y} style={{ gap: 8 }}>
-          <Text numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Text>
+          <Type numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Type>
           {below}
         </View>
       )}
@@ -85,8 +88,8 @@ function CollapsedBar({ collapsed, background }: { collapsed: boolean; backgroun
         importantForAccessibility="no-hide-descendants"
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + BAR, paddingTop: insets.top, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: c.raised, opacity, pointerEvents: collapsed ? 'auto' : 'none' }}
       >
-        <Text numberOfLines={1} style={{ fontSize: 22, lineHeight: 28, color: c.ink }}>{frame?.title}</Text>
-        {frame?.subtitle ? <Text numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.sub }}>{frame.subtitle}</Text> : null}
+        <Type scale="head" numberOfLines={1} style={{ fontSize: 22, lineHeight: 28, color: c.ink }}>{frame?.title}</Type>
+        {frame?.subtitle ? <Type scale="head" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.sub }}>{frame.subtitle}</Type> : null}
       </Animated.View>
     </>
   );

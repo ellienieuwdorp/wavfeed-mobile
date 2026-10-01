@@ -4,8 +4,9 @@
  * the seek line with its m:ss times, the transport, the heart for the playing Track and "Open on Bandcamp ↗", then the
  * Release's tracklist. On iOS it is a page sheet with its grabber and close chevron over a plain face, so the pull-down
  * dismisses from the art and from the top of the scroll; on Android a bottom sheet with 28dp corners at full height,
- * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist has a fixed height, so
- * nothing moves when a Track changes.
+ * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist keeps one height for a
+ * given text size, its text one line and its height at least the default's, so nothing moves when a Track changes;
+ * the m:ss times in the seek block do not grow (review VIS-1).
  */
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Host as ComposeHost, Slider as ComposeSlider } from '@expo/ui/jetpack-compose';
@@ -13,7 +14,7 @@ import Slider from '@react-native-community/slider';
 import { openURL } from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
@@ -21,6 +22,7 @@ import { Glyph, type GlyphName } from '@/components/Glyph';
 import { isDead, playerNote, showsPause, trackLine, TrackHeart } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { Tracklist } from '@/components/player/Tracklist';
+import { Type } from '@/components/Type';
 import { SELF_RELEASED, sep, sheetSubtitle } from '@/copy';
 import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
@@ -100,8 +102,8 @@ function Times({ at, total }: { at: number; total: number }) {
   const style = { fontSize: 12, lineHeight: 16, color: c.sub, fontVariant: ['tabular-nums' as const] };
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={style}>{clock(at)}</Text>
-      <Text style={style}>{clock(total)}</Text>
+      <Type scale="fixed" style={style}>{clock(at)}</Type>
+      <Type scale="fixed" style={style}>{clock(total)}</Type>
     </View>
   );
 }
@@ -209,8 +211,8 @@ function SeekLine() {
 function Note({ text }: { text: string }) {
   const { c } = useTokens();
   return (
-    <View style={{ height: SEEK, justifyContent: 'center' }}>
-      <Text accessibilityLiveRegion="polite" numberOfLines={2} style={{ fontSize: 15, color: c.sub, textAlign: 'center' }}>{text}</Text>
+    <View style={{ minHeight: SEEK, justifyContent: 'center' }}>
+      <Type accessibilityLiveRegion="polite" numberOfLines={2} style={{ fontSize: 15, color: c.sub, textAlign: 'center' }}>{text}</Type>
     </View>
   );
 }
@@ -265,13 +267,13 @@ function Titles({ release }: { release: PlayableRelease }) {
   return (
     <View>
       <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-        <View style={{ height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Text>
-          <Text style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Text>
+        <View style={{ minHeight: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
+          <Type style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Type>
         </View>
-        <Text numberOfLines={1} style={{ height: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Text>
+        <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
       </Pressable>
-      <Text numberOfLines={1} style={{ height: FACTS, marginTop: 4, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Text>
+      <Type numberOfLines={1} style={{ minHeight: FACTS, marginTop: 4, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Type>
     </View>
   );
 }
@@ -280,7 +282,7 @@ function Actions({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
   const open = useOpen();
   return (
-    <View style={{ height: ACTIONS, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: ios ? -8 : 0 }}>
+    <View style={{ minHeight: ACTIONS, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: ios ? -8 : 0 }}>
       <TrackHeart release={release} box={ACTIONS} icon={26} surface="sheet" />
       <Pressable
         onPress={() => open(release, 'sheet_buy')}
@@ -289,7 +291,7 @@ function Actions({ release }: { release: PlayableRelease }) {
         android_ripple={ripple(c.track)}
         style={({ pressed }) => (ios ? { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', opacity: pressedOpacity(pressed) } : { minHeight: 48, justifyContent: 'center', paddingHorizontal: 22, borderRadius: 24, overflow: 'hidden', backgroundColor: c.tint })}
       >
-        <Text style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accentText : c.ink }}>{playerCopy.bandcampLink}</Text>
+        <Type style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accentText : c.ink }}>{playerCopy.bandcampLink}</Type>
       </Pressable>
     </View>
   );

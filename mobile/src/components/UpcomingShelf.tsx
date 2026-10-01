@@ -3,14 +3,16 @@
  * at one fixed height above the released weeks, which run down. A card is the art as its play control with the day,
  * the title and the artist under it in the same control (PlayArt); Bought's cards add the faces of who bought it, a
  * control of their own. Under the artist a card counts the Tracks that play, "1 of 4 tracks", and every card holds that
- * line, blank or not, so art tops, baselines and the faces line up across the shelf (task 0041, decision 9). A long
- * press opens the row menu, where the wishlist item is. "View more" pushes the full list.
+ * line, blank or not, so art tops, baselines and the faces line up across the shelf (task 0041, decision 9); at a larger
+ * text size every title holds two lines for the same reason (review VIS-1). A long press opens the row menu, where the
+ * wishlist item is. "View more" pushes the full list.
  */
 import type { Href } from 'expo-router';
-import { FlatList, Platform, Text, View } from 'react-native';
+import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 
 import { copy, spokenFacts } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
+import { captionLines, scaledSize } from '@/theme/textSize';
 import { useTokens } from '@/theme/tokens';
 
 import { AvatarStack } from './AvatarStack';
@@ -19,12 +21,14 @@ import { PlayArt } from './PlayArt';
 import type { RowRelease } from './playable';
 import { ROW_LIST } from './ReleaseRow';
 import { RowMenu } from './RowMenu';
+import { Type } from './Type';
 
 const ios = Platform.OS === 'ios';
 const CARD = 112;
 const GAP = 12;
 /** A blank count line keeps its height: a no-break space is a line where an empty string is none. */
 const BLANK = '\u00a0';
+const TITLE_LINE = 20;
 
 export type ShelfCard = {
   readonly key: string;
@@ -41,6 +45,9 @@ export type ShelfCard = {
 
 function Card({ card }: { card: ShelfCard }) {
   const { c } = useTokens();
+  const { fontScale } = useWindowDimensions();
+  const lines = captionLines(fontScale);
+  const twoLines = lines === 2 ? { lineHeight: TITLE_LINE, minHeight: 2 * scaledSize(TITLE_LINE, fontScale, 'row') } : null;
   return (
     <View style={{ width: CARD }}>
       <RowMenu release={card.release} width={CARD}>
@@ -54,10 +61,10 @@ function Card({ card }: { card: ShelfCard }) {
             style={{ width: CARD }}
           >
             <View style={{ gap: 2, marginTop: 8 }}>
-              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{card.day}</Text>
-              <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }}>{card.release.title}</Text>
-              <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.release.artist}</Text>
-              <Text numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.count ?? BLANK}</Text>
+              <Type numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{card.day}</Type>
+              <Type numberOfLines={lines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, twoLines]}>{card.release.title}</Type>
+              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.release.artist}</Type>
+              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.count ?? BLANK}</Type>
             </View>
           </PlayArt>
         )}
