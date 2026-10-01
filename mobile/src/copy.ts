@@ -485,7 +485,7 @@ export const copy = {
     signIn: 'Sign in to Bandcamp',
     lookAround: 'Look around first',
     /** Under the buttons when the Demo did not load (finding FLOW-17); the same button tries again. */
-    demoFailed: 'The sample did not load. Try Look around first again.',
+    demoFailed: 'The sample did not load. Press Look around first to try again.',
     custody: `Your Bandcamp sign-in stays on ${thisDevice}.`,
   },
   connect: {
