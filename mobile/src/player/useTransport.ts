@@ -15,6 +15,7 @@ import type { ApiReleaseTrack } from '@/domain/apiTypes';
 import { listenStep, playbackStarted, type Listening, type PlayerChange, type PlayResult } from '@/tally/actions';
 import type { Screen, Tally } from '@/tally/catalogue';
 
+import { startAt, startAudio } from './start';
 import {
   firstStreamableIndex,
   isSameRelease,
@@ -144,21 +145,21 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     quietUntil.current = Date.now() + QUIET_AFTER_CONTROL_MS;
   }, []);
 
+  /** Starts the Track at `index` and answers whether its audio started; null when that index cannot start. */
   const beginPlayback = useCallback(
     (from: TransportState, index: number) => {
       const track = from.tracks[index];
-      if (from.release === null || track === undefined || track.streamUrl === null) return;
+      if (from.release === null || track === undefined || track.streamUrl === null) return null;
       quiet();
       seekingTo.current = null;
+      // A refused start opens the listen too, and the paused state applied below settles it (task 0047 decision 5).
       listen({ kind: 'start', release: releaseKey(from.release) });
       // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
-      if (!SAMPLE_MODE) {
-        audio.replace({ uri: track.streamUrl });
-        audio.play();
-      }
-      apply({ ...from, status: 'ready', index, playing: true });
+      const start = startAt(SAMPLE_MODE ? null : audio, from, index, track.streamUrl);
+      apply(start.next);
       setClock({ position: 0, duration: durationOf(null, track) });
       showOnLockScreen(audio, lockActive, from.release, track);
+      return start.result;
     },
     [apply, audio, listen, quiet],
   );
@@ -202,20 +203,22 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
         apply({ ...loaded, status: 'unplayable' });
         started('unplayable');
       } else {
-        beginPlayback(loaded, index);
-        started('playing');
+        const result = beginPlayback(loaded, index);
+        if (result !== null) started(result);
       }
     },
     [apply, audio, beginPlayback, listen, quiet],
   );
 
+  /** Starts the Track at `index`, answering as `beginPlayback` does; null too when expired URLs send it to a reload. */
   const startTrack = useCallback(
     (index: number) => {
       const from = stateRef.current;
       const track = from.tracks[index];
-      if (from.release === null || track === undefined || track.streamUrl === null) return;
-      if (expired(from)) void loadAndStart(from.release, track.trackId, true);
-      else beginPlayback(from, index);
+      if (from.release === null || track === undefined || track.streamUrl === null) return null;
+      if (!expired(from)) return beginPlayback(from, index);
+      void loadAndStart(from.release, track.trackId, true);
+      return null;
     },
     [beginPlayback, loadAndStart],
   );
@@ -230,15 +233,16 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       return;
     }
     if (from.index !== null && !expired(from)) {
-      audio.play();
-      apply({ ...from, playing: true });
+      // A refused resume leaves the Track paused (task 0047 decision 3).
+      if (startAudio(audio)) apply({ ...from, playing: true });
       return;
     }
     const index = from.index ?? firstStreamableIndex(from.tracks);
     if (index === null) return;
-    // A Release at rest after its last Track starts again from here; an expired one reloads and counts itself.
-    if (from.index === null && !expired(from)) depsRef.current.track(playbackStarted('playing', 0, depsRef.current.screen(), false));
-    startTrack(index);
+    // A Release at rest after its last Track starts again from here and counts the start, a refused one as `refused`
+    // (task 0047 decision 4); an expired one reloads and counts itself, so `startTrack` answers null.
+    const result = startTrack(index);
+    if (result !== null) depsRef.current.track(playbackStarted(result, 0, depsRef.current.screen(), false));
   }, [apply, audio, quiet, startTrack]);
 
   const play = useCallback(
