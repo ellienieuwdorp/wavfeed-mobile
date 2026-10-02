@@ -223,3 +223,19 @@ One copy of the app on one phone, known by a random id minted when sharing is
 turned on and dropped when it is turned off or the store is removed. Shown to
 the Fan as a six-character code.
 _Avoid_: user, visitor, client, device id
+
+**Install label**:
+The author's own name for one Install on the Tally board, 1 to 32 characters
+that never read as a sharing code, with a flag marking her own Installs as
+mine (task 0050). The board shows it beside the sharing code and filters by
+it; the daily digest names Installs by it and never by code (ADR-0024). It is
+erased with its Install.
+_Avoid_: name, tag ("label" alone stays a record label)
+
+**Resolution**:
+The author's "seen, done" on a check or an Error Report group the board says
+needs a look, written for one environment or for all of them (task 0050).
+From then on the item's rules count only what happened after it, so the item
+stays hidden until it happens again and then reads as reopened; an undo takes
+it back at once.
+_Avoid_: dismissal, acknowledgement, snooze, closed
