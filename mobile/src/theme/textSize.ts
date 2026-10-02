@@ -43,10 +43,12 @@ const LARGE_TITLE: readonly (readonly [multiplier: number, points: number])[] = 
   [3.571, 60],
 ];
 const LARGE_TITLE_BASE = 34;
+/** The large title at the smallest content size category, the first row above. */
+const LARGE_TITLE_SMALLEST = 31;
 
 /** The iOS large title's point size: the system's for the text size, at most 1.3 times the default (44pt, AX1). */
 export function largeTitleSize(fontScale: number): number {
-  let points = LARGE_TITLE[0][1];
+  let points = LARGE_TITLE_SMALLEST;
   for (const [multiplier, size] of LARGE_TITLE) if (fontScale >= multiplier - 0.001) points = size;
   return Math.min(points, Math.round(LARGE_TITLE_BASE * SCALE_CAP.head));
 }
