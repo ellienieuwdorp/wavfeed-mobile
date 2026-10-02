@@ -17,7 +17,7 @@ import { copy, sep, spokenFacts } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { usePressMotion } from '@/player/motion';
 import { ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
-import { useMembership, usePendingAction } from '@/wishlist/state';
+import { useMembership } from '@/wishlist/state';
 
 import { Heart } from './Heart';
 import { PlayArt, useArtState } from './PlayArt';
@@ -74,9 +74,8 @@ function RowElement({ spoken, style, children }: { spoken: Spoken | null; style:
 function SpokenRow({ release, facts, onActivate, actions, style, children }: Spoken & { style: ViewStyle; children: ReactNode }) {
   const { pause, watch } = useArtState(release);
   const membership = useMembership(release.itemType, release.itemId);
-  const pending = usePendingAction(release.itemType, release.itemId);
   const named = copy.titleBy(release.title, release.artist);
-  const heard = spokenFacts([facts, heardWishlist(membership, pending)]);
+  const heard = spokenFacts([facts, heardWishlist(membership)]);
   return (
     <View
       accessible

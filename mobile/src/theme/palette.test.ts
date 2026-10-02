@@ -36,7 +36,7 @@ const PAIRS: readonly (readonly [string, Key, readonly Key[], number])[] = [
   ['the snackbar line on the inverse surface', 'bg', ['ink'], 4.5],
   ['the snackbar action on the inverse surface', 'inverseAccent', ['ink'], 4.5],
   ['the heart off', 'faint', PAGES, 3],
-  ['the heart on or pending, its rim', 'wishlistEdge', PAGES, 3],
+  ['the heart on, its rim', 'wishlistEdge', PAGES, 3],
   ['a glyph on an accent disc', 'onAccent', ['accent'], 3],
   ['an accent mark on the page', 'accent', PAGES, 3],
 ];

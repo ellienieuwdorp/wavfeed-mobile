@@ -1,13 +1,14 @@
 /**
  * The hearts' shared truth (DESIGN-UI section 12, ADR-0016): `wishlist_items` as one set of keys, read single-flight
  * per store version, so a version bump with every heart and row menu of four tabs mounted reads the table once
- * (finding TECH-M1). A press patches the set at once, and a read that started before the patch is dropped, since it
- * may not hold the press. Each heart selects its own key's answer, so a change re-renders only the hearts it moves.
- * Pending presses live here too, by item.
+ * (finding TECH-M1). A confirmed write patches the set at once, and a read that started before the patch is dropped,
+ * since it may not hold the write. Beside the set sits each item's intent, what the Fan's last press asked for while
+ * its exchange travels (ADR-0016 amendment 2026-10-02): every heart and row menu for that item draws the intent over
+ * the set, so a press shows everywhere at once. Each heart selects its own key's answer, so a change re-renders only
+ * the hearts it moves.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 import type { ItemType } from '@/domain/types';
 import { readWishlistState } from '@/store/queries';
 
@@ -19,7 +20,7 @@ export type KeyMembership = 'unknown' | 'on' | 'off';
 
 let held: Held | null = null;
 let inflight: At | null = null;
-let pending: ReadonlyMap<string, WishlistWriteKind> = new Map();
+let intents: ReadonlyMap<string, boolean> = new Map();
 let generation = 0;
 const listeners = new Set<() => void>();
 
@@ -60,9 +61,18 @@ export function loadMembership(db: SQLiteDatabase, version: number): void {
   );
 }
 
+/** What the store last confirmed, whatever a press is asking for. */
 export function membershipOf(db: SQLiteDatabase, key: string): KeyMembership {
   if (held === null || held.db !== db) return 'unknown';
   return held.keys.has(key) ? 'on' : 'off';
+}
+
+/** What a heart draws: the travelling press's intent over the confirmed answer. */
+export function shownOf(db: SQLiteDatabase, key: string): KeyMembership {
+  const confirmed = membershipOf(db, key);
+  const intent = intents.get(key);
+  if (confirmed === 'unknown' || intent === undefined) return confirmed;
+  return intent ? 'on' : 'off';
 }
 
 export function patchMembership(key: string, on: boolean) {
@@ -75,14 +85,15 @@ export function patchMembership(key: string, on: boolean) {
   notify();
 }
 
-export function pendingOf(key: string): WishlistWriteKind | null {
-  return pending.get(key) ?? null;
+/** The membership the item's last press asked for, null while no exchange for it travels. */
+export function intentOf(key: string): boolean | null {
+  return intents.get(key) ?? null;
 }
 
-export function setPending(key: string, action: WishlistWriteKind | null) {
-  const next = new Map(pending);
-  if (action === null) next.delete(key);
-  else next.set(key, action);
-  pending = next;
+export function setIntent(key: string, on: boolean | null) {
+  const next = new Map(intents);
+  if (on === null) next.delete(key);
+  else next.set(key, on);
+  intents = next;
   notify();
 }

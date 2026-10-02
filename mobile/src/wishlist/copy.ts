@@ -4,10 +4,8 @@ import { Platform } from 'react-native';
 const thisDevice = Platform.OS === 'ios' ? 'this iPhone' : 'this phone';
 
 export const wishlistCopy = {
-  action: (title: string, wishlisted: boolean) =>
-    wishlisted ? `Remove ${title} from your Bandcamp wishlist` : `Add ${title} to your Bandcamp wishlist`,
-  pending: (title: string, action: 'add' | 'remove') =>
-    action === 'remove' ? `Removing ${title} from your wishlist` : `Adding ${title} to your wishlist`,
+  action: (title: string, on: boolean) =>
+    on ? `Remove ${title} from your Bandcamp wishlist` : `Add ${title} to your Bandcamp wishlist`,
   unknown: (title: string) => `Checking your wishlist for ${title}`,
   notice: {
     loggedOut: `Bandcamp no longer accepts the sign-in on ${thisDevice}, so that didn't reach your wishlist.`,

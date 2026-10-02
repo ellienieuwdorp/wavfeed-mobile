@@ -27,13 +27,13 @@ import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { Type } from '@/components/Type';
 import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
-import { isDemoFan } from '@/demo/demo';
 import { fanInitials, sizedImageUrl } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
 import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
+import { standingOf } from '@/state/standing';
 import { countRawDocuments, readKv, readOverview } from '@/store';
 import { connectHref } from '@/tally/actions';
 import { feedbackFacts } from '@/tally/appFacts';
@@ -139,13 +139,7 @@ export default function Settings() {
   };
   const version = feedbackFacts(null);
 
-  const status: 'connected' | 'signedOut' | 'notConnected' | 'demo' = isDemoFan(identity?.fanId)
-    ? 'demo'
-    : identity === null || gather.pausedReason === 'not_connected'
-      ? 'notConnected'
-      : gather.pausedReason === 'logged_out'
-        ? 'signedOut'
-        : 'connected';
+  const status = standingOf(identity, gather.pausedReason);
   const handle = identity === null ? '' : identity.username || identity.name || String(identity.fanId);
   const busy = gathering || gather.phase !== 'idle';
   const gatheredAgo = gather.lastSuccessAt === null ? s.notGatheredYet : s.gathered(gather.lastSuccessAt, now);

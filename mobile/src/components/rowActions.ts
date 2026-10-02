@@ -4,7 +4,6 @@
  * control's own activation, and Bought by where the row names who bought it. RowMenu.tsx builds the items and hands
  * these to the row and its art. The iOS row is one element, so the heart's state it hides is said in its label.
  */
-import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 import { copy } from '@/copy';
 import type { Membership } from '@/wishlist/state';
 
@@ -28,7 +27,6 @@ export function spokenActions<Fan>(actions: readonly RowAction[], fans: readonly
 }
 
 /** The heart's state as the iOS row's label says it after the facts; off and not asked yet say nothing. */
-export function heardWishlist(membership: Membership, pending: WishlistWriteKind | null): string | null {
-  if (pending !== null) return pending === 'add' ? copy.heart.adding : copy.heart.removing;
-  return membership.known && membership.wishlisted ? copy.heart.on : null;
+export function heardWishlist(membership: Membership): string | null {
+  return membership.known && membership.on ? copy.heart.on : null;
 }

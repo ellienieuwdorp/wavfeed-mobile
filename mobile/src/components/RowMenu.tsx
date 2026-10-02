@@ -3,8 +3,9 @@
  * Add to or Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is the action sheet while
  * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
  * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
- * wishlist item runs the heart's own press (ADR-0016) and is greyed whenever the heart would take no press. Only an
- * https address from the wire is opened or shared, and an open is counted as a hand-off (task 0038). The same items,
+ * wishlist item runs the heart's own press (ADR-0016), is named for the press the heart's drawn state would take, a
+ * travelling press included, and is greyed while membership is not asked yet. Only an https address from the wire is
+ * opened or shared, and an open is counted as a hand-off (task 0038). The same items,
  * with Bought by where the row draws who bought it, are the screen reader's actions on the row and on its art
  * (rowActions.ts, VIS-9 and FLOW-13): the render prop's second argument, and `useSpokenActions` under it.
  */
@@ -22,7 +23,7 @@ import type { ApiFanRef } from '@/domain/apiTypes';
 import { webUrl } from '@/lib/format';
 import { useSharing } from '@/tally/Sharing';
 import { useTokens } from '@/theme/tokens';
-import { useMembership, usePendingAction, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
+import { useMembership, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
 
 import { openBoughtBy } from './AvatarStack';
 import { usePlay, type RowRelease } from './playable';
@@ -48,9 +49,8 @@ function useRowActions(release: RowRelease): readonly Action[] {
   const { isPlaying } = usePlayerActions();
   const { track } = useSharing();
   const membership = useMembership(release.itemType, release.itemId);
-  const pending = usePendingAction(release.itemType, release.itemId);
   const press = useWishlistPress('row_menu');
-  const wishlisted = membership.known && membership.wishlisted;
+  const on = membership.known && membership.on;
   const url = webUrl(release.itemUrl);
   const key = { itemType: release.itemType, itemId: release.itemId };
   const target: WishlistTarget = { ...key, release: key };
@@ -58,10 +58,10 @@ function useRowActions(release: RowRelease): readonly Action[] {
     { key: PLAY_ACTION, label: copy.rowMenu.play, icon: 'play', enabled: true, run: () => play(release) },
     {
       key: 'wishlist',
-      label: wishlisted ? copy.rowMenu.remove : copy.rowMenu.add,
-      icon: wishlisted ? 'heart.slash' : 'heart',
-      enabled: membership.known && pending === null,
-      run: () => press(target, wishlisted ? 'remove' : 'add'),
+      label: on ? copy.rowMenu.remove : copy.rowMenu.add,
+      icon: on ? 'heart.slash' : 'heart',
+      enabled: membership.known,
+      run: () => void press(target, on ? 'remove' : 'add'),
     },
     {
       key: 'open',

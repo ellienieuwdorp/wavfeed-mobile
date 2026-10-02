@@ -5,7 +5,9 @@
  * when it sits on a custom domain, and the write through the session (ADR-0016 amendment 2026-09-28), every response
  * through `putRaw` before the outcome is acted on (ADR-0004), then the item written into or out of `wishlist_items`
  * here, because the Projection folds only the wishlist walk and never a collect answer. A rebuild therefore forgets a press until the next walk brings it back.
- * Pending belongs to the item, never the control, so the bar's heart does not carry a press across a track change.
+ * A press flips the heart before Bandcamp answers (ADR-0016 amendment 2026-10-02): its intent belongs to the item,
+ * never the control, so every heart for the item flips together and the bar's heart does not carry a press across a
+ * track change, and `press.ts` coalesces taps on an item while its exchange travels, last tap wins.
  * Membership is not asked yet until a wishlist walk has been asked once (`GatherState.wishlistAskedAt`), whatever it
  * answered, so a wishlist that keeps erroring still leaves every heart pressable, as off. Each press logs one line of
  * codes, counts, where the crumb came from, the answer's field names and flags and Bandcamp's reason scrubbed by
@@ -25,14 +27,17 @@ import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { devLog } from '@/lib/devLog';
 import { webUrl } from '@/lib/format';
+import { failedHaptic, turnedOnHaptic } from '@/lib/haptics';
 import { useAppState, type AppState } from '@/state/appState';
+import { standingOf } from '@/state/standing';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
 import { readNewestBandcampReleaseUrl, readTracklist } from '@/store/queries';
 import { connectHref, wishlistActionFinished, type PressSurface } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
 
 import { wishlistCopy } from './copy';
-import { keyOf, loadMembership, membershipOf, patchMembership, pendingOf, setPending, subscribe } from './membership';
+import { keyOf, loadMembership, shownOf, subscribe } from './membership';
+import { pressItem, type Tell } from './press';
 
 /** What a press acts on, and the Release whose Page the write has to name. */
 export type WishlistTarget = {
@@ -41,7 +46,8 @@ export type WishlistTarget = {
   readonly release: { readonly itemType: ItemType; readonly itemId: string };
 };
 
-export type Membership = { readonly known: false } | { readonly known: true; readonly wishlisted: boolean };
+/** What a heart draws: `on` is the Fan's last press while its exchange travels, else what Bandcamp confirmed. */
+export type Membership = { readonly known: false } | { readonly known: true; readonly on: boolean };
 
 export type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
 type BandSource = 'page' | 'fetched_page' | 'row';
@@ -54,20 +60,18 @@ type Sent = {
   readonly url?: string;
 };
 
-/** Each heart selects its own key's answer, so only the hearts a load or a press moves re-render (finding TECH-M1). */
+/**
+ * What the item's hearts draw, a travelling press's intent over the confirmed answer. Each heart selects its own key's
+ * answer, so only the hearts a load or a press moves re-render (finding TECH-M1).
+ */
 export function useMembership(itemType: ItemType, itemId: string): Membership {
   const { db, version, gather } = useAppState();
   const key = keyOf(itemType, itemId);
-  const answer = useSyncExternalStore(subscribe, () => membershipOf(db, key));
+  const answer = useSyncExternalStore(subscribe, () => shownOf(db, key));
   useEffect(() => loadMembership(db, version), [db, version]);
   const asked = gather.wishlistFetchedAt !== null || gather.wishlistAskedAt !== null;
   if (!asked || answer === 'unknown') return { known: false };
-  return { known: true, wishlisted: answer === 'on' };
-}
-
-export function usePendingAction(itemType: ItemType, itemId: string): WishlistWriteKind | null {
-  const key = keyOf(itemType, itemId);
-  return useSyncExternalStore(subscribe, () => pendingOf(key));
+  return { known: true, on: answer === 'on' };
 }
 
 type Band = { id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null; url: string };
@@ -118,9 +122,10 @@ async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandI
 }
 
 /** The documents are already stored by the time this answers. A Track press names a Track its Release holds. */
-async function send(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<Sent> {
+async function exchange(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<Sent> {
   const identity = await readKv<StoredIdentity>(app.db, IDENTITY_KEY);
-  // The Demo's Fan has no Bandcamp session, so its press is a sign-in notice (task 0043, decision 7).
+  // `useWishlistPress` turns these away before flipping; the stored identity is what the write names, so it is checked
+  // again. A sign-out after the press is not: it empties the jar, Bandcamp answers logged out and the heart reverts.
   if (identity === null || isDemoFan(identity.fanId)) return { failure: 'not_signed_in', reason: null, band: null, wire: null };
   const found = await readBand(app, target.release);
   if (found === null) return { failure: 'unknown_item', reason: null, band: null, wire: null };
@@ -190,37 +195,53 @@ function noticeFor(failure: PressFailure | 'other', reason: string | null = null
 }
 
 /**
- * One press, one exchange: a second press on the same item while one travels is turned away. Each exchange ends in one
- * `wishlist_action_finished` naming the `surface` pressed (task 0038).
+ * The press every heart and the row menu run. Where the phone stands is read off the app state, which holds it in
+ * memory (`standing.ts`): with no Fan, the Demo's (task 0043, decision 7), a sign-out from Settings or a sign-in
+ * Bandcamp no longer accepts, nothing is flipped and the press ends in its notice.
+ * Otherwise the heart flips at once and the exchange travels behind it (`press.ts`, ADR-0016 amendment 2026-10-02),
+ * with a light impact when the press turns the heart on. Each exchange ends in one `wishlist_action_finished` naming
+ * the `surface` pressed (task 0038) and one log line; a failure the Fan is told about raises its notice and the error
+ * haptic. Answers whether the press was taken, so the heart pops only then.
  */
-export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind) => void {
+export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind) => boolean {
   const app = useAppState();
   const { show } = useNotice();
   const { track } = useSharing();
   return useCallback(
     (target, action) => {
       const key = keyOf(target.itemType, target.itemId);
-      if (pendingOf(key) !== null) return;
-      setPending(key, action);
       const onTrack = key !== keyOf(target.release.itemType, target.release.itemId);
-      let told = false;
-      send(app, target, action)
-        .then((sent) => {
+      const standing = standingOf(app.gather.identity, app.gather.pausedReason);
+      if (standing !== 'connected') {
+        const failure = standing === 'signedOut' ? 'logged_out' : 'not_signed_in';
+        track(wishlistActionFinished({ action, surface, onTrack, failure, wire: null }));
+        logPress(action, target, { failure, reason: null, band: null, wire: null });
+        show(noticeFor(failure));
+        return false;
+      }
+      const send = async (on: boolean): Promise<Tell | null> => {
+        const sending: WishlistWriteKind = on ? 'add' : 'remove';
+        let told = false;
+        try {
+          const sent = await exchange(app, target, sending);
           told = true;
-          track(wishlistActionFinished({ action, surface, onTrack, failure: sent.failure, wire: sent.wire }));
-          logPress(action, target, sent);
-          if (sent.failure !== null) show(noticeFor(sent.failure, sent.reason, sent.url));
-          else {
-            patchMembership(key, action === 'add');
-            app.invalidate();
-          }
-        })
-        .catch((error: unknown) => {
-          console.warn(`wishlist ${action} ${key} threw:`, error instanceof Error ? error.message : String(error));
-          if (!told) track(wishlistActionFinished({ action, surface, onTrack, failure: 'other', wire: null }));
-          show(noticeFor('other'));
-        })
-        .finally(() => setPending(key, null));
+          track(wishlistActionFinished({ action: sending, surface, onTrack, failure: sent.failure, wire: sent.wire }));
+          logPress(sending, target, sent);
+          const { failure, reason, url } = sent;
+          return failure === null ? null : () => tell(noticeFor(failure, reason, url));
+        } catch (error: unknown) {
+          console.warn(`wishlist ${sending} ${key} threw:`, error instanceof Error ? error.message : String(error));
+          if (!told) track(wishlistActionFinished({ action: sending, surface, onTrack, failure: 'other', wire: null }));
+          return () => tell(noticeFor('other'));
+        }
+      };
+      const tell = (line: NoticeLine) => {
+        show(line);
+        failedHaptic();
+      };
+      if (action === 'add') turnedOnHaptic();
+      pressItem(key, action === 'add', { db: app.db, send, saved: app.invalidate });
+      return true;
     },
     [app, show, track, surface],
   );

@@ -22,7 +22,7 @@ export type Palette = {
   inverseAccent: string;
   tint: string;
   wishlist: string;
-  /** The heart's rim in the wishlist hue, filled or pending, so the shape clears 3:1 on the page. */
+  /** The filled heart's rim in the wishlist hue, so the shape clears 3:1 on the page. */
   wishlistEdge: string;
   danger: string;
   onAccent: string;

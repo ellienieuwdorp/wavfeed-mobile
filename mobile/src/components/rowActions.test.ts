@@ -46,13 +46,11 @@ test('an action runs its own item, and a greyed item is neither offered nor run'
   assert.deepEqual(ran, ['share']);
 });
 
-test('the iOS row says the heart it hides: on, adding, removing, and nothing when off or not asked yet', () => {
+test('the iOS row says the heart it hides when on, and nothing when off or not asked yet', () => {
   const cases = [
-    [{ known: false }, null, null],
-    [{ known: true, wishlisted: false }, null, null],
-    [{ known: true, wishlisted: true }, null, copy.heart.on],
-    [{ known: true, wishlisted: false }, 'add', copy.heart.adding],
-    [{ known: true, wishlisted: true }, 'remove', copy.heart.removing],
+    [{ known: false }, null],
+    [{ known: true, on: false }, null],
+    [{ known: true, on: true }, copy.heart.on],
   ] as const;
-  for (const [membership, pending, heard] of cases) assert.equal(heardWishlist(membership, pending), heard);
+  for (const [membership, heard] of cases) assert.equal(heardWishlist(membership), heard);
 });
