@@ -180,7 +180,7 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
               android_ripple={ripple(c.track)}
               style={({ pressed }) => ({ minHeight: ios ? 44 : 48, justifyContent: 'center', paddingHorizontal: 12, opacity: pressedOpacity(pressed) })}
             >
-              <Text style={{ fontSize: type.fact, fontWeight: '600', color: c.accent }}>{copy.connect.tryAgain}</Text>
+              <Text style={{ fontSize: type.fact, fontWeight: '600', color: c.accentText }}>{copy.connect.tryAgain}</Text>
             </Pressable>
           ) : null}
         </View>
