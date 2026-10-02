@@ -16,13 +16,17 @@ function coded(code: string, message: string): Error {
 }
 
 const PLATFORMS = {
+  // The iOS messages as an iOS 26 simulator gave them, Swift origins included (they are there in a release build too).
   ios: {
     missing: (name: string) =>
-      coded('E_SQLITE_DELETE_DATABASE', `Calling the 'deleteDatabaseAsync' function has failed\n→ Caused by: Database /SQLite/${name} not found`),
+      coded(
+        'E_SQLITE_DELETE_DATABASE',
+        `FunctionCallException: Calling the 'deleteDatabaseAsync' function has failed (at ExpoModulesCore/AsyncFunctionDefinition.swift:123)\n→ Caused by: DatabaseNotFoundException: Database /SQLite/${name} not found (at ExpoSQLite/SQLiteModule.swift:521)`,
+      ),
     open: (name: string) =>
       coded(
         'E_SQLITE_DELETE_DATABASE',
-        `Calling the 'deleteDatabaseAsync' function has failed\n→ Caused by: Unable to delete database /SQLite/${name} that is currently open. Close it prior to deletion`,
+        `FunctionCallException: Calling the 'deleteDatabaseAsync' function has failed (at ExpoModulesCore/AsyncFunctionDefinition.swift:123)\n→ Caused by: DeleteDatabaseException: Unable to delete database /SQLite/${name} that is currently open. Close it prior to deletion (at ExpoSQLite/SQLiteModule.swift:512)`,
       ),
   },
   android: {
