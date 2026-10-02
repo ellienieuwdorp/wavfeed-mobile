@@ -16,6 +16,7 @@ test('the art keeps the content width while the first Track row shows, then shri
     [354, 768, 1, 354],
     [354, 768, 1.118, 350], // 768 - 318 - 89 x 1.118 = 350.5
     [327, 637, 1.353, ART_FLOOR], // 637 - 318 - 89 x 1.353 = 198.6
+    [354, 700, 0.823, 297], // the Type lines hold their 64pt below the default size: 700 - 318 - 64 - 25 x 0.823 = 297.4
   ];
   for (const [content, visible, fontScale, side] of cases) assert.equal(artSide(content, visible, fontScale, above), side, `${visible} at ${fontScale}`);
 });
