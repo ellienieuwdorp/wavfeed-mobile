@@ -9,9 +9,10 @@ export const playerCopy = {
   close: 'Close the player',
   previous: 'Previous track',
   next: 'Next track',
-  linkOut: '↗',
+  /** The sheet's link to the Release page, at the end of its facts line; names the place, not a purchase (task 0043, decision 3). */
+  bandcampLink: 'Bandcamp ↗',
   trackTitle: (n: number, title: string) => `${n}. ${title}`,
-  /** The title link's name names the place, not a purchase: App Review guideline 3.1.1(a) (task 0043, decision 3). */
+  /** What both of the sheet's links say to a screen reader: the place, not a purchase, App Review guideline 3.1.1(a) (task 0043, decision 3). */
   openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
   seek: (title: string) => `Position in ${title}`,
   seekIdle: 'Position in the track',

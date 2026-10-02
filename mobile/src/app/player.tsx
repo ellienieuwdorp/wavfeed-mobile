@@ -1,9 +1,9 @@
 /**
  * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
  * scroll in Apple Music's shape: artwork, "N. Track title" linking out over the Page and Release with the heart for the
- * playing Track at their right, the label and release day, the seek line with its m:ss times, the transport, then the
- * Release's tracklist. The title is the sheet's one link to the Release page (task 0043, decision 3), and the art gives
- * up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
+ * playing Track at their right, the label and release day ending in "Bandcamp ↗", the seek line with its m:ss times, the
+ * transport, then the Release's tracklist. The facts line's link names where the title also goes (task 0043, decision
+ * 3), and the art gives up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
  * grabber and close chevron over a plain face, so the pull-down dismisses from the art and from the top of the scroll;
  * on Android a bottom sheet with 28dp corners at full height, Compose's Material 3 slider and the ripple on every
  * control. Every block above the tracklist keeps one height for a given text size, its text one line and its height at
@@ -66,12 +66,15 @@ const ABOVE_FIRST_ROW: AboveFirstRow = {
   plainLines: TRACKS_HEAD_LINE,
 };
 
-/** Opens the Release on Bandcamp from the title and counts the hand-off (task 0038). */
-function useOpen(): (release: PlayableRelease) => void {
+/** Where the sheet's two ways to the Release page sit: the title and its link on the facts line. */
+type OpenSurface = 'sheet_title' | 'sheet_buy';
+
+/** Opens the Release on Bandcamp and counts the hand-off (task 0038). */
+function useOpen(): (release: PlayableRelease, surface: OpenSurface) => void {
   const { track } = useSharing();
   const { isPlaying } = usePlayerActions();
-  return (release) => {
-    track({ name: 'release_opened_on_bandcamp', props: { surface: 'sheet_title', was_playing: isPlaying() } });
+  return (release, surface) => {
+    track({ name: 'release_opened_on_bandcamp', props: { surface, was_playing: isPlaying() } });
     openURL(release.url).catch(() => undefined);
   };
 }
@@ -282,28 +285,41 @@ function Transport() {
 
 /**
  * The heart stands beside the title's link, never inside it, so a press on it never opens Bandcamp. Its box ends 12 from
- * the screen's edge as each Track row's does, which puts the sheet's hearts in one column.
+ * the screen's edge as each Track row's does, which puts the sheet's hearts in one column. "Bandcamp ↗" never shrinks,
+ * so a long label truncates before it, and its target reaches 44pt over the gaps above and below its 18pt line.
  */
 function Titles({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
   const player = usePlayer();
   const open = useOpen();
   const title = trackLine(player, release);
+  const label = playerCopy.openOnBandcamp(player.track?.title ?? release.title);
+  const facts = factsLine(release);
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Pressable onPress={() => open(release)} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressedOpacity(pressed) })}>
-          <View style={{ minHeight: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
-            <Type style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Type>
-          </View>
+        <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={label} android_ripple={ripple(c.track)} style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressedOpacity(pressed) })}>
+          <Type numberOfLines={1} style={{ minHeight: TITLE, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
           <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
         </Pressable>
         <View style={{ marginRight: 12 - SIDE }}>
           <TrackHeart release={release} box={HEART} icon={26} surface="sheet" />
         </View>
       </View>
-      <Type numberOfLines={1} style={{ minHeight: FACTS, marginTop: FACTS_GAP, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Type>
+      <View style={{ minHeight: FACTS, marginTop: FACTS_GAP, flexDirection: 'row', alignItems: 'center' }}>
+        {facts === '' ? null : (
+          <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{facts + sep}</Type>
+        )}
+        <Pressable
+          onPress={() => open(release, 'sheet_buy')}
+          hitSlop={{ top: 13, bottom: 13, left: 8, right: 12 }}
+          accessibilityRole="link"
+          accessibilityLabel={label}
+          style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}
+        >
+          <Type numberOfLines={1} style={{ fontSize: 13, lineHeight: FACTS, color: c.accentText }}>{playerCopy.bandcampLink}</Type>
+        </Pressable>
+      </View>
     </View>
   );
 }
