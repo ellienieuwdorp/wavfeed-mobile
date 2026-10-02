@@ -14,7 +14,8 @@
       "distribution": "internal",
       "channel": "preview",
       "environment": "preview",
-      "env": { "SOURCEMAP_FILE": "index.ios.map" }
+      "env": { "SOURCEMAP_FILE": "index.ios.map" },
+      "android": { "buildType": "apk" }
     },
     "production": {
       "autoIncrement": true,
