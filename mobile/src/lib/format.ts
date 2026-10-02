@@ -12,8 +12,10 @@ type Size = readonly [id: number, edge: number];
  * Bandcamp's square sizes by id and edge in pixels, the same for art and a Fan's image, measured on 2026-10-01 with
  * cookie-free requests for public images. Art also comes square at 1200px as `_10`; a Fan's `_10` is the uncropped original.
  */
-const SQUARE: readonly Size[] = [[42, 50], [3, 100], [7, 150], [9, 210], [2, 350], [16, 700]];
-const ART: readonly Size[] = [...SQUARE, [10, 1200]];
+const FACE_LARGEST: Size = [16, 700];
+const ART_LARGEST: Size = [10, 1200];
+const SQUARE: readonly Size[] = [[42, 50], [3, 100], [7, 150], [9, 210], [2, 350], FACE_LARGEST];
+const ART: readonly Size[] = [...SQUARE, ART_LARGEST];
 
 const IMAGE_URL = /^(https:\/\/f4\.bcbits\.com\/img\/(a?)\d+)_\d+\.jpg$/;
 
@@ -30,8 +32,8 @@ export function fanAvatarUrl(imageId: string | number | null): string | null {
 export function sizedImageUrl(url: string, pixels: number): string {
   const match = IMAGE_URL.exec(url);
   if (match === null) return url;
-  const sizes = match[2] === 'a' ? ART : SQUARE;
-  const [id] = sizes.find(([, edge]) => edge >= pixels) ?? sizes[sizes.length - 1];
+  const [sizes, largest] = match[2] === 'a' ? [ART, ART_LARGEST] : [SQUARE, FACE_LARGEST];
+  const [id] = sizes.find(([, edge]) => edge >= pixels) ?? largest;
   return `${match[1]}_${id}.jpg`;
 }
 
