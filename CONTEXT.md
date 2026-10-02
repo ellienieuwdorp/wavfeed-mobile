@@ -183,15 +183,22 @@ _Avoid_: favorite, like, save, wishlist
 Bandcamp's own save-for-later list on a Fan's account. The one thing wavfeed
 writes to Bandcamp (ADR-0016): a press on the heart adds a Release or a Track
 to the signed-in Fan's own wishlist, or removes it, through a **Wishlist
-Action**. "Wishlisted" is the state Bandcamp confirmed, never a guess.
+Action**. "Wishlisted" is the state Bandcamp confirmed, never a guess. On the
+phone the heart draws the Fan's last press over it while a Wishlist Action
+travels, and goes back to it if that action fails (ADR-0016, amended
+2026-10-02); `wishlist_items` holds only what Bandcamp confirmed.
 _Avoid_: starred, favorite, like, save, collect (Bandcamp's wire verb)
 
 **Wishlist Action**:
-One press of the heart on its way to Bandcamp (ADR-0016). The phone carries it
-out itself: it writes to Bandcamp through the session and, on success, writes
-the item into or out of `wishlist_items` (task 0036). On the v1 box it is a row
-in `wishlist_actions` the API queues and the worker carries out, holding the
-outcome it came back with. It is the press, not the item.
+One exchange with Bandcamp that adds an item to the wishlist or removes it
+(ADR-0016). The phone carries it out itself: it writes to Bandcamp through the
+session and, on success, writes the item into or out of `wishlist_items` (task
+0036). Presses on an item while one travels fold into the next, last tap wins
+(ADR-0016, amended 2026-10-02), so one Wishlist Action may carry the last of
+several presses. Code and docs also call it an exchange. On the v1
+box it is a row in `wishlist_actions` the API queues and the worker carries
+out, one per press, holding the outcome it came back with. It is the exchange,
+not the item.
 _Avoid_: job, task, queue entry, mutation
 
 ### Usage concepts
