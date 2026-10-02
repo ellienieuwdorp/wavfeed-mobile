@@ -9,9 +9,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { DEMO_FAN_ID } from '@/demo/fan';
 import { DAY_MS } from '@/lib/time';
-import { foldLockFree, withFoldLock } from '@/store/foldLock';
+import { BUSY_TIMEOUT_MS, foldLockFree, withFoldLock } from '@/store/foldLock';
 import { IDENTITY_KEY, readKv } from '@/store/kv';
-import { BUSY_TIMEOUT_MS } from '@/store/migrations';
 
 import { WIRE, type Tally } from './catalogue';
 import type { ErrorReport } from './errorReport';

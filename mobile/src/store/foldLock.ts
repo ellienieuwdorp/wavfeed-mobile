@@ -9,6 +9,9 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+/** A fold transaction on its own connection waits this long for the Fetcher's write, and the other way round. */
+export const BUSY_TIMEOUT_MS = 5000;
+
 type Task = Parameters<SQLiteDatabase['withExclusiveTransactionAsync']>[0];
 
 /** `own` opens a connection for the transaction; `main` runs it on `db` itself, for when nothing else uses `db`. */

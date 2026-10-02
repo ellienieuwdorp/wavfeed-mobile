@@ -4,9 +4,10 @@
  */
 import { deleteDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
-import { BUSY_TIMEOUT_MS, migrate } from './migrations';
+import { BUSY_TIMEOUT_MS } from './foldLock';
+import { migrate } from './migrations';
 
-export { BUSY_TIMEOUT_MS } from './migrations';
+export { BUSY_TIMEOUT_MS } from './foldLock';
 
 export type Store = { readonly db: SQLiteDatabase };
 

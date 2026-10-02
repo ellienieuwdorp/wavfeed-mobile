@@ -9,9 +9,6 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { reportCode } from '../tally/errors';
 
-/** A fold transaction on its own connection waits this long for the Fetcher's write, and the other way round. */
-export const BUSY_TIMEOUT_MS = 5000;
-
 type Migration = { readonly version: number; readonly sql: string };
 
 const MIGRATIONS: readonly Migration[] = [

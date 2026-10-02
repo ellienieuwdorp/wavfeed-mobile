@@ -24,8 +24,7 @@ import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWi
 import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
 import { reportCode } from '../tally/errors';
 import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
-import { type FoldConnection, withFoldLock } from './foldLock';
-import { BUSY_TIMEOUT_MS } from './migrations';
+import { BUSY_TIMEOUT_MS, type FoldConnection, withFoldLock } from './foldLock';
 import { countForProjection, listForProjection, type RawDocument } from './rawDocuments';
 
 export const FOLD_BATCH_SIZE = 50;
