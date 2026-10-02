@@ -22,7 +22,12 @@ import { clock, usePlayer, usePlayerActions, type PlayableRelease } from './play
 
 const ios = Platform.OS === 'ios';
 
-const ROW = ios ? 52 : 56;
+export const ROW = ios ? 52 : 56;
+const HEAD_TOP = ios ? 12 : 16;
+const HEAD_BOTTOM = 4;
+/** The "Tracks" head's padding and its line at the default text size, which the player sheet counts when it sizes the art. */
+export const TRACKS_HEAD_PAD = HEAD_TOP + HEAD_BOTTOM;
+export const TRACKS_HEAD_LINE = ios ? 25 : 24;
 const NUMBER = ios ? 28 : 32;
 const ROW_GAP = ios ? 12 : 16;
 const BAR_HEIGHT = ios ? 14 : 16;
@@ -162,7 +167,7 @@ export function Tracklist({ release, side }: { release: PlayableRelease; side: n
     <View>
       <Text
         accessibilityRole="header"
-        style={{ fontSize: ios ? 20 : 16, lineHeight: ios ? 25 : 24, fontWeight: ios ? '700' : '500', color: c.ink, paddingTop: ios ? 12 : 16, paddingBottom: 4 }}
+        style={{ fontSize: ios ? 20 : 16, lineHeight: TRACKS_HEAD_LINE, fontWeight: ios ? '700' : '500', color: c.ink, paddingTop: HEAD_TOP, paddingBottom: HEAD_BOTTOM }}
       >
         {playerCopy.tracks}
       </Text>

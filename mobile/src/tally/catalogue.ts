@@ -113,6 +113,8 @@ export const CATALOGUE = {
   },
   release_opened_on_bandcamp: {
     code: 13,
+    // sheet_buy was the sheet's own link, gone since 2026-10-02 (task 0043, decision 3); builds before then still send
+    // it, and the Worker drops a whole Tally carrying a value this list lacks.
     props: { surface: ['row_menu', 'sheet_title', 'sheet_buy'], was_playing: FLAG },
   },
   signed_out: { code: 14, props: { result: ['ok', 'unreachable'] } },

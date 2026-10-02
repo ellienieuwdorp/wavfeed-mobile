@@ -573,8 +573,6 @@ export const copy = {
     pause: 'Pause',
     previous: 'Previous track',
     next: 'Next track',
-    bandcampLink: 'Open on Bandcamp ↗',
-    bandcampLinkLabel: 'Open on Bandcamp',
     trackTitle: (n: number, title: string) => `${n}. ${title}`,
     openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
   },

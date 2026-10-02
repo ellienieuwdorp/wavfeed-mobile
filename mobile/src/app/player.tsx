@@ -1,13 +1,14 @@
 /**
  * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
- * scroll in Apple Music's shape: artwork, "N. Track title" linking out, the Page and Release, the label and release day,
- * the seek line with its m:ss times, the transport, the heart for the playing Track and "Open on Bandcamp ↗", then the
- * Release's tracklist. On iOS it is a page sheet with its grabber and close chevron over a plain face, so the pull-down
- * dismisses from the art and from the top of the scroll; on Android a bottom sheet with 28dp corners at full height,
- * Compose's Material 3 slider and the ripple on every control. Every block above the tracklist keeps one height for a
- * given text size, its text one line and its height at least the default's, so nothing moves when a Track changes;
- * the seek block holds one height at every size, its m:ss times not growing and the note standing in for it fitting
- * two lines (review VIS-1).
+ * scroll in Apple Music's shape: artwork, "N. Track title" linking out over the Page and Release with the heart for the
+ * playing Track at their right, the label and release day, the seek line with its m:ss times, the transport, then the
+ * Release's tracklist. The title is the sheet's one link to the Release page (task 0043, decision 3), and the art gives
+ * up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
+ * grabber and close chevron over a plain face, so the pull-down dismisses from the art and from the top of the scroll;
+ * on Android a bottom sheet with 28dp corners at full height, Compose's Material 3 slider and the ripple on every
+ * control. Every block above the tracklist keeps one height for a given text size, its text one line and its height at
+ * least the default's, so nothing moves when a Track changes; the seek block holds one height at every size, its m:ss
+ * times not growing and the note standing in for it fitting two lines (review VIS-1).
  */
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Host as ComposeHost, Slider as ComposeSlider } from '@expo/ui/jetpack-compose';
@@ -22,12 +23,13 @@ import { Artwork } from '@/components/Artwork';
 import { Glyph, type GlyphName } from '@/components/Glyph';
 import { trackLine, TrackHeart, usePlayControl } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
-import { Tracklist } from '@/components/player/Tracklist';
+import { ROW, Tracklist, TRACKS_HEAD_LINE, TRACKS_HEAD_PAD } from '@/components/player/Tracklist';
 import { Type } from '@/components/Type';
 import { SELF_RELEASED, sep, sheetSubtitle } from '@/copy';
 import { sampleRig } from '@/dev/rig';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { formatDatePart, releaseDay } from '@/lib/dates';
+import { artSide, type AboveFirstRow } from '@/player/artSide';
 import { playerCopy } from '@/player/copy';
 import { playerNote } from '@/player/transport';
 import { useSharing } from '@/tally/Sharing';
@@ -38,24 +40,38 @@ const ios = Platform.OS === 'ios';
 const useSampleStart = sampleRig?.useSampleStart ?? ((_on: boolean) => undefined);
 
 const SIDE = 24;
-const GAP = 18;
+const GAP = 14;
 const HEAD = ios ? 52 : 48;
+const TOP = ios ? 4 : 8;
 const TITLE = ios ? 25 : 28;
 const SUBTITLE = 21;
+const FACTS_GAP = 4;
 const FACTS = 18;
 const SEEK = 62;
 const MAIN = ios ? 72 : 80;
-const ACTIONS = ios ? 44 : 48;
+const HEART = ios ? 44 : 48;
 const ART_RADIUS = ios ? 14 : 24;
+/** How far below the status bar iOS hangs a page sheet's top edge on an iPhone in portrait. */
+const PAGE_SHEET_DROP = 10;
+/**
+ * The sheet from its top edge to the foot of the first Track row, less the art (artSide). The head, the scroll's top
+ * padding, four gaps, the facts gap, the seek line, the transport, the "Tracks" head's padding and one row hold their
+ * height: 52 + 4 + 4 x 14 + 4 + 62 + 72 + 16 + 52 = 318pt on iOS, 48 + 8 + 4 x 14 + 4 + 62 + 80 + 20 + 56 = 334dp on
+ * Android. The title, subtitle and facts lines (25 + 21 + 18pt, 28 + 21 + 18dp) are Type's and the "Tracks" line (25pt,
+ * 24dp) a plain Text's, so 407pt and 425dp in all at the default text size.
+ */
+const ABOVE_FIRST_ROW: AboveFirstRow = {
+  fixed: HEAD + TOP + 4 * GAP + FACTS_GAP + SEEK + MAIN + TRACKS_HEAD_PAD + ROW,
+  rowLines: TITLE + SUBTITLE + FACTS,
+  plainLines: TRACKS_HEAD_LINE,
+};
 
-type OpenSurface = 'sheet_title' | 'sheet_buy';
-
-/** Opens the Release on Bandcamp and counts the hand-off (task 0038). */
-function useOpen(): (release: PlayableRelease, surface: OpenSurface) => void {
+/** Opens the Release on Bandcamp from the title and counts the hand-off (task 0038). */
+function useOpen(): (release: PlayableRelease) => void {
   const { track } = useSharing();
   const { isPlaying } = usePlayerActions();
-  return (release, surface) => {
-    track({ name: 'release_opened_on_bandcamp', props: { surface, was_playing: isPlaying() } });
+  return (release) => {
+    track({ name: 'release_opened_on_bandcamp', props: { surface: 'sheet_title', was_playing: isPlaying() } });
     openURL(release.url).catch(() => undefined);
   };
 }
@@ -264,6 +280,10 @@ function Transport() {
   );
 }
 
+/**
+ * The heart stands beside the title's link, never inside it, so a press on it never opens Bandcamp. Its box ends 12 from
+ * the screen's edge as each Track row's does, which puts the sheet's hearts in one column.
+ */
 function Titles({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
   const player = usePlayer();
@@ -271,33 +291,19 @@ function Titles({ release }: { release: PlayableRelease }) {
   const title = trackLine(player, release);
   return (
     <View>
-      <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
-        <View style={{ minHeight: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
-          <Type style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Type>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Pressable onPress={() => open(release)} accessibilityRole="link" accessibilityLabel={playerCopy.openOnBandcamp(player.track?.title ?? release.title)} android_ripple={ripple(c.track)} style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressedOpacity(pressed) })}>
+          <View style={{ minHeight: TITLE, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
+            <Type style={{ fontSize: 16, color: c.accentText }}>{playerCopy.linkOut}</Type>
+          </View>
+          <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
+        </Pressable>
+        <View style={{ marginRight: 12 - SIDE }}>
+          <TrackHeart release={release} box={HEART} icon={26} surface="sheet" />
         </View>
-        <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
-      </Pressable>
-      <Type numberOfLines={1} style={{ minHeight: FACTS, marginTop: 4, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Type>
-    </View>
-  );
-}
-
-function Actions({ release }: { release: PlayableRelease }) {
-  const { c } = useTokens();
-  const open = useOpen();
-  return (
-    <View style={{ minHeight: ACTIONS, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: ios ? -8 : 0 }}>
-      <TrackHeart release={release} box={ACTIONS} icon={26} surface="sheet" />
-      <Pressable
-        onPress={() => open(release, 'sheet_buy')}
-        accessibilityRole="link"
-        accessibilityLabel={playerCopy.bandcampLinkLabel}
-        android_ripple={ripple(c.track)}
-        style={({ pressed }) => (ios ? { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', opacity: pressedOpacity(pressed) } : { minHeight: 48, justifyContent: 'center', paddingHorizontal: 22, borderRadius: 24, overflow: 'hidden', backgroundColor: c.tint })}
-      >
-        <Type style={{ fontSize: ios ? 16 : 15, fontWeight: ios ? '400' : '500', color: ios ? c.accentText : c.ink }}>{playerCopy.bandcampLink}</Type>
-      </Pressable>
+      </View>
+      <Type numberOfLines={1} style={{ minHeight: FACTS, marginTop: FACTS_GAP, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{factsLine(release)}</Type>
     </View>
   );
 }
@@ -305,7 +311,7 @@ function Actions({ release }: { release: PlayableRelease }) {
 export default function PlayerSheet() {
   const { c } = useTokens();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const current = usePlayerRelease();
   const player = usePlayer();
   const { sample } = useLocalSearchParams<{ sample?: string }>();
@@ -322,20 +328,20 @@ export default function PlayerSheet() {
       </View>
     );
   }
-  const art = Math.round(width - SIDE * 2);
+  // The iOS page sheet hangs under the status bar; Android's bottom sheet is capped SHEET_TOP under it. Either reaches the
+  // screen's foot, where the home indicator or the navigation bar covers the last insets.bottom of it.
+  const sheet = height - insets.top - (ios ? PAGE_SHEET_DROP : SHEET_TOP);
+  const art = artSide(width - SIDE * 2, sheet - insets.bottom, fontScale, ABOVE_FIRST_ROW);
   const note = playerNote(player);
   return (
-    <View
-      onAccessibilityEscape={() => router.back()}
-      style={ios ? { flex: 1, backgroundColor: c.surface } : { height: height - insets.top - SHEET_TOP, backgroundColor: c.surface }}
-    >
+    <View onAccessibilityEscape={() => router.back()} style={ios ? { flex: 1, backgroundColor: c.surface } : { height: sheet, backgroundColor: c.surface }}>
       <Head />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: SIDE, paddingTop: ios ? 4 : 8, paddingBottom: (ios ? 0 : insets.bottom) + 32, gap: GAP }}
+        contentContainerStyle={{ paddingHorizontal: SIDE, paddingTop: TOP, paddingBottom: (ios ? 0 : insets.bottom) + 32, gap: GAP }}
       >
         <View style={{ alignSelf: 'center', width: art, height: art, borderRadius: ART_RADIUS, backgroundColor: c.surface, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
           <Artwork hue={current.hue} url={current.artUrl} size={art} radius={ART_RADIUS} />
@@ -343,7 +349,6 @@ export default function PlayerSheet() {
         <Titles release={current} />
         {note === null ? <SeekLine key={player.track?.trackId ?? 'none'} /> : <Note text={note} />}
         <Transport />
-        <Actions release={current} />
         <Tracklist release={current} side={SIDE} />
       </ScrollView>
     </View>

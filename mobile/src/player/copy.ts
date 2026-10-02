@@ -9,11 +9,9 @@ export const playerCopy = {
   close: 'Close the player',
   previous: 'Previous track',
   next: 'Next track',
-  /** Names the place, not a purchase: App Review guideline 3.1.1(a) (task 0043, decision 3). */
-  bandcampLink: 'Open on Bandcamp ↗',
-  bandcampLinkLabel: 'Open on Bandcamp',
   linkOut: '↗',
   trackTitle: (n: number, title: string) => `${n}. ${title}`,
+  /** The title link's name names the place, not a purchase: App Review guideline 3.1.1(a) (task 0043, decision 3). */
   openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
   seek: (title: string) => `Position in ${title}`,
   seekIdle: 'Position in the track',
