@@ -95,11 +95,11 @@ case "${1:-}" in
     else
       # Its own cache: a bundle with EXPO_PUBLIC_SAMPLE inlined must never reach the 8081 Metro.
       mkdir -p /tmp/wavfeed-sim-tmp
-      # EXPO_PUBLIC_TALLY_DEV, _URL and _KEY reach the bundle from this shell (the local loop, README); a change to them
-      # clears the cache, so no transform keeps the last run's values.
-      TALLY="${EXPO_PUBLIC_TALLY_DEV:-}|${EXPO_PUBLIC_TALLY_URL:-}|${EXPO_PUBLIC_TALLY_KEY:-}"
-      CLEAR=; [ "$TALLY" = "$(cat /tmp/wavfeed-sim-tmp/tally 2>/dev/null)" ] || CLEAR=--clear
-      printf '%s' "$TALLY" >/tmp/wavfeed-sim-tmp/tally
+      # EXPO_PUBLIC_TALLY_DEV, _URL and _KEY and EXPO_PUBLIC_SAMPLE_WISHLIST reach the bundle from this shell (README); a
+      # change to them clears the cache, so no transform keeps the last run's values.
+      INLINED="${EXPO_PUBLIC_TALLY_DEV:-}|${EXPO_PUBLIC_TALLY_URL:-}|${EXPO_PUBLIC_TALLY_KEY:-}|${EXPO_PUBLIC_SAMPLE_WISHLIST:-}"
+      CLEAR=; [ "$INLINED" = "$(cat /tmp/wavfeed-sim-tmp/inlined 2>/dev/null)" ] || CLEAR=--clear
+      printf '%s' "$INLINED" >/tmp/wavfeed-sim-tmp/inlined
       TMPDIR=/tmp/wavfeed-sim-tmp EXPO_PUBLIC_SAMPLE=1 EXPO_NO_TELEMETRY=1 REACT_NATIVE_PACKAGER_HOSTNAME=localhost \
         nohup npx expo start --port $PORT --localhost $CLEAR </dev/null >"$LOG" 2>&1 &
       for _ in $(seq 1 60); do
