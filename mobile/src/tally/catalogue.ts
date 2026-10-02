@@ -95,7 +95,7 @@ export const CATALOGUE = {
   feed_refreshed: { code: 8, props: { from: ['feed', 'releases', 'bought', 'gather_now'], hit_ceiling: FLAG } },
   playback_started: {
     code: 9,
-    props: { result: ['playing', 'unplayable', 'error'], wait: DURATION, screen: SCREENS, retried: FLAG },
+    props: { result: ['playing', 'unplayable', 'error', 'refused'], wait: DURATION, screen: SCREENS, retried: FLAG },
   },
   release_listened: { code: 10, props: { tracks_started: COUNT, listened: DURATION, reached_end: FLAG } },
   playback_failed: { code: 11, props: { stage: ['mid_track'] } },
