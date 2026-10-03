@@ -212,8 +212,19 @@ _Avoid_: event, record, signal, hit, ping, metric, telemetry
 **Error Report**:
 A scrubbed note of a thrown error: its name, a message with URLs, quoted strings
 and long digit runs removed, minified frames, the screen code and a fingerprint.
-Native crashes are not Error Reports; the stores hold those.
+The phone sends it after the Fan's yes. A native crash is not one: the stores
+hold those, and the board reads them as Store Crashes (ADR-0025).
 _Avoid_: crash report, exception, log
+
+**Store Crash**:
+A native crash TestFlight or Play already holds, imported from the store every
+hour (ADR-0025): its exception type and reason, the crashed thread's top frames
+as image and symbol, the build, the platform and a fingerprint, every text
+scrubbed. The phone never sends it, so it has no Install, no sharing code and
+no label, and the switch in Settings does not cover it. On the board it is a
+row under Store Crashes on the Errors view.
+_Avoid_: crash report or native error report (meaning a Store Crash), crash log
+(the store's whole text, of which a Store Crash keeps a few lines), Error Report
 
 **Demo**:
 The feed a phone with no Fan yet opens from the first screen's "Look around
