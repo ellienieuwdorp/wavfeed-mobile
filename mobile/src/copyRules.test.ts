@@ -44,8 +44,7 @@ test('the ask and the Usage group say counts, never analytics, telemetry or even
     assert.doesNotMatch(text, /analytic|telemetr|event|tracking|—/i, text);
   }
   assert.match(copy.usageAsk.body.join(' '), /counts/i);
-  assert.match(copy.usageAsk.body.join(' '), /test version/, 'says it is an early test version');
-  assert.match(copy.usageAsk.body.join(' '), /Nothing is sent until you say yes/);
+  assert.match(copy.usageAsk.body.join(' '), /Until then it sends nothing/);
   assert.match(copy.usageAsk.body.join(' '), /Settings/);
   assert.match(s.usageFoot(CODE), /Your code is 3b9f0c;/);
   assert.doesNotMatch(s.usageFoot(null), /3b9f0c/);

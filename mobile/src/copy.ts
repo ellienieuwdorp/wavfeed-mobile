@@ -457,13 +457,13 @@ export const copy = {
     removeAllConfirm: 'Remove',
     cancel: 'Cancel',
     usageHead: 'Usage',
-    share: 'Share what I use and what breaks',
+    share: 'Help me improve wavfeed',
     /** Two sentences at most under the switch (task 0044 decision 5); where it goes and for how long is on the privacy page. */
     usageFoot: (code: string | null) =>
       code === null
-        ? 'Counts of what gets used and what breaks. Never your Bandcamp sign-in, your name or what you play.'
-        : `Counts of what gets used and what breaks, never your Bandcamp sign-in, your name or what you play. Your code is ${code}; quote it if you write in.`,
-    turnedOff: (code: string) => `Turned off. Your code was ${code}; quote it to have what was sent deleted.`,
+        ? 'Sends me counts of what you use and a short report when something breaks. It never sends your Bandcamp sign-in, your name or what you listen to.'
+        : `Sends me counts of what you use and what breaks, never your sign-in, your name or what you listen to. Your code is ${code}; add it if you write to me.`,
+    turnedOff: (code: string) => `Turned off. Your code was ${code}; send it to me and I'll delete what was sent.`,
     /** Under the switch when an off did not land (review SEC-2); proposed, DESIGN-UI section 8. */
     turnOffFailed: 'Sharing did not turn off and is still on. Try again in a moment.',
     privacy: 'Privacy',
@@ -473,15 +473,16 @@ export const copy = {
       `\n\n${joinMiddot([versionLine(facts.version, facts.build), facts.os, facts.code === null ? null : `code ${facts.code}`])}`,
     version: versionLine,
   },
-  /** The one-time ask after a sign-in (task 0044 decisions 2 and 3); nothing is sent before its yes, and the no is never sent. */
+  /** The one-time ask after a sign-in, in Ellie's own voice (task 0044 decisions 2 and 3); nothing is sent before its yes, and the no is never sent. */
   usageAsk: {
-    title: 'May wavfeed count what gets used?',
+    title: 'Will you help me make wavfeed better?',
     body: [
-      'wavfeed is an early test version. Counts of what gets used and what breaks are what let it get better.',
-      'Never your Bandcamp sign-in, your name or what you play. Nothing is sent until you say yes, and Settings can change your answer any time.',
+      "You're one of the first people trying it, and I'd love to know how it holds up on your phone.",
+      'If you say yes, the app counts which parts you use and sends me a short report when something breaks. Until then it sends nothing.',
+      'It never sends your Bandcamp sign-in, your name or what you listen to. You can change your mind any time in Settings.',
     ],
-    link: 'What is sent, and what is not',
-    yes: 'Yes, send counts',
+    link: 'See exactly what gets sent',
+    yes: 'Yes, happy to help',
     no: 'No thanks',
   },
   /** The first screen, the whole app until a sign-in or the Demo (task 0044 decision 4). */
