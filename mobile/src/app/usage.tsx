@@ -36,10 +36,11 @@ export default function Usage() {
   const [lead, ...rest] = a.body;
   // Android's fitToContents sheet takes the content's full height and clips what passes the window, so the sheet is
   // capped where Material's full-height sheet stops and the words scroll inside it; its bottom pads over the nav bar.
+  // The iOS sheet already keeps its content clear of the home indicator, so it adds no bottom inset of its own.
   return (
     <ScrollView
       style={{ flexGrow: 0, maxHeight: ios ? undefined : height - insets.top - SHEET_TOP, backgroundColor: c.surface }}
-      contentContainerStyle={{ paddingHorizontal: type.gutter, paddingTop: ios ? 28 : 24, paddingBottom: ios ? insets.bottom : insets.bottom + 24, gap: 12 }}
+      contentContainerStyle={{ paddingHorizontal: type.gutter, paddingTop: ios ? 28 : 24, paddingBottom: ios ? 0 : insets.bottom + 24, gap: 12 }}
     >
       <Text accessibilityRole="header" style={ios ? { fontSize: 22, fontWeight: '700', color: c.ink } : { fontSize: 24, lineHeight: 32, color: c.ink }}>
         {a.title}
