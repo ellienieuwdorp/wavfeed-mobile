@@ -6,7 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
-# Local store builds (dev/build.sh)
+# Local store builds (dev/release.sh)
 /build/
 web-build/
 expo-env.d.ts

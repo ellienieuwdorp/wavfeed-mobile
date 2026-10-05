@@ -8,7 +8,7 @@
  * warning naming the platforms that need a new store build, and exits 0, since a native change is allowed and only has
  * to be seen. `--platforms` prints the reached platforms alone, one per line, for `dev/update.sh`. `record <platform> <n>
  * <fingerprint>` writes the fingerprint a store binary carries as that platform's build `n`, and refuses when it is not
- * this tree's; `dev/build.sh` reads it out of the binary and runs it with `--dry-run` before the upload, then for real.
+ * this tree's; `dev/release.sh` reads it out of the binary and runs it with `--dry-run` before the upload, then for real.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
