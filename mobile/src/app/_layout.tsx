@@ -133,11 +133,13 @@ function GuardedStack() {
         />
         <Stack.Screen
           name="usage"
-          options={
-            ios
-              ? { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true, contentStyle: { backgroundColor: c.surface } }
-              : { presentation: 'modal', contentStyle: { backgroundColor: c.bg } }
-          }
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            sheetCornerRadius: ios ? undefined : 28,
+            contentStyle: { backgroundColor: c.surface },
+          }}
         />
       </Stack.Protected>
       <Stack.Screen
