@@ -4,11 +4,14 @@
  * Demo), connected devices (held back until a server knows the others), appearance, removing everything gathered here
  * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
  * mail naming the build beside the privacy page, which every build shows (task 0044 decision 5, guideline 5.1.1(i));
- * the canvas's one notification switch waits for notifications to exist. Every foot is two sentences at most. Android draws the
- * status as one list item and its actions as Material buttons under the custody line, as the canvas's Settings board
- * does. A development build adds the store's facts under the custody line. The catch-up of a first walk sits under the
- * large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
- * password, log out, delete) wait for the account this slice does not have (task 0036). The Demo shows as a sample with Sign in and no account card or Sign out (task 0043, decision 7).
+ * the canvas's one notification switch waits for notifications to exist. Every foot is two sentences at most; while
+ * sharing is on the code's sentence follows the Usage foot as a paragraph of its own, and just after an off the
+ * turned-off line takes the foot's place, each with the code in bold and a copy button beside it (CodeFoot.tsx).
+ * Android draws the status as one list item and its actions as Material buttons under the custody line, as the
+ * canvas's Settings board does. A development build adds the store's facts under the custody line. The catch-up of a
+ * first walk sits under the large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
+ * password, log out, delete) wait for the account this slice does not have (task 0036). The Demo shows as a sample
+ * with Sign in and no account card or Sign out (task 0043, decision 7).
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
@@ -19,6 +22,7 @@ import { ActivityIndicator, Alert, PixelRatio, Platform, ScrollView, Text, View 
 
 import { SignOutWebView } from '@/bandcamp/SignInWebView';
 import { useAppBar } from '@/components/AppBar';
+import { CodeFoot } from '@/components/CodeFoot';
 import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
 import { useDockClearance } from '@/components/player/Dock';
@@ -126,13 +130,18 @@ export default function Settings() {
       void usage.turnOn().catch(() => undefined);
     } else void usage.turnOff().then(setDroppedCode, () => setOffFailed(true));
   };
-  const usageFoot = offFailed
-    ? s.turnOffFailed
-    : usage.code !== null
-      ? s.usageFoot(usage.code)
-      : droppedCode !== null
-        ? s.turnedOff(droppedCode)
-        : s.usageFoot(null);
+  const usageFoot = offFailed ? (
+    <GroupFoot text={s.turnOffFailed} />
+  ) : usage.code !== null ? (
+    <>
+      <GroupFoot text={s.usageFoot} />
+      <CodeFoot line={s.yourCode} code={usage.code} />
+    </>
+  ) : droppedCode !== null ? (
+    <CodeFoot line={s.turnedOff} code={droppedCode} />
+  ) : (
+    <GroupFoot text={s.usageFoot} />
+  );
   const sendFeedback = () => {
     const query = `subject=${encodeURIComponent(s.feedbackSubject)}&body=${encodeURIComponent(s.feedbackBody(feedbackFacts(usage.code)))}`;
     openURL(`mailto:${FEEDBACK_ADDRESS}?${query}`).catch(() => undefined);
@@ -288,7 +297,7 @@ export default function Settings() {
               onPress={ios ? undefined : () => setSharing(!sharingOn)}
             />
           </Group>
-          <GroupFoot text={usageFoot} />
+          {usageFoot}
         </>
       ) : null}
 

@@ -31,10 +31,14 @@ export function GroupHead({ label }: { label: string }) {
   );
 }
 
+/** Where a group's foot sits and its type size, shared with the sharing code's foot (CodeFoot.tsx). */
+export const FOOT_BOX = ios ? { paddingHorizontal: MARGIN + INSET, paddingTop: 7 } : { paddingHorizontal: 16, paddingBottom: 8 };
+export const FOOT_SIZE = ios ? 13 : 14;
+
 export function GroupFoot({ text }: { text: string }) {
   const { c } = useTokens();
   if (text === '') return null;
-  return <Type style={ios ? { fontSize: 13, color: c.sub, paddingHorizontal: MARGIN + INSET, paddingTop: 7 } : { fontSize: 14, color: c.sub, paddingHorizontal: 16, paddingBottom: 8 }}>{text}</Type>;
+  return <Type style={{ ...FOOT_BOX, fontSize: FOOT_SIZE, color: c.sub }}>{text}</Type>;
 }
 
 export function Group({ children, gapAbove = false }: { children: ReactNode; gapAbove?: boolean }) {

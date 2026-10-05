@@ -1,7 +1,8 @@
 /**
  * The heart's two haptics (DESIGN-UI section 12, ADR-0016 amendment 2026-10-02): a light impact when a press turns a
- * heart on, the error notification when a failed press puts it back. Feedback is never worth an error, so a native
- * module that throws or rejects is dropped here.
+ * heart on, the error notification when a failed press puts it back. The same light impact answers the sharing code's
+ * copy button (task 0044 decision 5). Feedback is never worth an error, so a native module that throws or rejects is
+ * dropped here.
  */
 import { ImpactFeedbackStyle, impactAsync, NotificationFeedbackType, notificationAsync } from 'expo-haptics';
 

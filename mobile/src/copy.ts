@@ -25,6 +25,14 @@ const ThisDevice = ios ? 'This iPhone' : 'This phone';
 
 export const sep = ' · ';
 
+/** A line that carries the sharing code, as the words before it and after it, so the code can draw on its own. */
+export type CodeLine = readonly [before: string, after: string];
+
+/** A `CodeLine` as one string, for a screen reader and the copy tests. */
+export function codeSentence(line: CodeLine, code: string): string {
+  return `${line[0]}${code}${line[1]}`;
+}
+
 const LONG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -457,13 +465,16 @@ export const copy = {
     removeAllConfirm: 'Remove',
     cancel: 'Cancel',
     usageHead: 'Usage',
-    share: 'Help me improve wavfeed',
+    share: 'Help improve wavfeed',
     /** Two sentences at most under the switch (task 0044 decision 5); where it goes and for how long is on the privacy page. */
-    usageFoot: (code: string | null) =>
-      code === null
-        ? 'Sends me counts of what you use and a short report when something breaks. It never sends your Bandcamp sign-in, your name or what you listen to.'
-        : `Sends me counts of what you use and what breaks, never your sign-in, your name or what you listen to. Your code is ${code}; add it if you write to me.`,
-    turnedOff: (code: string) => `Turned off. Your code was ${code}; send it to me and I'll delete what was sent.`,
+    usageFoot:
+      'Sends me basic analytics of what you use in the app and a short report when something breaks. It never sends your Bandcamp sign-in, name or what you listen to.',
+    /** After the foot while sharing is on, split around the code, which draws bold beside its copy button (task 0044 decision 5). */
+    yourCode: ['Your code is ', ', please add it if you write to me.'] as const,
+    /** In place of `yourCode` just after an off, until Settings is left, so the tester can ask for erasure. */
+    turnedOff: ['Turned off. Your code was ', "; send it to me and I'll delete what was sent."] as const,
+    copyCode: 'Copy your code',
+    copied: 'Copied',
     /** Under the switch when an off did not land (review SEC-2); proposed, DESIGN-UI section 8. */
     turnOffFailed: 'Sharing did not turn off and is still on. Try again in a moment.',
     privacy: 'Privacy',
