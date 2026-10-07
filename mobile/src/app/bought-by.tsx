@@ -72,21 +72,29 @@ export default function BoughtBy() {
   const list = readFans(fans);
   const linked = !isDemoFan(useAppState().gather.identity?.fanId);
   // Android's fitToContents sheet takes the content's full height and clips what passes the window, so the sheet is
-  // capped where Material's full-height sheet stops and the list shrinks into it and scrolls.
+  // capped where Material's full-height sheet stops and the list scrolls inside it.
   const cap = ios ? undefined : height - insets.top - SHEET_TOP;
+  // react-native-screens sizes the first ScrollView it finds in a form sheet to the whole sheet from its top edge
+  // (RNSScreen applyFrameCorrectionForDescendantScrollView), which drew the list over a title above it on iOS (task
+  // 0062). The ScrollView is the sheet's root, so that frame is its own, and the title is its pinned first child, in a
+  // View since a sticky header takes over its child's style.
   return (
-    <View style={{ maxHeight: cap, backgroundColor: c.surface, paddingTop: ios ? 20 : 8, paddingBottom: insets.bottom + 12 }}>
-      <Text
-        accessibilityRole="header"
-        style={ios ? { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center', paddingBottom: 12 } : { fontSize: 22, color: c.ink, paddingHorizontal: 24, paddingBottom: 12 }}
-      >
-        {copy.boughtBy.title}
-      </Text>
-      <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
-        {list.map((fan) => (
-          <FanRow key={fan.fanId} fan={fan} linked={linked} />
-        ))}
-      </ScrollView>
-    </View>
+    <ScrollView
+      stickyHeaderIndices={[0]}
+      style={{ flexGrow: 0, maxHeight: cap, backgroundColor: c.surface }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}
+    >
+      <View style={{ backgroundColor: c.surface, paddingTop: ios ? 20 : 8, paddingBottom: 12 }}>
+        <Text
+          accessibilityRole="header"
+          style={ios ? { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' } : { fontSize: 22, color: c.ink, paddingHorizontal: 24 }}
+        >
+          {copy.boughtBy.title}
+        </Text>
+      </View>
+      {list.map((fan) => (
+        <FanRow key={fan.fanId} fan={fan} linked={linked} />
+      ))}
+    </ScrollView>
   );
 }
