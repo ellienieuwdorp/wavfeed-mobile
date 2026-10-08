@@ -55,8 +55,7 @@ function main(args) {
       return 0;
     }
     const record = JSON.parse(readFileSync(RECORD, 'utf8'));
-    // A `required` floor (task 0064) outlives the build that set it.
-    record[platform] = { ...record[platform], build, fingerprint: carried };
+    record[platform] = { build, fingerprint: carried };
     writeFileSync(RECORD, `${JSON.stringify(record, null, 2)}\n`);
     console.log(`recorded ${platform} build ${build}: ${carried}`);
     return 0;
