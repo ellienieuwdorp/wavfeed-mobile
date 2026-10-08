@@ -23,6 +23,11 @@ export type TallyContext = {
   readonly env: Env;
   readonly platform: TallyPlatform;
   readonly os: number;
+  /**
+   * The EAS channel the binary was built for (schema 2, task 0065 decision 7): `production` for TestFlight and Play,
+   * `apk` for the website APK, `preview` for preview builds, null in development. Schema 1 batches carry none.
+   */
+  readonly channel: string | null;
 };
 
 export type Envelope = {

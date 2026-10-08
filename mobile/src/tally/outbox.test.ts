@@ -41,7 +41,7 @@ import { batchBody, type BatchBody, type OutboxRow } from './wire';
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
 const INSTALL = '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10';
 const OPENED: Tally = { name: 'app_opened', props: { launch: 'cold' } };
-const CTX = { schema: 1, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26 } as const;
+const CTX = { schema: 2, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26, channel: 'production' } as const;
 
 let db: SQLiteDatabase;
 let ids: number;

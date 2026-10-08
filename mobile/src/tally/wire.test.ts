@@ -14,7 +14,7 @@ import { batchBody } from './wire';
 
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
 const INSTALL = '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10';
-const CTX = { schema: 1, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26 } as const;
+const CTX = { schema: 2, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26, channel: 'production' } as const;
 
 /** Each property at every one of its allowed values, spread over as many samples as the longest set needs. */
 function samples(): Tally[] {
@@ -47,7 +47,7 @@ test('no Tally key or value on the wire names a Fan, a Release, a URL, a cookie 
   for (let taken = await takeBatch(db, () => crypto.randomUUID(), NOW); taken !== null; taken = await takeBatch(db, () => crypto.randomUUID(), NOW)) {
     const body = JSON.parse(JSON.stringify(batchBody({ key: 'wf_prod_x', install: INSTALL, batch: taken.batch, sentAt: NOW, ctx: CTX }, taken.rows)));
     assert.deepEqual(Object.keys(body), ['v', 'key', 'install', 'batch', 'sent_at', 'ctx', 'tallies', 'errors']);
-    assert.deepEqual(Object.keys(body.ctx).sort(), ['build', 'env', 'os', 'platform', 'schema', 'update', 'version']);
+    assert.deepEqual(Object.keys(body.ctx).sort(), ['build', 'channel', 'env', 'os', 'platform', 'schema', 'update', 'version']);
     for (const tuple of body.tallies as unknown[][]) {
       assert.equal(tuple.length, 4);
       const [t, name, flags, props] = tuple as [unknown, string, unknown, Record<string, unknown>];

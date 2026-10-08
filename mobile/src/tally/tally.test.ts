@@ -122,11 +122,11 @@ describe('the sharing gate', () => {
 });
 
 describe('the batch context', () => {
-  const app = { version: '1.0.0', build: '37', embedded: true, updateId: null, platform: 'ios', osVersion: '26.0.1' } as const;
+  const app = { version: '1.0.0', build: '37', embedded: true, updateId: null, platform: 'ios', osVersion: '26.0.1', channel: 'production' } as const;
 
-  test('carries the build and a major OS version the Worker accepts', () => {
+  test('carries the build, the channel and a major OS version the Worker accepts', () => {
     assert.deepEqual(buildContext(app, 'production'), {
-      schema: 1, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26,
+      schema: 2, version: '1.0.0', build: '37', update: 'embedded', env: 'production', platform: 'ios', os: 26, channel: 'production',
     });
     assert.equal(buildContext({ ...app, platform: 'android', osVersion: 36 }, 'preview').os, 36);
   });
@@ -135,6 +135,13 @@ describe('the batch context', () => {
     const id = '0e5c4f7a-2d11-4b1e-8f3a-9b6d0c2e4a55';
     assert.equal(buildContext({ ...app, embedded: false, updateId: id }, 'production').update, id);
     assert.equal(buildContext({ ...app, embedded: false, updateId: 'not-an-id' }, 'production').update, 'embedded');
+  });
+
+  test('sends no channel from a development build, and none the Worker would refuse', () => {
+    assert.equal(buildContext({ ...app, platform: 'android', channel: 'apk' }, 'production').channel, 'apk');
+    for (const channel of [null, '', 'Production', 'preview build', 'x'.repeat(33)]) {
+      assert.equal(buildContext({ ...app, channel }, 'development').channel, null, String(channel));
+    }
   });
 
   test('cleans whatever the build reports into the patterns the Worker checks', () => {

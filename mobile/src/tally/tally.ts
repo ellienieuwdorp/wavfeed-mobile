@@ -168,6 +168,8 @@ export type AppFacts = {
   readonly platform: TallyPlatform;
   /** `Platform.Version`: "26.0" on iOS, the API level on Android. */
   readonly osVersion: string | number;
+  /** `expo-updates` `channel`: fixed when the binary is built, so an EAS Update never changes it. */
+  readonly channel: string | null;
 };
 
 function buildText(value: string | null): string {
@@ -185,6 +187,7 @@ export function buildContext(app: AppFacts, env: Env): TallyContext {
     env,
     platform: app.platform,
     os: Math.min(WIRE.osMax, Math.max(WIRE.osMin, Number.isFinite(major) ? major : WIRE.osMin)),
+    channel: app.channel !== null && app.channel !== '' && WIRE.channelPattern.test(app.channel) ? app.channel : null,
   };
 }
 

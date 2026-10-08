@@ -5,8 +5,11 @@
  * objects, so it imports nothing.
  */
 
-/** Bumped when a code or a value changes meaning; the Worker refuses a schema it does not know. */
-export const SCHEMA = 1;
+/**
+ * Bumped when a code or a value changes meaning, or the `ctx` gains a field; the Worker refuses a schema it does not
+ * know. Schema 2 adds `ctx.channel` (task 0065 decision 7).
+ */
+export const SCHEMA = 2;
 
 export const COUNT = ['0', '1', '2 to 5', '6 to 20', '21 to 100', '100+'] as const;
 export const DURATION = ['<1s', '1 to 3s', '3 to 10s', '10 to 60s', '1 to 10m', '10m+'] as const;
@@ -172,6 +175,8 @@ export const WIRE = {
   osMin: 10,
   osMax: 99,
   buildPattern: /^[0-9A-Za-z.]{1,20}$/,
+  /** An EAS channel name as `ctx.channel` carries it from schema 2 (task 0065 decision 7). */
+  channelPattern: /^[a-z0-9-]{0,32}$/,
   errorNamePattern: /^[A-Za-z0-9_$.]{1,60}$/,
   uuidPattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 } as const;
