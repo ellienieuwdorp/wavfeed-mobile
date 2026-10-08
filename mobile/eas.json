@@ -22,6 +22,12 @@
       "channel": "production",
       "environment": "production",
       "env": { "SOURCEMAP_FILE": "index.ios.map" }
+    },
+    "apk": {
+      "extends": "production",
+      "channel": "apk",
+      "env": { "SOURCEMAP_FILE": "index.ios.map", "WAVFEED_DISTRIBUTION": "apk" },
+      "android": { "buildType": "apk" }
     }
   },
   "submit": {
