@@ -86,7 +86,7 @@ export function tag(name, summary, fields, cwd = process.cwd()) {
   console.log(`ledger: tagged ${name}`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === 'tag') {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href && process.argv[2] === 'tag') {
   const [, , , name, summary, ...pairs] = process.argv;
   const fields = Object.fromEntries(pairs.map((pair) => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)]));
   if (!name || !summary || pairs.some((pair) => !/^[A-Z][A-Za-z0-9-]*=./.test(pair))) {
@@ -94,7 +94,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] =
     process.exit(1);
   }
   tag(name, summary, fields);
-} else if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+} else if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const entries = read();
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(entries, null, 2));

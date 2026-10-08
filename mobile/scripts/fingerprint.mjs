@@ -76,7 +76,7 @@ function main(args) {
   return reached.length === 0 || (rest.includes('--all') && missed.length > 0) ? 1 : 0;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   try {
     process.exitCode = main(process.argv.slice(2));
   } catch (error) {
