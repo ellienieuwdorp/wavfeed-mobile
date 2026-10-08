@@ -3,8 +3,8 @@
  * TestFlight or Google Play can bring this install up to date. It draws from the last `store-builds.json` answer kept
  * in `kv`, recomputed with `verdictOf` at mount, so it arrives with the rows; a fresh answer that differs waits for the
  * next launch or return to the app, except an install's first, which animates in at once. One read per launch and per
- * return after six hours, shared by every banner through a module store. `available` hides on the collection tabs
- * until a newer build is named; Settings and `required` keep it. Only store builds check: the production EAS
+ * return after six hours, shared by every banner through a module store. It hides on the collection tabs until a newer
+ * build is named; Settings keeps it. Only store builds check: the production EAS
  * environment inlines `EXPO_PUBLIC_APP_ENV`, and a development bundle has no runtime version.
  */
 import * as Application from 'expo-application';
@@ -12,10 +12,10 @@ import { openURL } from 'expo-linking';
 import * as Updates from 'expo-updates';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { AccessibilityInfo, AppState, LayoutAnimation, Platform, Pressable, Text, View, type TextProps } from 'react-native';
+import { AppState, LayoutAnimation, Platform, Pressable, Text, View, type TextProps } from 'react-native';
 
 import { copy } from '@/copy';
-import { readStoreBuilds, STORE_URLS, verdictOf, type Installed, type StoreVerdict } from '@/lib/storeBuild';
+import { readStoreBuilds, STORE_URLS, storeOnlyBuild, type Installed } from '@/lib/storeBuild';
 import { useReduceMotion } from '@/player/motion';
 import { useAppState } from '@/state/appState';
 import { readKv, writeKv } from '@/store/kv';
@@ -24,9 +24,8 @@ import { pressedOpacity, ripple, type, useTokens } from '@/theme/tokens';
 import { Glyph } from './Glyph';
 
 const ios = Platform.OS === 'ios';
-/** iOS build 4's tree has no `Type`, `announce` or `accentText`: its row cap, React Native's announcement, its link colour. */
+/** iOS build 4's tree has no `Type` or `accentText`: its row cap and its link colour. */
 const Type = (props: TextProps) => <Text maxFontSizeMultiplier={1.6} {...props} />;
-const announce = (text: string) => AccessibilityInfo.announceForAccessibility(text);
 const ANSWER_KEY = 'store_builds_answer';
 const HIDDEN_KEY = 'store_build_hidden';
 const RECHECK_MS = 6 * 60 * 60 * 1000;
@@ -44,7 +43,6 @@ let shown: Shown | null = null;
 let pending: unknown = null;
 let started = false;
 let checkedAt = 0;
-let announced = false;
 let animate = true;
 /** The store the hook last handed over: "Remove everything gathered" opens a new one under the same banners. */
 let latestDb: SQLiteDatabase | null = null;
@@ -100,25 +98,17 @@ export function UpdateBanner({ hideable }: { hideable: boolean }) {
     latestDb = db;
     if (ENABLED && !started) void start(() => latestDb ?? db);
   }, [db]);
-  const verdict: StoreVerdict = state === null ? { kind: 'none' } : verdictOf(state.answer, INSTALLED);
-  const hidden = verdict.kind === 'available' && hideable && state !== null && state.hidden !== null && state.hidden >= verdict.build;
-  if (verdict.kind === 'none' || hidden) return null;
-  return <Card verdict={verdict} hideable={hideable && verdict.kind === 'available'} db={db} />;
+  const build = state === null ? null : storeOnlyBuild(state.answer, INSTALLED);
+  if (build === null || (hideable && state !== null && state.hidden !== null && state.hidden >= build)) return null;
+  return <Card build={build} hideable={hideable} db={db} />;
 }
 
-function Card({ verdict, hideable, db }: { verdict: Exclude<StoreVerdict, { kind: 'none' }>; hideable: boolean; db: SQLiteDatabase }) {
+function Card({ build, hideable, db }: { build: number; hideable: boolean; db: SQLiteDatabase }) {
   const { c } = useTokens();
   const [failed, setFailed] = useState(false);
-  const required = verdict.kind === 'required';
-  const mine = Number(INSTALLED.build);
   const u = copy.update;
-  const title = required ? u.requiredTitle : u.availableTitle;
-  const line = failed ? u.openFailed : required ? u.requiredLine(mine, verdict.build) : u.availableLine(mine, verdict.build);
-  useEffect(() => {
-    if (!required || announced) return;
-    announced = true;
-    announce(`${title}. ${line}`);
-  }, [required, title, line]);
+  const title = u.title;
+  const line = failed ? u.openFailed : u.line(Number(INSTALLED.build), build);
   const open = async () => {
     for (const url of STORE_URLS[INSTALLED.platform]) {
       try {
@@ -132,14 +122,11 @@ function Card({ verdict, hideable, db }: { verdict: Exclude<StoreVerdict, { kind
     setFailed(true);
   };
   const hide = () => {
-    if (shown !== null) set({ ...shown, hidden: verdict.build }, true);
-    void writeKv(db, HIDDEN_KEY, verdict.build).catch(() => undefined);
+    if (shown !== null) set({ ...shown, hidden: build }, true);
+    void writeKv(db, HIDDEN_KEY, build).catch(() => undefined);
   };
-  // Required puts every word in ink: `sub` and the dark `accentText` fall under 4.5:1 on the dark tint (spec section 4).
-  const lineColour = required ? c.ink : c.sub;
-  const actionColour = required ? c.ink : c.accent;
   return (
-    <View style={{ marginHorizontal: type.gutter, marginBottom: 16, borderRadius: ios ? 14 : 16, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: required ? c.tint : c.surface, flexDirection: 'row' }}>
+    <View style={{ marginHorizontal: type.gutter, marginBottom: 16, borderRadius: ios ? 14 : 16, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: c.surface, flexDirection: 'row' }}>
       <Pressable
         onPress={() => void open()}
         android_ripple={ripple(c.track)}
@@ -149,10 +136,10 @@ function Card({ verdict, hideable, db }: { verdict: Exclude<StoreVerdict, { kind
         style={({ pressed }) => ({ flex: 1, gap: 4, paddingVertical: 12, paddingLeft: 14, paddingRight: hideable ? 0 : 14, opacity: pressedOpacity(pressed) })}
       >
         <Type style={{ fontSize: ios ? 15 : 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{title}</Type>
-        <Type style={{ fontSize: ios ? 13 : 14, lineHeight: ios ? 18 : 20, color: lineColour }}>{line}</Type>
+        <Type style={{ fontSize: ios ? 13 : 14, lineHeight: ios ? 18 : 20, color: c.sub }}>{line}</Type>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Type style={{ fontSize: ios ? 15 : 14, fontWeight: ios ? '600' : '500', color: actionColour }}>{u.open}</Type>
-          <Glyph name="external" size={ios ? 13 : 16} weight="regular" colour={actionColour} />
+          <Type style={{ fontSize: ios ? 15 : 14, fontWeight: ios ? '600' : '500', color: c.accent }}>{u.open}</Type>
+          <Glyph name="external" size={ios ? 13 : 16} weight="regular" colour={c.accent} />
         </View>
       </Pressable>
       {hideable ? (
