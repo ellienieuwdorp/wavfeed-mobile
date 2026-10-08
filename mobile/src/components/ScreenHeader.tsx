@@ -7,6 +7,7 @@
  * row says when it gathered, so its title takes the catch-up alone and no line otherwise. Its lines grow as row facts,
  * capped below the large title, so the title stays the header's largest text (review VIS-1). The catch-up is no live
  * region: a screen reader hears it on focus, and only the walk's end and pause unprompted (NoticeProvider, VIS-2).
+ * The store build banner follows the lines on every tab (task 0064), hideable everywhere but Settings.
  */
 import { Platform, View } from 'react-native';
 
@@ -17,8 +18,18 @@ import { useTokens } from '@/theme/tokens';
 import { AppBarTitle } from './AppBar';
 import { CatchUpHairline, progressValue } from './CatchUp';
 import { Type } from './Type';
+import { UpdateBanner } from './UpdateBanner';
 
 export function ScreenHeader({ quiet = false }: { quiet?: boolean }) {
+  return (
+    <>
+      <HeaderLines quiet={quiet} />
+      <UpdateBanner hideable={!quiet} />
+    </>
+  );
+}
+
+function HeaderLines({ quiet }: { quiet: boolean }) {
   const { c, type } = useTokens();
   const status = useGatherStatus();
   const line = status.catchUp;
