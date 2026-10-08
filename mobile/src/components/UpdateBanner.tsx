@@ -4,8 +4,9 @@
  * in `kv`, recomputed with `verdictOf` at mount, so it arrives with the rows; a fresh answer that differs waits for the
  * next launch or return to the app, except an install's first, which animates in at once. One read per launch and per
  * return after six hours, shared by every banner through a module store. It hides on the collection tabs until a newer
- * build is named; Settings keeps it. Only store builds check: the production EAS
- * environment inlines `EXPO_PUBLIC_APP_ENV`, and a development bundle has no runtime version.
+ * build is named; Settings keeps it. A store build's card opens TestFlight or Play; a website APK's downloads and
+ * installs the next APK (task 0065, decision 6), or opens the download where the binary cannot install. Only builds
+ * with updates enabled and a channel `distributionOf` knows check; a development bundle has neither.
  */
 import * as Application from 'expo-application';
 import { openURL } from 'expo-linking';
@@ -15,7 +16,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { AppState, LayoutAnimation, Platform, Pressable, Text, View, type TextProps } from 'react-native';
 
 import { copy } from '@/copy';
-import { readStoreBuilds, STORE_URLS, storeOnlyBuild, type Installed } from '@/lib/storeBuild';
+import { canInstall, downloadAndInstall } from '@/lib/apkInstall';
+import { distributionOf, newerBuild, readStoreBuilds, STORE_URLS, type Installed, type NewerBuild } from '@/lib/storeBuild';
 import { useReduceMotion } from '@/player/motion';
 import { useAppState } from '@/state/appState';
 import { readKv, writeKv } from '@/store/kv';
@@ -30,12 +32,13 @@ const ANSWER_KEY = 'store_builds_answer';
 const HIDDEN_KEY = 'store_build_hidden';
 const RECHECK_MS = 6 * 60 * 60 * 1000;
 
-const ENABLED = process.env.EXPO_PUBLIC_APP_ENV === 'production' && Updates.isEnabled;
 const INSTALLED: Installed = {
   platform: ios ? 'ios' : 'android',
   build: Application.nativeBuildVersion,
   runtime: Updates.runtimeVersion ?? null,
+  channel: Updates.channel ?? null,
 };
+const ENABLED = Updates.isEnabled && distributionOf(INSTALLED) !== null;
 
 type Shown = { readonly answer: unknown; readonly hidden: number | null };
 
@@ -98,28 +101,46 @@ export function UpdateBanner({ hideable }: { hideable: boolean }) {
     latestDb = db;
     if (ENABLED && !started) void start(() => latestDb ?? db);
   }, [db]);
-  const build = state === null ? null : storeOnlyBuild(state.answer, INSTALLED);
-  if (build === null || (hideable && state !== null && state.hidden !== null && state.hidden >= build)) return null;
-  return <Card build={build} hideable={hideable} db={db} />;
+  const newer = state === null ? null : newerBuild(state.answer, INSTALLED);
+  if (newer === null || (hideable && state !== null && state.hidden !== null && state.hidden >= newer.build)) return null;
+  return <Card newer={newer} hideable={hideable} db={db} />;
 }
 
-function Card({ build, hideable, db }: { build: number; hideable: boolean; db: SQLiteDatabase }) {
+/** What the card's line says after a press: nothing yet, a store that would not open, or how the APK install went. */
+type Outcome = null | 'openFailed' | 'confirm' | 'damaged' | 'downloadFailed' | { readonly downloading: number };
+
+function Card({ newer, hideable, db }: { newer: NewerBuild; hideable: boolean; db: SQLiteDatabase }) {
   const { c } = useTokens();
-  const [failed, setFailed] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome>(null);
   const u = copy.update;
-  const title = u.title;
-  const line = failed ? u.openFailed : u.line(Number(INSTALLED.build), build);
+  const { build } = newer;
+  const mine = Number(INSTALLED.build);
+  const apk = newer.distribution === 'apk';
+  const installs = apk && canInstall();
+  const title = apk ? u.apkTitle : u.title;
+  const said = apk ? u.apkLine(mine, build) : u.line(mine, build);
+  const line = outcome === null ? said : typeof outcome === 'object' ? u.downloading(Math.round(outcome.downloading * 100)) : u[outcome];
+  const action = !apk ? u.open : installs ? u.install(build) : u.download(build);
+  const hint = !apk ? u.openHint : installs ? u.installHint : u.downloadHint;
+  const busy = typeof outcome === 'object' && outcome !== null;
+  const install = async () => {
+    if (busy || !newer.url || !newer.md5) return;
+    setOutcome({ downloading: 0 });
+    const result = await downloadAndInstall(newer.url, newer.md5, build, (share) => setOutcome({ downloading: share }));
+    setOutcome(result === 'installing' ? 'confirm' : result === 'damaged' ? 'damaged' : 'downloadFailed');
+  };
   const open = async () => {
-    for (const url of STORE_URLS[INSTALLED.platform]) {
+    if (installs) return install();
+    for (const url of apk && newer.url ? [newer.url] : STORE_URLS[INSTALLED.platform]) {
       try {
         await openURL(url);
-        setFailed(false);
+        setOutcome(null);
         return;
       } catch {
         // The next address, then the failed line.
       }
     }
-    setFailed(true);
+    setOutcome('openFailed');
   };
   const hide = () => {
     if (shown !== null) set({ ...shown, hidden: build }, true);
@@ -132,14 +153,15 @@ function Card({ build, hideable, db }: { build: number; hideable: boolean; db: S
         android_ripple={ripple(c.track)}
         accessibilityRole="button"
         accessibilityLabel={`${title}. ${line}`}
-        accessibilityHint={u.openHint}
+        accessibilityHint={hint}
+        accessibilityState={{ busy }}
         style={({ pressed }) => ({ flex: 1, gap: 4, paddingVertical: 12, paddingLeft: 14, paddingRight: hideable ? 0 : 14, opacity: pressedOpacity(pressed) })}
       >
         <Type style={{ fontSize: ios ? 15 : 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{title}</Type>
         <Type style={{ fontSize: ios ? 13 : 14, lineHeight: ios ? 18 : 20, color: c.sub }}>{line}</Type>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Type style={{ fontSize: ios ? 15 : 14, fontWeight: ios ? '600' : '500', color: c.accent }}>{u.open}</Type>
-          <Glyph name="external" size={ios ? 13 : 16} weight="regular" colour={c.accent} />
+          <Type style={{ fontSize: ios ? 15 : 14, fontWeight: ios ? '600' : '500', color: c.accent }}>{action}</Type>
+          {installs ? null : <Glyph name="external" size={ios ? 13 : 16} weight="regular" colour={c.accent} />}
         </View>
       </Pressable>
       {hideable ? (
