@@ -8,7 +8,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/images/wavfeed-icon.png",
-    "runtimeVersion": { "policy": "fingerprint" },
+    "runtimeVersion": "fb0ce264002038c29e31c2395a15bb16ceb454bd",
     "updates": { "url": "https://u.expo.dev/aee7a6ee-3c1e-4408-a0c5-d5a1e67edecd" },
     "ios": {
       "bundleIdentifier": "com.wavfeed.app",
