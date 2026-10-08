@@ -538,6 +538,17 @@ export const copy = {
     openHint: `Opens ${store}`,
     openFailed: `${store} did not open. Find wavfeed in the ${ios ? 'TestFlight' : 'Play Store'} app to update.`,
     hide: 'Hide until the next build',
+    /** The website APK's banner, which installs the next APK itself (task 0065, decision 6). */
+    apkTitle: 'A newer wavfeed is ready to install',
+    apkLine: (mine: number, newest: number) => `This phone has build ${mine}. Build ${newest} downloads from wavfeed.com and installs over this one, keeping everything gathered.`,
+    install: (newest: number) => `Install build ${newest}`,
+    installHint: 'Downloads the new build and asks Android to install it',
+    download: (newest: number) => `Download build ${newest}`,
+    downloadHint: 'Opens the download in the browser',
+    downloading: (percent: number) => `Downloading, ${percent}%`,
+    confirm: 'Android asks you to confirm the install. Allow wavfeed to install apps if it asks.',
+    damaged: 'The download came through damaged. Try again in a moment.',
+    downloadFailed: 'The download did not finish. Try again in a moment.',
   },
   /** The launch after an update whose parser change replays the history, shown once it takes over a second (ARCH-1). */
   replay: {
