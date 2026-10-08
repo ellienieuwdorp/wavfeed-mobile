@@ -22,6 +22,7 @@ import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/lib/time';
 const ios = Platform.OS === 'ios';
 const thisDevice = ios ? 'this iPhone' : 'this phone';
 const ThisDevice = ios ? 'This iPhone' : 'This phone';
+const store = ios ? 'TestFlight' : 'Google Play';
 
 export const sep = ' · ';
 
@@ -509,6 +510,17 @@ export const copy = {
     signedOut: `Bandcamp signed ${thisDevice} out, so nothing new is arriving from it.`,
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
+  },
+  /** The store build banner (task 0064, docs/design/2026-10-08-update-banner): build numbers, never "version". */
+  update: {
+    availableTitle: `A newer wavfeed is on ${store}`,
+    availableLine: (mine: number, newest: number) => `${ThisDevice} has build ${mine}. Build ${newest} only arrives through ${store}.`,
+    requiredTitle: 'This build has stopped gathering',
+    requiredLine: (mine: number, newest: number) => `Build ${mine} can't gather anything new. Install build ${newest} from ${store} and your feed carries on.`,
+    open: `Open ${store}`,
+    openHint: `Opens ${store}`,
+    openFailed: `${store} did not open. Find wavfeed in the ${ios ? 'TestFlight' : 'Play Store'} app to update.`,
+    hide: 'Hide until the next build',
   },
   /** The launch after an update whose parser change replays the history, shown once it takes over a second (ARCH-1). */
   replay: {
