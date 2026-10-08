@@ -520,10 +520,8 @@ export const copy = {
   },
   /** The store build banner (task 0064, docs/design/2026-10-08-update-banner): build numbers, never "version". */
   update: {
-    availableTitle: `A newer wavfeed is on ${store}`,
-    availableLine: (mine: number, newest: number) => `${ThisDevice} has build ${mine}. Build ${newest} only arrives through ${store}.`,
-    requiredTitle: 'This build has stopped gathering',
-    requiredLine: (mine: number, newest: number) => `Build ${mine} can't gather anything new. Install build ${newest} from ${store} and your feed carries on.`,
+    title: `A newer wavfeed is on ${store}`,
+    line: (mine: number, newest: number) => `${ThisDevice} has build ${mine}. Build ${newest} only arrives through ${store}.`,
     open: `Open ${store}`,
     openHint: `Opens ${store}`,
     openFailed: `${store} did not open. Find wavfeed in the ${ios ? 'TestFlight' : 'Play Store'} app to update.`,
