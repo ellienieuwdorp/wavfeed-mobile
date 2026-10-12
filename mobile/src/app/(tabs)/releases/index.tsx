@@ -2,13 +2,18 @@
  * New releases on the store: the Upcoming shelf, then the released weeks and the quiet gaps between them, newest
  * first (DESIGN-UI section 3, task 0037). Rows carry the day, the credit line and the faces of who bought it (task
  * 0071, decisions 10 to 12). A Drop is the same row on its day, its day "out Tue 13 Oct" and its count the "1/4" pill,
- * and its art plays the Release from the newest Track it let out (task 0041, decision 10).
+ * and its art plays the Release from the newest Track it let out (task 0041, decision 10). The filter (task 0071,
+ * decisions 5 to 9) narrows the shelf and the weeks; with it off the line under the title counts the view, with it on
+ * the "Filtered by" pill stands there, and a filter that keeps nothing says so with "Clear filters". A link to
+ * `/releases?people=1` turns the people filter on at 1+ and keeps the tags (Open 8).
  */
-import { useMemo } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 
 import { useAppBar } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
+import { NothingMatches } from '@/components/filter/NothingMatches';
 import { GapRow } from '@/components/GapRow';
 import { useDockClearance } from '@/components/player/Dock';
 import type { RowRelease } from '@/components/playable';
@@ -18,10 +23,13 @@ import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
 import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
+import { filterNewReleases } from '@/domain/releaseFilter';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
-import { buildSectionsFromWeeks } from '@/lib/weekSections';
-import { useLiveQuery } from '@/state/appState';
+import { buildSectionsFromWeeks, narrowSections } from '@/lib/weekSections';
+import { useAppState, useLiveQuery } from '@/state/appState';
+import { isActive, namedFilter, toReleaseFilter, withPeopleLink } from '@/state/filterSettings';
+import { publishFiltered, useReleaseFilter } from '@/state/releaseFilter';
 import { useRefresh } from '@/state/refresh';
 import { readNewReleases } from '@/store';
 import { useTokens } from '@/theme/tokens';
@@ -29,8 +37,9 @@ import { useTokens } from '@/theme/tokens';
 type Row = RowRelease & { readonly buyers: readonly ApiFanRef[] };
 
 type Item =
-  | { key: string; kind: 'header' }
+  | { key: string; kind: 'header'; count: number | null; filteredBy: string | null }
   | { key: string; kind: 'empty' }
+  | { key: string; kind: 'nomatch'; named: string }
   | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
   | { key: string; kind: 'release'; release: Row; day: string; rule: boolean }
@@ -40,9 +49,11 @@ type Item =
 function render({ item }: { item: Item }) {
   switch (item.kind) {
     case 'header':
-      return <ScreenHeader />;
+      return <ScreenHeader count={item.count} filteredBy={item.filteredBy} />;
     case 'empty':
       return <EmptyState filling={copy.empty.fillingReleases} nothing={copy.empty.nothing} />;
+    case 'nomatch':
+      return <NothingMatches named={item.named} />;
     case 'shelf':
       return <UpcomingShelf cards={item.cards} more="/releases/upcoming" />;
     case 'week':
@@ -66,19 +77,50 @@ export default function NewReleases() {
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
   const { refreshing, onRefresh } = useRefresh('releases');
   const appBar = useAppBar();
+  const { db } = useAppState();
+  const { loaded, settings, update } = useReleaseFilter();
+  const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(settings))), [view, settings]);
+  useEffect(() => {
+    if (filtered !== null) publishFiltered(db, filtered);
+  }, [db, filtered]);
+
+  // A link that arrives as `?people=N` (Feed's, Open 8) is taken once the saved settings are read, then cleared from
+  // this screen's own route, so a later visit by the tab bar finds no param to take again.
+  const { people } = useLocalSearchParams<{ people?: string }>();
+  const navigation = useNavigation<{ setParams: (params: { people?: string }) => void }>();
+  const takeLink = useEffectEvent((link: string) => {
+    const next = withPeopleLink(settings, link);
+    if (next !== null && next !== settings) update(next);
+    navigation.setParams({ people: undefined });
+  });
+  useEffect(() => {
+    if (loaded && people !== undefined) takeLink(people);
+  }, [loaded, people]);
 
   const items = useMemo(() => {
-    const list: Item[] = [{ key: 'header', kind: 'header' }];
-    if (view === null) return list;
+    const named = settings !== null && isActive(settings) && filtered !== null ? namedFilter(settings, filtered.tags) : null;
+    const list: Item[] = [
+      {
+        key: 'header',
+        kind: 'header',
+        count: filtered?.total ?? null,
+        filteredBy: named === null ? null : copy.filter.filteredBy(named.min, named.tags),
+      },
+    ];
+    if (filtered === null || view === null) return list;
+    const shown = filtered.view;
     const at = new Date(day);
-    if (view.upcoming.length > 0) {
-      const cards = view.upcoming.map((r) => {
+    if (shown.upcoming.length > 0) {
+      const cards = shown.upcoming.map((r) => {
         const on = releaseDay(r.releaseDate);
         return { key: `${r.itemType}:${r.itemId}`, release: r, day: onDayPhrase(on, at), out: outOnPhrase(on, at), tracksOut: r.numStreamableTracks, numTracks: r.numTracks, buyers: r.buyers };
       });
       list.push({ key: 'shelf', kind: 'shelf', cards });
     }
-    const released = buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), at);
+    // The quiet runs are the whole view's, so a week the filter empties never reads as a quiet one (decision 8).
+    const all = buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), at);
+    const kept = new Set(shown.weeks.flatMap((w) => w.releases.map((placed) => placed.key)));
+    const released = shown === view ? all : narrowSections(all, (placed) => kept.has(placed.key));
     for (const section of released) {
       if (section.kind === 'gap') {
         list.push({ key: section.key, kind: 'gap', text: section.label });
@@ -97,9 +139,12 @@ export default function NewReleases() {
         }
       });
     }
-    if (list.length === 1) list.push({ key: 'empty', kind: 'empty' });
+    if (list.length === 1) {
+      if (named !== null && filtered.total > 0) list.push({ key: 'nomatch', kind: 'nomatch', named: copy.filter.nothingNamed(named.min, named.tags) });
+      else list.push({ key: 'empty', kind: 'empty' });
+    }
     return list;
-  }, [view, day]);
+  }, [view, filtered, settings, day]);
 
   return (
     <FlatList

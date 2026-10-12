@@ -102,3 +102,17 @@ export function filterNewReleases(view: NewReleasesView, filter: ReleaseFilter):
     : view;
   return { view: filtered, total: releases.size, matching: kept.size, byMinimum, tags };
 }
+
+/**
+ * The tags the Filters sheet lists (decision 7): every tag whose name holds the search, else the first `first` by
+ * count with any chosen tag kept in view, so a chosen tag can always be taken off; a chosen tag the view no longer
+ * holds follows at 0.
+ */
+export function shownTags(tags: readonly TagCount[], chosen: readonly string[], query: string, first: number): readonly TagCount[] {
+  const known = new Set(tags.map((tag) => tag.normName));
+  const listed = [...tags, ...chosen.filter((tag) => !known.has(tag)).map((tag) => ({ normName: tag, name: tag, count: 0 }))];
+  const q = query.trim().toLowerCase();
+  if (q !== '') return listed.filter((tag) => tag.name.toLowerCase().includes(q) || tag.normName.includes(q));
+  const picked = new Set(chosen);
+  return listed.filter((tag, n) => n < first || picked.has(tag.normName));
+}

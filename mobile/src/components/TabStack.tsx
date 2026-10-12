@@ -23,14 +23,15 @@ const BAR_TITLE = 17;
 /** A screen the tab's view pushes, under a plain native header on both platforms. */
 export type Pushed = { readonly name: string; readonly title: string };
 
-export function TabStack({ title, raised = false, pushed = [] }: { title: string; raised?: boolean; pushed?: readonly Pushed[] }) {
+/** `filter`: New releases, whose dock carries the filter circle where the tab bar has no place for it (see Dock). */
+export function TabStack({ title, raised = false, pushed = [], filter = false }: { title: string; raised?: boolean; pushed?: readonly Pushed[]; filter?: boolean }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
   const background = raised && ios ? c.raised : c.bg;
   const bar = glassBar ? undefined : { backgroundColor: background };
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
-      <WithDock>
+      <WithDock filter={filter}>
         <AppBarFrame title={title} background={background}>
           <Stack
             screenOptions={{

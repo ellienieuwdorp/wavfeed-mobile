@@ -3,7 +3,9 @@
  * 7): Material's bottom navigation with the pill indicator behind the active icon and labels always shown. Feed's
  * crests and New releases' calendar are images with a selected state of their own, the gear the Material Symbol
  * (decision 2), all tinted by the bar. iOS uses `_layout.ios.tsx`. Each tab owns a stack for its app bar; the floating
- * player rides inside the tab's stack, above this bar (see TabStack). The tab host takes the token scheme as its day or
+ * player rides inside the tab's stack, above this bar (see TabStack), and on New releases shares its row with the
+ * filter circle (task 0071, decision 3 as the Open 1 answer draws it on Android); the iOS bar's filter item has no
+ * place here, so its placeholder route is hidden. The tab host takes the token scheme as its day or
  * night mode in the same mount as the bar's colours, so the configuration change `Appearance.setColorScheme` sends
  * cannot restyle the bar ahead of them.
  */
@@ -39,6 +41,7 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon src={TAB_GLYPHS.releases} />
         <NativeTabs.Trigger.Label>{copy.views.releases}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="filter-toggle" hidden />
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Icon md="settings" />
         <NativeTabs.Trigger.Label>{copy.views.settings}</NativeTabs.Trigger.Label>

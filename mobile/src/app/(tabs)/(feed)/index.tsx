@@ -50,7 +50,7 @@ export default function Feed() {
           ) : null}
           {curated.boughtByFollowed.length > 0 ? (
             <View>
-              {/* New releases with the people filter on at 1+ (task 0071, Open 8), once its filter reads `people` (slice 5). */}
+              {/* New releases with the people filter on at 1+, the Fan's tags kept (task 0071, Open 8). */}
               <ModuleHead title={copy.feed.boughtByFollowed} more="/releases?people=1" />
               <View style={{ gap: 12, paddingHorizontal: type.gutter }}>
                 {curated.boughtByFollowed.map((item) => (

@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backTo, catchUpHeader, onDayPhrase, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase, tracksOutPill } from './copy';
+import { backTo, catchUpHeader, copy, countedHeader, onDayPhrase, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase, tracksOutPill } from './copy';
 
 const at = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -57,4 +57,24 @@ test("a Drop out this month still names the month under the last month's week (f
   const now = new Date(2026, 9, 1, 12);
   assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
   assert.equal(outOnPhrase(new Date(2027, 0, 8), now), 'out Fri 8 Jan 2027');
+});
+
+test("New releases' header counts the view, and the filter's lines name only what is chosen (task 0071, decisions 6, 7 and 9)", () => {
+  assert.equal(countedHeader(310, 'Updated 12 min ago'), '310 releases · updated 12 min ago');
+  assert.equal(countedHeader(1, null), '1 release');
+  assert.equal(countedHeader(1204, 'Updated just now'), '1,204 releases · updated just now');
+  const f = copy.filter;
+  assert.equal(f.filteredBy(2, ['ambient', 'dub']), 'Filtered by 2+ you follow · ambient, dub');
+  assert.equal(f.filteredBy(1, []), 'Filtered by 1+ you follow');
+  assert.equal(f.filteredBy(null, ['dub']), 'Filtered by dub');
+  assert.equal(f.count(14), '14 releases');
+  assert.equal(f.search(34), 'Search 34 tags');
+  assert.equal(f.showAll(34), 'Show all 34');
+  assert.equal(f.minimum(1), 'At least 1 person you follow');
+  assert.equal(f.minimum(2), 'At least 2 people you follow');
+  assert.deepEqual([f.peopleWord(1), f.peopleWord(2)], ['person', 'people']);
+  assert.equal(f.toggle(true), 'Filter, on');
+  assert.equal(f.nothingNamed(5, ['idm', 'piano']), 'Nothing tagged idm or piano that 5 people you follow bought.');
+  assert.equal(f.nothingNamed(1, []), 'Nothing that someone you follow bought.');
+  assert.equal(f.nothingNamed(null, ['ambient', 'dub', 'idm']), 'Nothing tagged ambient, dub or idm.');
 });

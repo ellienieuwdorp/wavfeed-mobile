@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import { newReleaseRow, storyRow } from '../../test/rows';
 import type { ApiTag } from './apiTypes';
 import { newReleasesOf } from './newReleases';
-import { clampMinimum, filterNewReleases, type ReleaseFilter } from './releaseFilter';
+import { clampMinimum, filterNewReleases, shownTags, type ReleaseFilter } from './releaseFilter';
 import type { FeedStoryRow } from './rows';
 
 const NOW = new Date('2026-10-14T12:00:00.000Z');
@@ -88,4 +88,15 @@ test('the sheet counts tags after the people filter, each minimum alone, and eve
 test('a minimum outside the stepper is read as its nearest end', () => {
   assert.deepEqual([0, 3.7, 40, Number.NaN].map(clampMinimum), [1, 3, 6, 1]);
   assert.deepEqual(shown({ people: { on: true, min: 0 }, tags: [] }), shown({ people: { on: true, min: 1 }, tags: [] }));
+});
+
+test('the sheet lists the first tags with a chosen one kept in view, even one the view lost, and the search finds any by name', () => {
+  const counted = ['electronic', 'ambient', 'techno', 'dub', 'idm'].map((name, n) => ({ normName: name, name, count: 50 - n }));
+  const names = (shown: readonly { normName: string }[]) => shown.map((tag) => tag.normName);
+  assert.deepEqual(names(shownTags(counted, [], '', 2)), ['electronic', 'ambient']);
+  assert.deepEqual(names(shownTags(counted, ['idm'], '', 2)), ['electronic', 'ambient', 'idm']);
+  assert.deepEqual(names(shownTags(counted, [], '', Infinity)), names(counted));
+  assert.deepEqual(names(shownTags(counted, ['idm'], ' TEC ', 2)), ['techno']);
+  assert.deepEqual(names(shownTags(counted, [], 'zzz', 2)), []);
+  assert.deepEqual(shownTags(counted, ['piano'], '', 1), [counted[0], { normName: 'piano', name: 'piano', count: 0 }]);
 });

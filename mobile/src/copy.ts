@@ -342,6 +342,36 @@ const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   dating: 'adding release dates',
 };
 
+// New releases' filter (task 0071, decisions 6 and 9).
+
+/** "310 releases", "1 release": a count of Releases, in the header and the sheet's title. */
+export function releasesCount(n: number): string {
+  return `${new Intl.NumberFormat('en-GB').format(n)} ${n === 1 ? 'release' : 'releases'}`;
+}
+
+/** "310 releases · updated 12 min ago": New releases' line under its title with the filter off (decision 6). */
+export function countedHeader(n: number, note: string | null): string {
+  return joinMiddot([releasesCount(n), note === null ? null : note.charAt(0).toLowerCase() + note.slice(1)]);
+}
+
+/** "a", "a or b", "a, b or c". */
+function orList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+/** "Filtered by 2+ you follow · ambient, dub" (decision 6); `min` is null with the people switch off. */
+function filteredBy(min: number | null, tags: readonly string[]): string {
+  return `Filtered by ${joinMiddot([min === null ? null : `${min}+ you follow`, tags.length === 0 ? null : tags.join(', ')])}`;
+}
+
+/** "Nothing tagged idm or piano that 5 people you follow bought." (decision 9), naming only what is chosen. */
+function nothingNamed(min: number | null, tags: readonly string[]): string {
+  const who = min === null ? null : min === 1 ? 'that someone you follow bought' : `that ${min} people you follow bought`;
+  const tagged = tags.length === 0 ? null : `tagged ${orList(tags)}`;
+  return `${['Nothing', tagged, who].filter(Boolean).join(' ')}.`;
+}
+
 /** One address for feedback and erasure requests, the privacy page's; `hello@wavfeed.com` replaces it once that exists. */
 export const FEEDBACK_ADDRESS = 'ellie@nieuwdorp.me';
 export const PRIVACY_URL = 'https://wavfeed.com/privacy.html';
@@ -416,6 +446,32 @@ export const copy = {
     added: 'Added to your Bandcamp wishlist',
     removed: 'Removed from your Bandcamp wishlist',
     undo: 'Undo',
+  },
+  /** New releases' filter (task 0071, decisions 5 to 9 and Open 4): the circle, the "Filtered by" pill, the sheet, nothing matching. */
+  filter: {
+    toggle: (on: boolean) => (on ? 'Filter, on' : 'Filter, off'),
+    toggleHint: 'Turns the filter on or off',
+    filteredBy,
+    filteredByHint: 'Opens the filters',
+    title: 'Filters',
+    reset: 'Reset',
+    done: 'Done',
+    people: 'Bought by people you follow',
+    atLeast: 'At least',
+    peopleWord: (n: number) => (n === 1 ? 'person' : 'people'),
+    /** The number row as one sentence for a screen reader, the stepper's value inside it. */
+    minimum: (n: number) => `At least ${n} ${n === 1 ? 'person' : 'people'} you follow`,
+    /** The stepper's name to a screen reader; its value is `minimum`. */
+    minimumLabel: 'Minimum',
+    tags: 'Tags',
+    anyOf: 'Any of these',
+    search: (n: number) => `Search ${n} ${n === 1 ? 'tag' : 'tags'}`,
+    showAll: (n: number) => `Show all ${n}`,
+    noTags: 'No tags match',
+    count: releasesCount,
+    nothing: 'Nothing matches',
+    nothingNamed,
+    clear: 'Clear filters',
   },
   boughtBy: {
     title: 'Bought by',

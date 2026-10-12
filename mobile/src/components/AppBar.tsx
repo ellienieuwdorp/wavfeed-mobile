@@ -51,14 +51,28 @@ export function useAppBarAtRest(): void {
  * The expanded half, first in the list: the title and, when there is one, the subtitle line, with `below` under it
  * (the note to keep the app open and the catch-up's hairline, task 0040 decision 8) and `a11y` on the pair.
  */
-export function AppBarTitle({ subtitle, below = null, a11y = {} }: { subtitle: string | null; below?: ReactNode; a11y?: ViewProps }) {
+export function AppBarTitle({
+  subtitle,
+  below = null,
+  a11y = {},
+  pill = null,
+  barSubtitle = subtitle,
+}: {
+  subtitle: string | null;
+  below?: ReactNode;
+  a11y?: ViewProps;
+  /** New releases' "Filtered by" pill, 16 under what stands above it (task 0071, decision 6). */
+  pill?: ReactNode;
+  /** The collapsed bar's subtitle, when it is not the expanded one's. */
+  barSubtitle?: string | null;
+}) {
   const frame = useContext(FrameContext);
   const insets = useSafeAreaInsets();
   const { c, type } = useTokens();
   const setSubtitle = frame?.setSubtitle;
   useEffect(() => {
-    setSubtitle?.(subtitle);
-  }, [setSubtitle, subtitle]);
+    setSubtitle?.(barSubtitle);
+  }, [setSubtitle, barSubtitle]);
   if (frame === null) return null;
   return (
     <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null ? 16 : 12 }}>
@@ -69,9 +83,13 @@ export function AppBarTitle({ subtitle, below = null, a11y = {} }: { subtitle: s
           {below}
         </View>
       )}
+      {pill === null ? null : <View style={{ marginTop: subtitle === null ? PILL_TOP : 12 }}>{pill}</View>}
     </View>
   );
 }
+
+/** The title's line box and the box's padding leave 8 under its glyphs at 28sp; 8 more puts the pill 16 below them. */
+const PILL_TOP = 8;
 
 function CollapsedBar({ collapsed, background }: { collapsed: boolean; background: string }) {
   const { c } = useTokens();

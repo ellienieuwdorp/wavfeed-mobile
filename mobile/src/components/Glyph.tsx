@@ -28,7 +28,14 @@ export type GlyphName =
   | 'phone'
   | 'external'
   | 'copy'
-  | 'copied';
+  | 'copied'
+  | 'filter'
+  | 'people'
+  | 'search'
+  | 'minus'
+  | 'plus'
+  | 'check'
+  | 'expand';
 
 const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion: IonName }>> = {
   play: { sf: 'play.fill', md: 'play_arrow', ion: 'play' },
@@ -43,6 +50,14 @@ const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion:
   external: { sf: 'arrow.up.right', md: 'open_in_new', ion: 'open-outline' },
   copy: { sf: 'doc.on.doc', md: 'content_copy', ion: 'copy-outline' },
   copied: { sf: 'checkmark', md: 'check', ion: 'checkmark' },
+  // New releases' filter (task 0071, decisions 5 to 7).
+  filter: { sf: 'line.3.horizontal.decrease', md: 'filter_list', ion: 'filter' },
+  people: { sf: 'person.2.fill', md: 'group', ion: 'people' },
+  search: { sf: 'magnifyingglass', md: 'search', ion: 'search' },
+  minus: { sf: 'minus', md: 'remove', ion: 'remove' },
+  plus: { sf: 'plus', md: 'add', ion: 'add' },
+  check: { sf: 'checkmark', md: 'check', ion: 'checkmark' },
+  expand: { sf: 'chevron.down', md: 'keyboard_arrow_down', ion: 'chevron-down' },
 };
 
 type Props = { name: GlyphName; size: number; colour: string; weight?: SymbolWeight };

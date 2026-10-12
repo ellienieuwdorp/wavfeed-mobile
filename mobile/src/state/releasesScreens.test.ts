@@ -17,6 +17,7 @@ import * as weekSections from '@/lib/weekSections';
 import * as store from '@/store';
 import { fold, insertRawDocument, readNewReleases } from '@/store';
 import * as endpoints from '@/domain/endpoints';
+import * as releaseFilter from '@/domain/releaseFilter';
 import { CRUMBS_PAGE_ENDPOINT, type BandcampDocument } from '@/bandcamp/wire';
 import { EMPTY_GATHER_STATE } from '@/fetcher/sink';
 
@@ -24,6 +25,8 @@ import { BAND_ID, bandDetailsPayload, discographyItem, feedPayload, followingBan
 import { openTestStore } from '../../test/nodeDb';
 import { countForProjection } from '../store/rawDocuments';
 import type { AppState } from './appState';
+import * as filterSettings from './filterSettings';
+import type { FilterSettings } from './filterSettings';
 import * as gatherSink from './gatherSink';
 
 const require = createRequire(import.meta.url);
@@ -44,7 +47,10 @@ function load(file: string, imports: Record<string, unknown>) {
   return module.exports;
 }
 
-function mount(file: string, db: SQLiteDatabase, provider = false) {
+/** The filter's store and the route's params, as New releases reads them (task 0071, decisions 5 to 9 and Open 8). */
+type FilterRig = { settings: FilterSettings | null; params: { people?: string }; updates: FilterSettings[] };
+
+function mount(file: string, db: SQLiteDatabase, provider = false, filter: FilterRig = { settings: null, params: {}, updates: [] }) {
   const screenSlots: Slot[] = [];
   const providerSlots: Slot[] = [];
   let slots = screenSlots;
@@ -106,6 +112,15 @@ function mount(file: string, db: SQLiteDatabase, provider = false) {
   const clock = load('../lib/useNow.ts', { react: hooks });
   const screen = load(file, {
     react: hooks, 'react/jsx-runtime': jsx, 'react-native': { FlatList: 'FlatList', RefreshControl: 'RefreshControl' },
+    'expo-router': {
+      useLocalSearchParams: () => filter.params,
+      useNavigation: () => ({ setParams: (params: { people?: string }) => { filter.params = { ...filter.params, ...params }; dirty = true; } }),
+    },
+    '@/components/filter/NothingMatches': {}, '@/domain/releaseFilter': releaseFilter, '@/state/filterSettings': filterSettings,
+    '@/state/releaseFilter': {
+      useReleaseFilter: () => ({ loaded: true, settings: filter.settings, filtered: null, update: (next: FilterSettings) => { filter.updates.push(next); filter.settings = next; dirty = true; } }),
+      publishFiltered: () => {},
+    },
     '@/components/AppBar': { useAppBar: () => ({ scroll: {} }), useAppBarAtRest: () => {} },
     '@/components/EmptyState': {}, '@/components/GapRow': {}, '@/components/player/Dock': { useDockClearance: () => 0 },
     '@/components/ReleaseRow': { ROW_LIST: {} }, '@/components/ScreenHeader': {}, '@/components/UpcomingShelf': {}, '@/components/WeekHead': {},
@@ -132,6 +147,8 @@ function mount(file: string, db: SQLiteDatabase, provider = false) {
     }
   };
   return {
+    /** Draws again on the next read, as a changed route param would. */
+    touch: () => { dirty = true; },
     read: async () => {
       render();
       await new Promise<void>((done) => setImmediate(done));
@@ -276,3 +293,36 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     }
   });
 }
+
+test("New releases takes ?people=1 as the people filter at 1+ with the Fan's tags, clears it, and filters the list", async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval'], now: Date.parse('2026-10-12T10:00:00.000Z') });
+  const { db, close } = await openTestStore();
+  t.after(close);
+  await insertRawDocument(db, {
+    endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [preorderNrEntry()] }), fetchedAt: '2026-09-29T10:00:00.000Z',
+  });
+  await insertRawDocument(db, {
+    endpoint: 'release_page', payload: releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob() }), fetchedAt: '2026-09-29T10:05:00.000Z',
+  });
+  await fold(db);
+  const rig: FilterRig = { settings: { on: false, people: { on: false, min: 4 }, tags: ['dub'] }, params: { people: '1' }, updates: [] };
+  const at = mount('../app/(tabs)/releases/index.tsx', db, false, rig);
+  t.after(at.unmount);
+  const items = await at.read();
+  assert.deepEqual(rig.updates, [{ on: true, people: { on: true, min: 1 }, tags: ['dub'] }]);
+  assert.equal(rig.params.people, undefined, 'the param is cleared once taken');
+  const header = items.find((item) => item.kind === 'header') as Item & { filteredBy: string | null };
+  assert.equal(header.filteredBy, 'Filtered by 1+ you follow · dub');
+  // Nobody bought the one held Release, so the filter keeps nothing and names itself.
+  assert.equal(items.map((item) => item.kind).join(','), 'header,nomatch');
+  // The Fan turns the filter off; a later render finds no param, and following the link again is a new link.
+  rig.settings = { ...rig.settings!, on: false };
+  at.touch();
+  await at.read();
+  assert.equal(rig.updates.length, 1, 'a cleared link is not taken again');
+  rig.params = { people: '1' };
+  at.touch();
+  await at.read();
+  assert.deepEqual(rig.updates.at(-1), { on: true, people: { on: true, min: 1 }, tags: ['dub'] });
+  assert.equal(rig.updates.length, 2);
+});

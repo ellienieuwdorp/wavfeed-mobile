@@ -7,11 +7,15 @@
  * row says when it gathered, so its title takes the catch-up alone and no line otherwise. Its lines grow as row facts,
  * capped below the large title, so the title stays the header's largest text (review VIS-1). The catch-up is no live
  * region: a screen reader hears it on focus, and only the walk's end and pause unprompted (NoticeProvider, VIS-2).
- * The store build banner follows the lines on every tab (task 0064), hideable everywhere but Settings.
+ * The store build banner follows the lines on every tab (task 0064), hideable everywhere but Settings. New releases
+ * passes its count, which leads the line ("310 releases · updated 12 min ago"), and while its filter is on the
+ * "Filtered by" pill in place of that line, 14 under the title on iOS and 16 on Android; during the first walk the
+ * catch-up keeps its place and the pill follows it (task 0071, decision 6).
  */
 import { Platform, View } from 'react-native';
 
-import { catchUpHeader } from '@/copy';
+import { FilteredBy } from '@/components/filter/FilteredBy';
+import { catchUpHeader, countedHeader } from '@/copy';
 import { useGatherStatus } from '@/state/status';
 import { useTokens } from '@/theme/tokens';
 
@@ -20,26 +24,33 @@ import { CatchUpHairline, progressValue } from './CatchUp';
 import { Type } from './Type';
 import { UpdateBanner } from './UpdateBanner';
 
-export function ScreenHeader({ quiet = false }: { quiet?: boolean }) {
+/** `count` leads the quiet line; `filteredBy` is the pill's words, drawn instead of that line. */
+type Lines = { quiet?: boolean; count?: number | null; filteredBy?: string | null };
+
+export function ScreenHeader({ quiet = false, count = null, filteredBy = null }: Lines) {
   return (
     <>
-      <HeaderLines quiet={quiet} />
+      <HeaderLines quiet={quiet} count={count} filteredBy={filteredBy} />
       <UpdateBanner hideable={!quiet} />
     </>
   );
 }
 
-function HeaderLines({ quiet }: { quiet: boolean }) {
+function HeaderLines({ quiet, count, filteredBy }: Required<Lines>) {
   const { c, type } = useTokens();
   const status = useGatherStatus();
   const line = status.catchUp;
-  const note = quiet ? null : status.header;
+  const header = quiet ? null : status.header;
   const android = Platform.OS === 'android';
+  const pill = filteredBy === null ? null : <FilteredBy text={filteredBy} />;
   if (line === null) {
-    if (android) return <AppBarTitle subtitle={note} />;
+    const note = count === null || header === null ? header : countedHeader(count, header);
+    if (android) return pill === null ? <AppBarTitle subtitle={note} /> : <AppBarTitle subtitle={null} pill={pill} barSubtitle={filteredBy} />;
+    if (pill !== null) return <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{pill}</View>;
     if (note === null) return quiet ? null : <View style={{ height: 8 }} />;
     return <Type style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{note}</Type>;
   }
+  const note = header;
   const text = catchUpHeader(line.primary, line.secondary);
   const a11y = { accessible: true, accessibilityValue: progressValue(line.fraction) };
   const below = (
@@ -48,11 +59,17 @@ function HeaderLines({ quiet }: { quiet: boolean }) {
       <CatchUpHairline line={line} />
     </>
   );
-  if (android) return <AppBarTitle subtitle={text} below={below} a11y={a11y} />;
+  if (android) return <AppBarTitle subtitle={text} below={below} a11y={a11y} pill={pill} />;
   return (
-    <View {...a11y} style={{ gap: 6, paddingHorizontal: type.gutter, paddingBottom: 12 }}>
-      <Type style={{ fontSize: type.sub, color: c.sub, fontVariant: ['tabular-nums'] }}>{text}</Type>
-      {below}
-    </View>
+    <>
+      <View {...a11y} style={{ gap: 6, paddingHorizontal: type.gutter, paddingBottom: 12 }}>
+        <Type style={{ fontSize: type.sub, color: c.sub, fontVariant: ['tabular-nums'] }}>{text}</Type>
+        {below}
+      </View>
+      {pill === null ? null : <View style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>{pill}</View>}
+    </>
   );
 }
+
+/** The list starts 16 under the native large title's glyphs; this pulls the pill up to 14 below them. */
+const PILL_TOP = -2;

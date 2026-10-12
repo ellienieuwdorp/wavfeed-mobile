@@ -1,26 +1,32 @@
 /**
  * Every Upcoming Release from New releases, the shelf's "View more" (DESIGN-UI section 3, task 0037): the weeks read
  * forwards, nearest first, with no quiet gaps, and the rows are the released weeks' own, their day "out Tue 13 Oct"
- * and the "1/4" pill once a Track plays (task 0071, decisions 10 and 12).
+ * and the "1/4" pill once a Track plays (task 0071, decisions 10 and 12). New releases' filter narrows it as it does the
+ * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters".
  */
 import { useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
+import { NothingMatches } from '@/components/filter/NothingMatches';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
 import { copy, onDayPhrase } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
+import { filterNewReleases } from '@/domain/releaseFilter';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildUpcomingWeekSections } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
+import { isActive, namedFilter, toReleaseFilter } from '@/state/filterSettings';
+import { useReleaseFilter } from '@/state/releaseFilter';
 import { readNewReleases } from '@/store';
 
 type Item =
   | { key: string; kind: 'empty' }
+  | { key: string; kind: 'nomatch'; named: string }
   | { key: string; kind: 'week'; heading: string; detail: string }
   | { key: string; kind: 'release'; release: ApiUpcomingRelease; day: string; tracksOut: number | null; numTracks: number | null; rule: boolean };
 
@@ -28,6 +34,8 @@ function render({ item }: { item: Item }) {
   switch (item.kind) {
     case 'empty':
       return <EmptyState filling={copy.empty.fillingReleases} nothing={copy.empty.nothing} />;
+    case 'nomatch':
+      return <NothingMatches named={item.named} />;
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'release':
@@ -44,11 +52,14 @@ export default function UpcomingReleases() {
   const releaseDate = releaseDayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
 
+  const { settings } = useReleaseFilter();
+
   const items = useMemo(() => {
     const list: Item[] = [];
     if (view === null) return list;
+    const filtered = filterNewReleases(view, toReleaseFilter(settings));
     const at = new Date(day);
-    for (const week of buildUpcomingWeekSections(view.upcoming, (r) => releaseDay(r.releaseDate), at)) {
+    for (const week of buildUpcomingWeekSections(filtered.view.upcoming, (r) => releaseDay(r.releaseDate), at)) {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
       week.entries.forEach((r, n) => {
         const rule = n < week.entries.length - 1;
@@ -57,9 +68,14 @@ export default function UpcomingReleases() {
         list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day, tracksOut: r.numStreamableTracks, numTracks: r.numTracks, rule });
       });
     }
-    if (list.length === 0) list.push({ key: 'empty', kind: 'empty' });
+    if (list.length === 0) {
+      if (settings !== null && isActive(settings) && view.upcoming.length > 0) {
+        const named = namedFilter(settings, filtered.tags);
+        list.push({ key: 'nomatch', kind: 'nomatch', named: copy.filter.nothingNamed(named.min, named.tags) });
+      } else list.push({ key: 'empty', kind: 'empty' });
+    }
     return list;
-  }, [view, day]);
+  }, [view, settings, day]);
 
   return (
     <FlatList

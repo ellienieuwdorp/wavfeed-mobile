@@ -54,7 +54,10 @@ describe('screenFor', () => {
     assert.ok(paths.includes('/') && paths.includes('/releases/upcoming'), paths.join(', '));
     assert.equal(screenFor('/usage'), 'settings', 'the ask shares its screen with the switch it sets');
     assert.equal(screenFor('/welcome'), 'connect', "the first screen is Connect's first door");
-    const screens = paths.filter((p) => p !== '/usage' && p !== '/welcome').map(screenFor);
+    assert.equal(screenFor('/filters'), 'releases', "the Filters sheet is New releases'");
+    assert.equal(screenFor('/filter-toggle'), 'releases', "the iOS bar's filter item is New releases'");
+    const shared = new Set(['/usage', '/welcome', '/filters', '/filter-toggle']);
+    const screens = paths.filter((p) => !shared.has(p)).map(screenFor);
     assert.ok(!screens.includes('other'), `unmapped: ${paths.filter((p) => screenFor(p) === 'other').join(', ')}`);
     assert.equal(new Set(screens).size, screens.length);
     assert.deepEqual([...screens].sort(), SCREENS.filter((s) => s !== 'other' && !RETIRED_SCREENS.includes(s)).sort());

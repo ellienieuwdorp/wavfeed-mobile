@@ -17,7 +17,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme 
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PlatformColor } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppFailed } from '@/components/Failed';
@@ -43,9 +43,11 @@ installErrorCapture();
 /** A render error bypasses the global handler, so the root boundary reports it (src/tally/errors.ts). */
 export const ErrorBoundary = AppFailed;
 
+const UNCOUNTED = new Set(['/usage', '/filters']);
+
 /**
  * One `screen_viewed` per pathname change while sharing is on; the ask itself is never counted, it shows only before a
- * yes. An Error Report names the same screen.
+ * yes, and nor is New releases' Filters sheet (task 0071, Open 5). An Error Report names the same screen.
  */
 function ScreenTally() {
   const pathname = usePathname();
@@ -58,7 +60,8 @@ function ScreenTally() {
       last.current = null;
       return;
     }
-    if (pathname === last.current || pathname === '/usage') return;
+    // The ask and the Filters sheet are never counted (task 0044; task 0071, Open 5).
+    if (pathname === last.current || UNCOUNTED.has(pathname)) return;
     last.current = pathname;
     track({ name: 'screen_viewed', props: { screen: screenFor(pathname) } });
   }, [on, pathname, track]);
@@ -108,7 +111,7 @@ export default function RootLayout() {
 
 /** The routes a phone with no Fan may not reach sit behind `hasFan`; the first screen only before one (task 0044). */
 function GuardedStack() {
-  const { c } = useTokens();
+  const { c, dark } = useTokens();
   const hasFan = useAppState().gather.identity !== null;
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -134,6 +137,18 @@ function GuardedStack() {
             sheetCornerRadius: ios ? undefined : 28,
             contentStyle: { backgroundColor: c.surface },
           }}
+        />
+        {/*
+          The Filters sheet (task 0071, decision 7): on iOS non-modal at the medium detent, the list behind undimmed and
+          live, dragged to full height; on Android a modal sheet at half the height over the scrim, expanding to full.
+        */}
+        <Stack.Screen
+          name="filters"
+          options={
+            ios
+              ? { presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetLargestUndimmedDetentIndex: 0, sheetGrabberVisible: true, contentStyle: { backgroundColor: PlatformColor('systemGroupedBackground') } }
+              : { presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetCornerRadius: 28, contentStyle: { backgroundColor: dark ? c.surface : c.raised } }
+          }
         />
         <Stack.Screen
           name="usage"

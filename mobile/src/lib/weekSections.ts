@@ -59,6 +59,25 @@ export function buildSectionsFromWeeks<T>(weeks: readonly GroupedWeek<T>[], now:
   return sections;
 }
 
+/**
+ * Sections over every week held, narrowed to the entries a filter keeps (task 0071, decision 8): a week the filter
+ * empties drops out and becomes no quiet run, so a gap still names only weeks that held nothing at all, and as before
+ * a gap stands only between two weeks.
+ */
+export function narrowSections<T>(sections: readonly WeekOrGap<T>[], keeps: (entry: T) => boolean): readonly WeekOrGap<T>[] {
+  const narrowed: WeekOrGap<T>[] = [];
+  for (const section of sections) {
+    if (section.kind === 'gap') {
+      if (narrowed.length > 0) narrowed.push(section);
+      continue;
+    }
+    const entries = section.entries.filter(keeps);
+    if (entries.length > 0) narrowed.push({ ...section, entries });
+  }
+  while (narrowed.at(-1)?.kind === 'gap') narrowed.pop();
+  return narrowed;
+}
+
 /** Nearest first between and inside weeks, no quiet runs, headed forwards. */
 export function buildUpcomingWeekSections<T>(
   items: readonly T[],
