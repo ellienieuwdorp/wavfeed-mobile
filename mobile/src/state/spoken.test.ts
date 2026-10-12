@@ -29,7 +29,10 @@ test('count ticks, a store read at launch and steps after the walk say nothing',
   assert.equal(catchUpMilestone(running, EMPTY_GATHER_STATE), null);
 });
 
-test('a raised notice line stays until dismissed while a screen reader is on', () => {
+test('a raised notice line stays until dismissed while a screen reader is on, a swipe confirmation too', () => {
   assert.equal(noticeLifetime(false), NOTICE_LIFETIME_MS);
   assert.equal(noticeLifetime(true), null);
+  // Task 0071, decision 15 and the R5 swipe canvas: the snackbar after a swipe stays four seconds.
+  assert.equal(noticeLifetime(false, true), 4000);
+  assert.equal(noticeLifetime(true, true), null);
 });

@@ -22,7 +22,11 @@ import { useSharing } from '@/tally/Sharing';
 
 import { usePlayer } from './player/playerState';
 
-export type NoticeLine = { code: TallyProps<'notice_shown'>['code']; text: string; action?: { label: string; onPress: () => void } };
+/**
+ * A null `code` is a confirmation of the Fan's own swipe (Android's snackbar, task 0071 decision 15): its press already
+ * makes its Tally, so the line makes none, it leaves after four seconds and its action dismisses it.
+ */
+export type NoticeLine = { code: TallyProps<'notice_shown'>['code'] | null; text: string; action?: { label: string; onPress: () => void } };
 
 export type Notices = { notice: NoticeLine | null; show: (line: NoticeLine) => void; dismiss: () => void };
 
@@ -78,10 +82,10 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
       setLine(next);
-      const lifetime = noticeLifetime(reading.current);
+      const lifetime = noticeLifetime(reading.current, next.code === null);
       if (lifetime !== null) timer.current = setTimeout(() => setLine(null), lifetime);
       speakLine(next.text);
-      track({ name: 'notice_shown', props: { code: next.code } });
+      if (next.code !== null) track({ name: 'notice_shown', props: { code: next.code } });
     },
     [track],
   );

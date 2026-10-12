@@ -92,6 +92,18 @@ test('a failure the Fan still wants otherwise puts the truth back and tells once
   await answer(sent[1], true);
 });
 
+test('a follow-up exchange leaves on the Travel of the last press, so its Tally names the surface pressed last', async () => {
+  const { db, travel, sent } = await offHeart();
+  const surfaces: string[] = [];
+  const on = (surface: string): Travel => ({ ...travel, send: (wanted) => (surfaces.push(surface), travel.send(wanted)) });
+  pressItem(KEY, true, on('row_menu'));
+  pressItem(KEY, false, on('swipe'));
+  await answer(sent[0], true);
+  assert.deepEqual(surfaces, ['row_menu', 'swipe']);
+  await answer(sent[1], true);
+  assert.deepEqual([membershipOf(db, KEY), shownOf(db, KEY), intentOf(db, KEY)], ['off', 'off', null]);
+});
+
 test('a press belongs to its store while another store loads and presses the same item', async () => {
   const old = await offHeart();
   pressItem(KEY, true, old.travel);

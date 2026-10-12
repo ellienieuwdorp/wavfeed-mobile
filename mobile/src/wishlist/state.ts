@@ -103,16 +103,17 @@ function noticeFor(failure: PressFailure | 'other', reason: string | null = null
  * memory (`standing.ts`): with no Fan, the Demo's (task 0043, decision 7), a sign-out from Settings or a sign-in
  * Bandcamp no longer accepts, nothing is flipped and the press ends in its notice.
  * Otherwise the heart flips at once and the exchange travels behind it (`press.ts`, ADR-0016 amendment 2026-10-02),
- * with a light impact when the press turns the heart on. Each exchange ends in one `wishlist_action_finished` naming
- * the `surface` pressed (task 0038) and one log line; a failure the Fan is told about raises its notice and the error
- * haptic. Answers whether the press was taken, so the heart pops only then.
+ * with a light impact when the press turns the heart on, unless the caller says it `ticked` already (a swipe ticks as
+ * it passes its commit point). Each exchange ends in one `wishlist_action_finished` naming the `surface` pressed
+ * (task 0038) and one log line; a failure the Fan is told about raises its notice and the error haptic. Answers
+ * whether the press was taken, so the heart pops only then.
  */
-export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind) => boolean {
+export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind, ticked?: boolean) => boolean {
   const app = useAppState();
   const { show } = useNotice();
   const { track } = useSharing();
   return useCallback(
-    (target, action) => {
+    (target, action, ticked = false) => {
       const lifetime = wishlistLifetime(app.db);
       if (!lifetime.active()) return false;
       const key = keyOf(target.itemType, target.itemId);
@@ -148,7 +149,7 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
         failedHaptic();
       };
       const taken = pressItem(key, action === 'add', { db: app.db, send, saved: app.invalidate });
-      if (taken && action === 'add') turnedOnHaptic();
+      if (taken && action === 'add' && !ticked) turnedOnHaptic();
       return taken;
     },
     [app, show, track, surface],

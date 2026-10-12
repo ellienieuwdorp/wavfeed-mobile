@@ -446,6 +446,14 @@ export const copy = {
     share: 'Share',
     cancel: 'Cancel',
   },
+  /** The row's wishlist swipe (task 0071, decision 15): the panel's word past the commit point, and Android's snackbar. */
+  swipe: {
+    add: 'Wishlist',
+    remove: 'Remove',
+    added: 'Added to your Bandcamp wishlist',
+    removed: 'Removed from your Bandcamp wishlist',
+    undo: 'Undo',
+  },
   boughtBy: {
     title: 'Bought by',
     stack: (names: string) => `Bought by ${names}`,

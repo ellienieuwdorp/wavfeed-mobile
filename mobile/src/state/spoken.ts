@@ -1,16 +1,19 @@
 /**
  * What the app says to a screen reader without moving its focus (the phone app review, VIS-2): the first walk's two
- * milestones, its end and a sign-out pausing it, and never a count tick; and how long a raised notice line stays, which
- * is until it is dismissed while a screen reader is on (DESIGN-UI section 12).
+ * milestones, its end and a sign-out pausing it, and never a count tick; and how long a raised notice line stays, eight
+ * seconds, four for a swipe's confirmation, and until it is dismissed while a screen reader is on (DESIGN-UI section 12).
  */
 import { copy } from '@/copy';
 import type { GatherState } from '@/fetcher/sink';
 
 export const NOTICE_LIFETIME_MS = 8000;
+/** A confirmation of the Fan's own swipe, Material's short snackbar (task 0071, decision 15). */
+export const CONFIRMATION_LIFETIME_MS = 4000;
 
-/** Null keeps the line until it is dismissed: a line heard late in its eight seconds would leave before its action is reached. */
-export function noticeLifetime(screenReader: boolean): number | null {
-  return screenReader ? null : NOTICE_LIFETIME_MS;
+/** Null keeps the line until it is dismissed: a line heard late in its seconds would leave before its action is reached. */
+export function noticeLifetime(screenReader: boolean, confirmation = false): number | null {
+  if (screenReader) return null;
+  return confirmation ? CONFIRMATION_LIFETIME_MS : NOTICE_LIFETIME_MS;
 }
 
 function walking(state: GatherState): boolean {

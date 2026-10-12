@@ -114,7 +114,8 @@ export const CATALOGUE = {
       failure: [...PRESS_FAILURES, 'other', 'none'],
       end: [...WISHLIST_ENDS, 'none'],
       target: ['release', 'track'],
-      surface: ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist'],
+      // Append only (task 0071, decision 22): `swipe` is the row's wishlist swipe and its snackbar's Undo.
+      surface: ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist', 'swipe'],
       crumb_replays: ['0', '1', '2+'],
     },
   },

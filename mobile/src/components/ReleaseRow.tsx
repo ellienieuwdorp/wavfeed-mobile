@@ -2,8 +2,8 @@
  * One Release as a list cell of three lines and a right edge (task 0071, decisions 10 to 13, the R5 canvas): 56pt art,
  * then the day in small caps, the title and the credit line ("artist · Page or label", creditText). A Drop's "1/4" pill
  * ends at the right edge on the title line and the faces of who bought it end at the same edge on the credit line, so
- * the title truncates against the pill and the credit line against the faces. No heart: the long press menu and the
- * screen reader's actions keep the wishlist item. The art is the row's play control (PlayArt, DESIGN-UI section 11); a
+ * the title truncates against the pill and the credit line against the faces. No heart: a swipe right wishlists (WishlistSwipe,
+ * decision 15), and the long press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI section 11); a
  * press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and drawing the ripple on
  * Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one element and on Android the
  * body is one TalkBack button beside the art; both say the whole row (heardRow) and carry the row menu's items as their
@@ -28,6 +28,7 @@ import { creditOf, usePlay, type RowRelease } from './playable';
 import { heardRow, type HeardRow, type SpokenActions } from './rowActions';
 import { RowMenu } from './RowMenu';
 import { Type } from './Type';
+import { useHiddenWhileSwiped, WishlistSwipe } from './WishlistSwipe';
 
 const ios = Platform.OS === 'ios';
 const ART = 56;
@@ -137,16 +138,18 @@ const BODY: ViewStyle = { flex: 1, alignSelf: 'stretch', justifyContent: 'center
 
 /**
  * The row in the transport, lit in the track tone with no hairline under it; on iOS it also covers the hairline of the
- * row above, which later cells draw over. Only it reads the transport, so a new play re-renders it and not the row.
+ * row above, which later cells draw over. Only it reads the transport, so a new play re-renders it and not the row. The
+ * hairline leaves while the row's swipe moves it (WishlistSwipe).
  */
 function RowLight({ release, rule }: { release: RowRelease; rule: boolean }) {
   const { c } = useTokens();
   const live = useInTransport(release);
+  const swiped = useHiddenWhileSwiped();
   return (
     <>
       {live ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }]} /> : null}
       {ios && live ? <View pointerEvents="none" style={[styles.cover, { backgroundColor: c.bg }]} /> : null}
-      {ios && rule && !live ? <View pointerEvents="none" style={[styles.rule, { backgroundColor: c.border }]} /> : null}
+      {ios && rule && !live ? <Animated.View pointerEvents="none" style={[styles.rule, { backgroundColor: c.border }, swiped]} /> : null}
     </>
   );
 }
@@ -205,33 +208,37 @@ export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, b
         );
         if (!ios) {
           return (
-            <View style={row}>
-              <RowLight release={release} rule={rule} />
-              {art}
-              <TalkBackBody release={release} heard={heard} actions={actions} onPress={() => play(release, from)} onLongPress={openMenu}>
-                {lines}
-              </TalkBackBody>
-            </View>
+            <WishlistSwipe release={release} width={width}>
+              <View style={row}>
+                <RowLight release={release} rule={rule} />
+                {art}
+                <TalkBackBody release={release} heard={heard} actions={actions} onPress={() => play(release, from)} onLongPress={openMenu}>
+                  {lines}
+                </TalkBackBody>
+              </View>
+            </WishlistSwipe>
           );
         }
         return (
-          <SpokenRow release={release} heard={heard} onActivate={() => play(release, from)} actions={actions} style={row}>
-            <RowLight release={release} rule={rule} />
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} />
-            {art}
-            <Pressable
-              onPress={() => play(release, from)}
-              onLongPress={openMenu}
-              onPressIn={onPressIn}
-              onPressOut={onPressOut}
-              unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
-              hitSlop={{ left: GAP }}
-              accessible={false}
-              style={BODY}
-            >
-              {lines}
-            </Pressable>
-          </SpokenRow>
+          <WishlistSwipe release={release} width={width}>
+            <SpokenRow release={release} heard={heard} onActivate={() => play(release, from)} actions={actions} style={row}>
+              <RowLight release={release} rule={rule} />
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} />
+              {art}
+              <Pressable
+                onPress={() => play(release, from)}
+                onLongPress={openMenu}
+                onPressIn={onPressIn}
+                onPressOut={onPressOut}
+                unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
+                hitSlop={{ left: GAP }}
+                accessible={false}
+                style={BODY}
+              >
+                {lines}
+              </Pressable>
+            </SpokenRow>
+          </WishlistSwipe>
         );
       }}
     </RowMenu>

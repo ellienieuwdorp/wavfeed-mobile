@@ -2,11 +2,14 @@
  * The notice line (DESIGN-UI section 12): pinned above the player with its action in accent and a dismiss. On iOS the
  * raised surface under a rule; on Android Material's snackbar, the platform's one transient line: 4dp corners on the
  * inverse surface at elevation 3, 16dp from the edges, the action in the inverse primary. TalkBack reads the snackbar
- * as a live region; iOS has none, so NoticeProvider announces each line to VoiceOver (VIS-2).
+ * as a live region; iOS has none, so NoticeProvider announces each line to VoiceOver (VIS-2). A swipe's confirmation
+ * (task 0071, decision 15) is the snackbar with its Undo and no dismiss, as the R5 swipe canvas draws it; its action
+ * dismisses it, and a screen reader, which keeps it up, gets the dismiss back.
  */
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { copy } from '@/copy';
+import { useScreenReader } from '@/lib/a11y';
 import { dark as darkPalette, light as lightPalette, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { Glyph } from './Glyph';
@@ -15,34 +18,42 @@ import { useNotice } from './noticeState';
 function Snackbar() {
   const { c, dark, type } = useTokens();
   const { notice, dismiss } = useNotice();
+  const screenReader = useScreenReader();
   if (!notice) return null;
   const inverse = dark ? lightPalette : darkPalette;
+  const confirmation = notice.code === null;
+  const act = notice.action;
   return (
     <View
       accessibilityLiveRegion="polite"
       style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, marginHorizontal: 16, paddingLeft: 16, borderRadius: 4, backgroundColor: c.ink, boxShadow: '0 3px 6px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
     >
       <Text numberOfLines={2} style={{ flex: 1, fontSize: type.fact, lineHeight: 20, color: c.bg, paddingVertical: 14 }}>{notice.text}</Text>
-      {notice.action ? (
+      {act ? (
         <Pressable
           accessibilityRole="button"
-          onPress={notice.action.onPress}
+          onPress={() => {
+            act.onPress();
+            if (confirmation) dismiss();
+          }}
           android_ripple={ripple(inverse.track)}
           hitSlop={{ top: 4, bottom: 4 }}
-          style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 20, overflow: 'hidden' }}
+          style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, marginRight: confirmation && !screenReader ? 4 : 0, borderRadius: 20, overflow: 'hidden' }}
         >
-          <Text style={{ fontSize: 14, fontWeight: '500', color: c.inverseAccent }}>{notice.action.label}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: c.inverseAccent }}>{act.label}</Text>
         </Pressable>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={copy.notice.dismiss}
-        onPress={dismiss}
-        android_ripple={ripple(inverse.track, 20)}
-        style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Glyph name="dismiss" size={24} weight="regular" colour={c.bg} />
-      </Pressable>
+      {confirmation && !screenReader ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.notice.dismiss}
+          onPress={dismiss}
+          android_ripple={ripple(inverse.track, 20)}
+          style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Glyph name="dismiss" size={24} weight="regular" colour={c.bg} />
+        </Pressable>
+      )}
     </View>
   );
 }
