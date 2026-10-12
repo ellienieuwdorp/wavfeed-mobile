@@ -15,13 +15,6 @@ export function toDate(value: string | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-/** A bare wire date ("2026-08-17") as local midnight; unreadable input is an Invalid Date. */
-export function parseIsoDate(value: string): Date {
-  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
-  if (year === undefined || month === undefined || day === undefined || Number.isNaN(day)) return new Date(Number.NaN);
-  return new Date(year, month - 1, day);
-}
-
 export function startOfDay(value: string | Date): Date {
   const date = toDate(value);
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());

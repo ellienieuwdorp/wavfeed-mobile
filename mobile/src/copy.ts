@@ -1,7 +1,7 @@
 /**
  * Every user-visible string in the phone app. DESIGN-UI section 8 governs them: middots between facts, no em dashes,
- * "pages you follow", and no machine nouns; gather is the verb. The week, signal, curated, Bought and catch-up phrases
- * are ported from the web's weekCopy.ts, lib/format.ts, browseCopy.ts, curatedCopy.ts, boughtCopy.ts and syncCopy.ts
+ * "pages you follow", and no machine nouns; gather is the verb. The week, signal, curated and catch-up phrases are
+ * ported from the web's weekCopy.ts, lib/format.ts, browseCopy.ts, curatedCopy.ts and syncCopy.ts
  * under their function names (task 0036, decision 3).
  */
 import { Platform } from 'react-native';
@@ -74,11 +74,9 @@ export function quietWeeksPhrase(weeks: number): string {
   return `${NUMBER_WORDS[weeks] ?? weeks} quiet weeks`;
 }
 
-/** New releases' quiet runs are quiet about your pages; Bought's say the dates and stop. */
-export const PAGES_GAP_TAIL = ', nothing from your pages';
-
-export function gapLabel(start: Date, end: Date, weeks: number, now: Date, tail: string = PAGES_GAP_TAIL): string {
-  return `${formatDateRange(start, end, now)}${sep}${quietWeeksPhrase(weeks)}${tail}`;
+/** A quiet run between New releases' weeks: its dates, its length and that your pages were quiet. */
+export function gapLabel(start: Date, end: Date, weeks: number, now: Date): string {
+  return `${formatDateRange(start, end, now)}${sep}${quietWeeksPhrase(weeks)}, nothing from your pages`;
 }
 
 function weekOf(start: Date, now: Date): string {
@@ -310,22 +308,6 @@ export function quotedReview(text: string): string {
   return `“${text.trim()}”`;
 }
 
-// Bought (web boughtCopy.ts).
-
-export type BoughtMode = 'released' | 'crossed';
-
-export const BOUGHT_TOP_ENTRIES = 3;
-export const BOUGHT_THRESHOLDS: readonly number[] = [2, 3, 4, 5];
-export const DEFAULT_BOUGHT_THRESHOLD = 2;
-
-export function thresholdOptionLabel(count: number): string {
-  return `${count}+ you follow`;
-}
-
-export function expanderLabel(expanded: boolean, total: number): string {
-  return expanded ? `Show top ${BOUGHT_TOP_ENTRIES}` : `Show all ${total}`;
-}
-
 // The catch-up and freshness line (web syncCopy.ts and useCatchUp.ts).
 
 /** "Updated 12 min ago", under each large title. */
@@ -375,7 +357,6 @@ export const copy = {
   views: {
     feed: 'Feed',
     releases: 'New releases',
-    bought: 'Bought',
     settings: 'Settings',
   },
   catchUp: {
@@ -391,10 +372,8 @@ export const copy = {
   empty: {
     nothing: 'Nothing here yet.',
     fillingReleases: 'Filling in. Releases land here as your history arrives.',
-    fillingBought: 'Filling in. Purchases land here as your history arrives.',
     fillingCurated: 'Filling in. This grows as your history arrives.',
     curated: 'Nothing curated yet. It fills in as people you follow dig.',
-    crossed: (threshold: number) => `Nothing yet that ${threshold} people you follow have bought.`,
     signIn: 'Sign in to Bandcamp',
   },
   feed: {
@@ -405,25 +384,9 @@ export const copy = {
     quoteOn: ' on ',
     quoted: quotedReview,
   },
-  /** The phone's picker words and the line under it (DESIGN-UI section 3, The Bought view); the web keeps its own. */
-  bought: {
-    /** Each fits half an iPhone's width, and is also the segment's accessible name. */
-    segment: { released: 'By release week', crossed: 'Bought by many' } satisfies Record<BoughtMode, string>,
-    /** The sub tone of "Updated 12 min ago", and like it without a full stop. */
-    line: {
-      released: 'Releases people you follow bought, by release week',
-      crossed: 'Releases multiple people you follow bought, by purchase week',
-    } satisfies Record<BoughtMode, string>,
-    /** The threshold menu's accessible name: CONTEXT.md keeps "buyer" off the screen. */
-    thresholdLabel: 'How many people you follow bought it',
-  },
   /** The Upcoming shelf's head and the title of its full list (DESIGN-UI section 3, task 0037). */
   upcoming: {
     title: UPCOMING_HEAD,
-  },
-  menu: {
-    labelled: (label: string, value: string) => `${label}: ${value}`,
-    checked: '\u2713',
   },
   /** `facts` from spokenFacts, as an Upcoming card or a Drop row adds its count and release day (task 0041). */
   play: (title: string, facts = '') => (facts === '' ? `Play ${title}` : `Play ${title}, ${facts}`),

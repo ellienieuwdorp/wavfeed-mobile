@@ -1,6 +1,6 @@
 /**
  * The hearts' shared truth (DESIGN-UI section 12, ADR-0016): `wishlist_items` as one set of keys, read single-flight
- * per store version, so a version bump with every heart and row menu of four tabs mounted reads the table once
+ * per store version, so a version bump with every heart and row menu of three tabs mounted reads the table once
  * (finding TECH-M1). A confirmed write patches the set at once, and a read that started before the patch is dropped,
  * since it may not hold the write. Beside the set sits each item's intent, what the Fan's last press asked for while
  * its exchange travels (ADR-0016 amendment 2026-10-02): every heart and row menu for that item draws the intent over

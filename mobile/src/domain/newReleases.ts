@@ -4,8 +4,7 @@
  * Ported from server/apps/web/src/components/browse/NewReleaseWeeks.tsx and lib/dates.ts (task 0036).
  */
 import type { ApiFeedElement, ApiFeedItem, ApiUpcomingRelease } from './apiTypes';
-import { assembleFeed, buildSignal, groupByItem, itemKey } from './assemble';
-import { boughtReleases } from './boughtChart';
+import { assembleFeed, buildFeedItem, buildSignal, groupByItem, hasFan, itemKey } from './assemble';
 import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from './rows';
 import { buildUpcoming } from './upcoming';
 
@@ -183,6 +182,15 @@ function withSignal(element: ApiFeedElement, stories: ReadonlyMap<string, readon
   return { ...element, buyers: signal.buyers, wishlisters: signal.wishlisters, reviews: signal.reviews };
 }
 
+/** Each Release a named Fan bought, as its Feed Item from all its Stories, in the order its first Story arrived. */
+function boughtItems(byItem: ReadonlyMap<string, readonly FeedStoryRow[]>): readonly ApiFeedItem[] {
+  const items: ApiFeedItem[] = [];
+  for (const rows of byItem.values()) {
+    if (rows.some((row) => row.storyType === 'purchase' && hasFan(row))) items.push(buildFeedItem(rows));
+  }
+  return items;
+}
+
 export type NewReleasesInput = {
   /** Every Story of each Release the view could draw, early Track Stories already on their albums (task 0067, decision 3). */
   readonly stories: readonly FeedStoryRow[];
@@ -201,12 +209,11 @@ export function newReleasesOf(input: NewReleasesInput): NewReleasesView {
   const byItem = groupByItem(input.stories);
   const wanted = new Set(input.upcoming.map(itemKey));
   const upcoming = buildUpcoming(input.upcoming, input.stories.filter((row) => wanted.has(itemKey(row))));
-  const bought = boughtReleases(input.stories).map((release) => release.item);
   return buildNewReleases(
     elements.map((element) => withSignal(element, byItem)),
     upcoming,
     input.now,
     buildDrops(input.drops, input.stories),
-    bought,
+    boughtItems(byItem),
   );
 }

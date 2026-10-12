@@ -16,7 +16,7 @@ import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
-import { copy, dayLabel, onDayPhrase, outOnPhrase, PAGES_GAP_TAIL } from '@/copy';
+import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
@@ -78,11 +78,7 @@ export default function NewReleases() {
       });
       list.push({ key: 'shelf', kind: 'shelf', cards });
     }
-    const released = buildSectionsFromWeeks(
-      view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })),
-      at,
-      { gapTail: PAGES_GAP_TAIL },
-    );
+    const released = buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), at);
     for (const section of released) {
       if (section.kind === 'gap') {
         list.push({ key: section.key, kind: 'gap', text: section.label });

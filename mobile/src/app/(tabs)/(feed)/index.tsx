@@ -50,7 +50,8 @@ export default function Feed() {
           ) : null}
           {curated.boughtByFollowed.length > 0 ? (
             <View>
-              <ModuleHead title={copy.feed.boughtByFollowed} more="/bought" />
+              {/* New releases with the people filter on at 1+ (task 0071, Open 8), once its filter reads `people` (slice 5). */}
+              <ModuleHead title={copy.feed.boughtByFollowed} more="/releases?people=1" />
               <View style={{ gap: 12, paddingHorizontal: type.gutter }}>
                 {curated.boughtByFollowed.map((item) => (
                   <OverlapPanel key={`${item.itemType}:${item.itemId}`} item={item} now={now} />

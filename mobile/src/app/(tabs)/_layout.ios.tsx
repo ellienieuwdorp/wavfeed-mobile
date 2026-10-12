@@ -1,7 +1,8 @@
 /**
- * The four tabs on iOS as native tabs (task 0036 decision 5): UITabBarController, so iOS 26 draws the floating Liquid
- * Glass bar with labels and shrinks it while scrolling down. SF Symbols in canvas order, filled when selected, tinted
- * with the accent. The bar's bottom accessory carries the mini player once a Track exists; the catch-up lives in the
+ * The three tabs on iOS as native tabs (task 0036 decision 5, task 0071 decision 1): UITabBarController, so iOS 26
+ * draws the floating Liquid Glass bar with labels and shrinks it while scrolling down. Feed's crests and New releases'
+ * calendar are template images with a selected state of their own, the gear the SF Symbol (decision 2), tinted with
+ * the accent. The bar's bottom accessory carries the mini player once a Track exists; the catch-up lives in the
  * header (task 0040, decision 8). The tab host takes the token scheme as its own
  * `overrideUserInterfaceStyle`, set during the same Fabric mount as the token colours, so the glass, the headers'
  * scroll edge, the accessory, the SwiftUI controls and every PlatformColor inside the tabs flip in the frame the
@@ -12,6 +13,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { ScreenFailed } from '@/components/Failed';
 import { AccessoryPlayer, playerInAccessory } from '@/components/player/MiniPlayer';
 import { usePlayerRelease } from '@/components/player/playerState';
+import { TAB_GLYPHS } from '@/components/tabGlyphs';
 import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
@@ -30,16 +32,12 @@ export default function TabsLayout() {
         </NativeTabs.BottomAccessory>
       ) : null}
       <NativeTabs.Trigger name="(feed)">
-        <NativeTabs.Trigger.Icon sf="sparkles" />
+        <NativeTabs.Trigger.Icon src={TAB_GLYPHS.feed} renderingMode="template" />
         <NativeTabs.Trigger.Label>{copy.views.feed}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="releases">
-        <NativeTabs.Trigger.Icon sf={{ default: 'opticaldisc', selected: 'opticaldisc.fill' }} />
+        <NativeTabs.Trigger.Icon src={TAB_GLYPHS.releases} renderingMode="template" />
         <NativeTabs.Trigger.Label>{copy.views.releases}</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="bought">
-        <NativeTabs.Trigger.Icon sf={{ default: 'bag', selected: 'bag.fill' }} />
-        <NativeTabs.Trigger.Label>{copy.views.bought}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />

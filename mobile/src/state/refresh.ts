@@ -19,7 +19,7 @@ import { useAppState } from './appState';
 const SPINNER_CEILING_MS = 20_000;
 const CATCHING_UP_SPINNER_MS = 1_500;
 
-export function useRefresh(tab: 'feed' | 'releases' | 'bought'): { refreshing: boolean; onRefresh: () => void } {
+export function useRefresh(tab: 'feed' | 'releases'): { refreshing: boolean; onRefresh: () => void } {
   const { runGather, gather } = useAppState();
   const { track } = useSharing();
   const [pull, setPull] = useState<{ readonly from: number | null } | null>(null);

@@ -2,11 +2,10 @@
 /**
  * The store's view reads narrow the wide Story join in SQL; each must answer what the server's feed rules answer on
  * the full join (task 0036, decision 3), and a rebuild from the Raw Documents must answer the same again (ADR-0004).
- * Bought is read once and placed per mode on every switch, so that placing answers the rules at each threshold too.
  * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well, and the
  * player's tracklist off a stored release page, every Track the page names (task 0041, decision 5). A Track bought
- * before its album came out counts as the album in Bought and on New releases' released rows (task 0067, decision 3;
- * task 0071, decision 19). The filter's counts match the list it leaves over the long history (task 0071, decision 21).
+ * before its album came out counts as the album on New releases' released rows (task 0067, decision 3; task 0071,
+ * decision 19). The filter's counts match the list it leaves over the long history (task 0071, decision 21).
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
@@ -30,7 +29,6 @@ import {
   preorderNrEntry,
   phonePreorderTralbumBlob,
   preorderTrackId,
-  preorderTrackPageBlob,
   preorderTrackPurchase,
   preorderTralbumBlob,
   releasePagePayload,
@@ -38,17 +36,13 @@ import {
 } from '../../test/fixtures';
 import { DAY, enterHistory, type History, makeHistory, oracleRows } from '../../test/history';
 import { openTestStore } from '../../test/nodeDb';
-import { buildBoughtChart } from '../domain/boughtChart';
-import { buildCrossedList, CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD } from '../domain/boughtCrossed';
 import { buildCurated } from '../domain/curate';
 import { buildNewReleases, type NewReleasesView, newReleasesOf } from '../domain/newReleases';
 import { filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, type ReleaseFilter } from '../domain/releaseFilter';
 import type { FeedStoryRow } from '../domain/rows';
 import { fold, rebuild } from './projection';
 import {
-  boughtView,
   listUpcomingReleases,
-  readBoughtReleases,
   readChainCounts,
   readCurated,
   readNewestBandcampReleaseUrl,
@@ -94,7 +88,6 @@ function signalByRules(rows: readonly FeedStoryRow[], now: Date) {
 test('an empty store answers every view as the rules answer no Stories', async () => {
   const { db, close } = await openTestStore();
   assert.deepEqual(await readCurated(db), buildCurated([]));
-  assert.deepEqual(boughtView(await readBoughtReleases(db), { mode: 'released' }), { weeks: buildBoughtChart([]), nextCursor: null });
   assert.deepEqual(await readNewReleases(db, { now: NOW }), buildNewReleases([], [], NOW));
   close();
 });
@@ -226,39 +219,6 @@ test('a Track with no file on a Release that is out is out, with no preview', as
   close();
 });
 
-test('in Bought a Track bought before its album came out is a purchase of the album', async () => {
-  const { db, close } = await openTestStore();
-  const albumBought = fpEntry({
-    fan_id: OTHER_FAN_ID,
-    item_id: PREORDER_ITEM_ID,
-    item_title: 'Moth Season',
-    item_url: PREORDER_URL,
-    album_id: PREORDER_ITEM_ID,
-    album_title: 'Moth Season',
-    is_preorder: true,
-  });
-  const payload = feedPayload({
-    entries: [preorderTrackPurchase(2), albumBought],
-    fanInfo: { [String(FAN_ID)]: fanInfo(), [String(OTHER_FAN_ID)]: fanInfo({ fan_id: OTHER_FAN_ID, username: 'otherfan' }) },
-  });
-  const trackPage = releasePagePayload({
-    itemType: 't',
-    itemId: preorderTrackId(2),
-    itemUrl: 'https://nightgraft.bandcamp.com/track/lamp-glass',
-    tralbum: preorderTrackPageBlob(2, '29 Sep 2026 09:12:40 GMT'),
-  });
-  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload, fetchedAt: '2026-10-02T21:09:00.000Z' });
-  await insertRawDocument(db, { endpoint: 'release_page', payload: trackPage, fetchedAt: '2026-10-02T23:21:00.000Z' });
-  await fold(db);
-
-  const bought = await readBoughtReleases(db);
-  assert.deepEqual(
-    bought.map((release) => [release.item.itemType, release.item.itemId, release.item.buyers.length]),
-    [['a', String(PREORDER_ITEM_ID), 2]],
-  );
-  close();
-});
-
 test("on New releases a Track bought before its album came out is a buyer on the album's released row", async () => {
   const { db, close } = await openTestStore();
   const trackBought = fpEntry({
@@ -297,7 +257,7 @@ test('on New releases an album only an early Track purchase reached carries its 
   close();
 });
 
-test('selected Releases retain older buyers, reviews and first crossings beyond 50,000 newer Stories', async () => {
+test('selected Releases retain older buyers and reviews beyond 50,000 newer Stories', async () => {
   const { db, close } = await openTestStore();
   try {
     const now = new Date('2026-10-12T12:00:00.000Z');
@@ -342,26 +302,18 @@ test('selected Releases retain older buyers, reviews and first crossings beyond 
     await fold(db);
     assert.equal((await db.getFirstAsync<{ n: number }>('select count(*) as n from stories'))?.n, 50104);
 
-    const held = await readBoughtReleases(db);
-    const album = held.find(({ item }) => item.itemType === 'a' && item.itemId === String(PREORDER_ITEM_ID));
-    assert.ok(album);
-    const crossed = boughtView(held, { mode: 'crossed', threshold: 2 }).entries.find(({ item }) => item.itemId === String(PREORDER_ITEM_ID));
     const curated = (await readCurated(db)).newFromPages.find((item) => item.itemId === String(PREORDER_ITEM_ID));
     assert.ok(curated);
-    const upcoming = (await readNewReleases(db, { now })).upcoming.find((item) => item.itemId === String(PREORDER_ITEM_ID));
+    const view = await readNewReleases(db, { now });
+    const upcoming = view.upcoming.find((item) => item.itemId === String(PREORDER_ITEM_ID));
     assert.ok(upcoming);
+    const drawn = [...view.upcoming, ...view.weeks.flatMap((week) => week.releases.map((entry) => entry.release))];
     assert.deepEqual({
-      buyers: album.item.buyers.map((fan) => fan.fanId),
-      reviews: album.item.reviews.map(({ text }) => text),
-      crossedAt: crossed?.crossedAt,
-      trackDrawn: held.some(({ item }) => item.itemType === 't' && item.itemId === String(preorderTrackId(2))),
+      trackDrawn: drawn.some((release) => release.itemType === 't' && release.itemId === String(preorderTrackId(2))),
       curatedBuyers: curated.buyers.map((fan) => fan.fanId),
       upcomingBuyers: upcoming.buyers.map((fan) => fan.fanId),
       upcomingReviews: upcoming.reviews.map(({ text }) => text),
     }, {
-      buyers: [thirdFanId, OTHER_FAN_ID, FAN_ID].map(String),
-      reviews: ['The older Track review'],
-      crossedAt: '2026-10-02T10:00:00.000Z',
       trackDrawn: false,
       // Curated keeps the Track's own Story (task 0067); the album's older purchase still belongs to its full read.
       curatedBuyers: [thirdFanId, OTHER_FAN_ID].map(String),
@@ -501,30 +453,6 @@ describe('over a long history', () => {
     assert.ok(early.some((row) => albums.has(`a:${row.itemId}`)), "an early Track purchase counts on its album's released row");
   });
 
-  test('one Bought read places each mode and every threshold as the rules do', async () => {
-    const held = await readBoughtReleases(db);
-    const typeOf = new Map(held.map(({ item }) => [item.itemId, item.itemType]));
-    assert.ok(held.some(({ item }) => typeOf.get(item.itemId) !== item.itemType), 'an album and a track share an id');
-    const released = { weeks: buildBoughtChart(onAlbums), nextCursor: null };
-    assert.deepEqual(boughtView(held, { mode: 'released' }), released);
-    let fewer = Infinity;
-    for (let threshold = CROSSED_MIN_THRESHOLD; threshold <= CROSSED_MAX_THRESHOLD; threshold += 1) {
-      const crossed = { entries: buildCrossedList(onAlbums, threshold), nextCursor: null };
-      const count = crossed.entries.length;
-      assert.ok(count > 0 && count < fewer, `some Release crosses ${threshold}, fewer than one less`);
-      fewer = count;
-      assert.deepEqual(boughtView(held, { mode: 'crossed', threshold }), crossed);
-    }
-    const clamped = [
-      [CROSSED_MIN_THRESHOLD - 1, CROSSED_MIN_THRESHOLD],
-      [CROSSED_MAX_THRESHOLD + 1, CROSSED_MAX_THRESHOLD],
-    ] as const;
-    for (const [asked, placed] of clamped) {
-      const crossed = { entries: buildCrossedList(onAlbums, placed), nextCursor: null };
-      assert.deepEqual(boughtView(held, { mode: 'crossed', threshold: asked }), crossed);
-    }
-  });
-
   test("the filter's counts match the list it leaves, for every minimum and every tag", async () => {
     const view = await readNewReleases(db, { now: NOW });
     const releasesIn = (shown: NewReleasesView) =>
@@ -560,11 +488,9 @@ describe('over a long history', () => {
   test('a rebuild answers what folding page by page answered', async () => {
     for (const doc of later) await insertRawDocument(db, doc);
     await fold(db);
-    const bought = await readBoughtReleases(db);
     const curated = await readCurated(db);
     const newReleases = await readNewReleases(db, { now: NOW });
     await rebuild(db);
-    assert.deepEqual(await readBoughtReleases(db), bought);
     assert.deepEqual(await readCurated(db), curated);
     assert.deepEqual(await readNewReleases(db, { now: NOW }), newReleases);
   });

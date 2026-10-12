@@ -52,8 +52,6 @@ const SCREEN_PATHS: Readonly<Record<string, Screen>> = {
   '/': 'feed',
   '/releases': 'releases',
   '/releases/upcoming': 'releases_upcoming',
-  '/bought': 'bought',
-  '/bought/upcoming': 'bought_upcoming',
   '/settings': 'settings',
   '/player': 'player',
   '/connect': 'connect',

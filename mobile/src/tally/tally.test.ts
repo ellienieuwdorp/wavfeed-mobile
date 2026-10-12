@@ -30,6 +30,9 @@ describe('buckets', () => {
   });
 });
 
+/** Screens whose routes have gone: their codes stay in the catalogue, never reused (task 0071, decision 22). */
+const RETIRED_SCREENS: readonly string[] = ['bought', 'bought_upcoming'];
+
 /** The pathname expo-router reports for each route file: groups, `index` and platform suffixes dropped. */
 function routePaths(): string[] {
   const root = join(import.meta.dirname, '..', 'app');
@@ -46,15 +49,15 @@ function routePaths(): string[] {
 }
 
 describe('screenFor', () => {
-  test('every route in src/app has its own screen, and every screen but other has a route', () => {
+  test('every route in src/app has its own screen, and every screen but other and the retired ones has a route', () => {
     const paths = routePaths();
-    assert.ok(paths.includes('/') && paths.includes('/bought/upcoming'), paths.join(', '));
+    assert.ok(paths.includes('/') && paths.includes('/releases/upcoming'), paths.join(', '));
     assert.equal(screenFor('/usage'), 'settings', 'the ask shares its screen with the switch it sets');
     assert.equal(screenFor('/welcome'), 'connect', "the first screen is Connect's first door");
     const screens = paths.filter((p) => p !== '/usage' && p !== '/welcome').map(screenFor);
     assert.ok(!screens.includes('other'), `unmapped: ${paths.filter((p) => screenFor(p) === 'other').join(', ')}`);
     assert.equal(new Set(screens).size, screens.length);
-    assert.deepEqual([...screens].sort(), SCREENS.filter((s) => s !== 'other').sort());
+    assert.deepEqual([...screens].sort(), SCREENS.filter((s) => s !== 'other' && !RETIRED_SCREENS.includes(s)).sort());
   });
 
   test('a query, a hash or a trailing slash never changes the screen, and an unknown path is other', () => {
@@ -67,7 +70,7 @@ describe('screenFor', () => {
     const cases = [
       ['./(tabs)/(feed)/index.tsx', 'feed'],
       ['./(tabs)/releases/upcoming.tsx', 'releases_upcoming'],
-      ['./(tabs)/bought/index.tsx', 'bought'],
+      ['./(tabs)/releases/index.tsx', 'releases'],
       ['./(tabs)/settings/index.tsx', 'settings'],
       ['./player.tsx', 'player'],
       ['./(tabs)/_layout.ios.tsx', 'other'],

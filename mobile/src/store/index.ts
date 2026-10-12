@@ -24,7 +24,6 @@ export {
   type ReplayProgress,
 } from './projection';
 export {
-  type BoughtOptions,
   type ChainCounts,
   FEED_MAX_STORY_ROWS,
   type FollowedPage,

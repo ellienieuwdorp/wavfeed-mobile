@@ -21,7 +21,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
 import { Glyph, type GlyphName } from '@/components/Glyph';
-import { trackLine, TrackHeart, usePlayControl } from '@/components/player/MiniPlayer';
+import { Heart } from '@/components/Heart';
+import { trackLine, usePlayControl } from '@/components/player/MiniPlayer';
 import { clock, usePlayer, usePlayerActions, usePlayerClock, usePlayerRelease, type PlayableRelease } from '@/components/player/playerState';
 import { ROW, Tracklist, TRACKS_HEAD_LINE, TRACKS_HEAD_PAD } from '@/components/player/Tracklist';
 import { Type } from '@/components/Type';
@@ -283,6 +284,15 @@ function Transport() {
   );
 }
 
+/** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
+function TrackHeart({ release }: { release: PlayableRelease }) {
+  const { track, status } = usePlayer();
+  if (track !== null && track.trackId !== null && status === 'ready') {
+    return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={HEART} icon={26} surface="sheet" />;
+  }
+  return <View style={{ width: HEART, height: HEART }} />;
+}
+
 /**
  * The heart stands beside the title's link, never inside it, so a press on it never opens Bandcamp. Its box ends 12 from
  * the screen's edge as each Track row's does, which puts the sheet's hearts in one column. "Bandcamp ↗" never shrinks,
@@ -303,7 +313,7 @@ function Titles({ release }: { release: PlayableRelease }) {
           <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
         </Pressable>
         <View style={{ marginRight: 12 - SIDE }}>
-          <TrackHeart release={release} box={HEART} icon={26} surface="sheet" />
+          <TrackHeart release={release} />
         </View>
       </View>
       <View style={{ minHeight: FACTS, marginTop: FACTS_GAP, flexDirection: 'row', alignItems: 'center' }}>

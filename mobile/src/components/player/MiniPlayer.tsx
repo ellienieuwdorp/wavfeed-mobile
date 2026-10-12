@@ -1,11 +1,11 @@
 /**
  * The mini player (DESIGN-UI section 10, task 0036 decision 5, the v2 client canvas): artwork, "N. Track title" over
- * the Page, play or pause, the heart for the playing Track. On iOS 26 it is the tab bar's bottom accessory in Apple
+ * the artist, play or pause, and no heart (task 0071, decision 4; the player sheet keeps it). On iOS 26 it is the tab bar's bottom accessory in Apple
  * Music's grammar, whose glass the system draws; without it, a GlassView capsule of its own; on Android a raised
  * floating toolbar at elevation 3, one tone up from the surface in dark (the canvas's toolbar), with the ripple on the
  * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
  * swaps glyphs and text. The whole bar opens the player to a touch; to VoiceOver, which reaches nothing inside an
- * element, the art and titles are the open button beside play and the heart, while TalkBack reaches into the bar's own
+ * element, the art and titles are the open button beside play, while TalkBack reaches into the bar's own
  * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -15,7 +15,6 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
-import { Heart } from '@/components/Heart';
 import { playerCopy } from '@/player/copy';
 import { playerNote, playPress } from '@/player/transport';
 import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
@@ -59,16 +58,6 @@ export function usePlayControl(): PlayControl {
       else if (press === 'retry' && player.release !== null) player.play(player.release, player.track?.trackId ?? null);
     },
   };
-}
-
-/** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
-export function TrackHeart({ release, box, icon, surface }: { release: PlayableRelease; box: number; icon: number; surface: 'mini_player' | 'sheet' }) {
-  const { track, status } = usePlayer();
-  if (track !== null && track.trackId !== null && status === 'ready') {
-    return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={box} icon={icon} surface={surface} />;
-  }
-  const side = Math.max(box, 44);
-  return <View style={{ width: side, height: side }} />;
 }
 
 function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number; primary?: boolean }) {
@@ -138,17 +127,7 @@ function Contents({ release, inline = false }: { release: PlayableRelease; inlin
         <Artwork hue={release.hue} url={release.artUrl} size={art} radius={ios ? (inline ? 5 : 6) : art / 2} />
         <Titles release={release} note={note} single={inline} />
       </View>
-      {ios ? (
-        <>
-          <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} />
-          {inline ? null : <TrackHeart release={release} box={44} icon={22} surface="mini_player" />}
-        </>
-      ) : (
-        <>
-          <TrackHeart release={release} box={48} icon={24} surface="mini_player" />
-          <PlayPause box={48} glyph={24} primary />
-        </>
-      )}
+      {ios ? <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} /> : <PlayPause box={48} glyph={24} primary />}
     </Pressable>
   );
 }

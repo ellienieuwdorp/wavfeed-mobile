@@ -5,8 +5,6 @@
  */
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 import type {
-  ApiBoughtCrossedResponse,
-  ApiBoughtResponse,
   ApiCuratedResponse,
   ApiItemType,
   ApiReleaseTracksResponse,
@@ -15,8 +13,6 @@ import type {
   ApiWishlistResponse,
 } from '../domain/apiTypes';
 import { onBandcampHost } from '../bandcamp/wire';
-import { boughtChartOf, type BoughtRelease, boughtReleases } from '../domain/boughtChart';
-import { CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD, crossedListOf } from '../domain/boughtCrossed';
 import {
   buildCurated,
   CURATED_MIN_BUYERS,
@@ -105,7 +101,7 @@ const STORY_JOIN = `stories s
 /**
  * Which Stories a view loads: a `where` over `stories s`, its values, and any `with` clause it reads. `onAlbums` reads a
  * Story of a Track dated before its held album's release day as the album's, so its Fan is a buyer of the album (task
- * 0067, decision 3); New releases and Bought ask for it, the feed does not, and the scope must load those Stories itself.
+ * 0067, decision 3); New releases asks for it, the feed does not, and the scope must load those Stories itself.
  */
 type StoryScope = {
   readonly where: string;
@@ -464,7 +460,7 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
   };
 }
 
-/** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
+/** A purchase Story whose Fan is held: the only kind the rules count as a buyer. */
 const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
 
 /**
@@ -495,50 +491,9 @@ export async function readNewReleases(db: SQLiteDatabase, options: { readonly no
   const upcoming = await listUpcomingReleases(db, options.now);
   const drops = await listDrops(db);
   const listed = [...upcoming, ...drops.map((drop) => drop.release)].map((release): ItemPair => [release.itemType, release.itemId]);
-  // ceiling: like Bought's read this loads most Stories; a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
+  // ceiling: this loads most Stories, once per store version; a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
   const stories = await loadStoryRows(db, newReleasesScope(listed));
   return newReleasesOf({ stories, upcoming, drops, now: options.now });
-}
-
-export type BoughtOptions =
-  | { readonly mode: 'released'; readonly now?: Date }
-  | { readonly mode: 'crossed'; readonly threshold: number; readonly now?: Date };
-
-/**
- * Every Release either Bought mode could place: a named purchase and a release date, or the lowest crossing's named Fans.
- * A Track bought before its album came out is the album's (task 0067, decision 3).
- */
-const BOUGHT_SCOPE: StoryScope = {
-  where: `(s.item_type, s.item_id) in (
-    select b.item_type, b.item_id from ${NAMED_PURCHASES}
-    group by b.item_type, b.item_id
-    having count(distinct b.fan_id) >= ?
-      or exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))
-    or s.id in (select id from early_track_stories)
-    or (s.item_type = 'a' and s.item_id in (
-      select e.album_id from early_track_stories e join fans f on f.fan_id = e.fan_id where e.story_type = 'purchase'))`,
-  params: [CROSSED_MIN_THRESHOLD],
-  with: EARLY_TRACK_STORIES,
-  onAlbums: true,
-};
-
-/**
- * Both Bought modes' Releases in one read, each with all its Stories, so the domain judges exactly what it judged over the whole
- * store; `boughtView` places them for a mode without another read, which is what the mode switch and the number menu run.
- */
-export async function readBoughtReleases(db: SQLiteDatabase): Promise<readonly BoughtRelease[]> {
-  // ceiling: this still loads most Stories (about 45 ms at 10,000 on the Mac, once per store version); a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
-  return boughtReleases(await loadStoryRows(db, BOUGHT_SCOPE));
-}
-
-/** Every week or crossing at once: the phone has no page boundary, so `nextCursor` is always null. */
-export function boughtView(releases: readonly BoughtRelease[], options: { readonly mode: 'released' }): ApiBoughtResponse;
-export function boughtView(releases: readonly BoughtRelease[], options: { readonly mode: 'crossed'; readonly threshold: number }): ApiBoughtCrossedResponse;
-export function boughtView(releases: readonly BoughtRelease[], options: BoughtOptions): ApiBoughtResponse | ApiBoughtCrossedResponse;
-export function boughtView(releases: readonly BoughtRelease[], options: BoughtOptions): ApiBoughtResponse | ApiBoughtCrossedResponse {
-  if (options.mode === 'released') return { weeks: boughtChartOf(releases), nextCursor: null };
-  const threshold = Math.min(CROSSED_MAX_THRESHOLD, Math.max(CROSSED_MIN_THRESHOLD, Math.trunc(options.threshold)));
-  return { entries: crossedListOf(releases, threshold), nextCursor: null };
 }
 
 /**

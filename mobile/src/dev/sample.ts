@@ -5,9 +5,10 @@
  * the fold reads them (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
  * is set, so nothing drawn from the sample reaches Bandcamp. Payloads carry no real clock, so a second run dedupes.
  * The generated pre-orders have no Track out; two more Upcoming Releases let Tracks out early, read at fixed moments
- * so their Drops land on the same days every run (task 0041), and a Fan buys one so Bought's shelf shows a count. The
- * rig loads the sample into an empty store only: a simulator that holds an older sample keeps it until Expo Go is
- * uninstalled from it (`xcrun simctl uninstall <udid> host.exp.Exponent`), which the next `dev/sim.sh serve` reinstalls.
+ * so their Drops land on the same days every run (task 0041), and a Fan buys one so a shelf card shows a count and a
+ * face. The rig loads the sample into an empty store only: a simulator that holds an older sample keeps it until
+ * Expo Go is uninstalled from it (`xcrun simctl uninstall <udid> host.exp.Exponent`), which the next `dev/sim.sh serve`
+ * reinstalls.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -263,7 +264,7 @@ function makeStories(rng: Rng, fans: readonly Fan[], releases: readonly Release[
  * The Upcoming Releases that let Tracks out early (task 0041), each on a followed Page with no Story, so the Sweep dates
  * it and its release page reads write its Drops. Every read is a moment fixed against ANCHOR, never the clock, and
  * `reads` lists the Tracks playing on each read in order, `trackPage` a Track page whose `mod_date` dates the later
- * Drop, `purchase` a Fan's purchase Story after the last read that puts the Release on Bought's shelf.
+ * Drop, `purchase` a Fan's purchase Story after the last read that puts a face on its shelf card.
  */
 type DropDemo = {
   readonly release: Release;

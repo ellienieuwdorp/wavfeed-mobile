@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * The simulator rig's sample through the store (task 0036): Bought's shelf carries a Release with Tracks out early, so
- * the rig shows a card with its count above the faces (task 0041, decisions 9 and 10), and the rig's first walk shows
- * the catch-up mid-way with a fill (task 0040).
+ * The simulator rig's sample through the store (task 0036): New releases' shelf carries a Release with Tracks out early
+ * that a Fan bought, so the rig shows a card with its count and the faces (task 0041, decision 10; task 0071, decision
+ * 14), and the rig's first walk shows the catch-up mid-way with a fill (task 0040).
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -10,24 +10,19 @@ import { test } from 'node:test';
 import { openTestStore } from '../../test/nodeDb';
 import { backTo, catchUpHeader, soFar, tracksOutPhrase } from '../copy';
 import { EMPTY_GATHER_STATE, type GatherState, type WalkState } from '../fetcher/sink';
-import { boughtHalves } from '../domain/boughtChart';
-import { IDENTITY_KEY, readKv, type StoredIdentity, writeKv } from '../store';
-import { readBoughtReleases } from '../store/queries';
+import { IDENTITY_KEY, readKv, readNewReleases, type StoredIdentity, writeKv } from '../store';
 import { GATHER_KEY, readStoredWalk, WALK_KEY } from '../state/gatherSink';
 import { walkProgress } from '../state/walkProgress';
 import { loadSampleData, SAMPLE_WALK_STORIES, sampleWalk, setSampleWalk } from './sample';
 
-test('Bought shelf in the sample holds a card with Tracks out early', async () => {
+test("New releases' shelf in the sample holds a bought card with Tracks out early", async () => {
   const { db, close } = await openTestStore();
   try {
     await loadSampleData(db);
-    const { upcoming } = boughtHalves(await readBoughtReleases(db), new Date('2026-09-29T12:00:00Z'));
-    const counted = upcoming.map((r) => [r.item.title, tracksOutPhrase(r.item.numStreamableTracks, r.item.numTracks)]);
+    const { upcoming } = await readNewReleases(db, { now: new Date('2026-09-29T12:00:00Z') });
+    const counted = upcoming.map((r) => [r.title, tracksOutPhrase(r.numStreamableTracks, r.numTracks), r.buyers.length > 0]);
     assert.ok(counted.some(([, count]) => count === null), 'a card with no Track out still sits beside it');
-    assert.deepEqual(
-      counted.filter(([, count]) => count !== null),
-      [['Weathered Signals', '3 of 6 tracks']],
-    );
+    assert.ok(counted.some(([title, count, bought]) => title === 'Weathered Signals' && count === '3 of 6 tracks' && bought), JSON.stringify(counted));
   } finally {
     close();
   }

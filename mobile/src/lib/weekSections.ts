@@ -28,17 +28,8 @@ export type GroupedWeek<T> = {
   readonly entries: readonly T[];
 };
 
-export type WeekSectionOptions = {
-  /** Appended to a quiet run's line; Bought passes the empty string. */
-  readonly gapTail?: string;
-};
-
 /** Weeks that arrive grouped keep their order; an empty week is closed over by the quiet run. */
-export function buildSectionsFromWeeks<T>(
-  weeks: readonly GroupedWeek<T>[],
-  now: Date,
-  options: WeekSectionOptions = {},
-): readonly WeekOrGap<T>[] {
+export function buildSectionsFromWeeks<T>(weeks: readonly GroupedWeek<T>[], now: Date): readonly WeekOrGap<T>[] {
   const kept = [...weeks]
     .filter((week) => week.entries.length > 0 && !Number.isNaN(week.start.getTime()))
     .sort((a, b) => b.start.getTime() - a.start.getTime());
@@ -52,7 +43,7 @@ export function buildSectionsFromWeeks<T>(
         sections.push({
           kind: 'gap',
           key: `gap:${gapStart.getTime()}`,
-          label: gapLabel(gapStart, addDays(previousStart, -1), missing, now, options.gapTail),
+          label: gapLabel(gapStart, addDays(previousStart, -1), missing, now),
         });
       }
     }
@@ -66,31 +57,6 @@ export function buildSectionsFromWeeks<T>(
     previousStart = week.start;
   }
   return sections;
-}
-
-export type ClientWeekOptions = WeekSectionOptions & {
-  /** Newest first inside a week unless the caller's order is the answer. */
-  readonly sortWithinWeek?: boolean;
-};
-
-export function buildWeekSections<T>(
-  items: readonly T[],
-  dateOf: (item: T) => string | Date,
-  now: Date,
-  options: ClientWeekOptions = {},
-): readonly WeekOrGap<T>[] {
-  const buckets = new Map<number, { readonly start: Date; readonly entries: T[] }>();
-  for (const item of items) {
-    const start = startOfWeek(dateOf(item));
-    const bucket = buckets.get(start.getTime());
-    if (bucket === undefined) buckets.set(start.getTime(), { start, entries: [item] });
-    else bucket.entries.push(item);
-  }
-  if (options.sortWithinWeek !== false) {
-    const time = (item: T): number => toDate(dateOf(item)).getTime();
-    for (const bucket of buckets.values()) bucket.entries.sort((a, b) => time(b) - time(a));
-  }
-  return buildSectionsFromWeeks([...buckets.values()], now, options);
 }
 
 /** Nearest first between and inside weeks, no quiet runs, headed forwards. */

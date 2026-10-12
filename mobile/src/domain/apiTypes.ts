@@ -98,29 +98,6 @@ export type ApiUser = {
   readonly avatarUrl: string | null;
 };
 
-export type ApiBoughtWeek = {
-  /** ISO date of the week's Monday. Weeks with no entries never appear. */
-  readonly weekStart: string;
-  readonly entries: readonly ApiFeedItem[];
-};
-
-export type ApiBoughtResponse = {
-  readonly weeks: readonly ApiBoughtWeek[];
-  /** Opaque; pass back as `cursor` for older weeks. Null means the end. */
-  readonly nextCursor: string | null;
-};
-
-export type ApiBoughtCrossedEntry = {
-  readonly item: ApiFeedItem;
-  readonly crossedAt: string;
-};
-
-export type ApiBoughtCrossedResponse = {
-  readonly entries: readonly ApiBoughtCrossedEntry[];
-  /** Opaque; pass back as `cursor` for older crossings. Null means the end. */
-  readonly nextCursor: string | null;
-};
-
 /** A quote for the Curated Feed's 'In their own words' module. */
 export type ApiCuratedQuote = {
   readonly fan: ApiFanRef;

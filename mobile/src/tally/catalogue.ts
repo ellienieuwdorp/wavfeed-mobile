@@ -19,6 +19,7 @@ export const SCREENS = [
   'feed',
   'releases',
   'releases_upcoming',
+  // Retired with Bought's tab (task 0071, decision 22): older bundles still send them, and no screen takes them again.
   'bought',
   'bought_upcoming',
   'settings',
@@ -99,6 +100,7 @@ export const CATALOGUE = {
     },
   },
   projection_skipped: { code: 7, props: { unparsable: COUNT, unknown_story_type: COUNT, missing_fan_info: COUNT } },
+  // `bought` is retired with its tab (task 0071, decision 22).
   feed_refreshed: { code: 8, props: { from: ['feed', 'releases', 'bought', 'gather_now'], hit_ceiling: FLAG } },
   playback_started: {
     code: 9,
@@ -114,7 +116,8 @@ export const CATALOGUE = {
       failure: [...PRESS_FAILURES, 'other', 'none'],
       end: [...WISHLIST_ENDS, 'none'],
       target: ['release', 'track'],
-      // Append only (task 0071, decision 22): `swipe` is the row's wishlist swipe and its snackbar's Undo.
+      // Append only (task 0071, decision 22): `row` and `mini_player` lost their hearts and stay for older bundles;
+      // `swipe` is the row's wishlist swipe and its snackbar's Undo.
       surface: ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist', 'swipe'],
       crumb_replays: ['0', '1', '2+'],
     },

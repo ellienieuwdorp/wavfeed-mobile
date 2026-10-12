@@ -262,7 +262,7 @@ export function elementSortKey(element: ApiFeedElement, sort: ApiFeedSort): Elem
 }
 
 /** Every sort date is `toISOString` output, whose code unit order is its collation order, so only a tie pays for `localeCompare`. */
-export function compareSortKeys(a: ElementSortKey, b: ElementSortKey): number {
+function compareSortKeys(a: ElementSortKey, b: ElementSortKey): number {
   if (a.sortDate !== b.sortDate) return a.sortDate < b.sortDate ? 1 : -1;
   return a.tiebreak.localeCompare(b.tiebreak);
 }

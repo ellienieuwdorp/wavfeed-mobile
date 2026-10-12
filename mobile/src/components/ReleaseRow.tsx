@@ -42,8 +42,8 @@ const RULE_LEFT = 20 + ART + GAP;
  * Spread on a FlatList of these rows or of Upcoming's cards: `strictMode` memoises FlatList's row renderer (react-native
  * Lists/FlatList.js), so with a stable `renderItem` a mounted row re-renders only when its item does, not whenever the
  * screen does. The types in use do not declare the prop yet, hence the cast. `removeClippedSubviews`, on by default on Android, detaches and reattaches cells
- * as they scroll, which leaves a Compose host inside one (the row menu, Bought's threshold chip) with no window position:
- * the chip draws blank and every Compose menu opens empty at the window's corner until a configuration change.
+ * as they scroll, which leaves a Compose host inside one (the row menu) with no window position:
+ * every Compose menu opens empty at the window's corner until a configuration change.
  */
 export const ROW_LIST = { strictMode: true, removeClippedSubviews: false } as object;
 

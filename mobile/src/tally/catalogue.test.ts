@@ -38,10 +38,15 @@ test('codes are unique and never move: a retired code stays retired, a new row t
   });
 });
 
-test('the Worker still takes every wishlist surface an older bundle sends', () => {
-  // Task 0071, decision 22: rows no longer carry a heart, yet phones on older bundles still send `row`.
-  const surfaces: readonly string[] = CATALOGUE.wishlist_action_finished.props.surface;
-  for (const released of ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist']) assert.ok(surfaces.includes(released), released);
+test('the Worker still takes every value an older bundle sends', () => {
+  // Task 0071, decision 22: rows and the mini player no longer carry a heart and Bought's tab is gone, yet phones on
+  // older bundles still send `row`, `mini_player`, the `bought` screens and a refresh from `bought`.
+  const sent: readonly (readonly [readonly string[], readonly string[]])[] = [
+    [CATALOGUE.wishlist_action_finished.props.surface, ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist']],
+    [CATALOGUE.screen_viewed.props.screen, ['bought', 'bought_upcoming']],
+    [CATALOGUE.feed_refreshed.props.from, ['feed', 'releases', 'bought']],
+  ];
+  for (const [values, released] of sent) for (const value of released) assert.ok(values.includes(value), value);
 });
 
 test('every property is a closed, non-empty set of distinct strings or booleans', () => {
