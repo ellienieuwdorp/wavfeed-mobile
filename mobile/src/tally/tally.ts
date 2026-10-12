@@ -19,6 +19,7 @@ import {
   type Screen,
   type Tally,
   type TallyPlatform,
+  type TallyProps,
 } from './catalogue';
 import type { TallyContext } from './wire';
 
@@ -213,6 +214,17 @@ function statusClass(status: number | null): '4xx' | '5xx' | 'none' {
   return 'none';
 }
 
+/** The status itself where it names a cause; 0, no HTTP status, is `none` (task 0066, decision 1). */
+function statusCode(status: number | null): TallyProps<'gather_finished'>['status_code'] {
+  if (status === null || status === 0) return 'none';
+  if (status >= 200 && status < 300) return '2xx';
+  if (status >= 500 && status < 600) return '5xx';
+  const named = ['400', '401', '403', '404', '429'] as const;
+  const code = named.find((value) => value === String(status));
+  if (code !== undefined) return code;
+  return status >= 400 && status < 500 ? 'other_4xx' : 'none';
+}
+
 /** `gather_finished` for every chain, preceded by `sync_run_finished` when the chain finished the first walk. */
 export function gatherTallies(before: GatherState, after: GatherState, chain: ChainFacts): Tally[] {
   const tallies: Tally[] = [];
@@ -241,6 +253,9 @@ export function gatherTallies(before: GatherState, after: GatherState, chain: Ch
       took: durationBucket(chain.endedAt - chain.startedAt),
       release_pages_failed: countBucket(chain.releasePagesFailed),
       sweep_breaker_opened: chain.sweepBreakerOpened,
+      failed_step: chain.last.failedStep ?? 'none',
+      status_code: statusCode(after.lastError === null ? null : after.lastStatus),
+      feed_retried: chain.last.feedRetried,
     },
   });
   return tallies;

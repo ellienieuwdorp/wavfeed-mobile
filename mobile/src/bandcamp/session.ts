@@ -306,7 +306,7 @@ export class BandcampSession {
     });
     if (wire === null) return { kind: 'unreachable' };
     if (!wire.ok) return { kind: 'error', status: wire.status };
-    // HTML here is the login page: the session died between the probe and now.
+    // Not JSON reads as signed out, as a dead session's 400 reads as an error; the turn asks the probe (task 0066).
     if (!wire.contentType.includes('json')) return { kind: 'logged_out' };
 
     const payload = parseJson(wire.text);

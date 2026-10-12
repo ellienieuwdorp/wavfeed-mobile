@@ -211,6 +211,9 @@ test('the chain that ends the first walk sends one sync_run_finished and one gat
     took: '10m+',
     release_pages_failed: '0',
     sweep_breaker_opened: false,
+    failed_step: 'none',
+    status_code: 'none',
+    feed_retried: false,
   });
   tallies = [];
   await gather('refresh');

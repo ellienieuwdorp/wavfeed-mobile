@@ -9,8 +9,9 @@
  * Track pages of any Drop (task 0041, decision 8), a few while the walk is pending, with budget held back from the walk
  * for the undated; then the rest of the sweep. A list that fails is noted and the turn goes on; a feed page or a depth
  * probe Bandcamp answers with an error fails the turn before any step after the feed, since a 403, 429 or 5xx asks for
- * fewer requests (ADR-0017). The cursor is written after every page, so a turn out of budget or killed with the app
- * resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of
+ * fewer requests (ADR-0017); any other answer that is not a page asks the probe first and, signed in, the same request
+ * once more (task 0066, decision 2). The cursor is written after every page, so a turn out of budget or killed with the
+ * app resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of
  * the feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer
  * landed (task 0046, decision 2), and a pull to refresh lets its spinner go when it moves (state/refresh.ts).
  */
@@ -18,7 +19,7 @@ import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
 import { storedTralbum } from '../domain/releasePage';
 import { newlyOutTracks } from '../domain/tralbumTracks';
-import { type BandcampAnswer, type BandcampDocument, type Identity, originOf } from '../bandcamp/wire';
+import { type BandcampAnswer, type BandcampDocument, type Identity, originOf, refusedOrDown } from '../bandcamp/wire';
 import { FEED_UPDATES_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
 import type { DueRelease } from '../store/enrichment';
 import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type StorySample, type WalkState } from './sink';
@@ -41,9 +42,14 @@ export type GatherOptions = {
   readonly now: () => number;
   readonly reason: GatherReason;
   readonly budgetMs: number;
+  /** The pause before the feed's one retry; a timer unless a test passes its own clock. */
+  readonly wait?: (ms: number) => Promise<void>;
 };
 
 export type TurnOutcome = 'done' | 'out_of_budget' | 'paused' | 'failed';
+
+/** The request whose answer failed the turn (task 0066, decision 1). */
+export type FailedStep = 'probe' | 'feed_poke' | 'feed_page' | 'depth_probe';
 
 export type TurnSummary = {
   readonly reason: GatherReason;
@@ -51,6 +57,10 @@ export type TurnSummary = {
   readonly walkPending: boolean;
   /** A failed turn's `lastStatus`: the status of the Bandcamp error that ended it, 0 when none explains it; else null. */
   readonly status: number | null;
+  /** A failed turn's request; null for any other turn, or one the store ended. */
+  readonly failedStep: FailedStep | null;
+  /** Whether a feed request was asked again after the probe said signed in (task 0066, decision 2). */
+  readonly feedRetried: boolean;
 };
 
 /** The Extension's PAGES_PER_TURN: with no five-minute kill here, the batch between folds; the budget ends a turn. */
@@ -78,6 +88,8 @@ export const DEPTH_PROBE_LOWER = 1199145600;
 export const DEPTH_PROBE_RESOLUTION_S = 30 * 24 * 60 * 60;
 /** The walk's own last pages its rate at the cursor is read over (task 0040, decision 5). */
 export const RATE_PAGES = 5;
+/** The pause before a feed request is asked again: time for the snapshot the poke asked for (unconfirmed, task 0066). */
+export const FEED_RETRY_AFTER_MS = 5_000;
 
 type Ctx = {
   readonly session: GatherSession;
@@ -90,6 +102,11 @@ type Ctx = {
    * `lastSuccessAt` once the feed step ends `done` or `pending` (task 0046, decision 2).
    */
   feedReadAt: number | null;
+  readonly wait: (ms: number) => Promise<void>;
+  /** Set once a suspect feed answer has asked the probe, which a turn does once. */
+  rechecked: boolean;
+  feedRetried: boolean;
+  failedStep: FailedStep | null;
 };
 
 type Step = 'go' | 'paused' | 'unreachable';
@@ -118,6 +135,10 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     budgetMs: options.budgetMs,
     deadline: options.now() + options.budgetMs,
     feedReadAt: null,
+    wait: options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+    rechecked: false,
+    feedRetried: false,
+    failedStep: null,
   };
   let summary: TurnSummary;
   try {
@@ -130,13 +151,15 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
       outcome,
       walkPending: !after.initialWalkDone || (await sink.readWalk()) !== null,
       status: outcome === 'failed' ? after.lastStatus : null,
+      failedStep: outcome === 'failed' ? ctx.failedStep : null,
+      feedRetried: ctx.feedRetried,
     };
     await sink.patchGatherState({ phase: 'idle' });
   } catch (error) {
     // The sink threw: a store message, never a Bandcamp body (the session returns values).
     console.warn('gather turn stopped on the store:', error instanceof Error ? error.message : String(error));
     await sink.patchGatherState({ lastError: 'store_error', lastStatus: null, phase: 'idle' }).catch(() => undefined);
-    summary = { reason: options.reason, outcome: 'failed', walkPending: false, status: null };
+    summary = { reason: options.reason, outcome: 'failed', walkPending: false, status: null, failedStep: null, feedRetried: ctx.feedRetried };
   }
   return summary;
 }
@@ -162,18 +185,52 @@ function warnAnswer(what: string, answer: Refusal): void {
   console.warn(`${what} answered ${answer.kind}${answer.kind === 'error' ? ` ${answer.status}` : ''}`);
 }
 
-async function settle(ctx: Ctx, what: string, answer: Refusal): Promise<FeedEnd> {
+/** `step` names a request whose failure fails the turn; the lists' failures do not. */
+async function settle(ctx: Ctx, what: string, answer: Refusal, step?: FailedStep): Promise<FeedEnd> {
   warnAnswer(what, answer);
   if (answer.kind === 'logged_out') {
     await ctx.sink.patchGatherState({ pausedReason: 'logged_out' });
     return 'paused';
   }
+  if (step !== undefined) ctx.failedStep = step;
   if (answer.kind === 'unreachable') {
     await note(ctx, 'bandcamp_unreachable');
     return 'unreachable';
   }
   await note(ctx, 'bandcamp_error', answer.status);
   return 'error';
+}
+
+/**
+ * Not a page and not a refusal: a body that is not JSON, which the session reads as signed out, or a status other than
+ * a 403, 429 or 5xx. A dead session answers the feed with a bare 400 (task 0066).
+ */
+function suspect(answer: BandcampAnswer<unknown>): answer is Refusal {
+  return answer.kind === 'logged_out' || (answer.kind === 'error' && !refusedOrDown(answer.status));
+}
+
+/** A suspect answer the probe did not explain is Bandcamp's error; 0 when no HTTP status explains it (ADR-0003). */
+function unexplained(answer: Refusal): Refusal {
+  return answer.kind === 'logged_out' ? { kind: 'error', status: 0 } : answer;
+}
+
+/**
+ * A feed request asked through the probe (task 0066, decision 2): a suspect answer asks the probe, so only the probe
+ * pauses a turn as signed out; signed in, the request is asked once more after FEED_RETRY_AFTER_MS. Once per turn, so a
+ * turn adds at most two requests; a refusal is never asked again (ADR-0017).
+ */
+async function askFeed<T>(ctx: Ctx, ask: () => Promise<BandcampAnswer<T>>): Promise<BandcampAnswer<T>> {
+  const answer = await ask();
+  if (!suspect(answer)) return answer;
+  if (ctx.rechecked) return unexplained(answer);
+  ctx.rechecked = true;
+  warnAnswer('feed request before the recheck', answer);
+  const probe = await ctx.session.probeIdentity();
+  if (probe.kind !== 'ok') return probe;
+  await ctx.wait(FEED_RETRY_AFTER_MS);
+  ctx.feedRetried = true;
+  const again = await ask();
+  return suspect(again) ? unexplained(again) : again;
 }
 
 async function store(ctx: Ctx, doc: BandcampDocument): Promise<boolean> {
@@ -199,10 +256,12 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
     return 'paused';
   }
   if (probe.kind === 'unreachable') {
+    ctx.failedStep = 'probe';
     await note(ctx, 'bandcamp_unreachable');
     return 'failed';
   }
   if (probe.kind === 'error') {
+    ctx.failedStep = 'probe';
     await note(ctx, 'bandcamp_error', probe.status);
     return 'failed';
   }
@@ -295,8 +354,9 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
   if (!walk.poked) {
     if (walk.username !== null) {
       if (outOfBudget(ctx, reserveMs)) return 'pending';
-      const poke = await session.pokeFeedPage(walk.username);
-      if (poke.kind !== 'ok') return await settle(ctx, 'feed poke', poke);
+      const username = walk.username;
+      const poke = await askFeed(ctx, () => session.pokeFeedPage(username));
+      if (poke.kind !== 'ok') return await settle(ctx, 'feed poke', poke, 'feed_poke');
       await store(ctx, poke.value);
     }
     walk = { ...walk, poked: true };
@@ -326,10 +386,11 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
       return 'pending';
     }
 
-    const page = await session.fetchFeedUpdates(walk.fanId, walk.olderThan);
+    const { fanId, olderThan } = walk;
+    const page = await askFeed(ctx, () => session.fetchFeedUpdates(fanId, olderThan));
     if (page.kind !== 'ok') {
       await sink.afterDocuments();
-      return await settle(ctx, 'feed page', page);
+      return await settle(ctx, 'feed page', page, 'feed_page');
     }
 
     const { entryCount, oldestStoryDate: oldest, newestStoryDate } = page.value;
@@ -407,7 +468,7 @@ async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise
       break;
     }
     const cursor = Math.floor((lo + (known ?? walk.olderThan)) / 2);
-    const answer = await ctx.session.fetchFeedUpdates(walk.fanId, cursor);
+    const answer = await askFeed(ctx, () => ctx.session.fetchFeedUpdates(walk.fanId, cursor));
     if (answer.kind === 'logged_out' || answer.kind === 'error') {
       cut = answer;
       break;
@@ -433,7 +494,7 @@ async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise
   const probed: WalkState = { ...walk, probed: cut === null, floor: known, probeOldest, samples, probeLower: lo };
   await ctx.sink.writeWalk(probed);
   if (stored) await ctx.sink.afterDocuments();
-  if (cut !== null && cut !== 'budget') return await settle(ctx, 'depth probe', cut);
+  if (cut !== null && cut !== 'budget') return await settle(ctx, 'depth probe', cut, 'depth_probe');
   return probed;
 }
 

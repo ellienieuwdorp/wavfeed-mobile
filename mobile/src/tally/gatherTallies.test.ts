@@ -92,6 +92,7 @@ describe('the gather diff', () => {
         props: {
           reason: 'open', outcome: 'done', turns: '1', retries: '0', walk_pending: false, failure: 'none', paused: 'none',
           status_class: 'none', took: '10 to 60s', release_pages_failed: '0', sweep_breaker_opened: false,
+          failed_step: 'none', status_code: 'none', feed_retried: false,
         },
       },
     ]);
@@ -119,8 +120,8 @@ describe('the gather diff', () => {
     assert.equal(only?.name, 'gather_finished');
     if (only?.name !== 'gather_finished') return;
     assert.deepEqual(
-      [only.props.outcome, only.props.failure, only.props.paused, only.props.status_class],
-      ['failed', 'bandcamp_unreachable', 'none', 'none'],
+      [only.props.outcome, only.props.failure, only.props.paused, only.props.status_class, only.props.failed_step],
+      ['failed', 'bandcamp_unreachable', 'none', 'none', 'probe'],
     );
   });
 
@@ -154,15 +155,25 @@ describe('the gather diff', () => {
 
 test('a failure with an HTTP status carries its class, and no failure carries none', () => {
   const chainFacts = {
-    reason: 'open', last: { reason: 'open', outcome: 'failed', walkPending: true, status: 0 }, turns: 1, retries: 2,
+    reason: 'open',
+    last: { reason: 'open', outcome: 'failed', walkPending: true, status: 0, failedStep: 'feed_page', feedRetried: true },
+    turns: 1,
+    retries: 2,
     startedAt: 0, endedAt: 1, walkAtStart: null, feedPages: 0, releasePagesFailed: 0, sweepBreakerOpened: false,
   } as const;
-  const classOf = (lastError: 'bandcamp_error' | null, lastStatus: number | null) => {
+  const propsOf = (lastError: 'bandcamp_error' | null, lastStatus: number | null) => {
     const [tally] = gatherTallies(EMPTY_GATHER_STATE, { ...EMPTY_GATHER_STATE, lastError, lastStatus }, chainFacts);
-    return tally?.name === 'gather_finished' ? tally.props.status_class : null;
+    return tally?.name === 'gather_finished' ? tally.props : null;
   };
+  const classOf = (lastError: 'bandcamp_error' | null, lastStatus: number | null) => propsOf(lastError, lastStatus)?.status_class;
   assert.deepEqual(
     [classOf('bandcamp_error', 429), classOf('bandcamp_error', 503), classOf('bandcamp_error', null), classOf(null, 429)],
     ['4xx', '5xx', 'none', 'none'],
   );
+  const codeOf = (lastStatus: number | null) => propsOf('bandcamp_error', lastStatus)?.status_code;
+  assert.deepEqual(
+    [codeOf(200), codeOf(400), codeOf(403), codeOf(418), codeOf(503), codeOf(0), codeOf(null), propsOf(null, 400)?.status_code],
+    ['2xx', '400', '403', 'other_4xx', '5xx', 'none', 'none', 'none'],
+  );
+  assert.deepEqual([propsOf(null, null)?.failed_step, propsOf(null, null)?.feed_retried], ['feed_page', true]);
 });

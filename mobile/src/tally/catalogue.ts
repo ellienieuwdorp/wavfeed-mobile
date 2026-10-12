@@ -92,6 +92,10 @@ export const CATALOGUE = {
       took: DURATION,
       release_pages_failed: COUNT,
       sweep_breaker_opened: FLAG,
+      // Task 0066, decision 1: which request failed the turn, its status, and whether the feed's one retry ran.
+      failed_step: ['probe', 'feed_poke', 'feed_page', 'depth_probe', 'none'],
+      status_code: ['2xx', '400', '401', '403', '404', '429', 'other_4xx', '5xx', 'none'],
+      feed_retried: FLAG,
     },
   },
   projection_skipped: { code: 7, props: { unparsable: COUNT, unknown_story_type: COUNT, missing_fan_info: COUNT } },

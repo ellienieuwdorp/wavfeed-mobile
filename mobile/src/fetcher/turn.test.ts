@@ -31,7 +31,7 @@ import { fold } from '../store/projection';
 import { listDrops } from '../store/queries';
 import { insertRawDocument } from '../store/rawDocuments';
 import { EMPTY_GATHER_STATE, type GatherSink, type GatherState } from './sink';
-import { DEPTH_PROBE_RESOLUTION_S, type GatherReason, type GatherSession, LIST_INTERVAL_MS, POLL_MAX_PAGES, RATE_PAGES, runGatherTurn } from './turn';
+import { DEPTH_PROBE_RESOLUTION_S, FEED_RETRY_AFTER_MS, type GatherReason, type GatherSession, LIST_INTERVAL_MS, POLL_MAX_PAGES, RATE_PAGES, runGatherTurn } from './turn';
 
 const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
@@ -67,6 +67,7 @@ let releasePageUrls: string[];
 let bandDetailsAsked: number[];
 let bandDetails: BandcampAnswer<BandDetails>;
 let probe: BandcampAnswer<Identity>;
+let probes: number;
 /** A refusal for the feed request with this index in `cursors`, or null to answer it. */
 let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
@@ -81,7 +82,10 @@ const ok = <T>(value: T): BandcampAnswer<T> => ({ kind: 'ok', value });
 const at = (): string => new Date(clock).toISOString();
 
 const session: GatherSession = {
-  probeIdentity: async () => probe,
+  async probeIdentity() {
+    probes += 1;
+    return probe;
+  },
   async pokeFeedPage(username) {
     clock += pokeMs;
     return ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() });
@@ -129,12 +133,21 @@ const session: GatherSession = {
   },
 };
 
+/** Bandcamp signing the phone out mid-turn: the feed's answer and every probe after it say so. */
+function signOut(): BandcampAnswer<never> {
+  probe = { kind: 'logged_out' };
+  return { kind: 'logged_out' };
+}
+
 function datedPage(itemId: number): BandcampAnswer<ReleasePage> {
   return ok({ kind: 'page', document: { endpoint: 'release_page', payload: releasePagePayload({ itemId }), fetchedAt: at() } });
 }
 
 function turn(budgetMs = 600_000, reason: GatherReason = 'open') {
-  return runGatherTurn(session, sink, { now: () => clock, reason, budgetMs });
+  const wait = async (ms: number) => {
+    clock += ms;
+  };
+  return runGatherTurn(session, sink, { now: () => clock, reason, budgetMs, wait });
 }
 
 async function followBands(bandIds: readonly number[]): Promise<void> {
@@ -161,6 +174,7 @@ beforeEach(async () => {
   bandDetailsAsked = [];
   bandDetails = { kind: 'error', status: 429 };
   probe = ok(FAN);
+  probes = 0;
   refuseFeed = () => null;
   releasePage = datedPage;
   followed = [];
@@ -171,7 +185,7 @@ beforeEach(async () => {
 describe('the feed walk', () => {
   test('a first walk takes the whole feed, and a poll after it stops at what the walk reached', async () => {
     feed = stories(23, 1000);
-    assert.deepEqual(await turn(), { reason: 'open', outcome: 'done', walkPending: false, status: null });
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'done', walkPending: false, status: null, failedStep: null, feedRetried: false });
     assert.equal(await storyCount(), 23);
     assert.equal(gather.newestStoryDate, feed[0]?.at);
 
@@ -201,7 +215,7 @@ describe('the feed walk', () => {
 
   test('a turn out of budget resumes at its cursor', async () => {
     feed = stories(40, 1000);
-    assert.deepEqual(await turn(3_500), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null });
+    assert.deepEqual(await turn(3_500), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null, failedStep: null, feedRetried: false });
     assert.notEqual(gather.lastSuccessAt, null, 'a pending walk names its last feed read');
     assert.equal((await turn()).outcome, 'done');
     assert.equal(new Set(cursors).size, cursors.length, 'no page asked twice');
@@ -213,7 +227,7 @@ describe('the feed walk', () => {
     await turn(12_000);
     assert.equal(gather.releasesDated, 0);
     releasePages = [];
-    assert.deepEqual(await turn(12_000), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null });
+    assert.deepEqual(await turn(12_000), { reason: 'open', outcome: 'out_of_budget', walkPending: true, status: null, failedStep: null, feedRetried: false });
     assert.equal(releasePages.length, 5);
     assert.equal(gather.releasesDated, 5);
   });
@@ -293,7 +307,7 @@ describe('the feed walk', () => {
     clock += 15 * 60_000;
     feed = [...stories(2 * PAGE_SIZE + 2, 2000, 60), ...feed];
     cursors = [];
-    refuseFeed = (asked) => (asked === 1 ? { kind: 'logged_out' } : null);
+    refuseFeed = (asked) => (asked === 1 ? signOut() : null);
     assert.equal((await turn(600_000, 'refresh')).outcome, 'paused');
     assert.equal(cursors.length, 2);
     assert.equal(gather.lastSuccessAt, read);
@@ -468,13 +482,14 @@ describe('the depth probe (task 0040)', () => {
 
   test('a signed-out answer mid-probe pauses the turn, and the next turn probes again', async () => {
     feed = stories(40, 1000);
-    refuseFeed = (asked) => (asked === 1 ? { kind: 'logged_out' } : null);
+    refuseFeed = (asked) => (asked === 1 ? signOut() : null);
     assert.equal((await turn()).outcome, 'paused');
     assert.equal(gather.pausedReason, 'logged_out');
     const held = await sink.readWalk();
     assert.equal(held?.probed, false);
 
     refuseFeed = () => null;
+    probe = ok(FAN);
     cursors = [];
     assert.equal((await turn()).outcome, 'done');
     assert.ok((cursors[0] ?? Infinity) < held.olderThan, 'the first request is a probe below the cursor');
@@ -544,7 +559,7 @@ describe('the probe', () => {
   test('a 429 on the probe is a Bandcamp error with its status, not a sign-out', async () => {
     await turn();
     probe = { kind: 'error', status: 429 };
-    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: false, status: 429 });
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: false, status: 429, failedStep: 'probe', feedRetried: false });
     assert.equal(gather.pausedReason, null);
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 429);
@@ -555,7 +570,7 @@ describe('a feed page Bandcamp fails', () => {
   test('fails the turn with its status, and keeps the status beside the failure until a probe answers again', async () => {
     feed = stories(3, 1000);
     refuseFeed = () => ({ kind: 'error', status: 503 });
-    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: 503 });
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: 503, failedStep: 'depth_probe', feedRetried: false });
     assert.equal(gather.lastError, 'bandcamp_error');
     assert.equal(gather.lastStatus, 503);
 
@@ -591,8 +606,72 @@ describe('a feed page Bandcamp fails', () => {
 
   test('unanswered fails the turn with no status', async () => {
     refuseFeed = () => ({ kind: 'unreachable' });
-    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: null });
+    assert.deepEqual(await turn(), { reason: 'open', outcome: 'failed', walkPending: true, status: null, failedStep: 'feed_page', feedRetried: false });
     assert.equal(gather.lastError, 'bandcamp_unreachable');
+  });
+});
+
+describe('a feed answer that looks signed out (task 0066)', () => {
+  /** A caught-up store whose next poll finds two new Stories. */
+  async function caughtUp(): Promise<void> {
+    feed = stories(3, 1000);
+    await turn();
+    clock += 15 * 60_000;
+    feed = [...stories(2, 2000, 60), ...feed];
+    cursors = [];
+    probes = 0;
+  }
+
+  test('a 400 the probe calls signed in is asked again after the pause, and the poll lands', async () => {
+    await caughtUp();
+    const read = gather.lastSuccessAt;
+    refuseFeed = (asked) => (asked === 0 ? { kind: 'error', status: 400 } : null);
+    const before = clock;
+    const summary = await turn(600_000, 'refresh');
+    assert.deepEqual([summary.outcome, summary.failedStep, summary.feedRetried], ['done', null, true]);
+    assert.equal(probes, 2, 'the turn probe and the recheck');
+    assert.equal(cursors[1], cursors[0], 'the same page twice');
+    assert.ok(clock - before >= FEED_RETRY_AFTER_MS);
+    assert.equal(await storyCount(), 5);
+    assert.notEqual(gather.lastSuccessAt, read);
+  });
+
+  test('a 400 the probe calls signed out pauses the turn as a sign-out', async () => {
+    await caughtUp();
+    refuseFeed = (asked) => (asked === 0 ? (probes > 1 ? null : ((probe = { kind: 'logged_out' }), { kind: 'error', status: 400 })) : null);
+    const summary = await turn(600_000, 'refresh');
+    assert.deepEqual([summary.outcome, summary.feedRetried], ['paused', false]);
+    assert.equal(gather.pausedReason, 'logged_out');
+    assert.equal(cursors.length, 1, 'nothing is asked after the probe');
+  });
+
+  test('a body that is not JSON twice fails the turn as a Bandcamp error with no status, not a sign-out', async () => {
+    await caughtUp();
+    refuseFeed = () => ({ kind: 'logged_out' });
+    const summary = await turn(600_000, 'refresh');
+    assert.deepEqual([summary.outcome, summary.status, summary.failedStep, summary.feedRetried], ['failed', 0, 'feed_page', true]);
+    assert.equal(gather.pausedReason, null);
+    assert.equal(gather.lastError, 'bandcamp_error');
+    assert.equal(cursors.length, 2);
+  });
+
+  test('a refusal asks neither the probe nor the page again (ADR-0017)', async () => {
+    await caughtUp();
+    refuseFeed = () => ({ kind: 'error', status: 429 });
+    const summary = await turn(600_000, 'refresh');
+    assert.deepEqual([summary.outcome, summary.status, summary.feedRetried], ['failed', 429, false]);
+    assert.equal(probes, 1);
+    assert.equal(cursors.length, 1);
+  });
+
+  test('a turn rechecks once: a second suspect answer after a retry that landed fails it', async () => {
+    // A first walk's depth probe: its second answer is retried as the third, and its fourth is not.
+    feed = stories(4 * PAGE_SIZE, 1000);
+    refuseFeed = (asked) => (asked === 1 || asked === 3 ? { kind: 'error', status: 400 } : null);
+    const summary = await turn();
+    assert.deepEqual([summary.outcome, summary.status, summary.failedStep, summary.feedRetried], ['failed', 400, 'depth_probe', true]);
+    assert.equal(probes, 2);
+    assert.equal(cursors.length, 4);
   });
 });
 
