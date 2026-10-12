@@ -23,7 +23,6 @@ import {
   type FoldSummary,
   IDENTITY_KEY,
   insertRawDocument,
-  latestReleasePageDocument,
   markSwept,
   readFollowedBands,
   readKv,
@@ -204,11 +203,8 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       invalidate();
     },
     readUndatedReleases: (nowMs, limit) => readUndatedReleases(db, limit, new Date(nowMs)),
-    readUpcomingDue: (nowMs, limit) => readUpcomingDue(db, limit, new Date(nowMs)),
-    readOwedTrackPages: (nowMs, limit) => readOwedTrackPages(db, limit, new Date(nowMs)),
-    async readReleasePage(key) {
-      return (await latestReleasePageDocument(db, key.itemType, key.itemId))?.payload ?? null;
-    },
+    readUpcomingDue: (nowMs, limit, only) => readUpcomingDue(db, limit, new Date(nowMs), only),
+    readOwedTrackPages: (nowMs, limit, albumId) => readOwedTrackPages(db, limit, new Date(nowMs), albumId),
     markReleasePageAttempt: (key, outcome, nowMs) => markReleasePageAttempt(db, key, outcome, new Date(nowMs)),
     readReleaseDateCounts: () => readReleaseDateCounts(db),
   };

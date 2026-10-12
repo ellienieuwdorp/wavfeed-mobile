@@ -2,8 +2,8 @@
  * Release-date enrichment's worklist on the device (ADR-0011, DESIGN.md section 3, task 0036): the Releases a Story or
  * a wishlist item reaches whose public page has not yet given the Projection a `release_date`, and the attempts made
  * at each page, kept in `release_page_attempts` so a page that answered badly waits a day, or a week after three.
- * Upcoming Releases join it after them, their page read again to catch a Drop, and the Track pages a Drop still owes
- * (task 0041, decision 8).
+ * Upcoming Releases and the Track pages a Drop still owes share the turn's allowance fairly (task 0041, decision 8;
+ * task 0072).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -43,8 +43,8 @@ function asItemType(value: string): ItemType | null {
 }
 
 /**
- * Pre-orders first, since none is drawn until its page dates it (task 0067, decision 5); within each, newest Story
- * first, then wishlist-only Releases by when they were wished for.
+ * Pre-orders first (task 0067, decision 5), then Tracks whose known album is absent (task 0072); within each, newest
+ * Story first, then wishlist-only Releases by when they were wished for.
  */
 export async function readUndatedReleases(
   db: SQLiteDatabase,
@@ -63,7 +63,10 @@ export async function readUndatedReleases(
      where r.release_date is null
        and ${REACHED}
        and ${ATTEMPT_OVER}
-     order by r.is_preorder desc, newest_story is null, newest_story desc, wished_at desc
+     order by r.is_preorder desc,
+       (r.item_type = 't' and r.album_id is not null and nullif(trim(r.album_title), '') is not null
+         and not exists (select 1 from releases al where al.item_type = 'a' and al.item_id = r.album_id)) desc,
+       newest_story is null, newest_story desc, wished_at desc
      limit ?`,
     [BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore, limit],
   );
@@ -83,7 +86,7 @@ export async function readUndatedReleases(
  * unless a failure's wait is running (decision 11): migration 7 marked its booking and the next one clears the mark.
  * A Track whose album is held is never due; the album's page is (task 0067, decision 2).
  */
-export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date()): Promise<readonly DueRelease[]> {
+export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date(), only?: ReleaseKey): Promise<readonly DueRelease[]> {
   if (limit <= 0) return [];
   const retryBefore = new Date(now.getTime() - RETRY_AFTER_MS).toISOString();
   const attemptOver = [BACKOFF_AFTER_FAILURES, new Date(now.getTime() - BACKOFF_MS).toISOString(), retryBefore];
@@ -100,11 +103,12 @@ export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Da
        where r.release_date >= ?
          and ${REACHED_BY_FOLLOW_OR_STORY}
          and not ${TRACK_OF_HELD_ALBUM}
+         ${only === undefined ? '' : 'and r.item_type = ? and r.item_id = ?'}
      )
      where behind or stale or phone
      order by behind desc, page_tracks_read_at is not null, page_tracks_read_at, release_date, item_type, item_id
      limit ?`,
-    [...attemptOver, ...attemptOver, retryBefore, aheadFrom(now).toISOString(), limit],
+    [...attemptOver, ...attemptOver, retryBefore, aheadFrom(now).toISOString(), ...(only === undefined ? [] : [only.itemType, only.itemId]), limit],
   );
   const releases: DueRelease[] = [];
   for (const row of rows) {
@@ -128,6 +132,7 @@ export async function readOwedTrackPages(
   db: SQLiteDatabase,
   limit: number,
   now: Date = new Date(),
+  albumId?: number,
 ): Promise<readonly OwedTrackPage[]> {
   if (limit <= 0) return [];
   const retryBefore = new Date(now.getTime() - RETRY_AFTER_MS).toISOString();
@@ -143,8 +148,9 @@ export async function readOwedTrackPages(
        and ${REACHED_BY_FOLLOW_OR_STORY}
        and (a.attempted_at is null or a.attempted_at < d.read_at or (a.outcome = 'failed' and ${ATTEMPT_OVER})
          or (d.dated_by = 'read' and a.outcome in ('dated', 'undated') and a.asked_as_phone = 1))
+       ${albumId === undefined ? '' : 'and d.item_id = ?'}
      order by d.read_at desc, d.item_id, t.key`,
-    [aheadFrom(now).toISOString(), BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore],
+    [aheadFrom(now).toISOString(), BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore, ...(albumId === undefined ? [] : [albumId])],
   );
   const tracks = new Map<number, readonly TralbumTrack[]>();
   const owed = new Map<number, OwedTrackPage>();

@@ -4,10 +4,11 @@
  * Pages (ADR-0017), so hearts and Upcoming hold truth while the history fills; before a first walk's first page, a
  * depth probe that binary searches the feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or
  * poll with the Extension's rules (extension/lib/poll.ts) plus the server's stop line (feed.ts); once caught up, the
- * lists when due come after the feed, so a pull reads the feed first (task 0046, decision 1); public release pages for
- * undated Releases (ADR-0011), then the Track pages a Drop owes and the pages of Upcoming ones due a read, with the
- * Track pages of any Drop (task 0041, decision 8), a few while the walk is pending, with budget held back from the walk
- * for the undated; then the rest of the sweep. A list that fails is noted and the turn goes on; a feed page or a depth
+ * lists when due come after the feed, so a pull reads the feed first (task 0046, decision 1); public pages rotating
+ * undated Releases (ADR-0011), owed Drop Tracks and due Upcoming Releases (task 0072), a few while walking, with time
+ * held back for all three queues. A Track page can add its due future parent to the Upcoming queue after its fold,
+ * and a new Drop adds Track work to the owed queue; then the rest of the sweep. A list that fails is noted and the
+ * turn goes on; a feed page or a depth
  * probe Bandcamp answers with an error fails the turn before any step after the feed, since a 403, 429 or 5xx asks for
  * fewer requests (ADR-0017); any other answer that is not a page asks the probe first and, signed in, the same request
  * once more (task 0066, decision 2). The cursor is written after every page, so a turn out of budget or killed with the
@@ -17,11 +18,9 @@
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
-import { storedTralbum } from '../domain/releasePage';
-import { newlyOutTracks } from '../domain/tralbumTracks';
 import { type BandcampAnswer, type BandcampDocument, type Identity, originOf, refusedOrDown } from '../bandcamp/wire';
 import { FEED_UPDATES_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
-import type { DueRelease } from '../store/enrichment';
+import type { DueRelease, OwedTrackPage } from '../store/enrichment';
 import { GATHER_INTERVAL_MS } from './cadence';
 import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type StorySample, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
@@ -302,7 +301,9 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
 
   // A poll is a few pages, so only a walk, which spends the whole budget, holds time back for release pages.
   const dating = walkPending ? RELEASE_PAGES_WALKING : RELEASE_PAGES_CAUGHT_UP;
-  const queued = walkPending ? (await sink.readUndatedReleases(ctx.now(), dating)).length : 0;
+  const queued = walkPending
+    ? Math.min(dating, new Set((await releasePageQueues(ctx, dating)).flat().map((page) => `${page.key.itemType}:${page.key.itemId}`)).size)
+    : 0;
   const feed = await runFeed(ctx, identity, queued * RELEASE_PAGE_RESERVE_MS);
   if (feed === 'paused') return 'paused';
   if (feed === 'unreachable' || feed === 'error') return 'failed';
@@ -598,61 +599,88 @@ async function readPublicPage(ctx: Ctx, what: string, url: string, key: ReleaseK
   return page.document;
 }
 
-/** A page due this pass; `again` for an Upcoming Release, whose page is compared with the one held before. */
-type DuePage = { readonly what: string; readonly url: string; readonly key: ReleaseKey; readonly again: boolean };
+/** A page due this pass, addressed by the source's URL or Track path. */
+type DuePage = { readonly what: string; readonly url: string; readonly key: ReleaseKey };
+type ReleasePageQueues = [DuePage[], DuePage[], DuePage[]];
+
+function release(due: DueRelease): DuePage {
+  return { what: 'release page', url: due.url, key: { itemType: due.itemType, itemId: due.itemId } };
+}
+
+function tracks(owed: readonly OwedTrackPage[]): DuePage[] {
+  return owed.flatMap((track) => {
+    const origin = originOf(track.releaseUrl);
+    const key: ReleaseKey = { itemType: track.itemType, itemId: track.itemId };
+    return origin === null ? [] : [{ what: 'track page', url: `${origin}${track.path}`, key }];
+  });
+}
+
+/** The same due queues govern the walk's reserved time and the bounded enrichment pass (task 0072). */
+async function releasePageQueues(ctx: Ctx, quota: number): Promise<ReleasePageQueues> {
+  const undated = await ctx.sink.readUndatedReleases(ctx.now(), quota);
+  const owed = await ctx.sink.readOwedTrackPages(ctx.now(), quota);
+  const upcoming = await ctx.sink.readUpcomingDue(ctx.now(), quota);
+  return [undated.map(release), tracks(owed), upcoming.map(release)];
+}
 
 /**
- * Up to `quota` public pages, each stored before it is read; the Projection folds the dates and the Drops in. Undated
- * Releases first (ADR-0011), then the Track pages a Drop still owes, then Upcoming Releases due a read again, and after
- * an Upcoming Release's page the Track pages of the Tracks that play on it and did not on the page held before, which
- * date the Drop (task 0041, decisions 7 and 8). A Track page the quota or a refusal leaves unread is owed next pass.
- * One failed request ends the pass, as the server's enrichment does (ADR-0001).
+ * Up to `quota` public pages, rotating undated Releases, owed Drop Tracks and Upcoming Releases (task 0072). Each page
+ * lands and folds before newly owed Tracks or its due parent album enter their queues, so dependent work shares the
+ * allowance without crowding out planned pages. The store's attempt book gates every dependency too. A page left by
+ * quota or budget stays due next pass; one refused request ends the pass (ADR-0001, task 0041, decisions 7 and 8).
  */
 async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
   const { sink } = ctx;
-  const undated = await sink.readUndatedReleases(ctx.now(), quota);
-  const owed = await sink.readOwedTrackPages(ctx.now(), quota - undated.length);
-  const upcoming = await sink.readUpcomingDue(ctx.now(), quota - undated.length - owed.length);
-  const release = (again: boolean) => (due: DueRelease): DuePage => ({
-    what: 'release page',
-    url: due.url,
-    key: { itemType: due.itemType, itemId: due.itemId },
-    again,
-  });
-  const due: DuePage[] = [
-    ...undated.map(release(false)),
-    ...owed.flatMap((track) => {
-      const origin = originOf(track.releaseUrl);
-      const key: ReleaseKey = { itemType: track.itemType, itemId: track.itemId };
-      return origin === null ? [] : [{ what: 'track page', url: `${origin}${track.path}`, key, again: false }];
-    }),
-    ...upcoming.map(release(true)),
-  ];
-  if (due.length === 0) return;
+  const queues = await releasePageQueues(ctx, quota);
+  if (queues.every((queue) => queue.length === 0)) return;
   await sink.patchGatherState({ phase: 'dating' });
-  let wrote = false;
   let asked = 0;
+  let next = 0;
+  const requested = new Set<string>();
+  const keyOf = (key: ReleaseKey): string => `${key.itemType}:${key.itemId}`;
+  const enqueue = (queue: DuePage[], page: DuePage, first = false): void => {
+    const key = keyOf(page.key);
+    if (requested.has(key)) return;
+    for (const held of queues) {
+      const index = held.findIndex((pending) => keyOf(pending.key) === key);
+      if (index < 0) continue;
+      if (!first) return;
+      // Fresh Track evidence promotes the existing parent using its current canonical due page (task 0072).
+      held.splice(index, 1);
+    }
+    if (first) queue.unshift(page);
+    else queue.push(page);
+  };
 
-  pass: for (const page of due) {
-    if (asked >= quota || outOfBudget(ctx)) break;
+  while (asked < quota && !outOfBudget(ctx)) {
+    let page: DuePage | undefined;
+    for (let checked = 0; checked < queues.length && page === undefined; checked += 1) {
+      const queue = queues[next]!;
+      next = (next + 1) % queues.length;
+      while (queue.length > 0 && page === undefined) {
+        const candidate = queue.shift()!;
+        if (!requested.has(keyOf(candidate.key))) page = candidate;
+      }
+    }
+    if (page === undefined) break;
+    requested.add(keyOf(page.key));
     asked += 1;
-    const before = page.again ? await sink.readReleasePage(page.key) : null;
     const read = await readPublicPage(ctx, page.what, page.url, page.key);
     if (read === 'refused') break;
     if (read === 'none') continue;
-    wrote = true;
-    const origin = originOf(page.url);
-    if (before === null || origin === null) continue;
-
-    for (const track of newlyOutTracks(storedTralbum(before), storedTralbum(read.payload))) {
-      if (track.path === null) continue;
-      if (asked >= quota || outOfBudget(ctx)) break pass;
-      asked += 1;
-      const key: ReleaseKey = { itemType: 't', itemId: Number(track.trackId) };
-      if ((await readPublicPage(ctx, 'track page', `${origin}${track.path}`, key)) === 'refused') break pass;
+    await sink.afterDocuments();
+    if (page.key.itemType === 'a') {
+      for (const track of tracks(await sink.readOwedTrackPages(ctx.now(), quota, page.key.itemId))) enqueue(queues[1], track);
+    } else {
+      let album: ReturnType<typeof parseReleasePage>['album'];
+      try { album = parseReleasePage(read.payload).album; }
+      catch { continue; }
+      if (album === null || album.url === null || album.releaseDate === null) continue;
+      for (const parent of await sink.readUpcomingDue(ctx.now(), 1, { itemType: 'a', itemId: album.itemId })) {
+        enqueue(queues[2], release(parent), true);
+      }
     }
   }
-  if (wrote) await sink.afterDocuments();
 }
 
 /** Up to `quota` due followed Pages; answers how many were asked, so the turn can spend the rest later. */

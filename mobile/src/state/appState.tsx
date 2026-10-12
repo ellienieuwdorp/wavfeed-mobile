@@ -2,7 +2,7 @@
  * The one context every screen reads: the open store, the Bandcamp session, the
  * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
  * screen re-reads its query (task 0036). `putRaw` is the only way a response
- * enters the phone: verbatim into raw_documents, then folded (ADR-0004); a release page folds without moving the version.
+ * enters the phone: verbatim into raw_documents, then folded (ADR-0004); preview page facts refresh mounted views (task 0072).
  * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
  * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
  * will not open shows the failure screen, whose "Try again" opens it once more and "Start over" deletes it first (review
@@ -20,7 +20,6 @@ import type { BandcampDocument } from '@/bandcamp/wire';
 import { CRUMBS_PAGE_ENDPOINT } from '@/bandcamp/wire';
 import { StoreFailed } from '@/components/Failed';
 import { Replaying } from '@/components/Replaying';
-import { RELEASE_PAGE_ENDPOINT } from '@/domain/endpoints';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import type { GatherReason } from '@/fetcher/turn';
 import { deleteStoreFile, emptyStore, fold, insertRawDocument, openStore } from '@/store';
@@ -116,9 +115,8 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
       const result = await insertRawDocument(db, doc);
       if (!result.deduped) {
         await fold(db);
-        // A page fetched to play or to name a wishlist Page only enriches its Release's date, preorder flag and track count,
-        // which the next fold's version move shows; moving it here re-read every mounted screen as the player opened (task 0036).
-        if (doc.endpoint !== RELEASE_PAGE_ENDPOINT && doc.endpoint !== CRUMBS_PAGE_ENDPOINT) invalidate();
+        // Preview pages change visible facts; the shared throttle coalesces their reads. Crumb extracts project no facts (task 0072).
+        if (doc.endpoint !== CRUMBS_PAGE_ENDPOINT) invalidate();
       }
       return { deduped: result.deduped };
     },
