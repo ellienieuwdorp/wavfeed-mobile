@@ -50,9 +50,9 @@ export const REPLAY_STRETCH_MS = 1000;
  * writes the Drops its Raw Documents already hold after migration 6 (decision 6); version 5 counts the Tracks a
  * phone's page names without an id (decision 4); version 6 lets the Track pages held open their Upcoming albums (task
  * 0067, decision 6); version 7 validates whole membership snapshots before removals and replays catalog observations
- * (task 0068).
+ * (task 0068); version 8 fills the artist credit migration 11 adds (task 0071, decision 18).
  */
-export const PROJECTION_VERSION = 7;
+export const PROJECTION_VERSION = 8;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
 /** Set in the transaction that empties the derived tables, cleared in the one that writes the version (ARCH-1). */
 export const PROJECTION_REBUILDING_KEY = 'projectionRebuildingTo';
@@ -219,9 +219,9 @@ function releaseDateSet(incoming: string, held: string): string {
 
 const RELEASE_INSERT = `insert into releases (
     item_type, item_id, band_id, title, url, album_id, album_title, art_id, release_date, release_date_source,
-    release_date_read_at, label, label_id, price, currency, featured_track_id, featured_track_title,
+    release_date_read_at, label, label_id, artist_credit, price, currency, featured_track_id, featured_track_title,
     featured_track_duration, num_streamable_tracks, also_collected_count, is_preorder, tags, first_seen_at, last_seen_at
-  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   on conflict (item_type, item_id) do update set`;
 
 const RELEASE_CATALOG_SET = `title = excluded.title, url = excluded.url, band_id = excluded.band_id,`;
@@ -234,6 +234,7 @@ const RELEASE_SHARED_SET = `
   ${releaseDateSet('excluded', 'releases')},
   label = coalesce(excluded.label, releases.label),
   label_id = coalesce(excluded.label_id, releases.label_id),
+  artist_credit = coalesce(excluded.artist_credit, releases.artist_credit),
   price = coalesce(excluded.price, releases.price),
   currency = coalesce(excluded.currency, releases.currency),
   featured_track_id = coalesce(excluded.featured_track_id, releases.featured_track_id),
@@ -271,6 +272,7 @@ async function upsertRelease(run: Run, release: ReleaseUpsert, seenAt: string, s
     dateSource === null ? null : seenAt,
     release.label,
     release.labelId,
+    release.artistCredit,
     release.price,
     release.currency,
     release.featuredTrackId,
@@ -294,12 +296,16 @@ type Enrichment = {
   readonly isPreorder: boolean | null;
   readonly numStreamableTracks: number | null;
   readonly numTracks: number | null;
+  /** A page's `tralbum.artist`; the Sweep states none. */
+  readonly artistCredit: string | null;
 };
 
 /**
  * An update, never an insert: a public page states a date, not a Release, save the Upcoming album a Track page names
  * (`openUpcomingAlbum`). Answers whether a held row took it. The
- * release page and the Sweep's item with no link both come through here, each naming itself as the date's source.
+ * release page and the Sweep's item with no link both come through here, each naming itself as the date's source. A
+ * page's artist credit fills only a row no feed entry credited, and a feed entry's replaces it, so the feed's wins in
+ * any fold order (task 0071, decision 18 and Open 2).
  */
 async function enrichReleaseFromPage(
   run: Run,
@@ -314,9 +320,10 @@ async function enrichReleaseFromPage(
        num_streamable_tracks = coalesce(incoming.num_streamable_tracks, releases.num_streamable_tracks),
        num_tracks = coalesce(incoming.num_tracks, releases.num_tracks),
        is_preorder = coalesce(incoming.is_preorder, releases.is_preorder),
+       artist_credit = coalesce(releases.artist_credit, incoming.artist_credit),
        last_seen_at = max(releases.last_seen_at, incoming.seen_at)
      from (select ? as release_date, ? as release_date_source, ? as release_date_read_at, ? as num_streamable_tracks,
-                  ? as num_tracks, ? as is_preorder, ? as seen_at) as incoming
+                  ? as num_tracks, ? as is_preorder, ? as artist_credit, ? as seen_at) as incoming
      where releases.item_type = ? and releases.item_id = ?`,
     [
       iso(input.releaseDate),
@@ -325,6 +332,7 @@ async function enrichReleaseFromPage(
       input.numStreamableTracks,
       input.numTracks,
       flag(input.isPreorder),
+      input.artistCredit,
       seenAt,
       input.itemType,
       input.itemId,
@@ -509,6 +517,7 @@ async function projectBandDetails({ db, run }: Folding, doc: RawDocument): Promi
           albumTitle: null,
           label: null,
           labelId: null,
+          artistCredit: null,
           price: null,
           currency: null,
           featuredTrackId: null,
@@ -524,7 +533,7 @@ async function projectBandDetails({ db, run }: Folding, doc: RawDocument): Promi
       upserted += 1;
       continue;
     }
-    const filled = await enrichReleaseFromPage(run, { ...release, numStreamableTracks: null, numTracks: null }, seenAt, 'sweep');
+    const filled = await enrichReleaseFromPage(run, { ...release, numStreamableTracks: null, numTracks: null, artistCredit: null }, seenAt, 'sweep');
     if (filled) enriched += 1;
   }
   return result(

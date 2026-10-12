@@ -50,7 +50,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
         <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
             <Type numberOfLines={title.numberOfLines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{item.title}</Type>
-            <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.artist}</Type>
+            <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.pageName}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Type>
           </View>
         </PlayArt>
@@ -73,7 +73,7 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
             <PlayArt release={item} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} />
             <View style={{ flex: 1, gap: 4 }}>
               <Type numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Type>
-              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.artist, item.label].filter(Boolean).join(sep)}</Type>
+              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.pageName, item.label].filter(Boolean).join(sep)}</Type>
               <View style={{ flexDirection: 'row' }}>
                 <AvatarStack fans={item.buyers} ring={c.surface} opens />
               </View>
@@ -103,7 +103,7 @@ export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date })
           <View style={{ flex: 1, gap: 4 }}>
             <Type style={{ fontSize: 13, color: c.sub }}>
               <Type style={{ fontWeight: '600', color: c.ink }}>{fanName(quote.fan)}</Type>
-              {copy.feed.quoteOn + [quote.item.title, quote.item.artist, boughtOnPhrase(quote.date, now)].join(sep)}
+              {copy.feed.quoteOn + [quote.item.title, quote.item.pageName, boughtOnPhrase(quote.date, now)].join(sep)}
             </Type>
             <Type style={{ fontSize: 15, fontStyle: 'italic', color: c.ink }}>{copy.feed.quoted(quote.text)}</Type>
           </View>

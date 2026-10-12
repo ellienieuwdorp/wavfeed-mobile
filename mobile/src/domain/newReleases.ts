@@ -1,11 +1,12 @@
 /**
  * The New releases view's two halves: the Upcoming band (not out yet) and the released weeks, which add a just-out Release no Story reached,
- * and the Drops of Upcoming Releases on their days (task 0041, decision 10).
+ * the Releases followed Fans bought (task 0071, decision 20), and the Drops of Upcoming Releases on their days (task 0041, decision 10).
  * Ported from server/apps/web/src/components/browse/NewReleaseWeeks.tsx and lib/dates.ts (task 0036).
  */
 import type { ApiFeedElement, ApiFeedItem, ApiUpcomingRelease } from './apiTypes';
-import { itemKey } from './assemble';
-import type { DropRow, FeedStoryRow } from './rows';
+import { assembleFeed, buildSignal, groupByItem, itemKey } from './assemble';
+import { boughtReleases } from './boughtChart';
+import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from './rows';
 import { buildUpcoming } from './upcoming';
 
 /** A Release placed in the released weeks, whichever half it came from. `date` is what the week and day label read. */
@@ -102,14 +103,16 @@ function placedOn(element: ApiFeedItem): Date {
 
 /**
  * A Feed Item dated ahead of its release day belongs to the band only, and so does a pre-order no page has dated yet
- * (task 0041, decision 1). A just-out Release the feed already holds is not drawn twice. A Drop sits on its own day
- * beside them, unless the Release's own row is on that day.
+ * (task 0041, decision 1). A just-out Release the feed already holds is not drawn twice, nor is a bought one, which sits
+ * on its release day as a just-out one does; a bought Release with no release day stays out (task 0071, decision 20 and
+ * Open 9). A Drop sits on its own day beside them, unless the Release's own row is on that day.
  */
 export function buildNewReleases(
   elements: readonly ApiFeedElement[],
   releases: readonly ApiUpcomingRelease[],
   now: Date,
   drops: readonly Drop[] = [],
+  bought: readonly ApiFeedItem[] = [],
 ): NewReleasesView {
   const upcoming = releases.filter((release) => !isOutYet(release.releaseDate, now));
   const justOut = releases.filter((release) => isOutYet(release.releaseDate, now));
@@ -129,6 +132,13 @@ export function buildNewReleases(
     if (drawn.has(key)) continue;
     const date = releaseDay(release.releaseDate);
     dated.push({ kind: 'release', key: `upcoming:${key}`, date, release });
+    drawn.set(key, date.getTime());
+  }
+  for (const release of bought) {
+    const key = `${release.itemType}:${release.itemId}`;
+    if (drawn.has(key) || release.releaseDate === null || !isOutYet(release.releaseDate, now)) continue;
+    const date = releaseDay(release.releaseDate);
+    dated.push({ kind: 'release', key: `bought:${key}`, date, release });
     drawn.set(key, date.getTime());
   }
   for (const drop of drops) {
@@ -164,4 +174,39 @@ export function buildNewReleases(
       releases: [...week.releases].sort((a, b) => b.date.getTime() - a.date.getTime()),
     }));
   return { upcoming, weeks };
+}
+
+/** A Feed Item with the buyers, wishlisters and reviews all its Stories give, its anchor and placement kept (task 0071, decision 19). */
+function withSignal(element: ApiFeedElement, stories: ReadonlyMap<string, readonly FeedStoryRow[]>): ApiFeedElement {
+  if (element.kind !== 'item') return element;
+  const signal = buildSignal(stories.get(`${element.itemType}:${element.itemId}`) ?? []);
+  return { ...element, buyers: signal.buyers, wishlisters: signal.wishlisters, reviews: signal.reviews };
+}
+
+export type NewReleasesInput = {
+  /** Every Story of each Release the view could draw, early Track Stories already on their albums (task 0067, decision 3). */
+  readonly stories: readonly FeedStoryRow[];
+  readonly upcoming: readonly UpcomingReleaseRow[];
+  readonly drops: readonly DropRow[];
+  readonly now: Date;
+};
+
+/**
+ * The whole view from flat rows: the new-release Feed Items are assembled and placed by their new-release Stories
+ * alone, then carry the signal of every Story of theirs (task 0071, decision 19); each Release a named Fan bought joins
+ * the weeks (decision 20).
+ */
+export function newReleasesOf(input: NewReleasesInput): NewReleasesView {
+  const { elements } = assembleFeed(input.stories, { types: ['new_release'], sort: 'anchor' });
+  const byItem = groupByItem(input.stories);
+  const wanted = new Set(input.upcoming.map(itemKey));
+  const upcoming = buildUpcoming(input.upcoming, input.stories.filter((row) => wanted.has(itemKey(row))));
+  const bought = boughtReleases(input.stories).map((release) => release.item);
+  return buildNewReleases(
+    elements.map((element) => withSignal(element, byItem)),
+    upcoming,
+    input.now,
+    buildDrops(input.drops, input.stories),
+    bought,
+  );
 }

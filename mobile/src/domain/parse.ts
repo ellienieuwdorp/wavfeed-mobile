@@ -125,6 +125,7 @@ function mergeRelease(existing: ParsedRelease, next: ParsedRelease): ParsedRelea
     releaseDate: next.releaseDate ?? existing.releaseDate,
     label: next.label ?? existing.label,
     labelId: next.labelId ?? existing.labelId,
+    artistCredit: next.artistCredit ?? existing.artistCredit,
     price: next.price ?? existing.price,
     currency: next.currency ?? existing.currency,
     featuredTrackId: next.featuredTrackId ?? existing.featuredTrackId,
@@ -245,6 +246,8 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
       releaseDate,
       label: readTextOrNull(entry, 'label'),
       labelId: readIdOrNull(entry, 'label_id'),
+      // `band_name` is the Release's artist credit; `band_info` names the Page (task 0071, decision 18).
+      artistCredit: readTextOrNull(entry, 'band_name'),
       price: readDecimalOrNull(entry, 'price'),
       currency: readTextOrNull(entry, 'currency'),
       featuredTrackId: readIdOrNull(entry, 'featured_track'),

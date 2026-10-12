@@ -43,6 +43,11 @@ export type ParsedRelease = {
   readonly releaseDate: Date | null;
   readonly label: string | null;
   readonly labelId: number | null;
+  /**
+   * The feed entry's `band_name`: who the Release is by, which on a label's Page is not the Page's name (task 0071,
+   * decision 18). Null when the entry names nobody.
+   */
+  readonly artistCredit: string | null;
   readonly price: number | null;
   readonly currency: string | null;
   readonly featuredTrackId: number | null;
@@ -79,6 +84,8 @@ export type ParsedReleasePage = {
   readonly modifiedAt: Date | null;
   /** A Track page's album; null on an album page or a Track with no album. */
   readonly album: ParsedTrackAlbum | null;
+  /** `tralbum.artist`, which fills a credit no feed entry gave (task 0071, decision 18 and Open 2). */
+  readonly artistCredit: string | null;
 };
 
 /** What a Track page states about its album, `current.album_id` and the `album_*` fields (task 0067, decision 1). */

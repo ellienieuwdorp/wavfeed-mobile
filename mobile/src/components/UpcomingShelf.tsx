@@ -61,7 +61,7 @@ function Card({ card }: { card: ShelfCard }) {
             <View style={{ gap: 2, marginTop: 8 }}>
               <Type numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{card.day}</Type>
               <Type numberOfLines={title.numberOfLines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{card.release.title}</Type>
-              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.release.artist}</Type>
+              <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.release.pageName}</Type>
               <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{card.count ?? BLANK}</Type>
             </View>
           </PlayArt>

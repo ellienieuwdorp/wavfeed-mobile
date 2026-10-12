@@ -66,7 +66,7 @@ describe('purchases', () => {
     assert.deepEqual(result.skipped, NO_SKIPS);
   });
 
-  test('carries the Release through with its tags and no release date (ADR-0011)', () => {
+  test('carries the Release through with its tags, its artist credit apart from the Page, and no release date (ADR-0011)', () => {
     assert.deepEqual(only(parseEntries(fpEntry()).releases), {
       itemType: 'a',
       itemId: ITEM_ID,
@@ -79,6 +79,7 @@ describe('purchases', () => {
       releaseDate: null,
       label: 'Halfmoon Tapes',
       labelId: 771204,
+      artistCredit: 'Nightgraft',
       price: 7.5,
       currency: 'EUR',
       featuredTrackId: 55501122,

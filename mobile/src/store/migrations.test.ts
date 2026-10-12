@@ -4,8 +4,9 @@
  * go, their crumbs with them down to the database file's bytes, and every other Raw Document stays. Migration 5 and the
  * replay after it on a store that filed a pre-order by its feed date: the Release is Upcoming again (task 0041, decision 2).
  * Migration 7 on a store whose release pages were asked for as a phone: each Upcoming page, and each Track page a Drop
- * still dated by its read came back with, is due once more, and never again for that reason (decision 11). A store a
- * newer bundle migrated past the code opens as it is and is reported (review finding ARCH-13).
+ * still dated by its read came back with, is due once more, and never again for that reason (decision 11). Migration 11
+ * and its replay credit the artists the held feed pages name (task 0071, decision 18). A store a newer bundle migrated
+ * past the code opens as it is and is reported (review finding ARCH-13).
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -18,6 +19,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   BAND_ID,
   feedPayload,
+  nrEntry,
   PREORDER_ITEM_ID,
   PREORDER_URL,
   phonePreorderTralbumBlob,
@@ -41,6 +43,7 @@ import { countForProjection, insertRawDocument, listForProjection, type RawDocum
 
 /** Undoes the migrations after `version`, so a test starts from the store a device held then. */
 async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
+  if (version < 11) await db.execAsync('alter table releases drop column artist_credit;');
   if (version < 10) await db.execAsync('drop trigger raw_document_observed; drop table projection_snapshots; drop table projection_observation_progress; drop table raw_document_observations;');
   if (version < 9) await db.execAsync('drop index releases_album_id;');
   if (version < 8) await db.execAsync('drop table projection_failures;');
@@ -111,7 +114,7 @@ test('migration 4 adds the Tally outbox to a store at version 3, whose rows are 
   await heldAt(db, 3);
   await insertLegacyRaw(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
 
-  assert.equal(await migrate(db), 10);
+  assert.equal(await migrate(db), 11);
 
   await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
   await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
@@ -280,13 +283,35 @@ test('migration 9 and the replay it comes with put the album of a Track bought a
   await db.execAsync(`delete from releases where item_type = 'a'; insert or replace into kv (key, value) values ('${PROJECTION_VERSION_KEY}', '5');`);
   await heldAt(db, 8);
   const shelf = async () => (await listUpcomingReleases(db, now)).map((release) => [release.itemType, release.itemId]);
+  await migrate(db);
+  // Migrated and not yet replayed, the shelf reads what the device held.
   assert.deepEqual(await shelf(), [['t', track]]);
 
-  await migrate(db);
   assert.equal(await ensureProjectionVersion(db), true);
 
   assert.deepEqual(await shelf(), [['a', PREORDER_ITEM_ID]]);
   close();
+});
+
+test('migration 11 and the replay it comes with credit the artist a held feed page names, apart from its Page', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  const now = new Date(Date.UTC(2026, 7, 20, 12));
+  await insertRawDocument(db, {
+    endpoint: FEED_UPDATES_ENDPOINT,
+    payload: feedPayload({ entries: [nrEntry({ band_name: 'Jay Mitta' })] }),
+    fetchedAt: '2026-08-18T08:00:00.000Z',
+  });
+  await fold(db);
+  // The store as a device held it at migration 10 and Projection version 7, which kept no credit.
+  await heldAt(db, 10);
+  await db.runAsync('insert or replace into kv (key, value) values (?, ?)', [PROJECTION_VERSION_KEY, '7']);
+
+  await migrate(db);
+  assert.equal(await ensureProjectionVersion(db), true);
+
+  const names = (await readNewReleases(db, { now })).weeks.flatMap((week) => week.releases.map(({ release }) => [release.pageName, release.artistCredit]));
+  assert.deepEqual(names, [['Nightgraft Recordings', 'Jay Mitta']]);
 });
 
 test('a store a newer bundle migrated past the code opens as it is, reported as schema_newer', async () => {
@@ -295,7 +320,7 @@ test('a store a newer bundle migrated past the code opens as it is, reported as 
   errorReports.setSink(db);
   await db.execAsync("create table later (x); insert into schema_migrations (version, applied_at) values (99, '2026-10-01')");
 
-  assert.equal(await migrate(db), 10);
+  assert.equal(await migrate(db), 11);
 
   assert.ok(await db.getFirstAsync("select name from sqlite_master where name = 'later'"));
   const rows = await db.getAllAsync<{ body: string }>("select body from tally_outbox where kind = 'error'");

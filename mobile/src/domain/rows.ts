@@ -3,6 +3,7 @@
  * Drop with its Release (task 0041); no seen or starred on the phone.
  * Ported from server/packages/db/src/types.ts, FeedStoryRow and UpcomingReleaseRow (task 0036).
  */
+import type { ApiTag } from './apiTypes';
 import type { ItemType, StoryType } from './types';
 
 export type FeedStoryRow = {
@@ -35,8 +36,12 @@ export type FeedStoryRow = {
    * (task 0041, decision 3). A day a page or the Sweep states for a Release first seen after it, a reissue's, is not.
    */
   readonly onReleaseDay: boolean;
-  /** The Page's name, which the UI calls the artist. */
-  readonly artist: string;
+  /** The name of the Page that holds the Release, a label's as often as the artist's (task 0071, decision 18). */
+  readonly pageName: string;
+  /** Who the Release is by; null when no feed entry or release page credited anyone. */
+  readonly artistCredit: string | null;
+  /** The feed's tags, places left out (decision 7). */
+  readonly tags: readonly ApiTag[];
 };
 
 export type UpcomingReleaseRow = {
@@ -55,7 +60,10 @@ export type UpcomingReleaseRow = {
   readonly numStreamableTracks: number | null;
   /** Every Track the newest release page named; null until one is read (task 0041, decision 4). */
   readonly numTracks: number | null;
-  readonly artist: string;
+  /** As `FeedStoryRow.pageName`, `artistCredit` and `tags` (task 0071, decision 18). */
+  readonly pageName: string;
+  readonly artistCredit: string | null;
+  readonly tags: readonly ApiTag[];
 };
 
 /** A Drop with its Release as the Upcoming rows carry it; the counts are the Drop's own (task 0041, decision 6). */

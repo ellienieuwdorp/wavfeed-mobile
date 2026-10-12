@@ -2,7 +2,8 @@
 /**
  * Where a Release's date comes from (task 0041, decision 1; ADR-0011 amended): a release page or the Sweep outranks the
  * feed, the newer of a page and a Sweep wins, a Release the feed once named a pre-order takes no date from the feed, and
- * the Raw Documents' fold order never changes which date is held.
+ * the Raw Documents' fold order never changes which date is held. The artist credit follows the feed in any fold order,
+ * and a release page fills one only where no feed entry gave one (task 0071, decision 18 and Open 2).
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -65,12 +66,17 @@ function preorderPageRead(fetchedAt: string): RawDocumentInput {
  * Folds the reads in the order given, one fold each, and answers the date the Release's Story row carries and the
  * Releases due a release page read at `now`.
  */
-async function held(reads: readonly RawDocumentInput[], now = new Date(Date.UTC(2026, 9, 14, 12))) {
-  const { db, close } = await openTestStore();
+async function foldEach(reads: readonly RawDocumentInput[]) {
+  const store = await openTestStore();
   for (const read of reads) {
-    await insertRawDocument(db, read);
-    await fold(db);
+    await insertRawDocument(store.db, read);
+    await fold(store.db);
   }
+  return store;
+}
+
+async function held(reads: readonly RawDocumentInput[], now = new Date(Date.UTC(2026, 9, 14, 12))) {
+  const { db, close } = await foldEach(reads);
   const [row] = await listStoryRows(db);
   const due = (await readUndatedReleases(db, 10, now)).map((release) => release.itemId);
   close();
@@ -111,6 +117,32 @@ test('a page read and a Sweep read fetched in the same moment hold one date, in 
 
   assert.equal(await heldDate([first, page, sweep]), await heldDate([first, sweep, page]));
   assert.equal(await heldDate([sweep, first, page]), await heldDate([page, first, sweep]));
+});
+
+function creditedFeedRead(fetchedAt: string, bandName: string | null): RawDocumentInput {
+  return { endpoint: FEED_UPDATES_ENDPOINT, payload: feedPayload({ entries: [nrEntry({ band_name: bandName })] }), fetchedAt };
+}
+
+test("the feed's artist credit wins over a release page's in either fold order, and the page fills one the feed never gave", async () => {
+  const credited = creditedFeedRead('2026-09-01T00:00:00.000Z', 'Jay Mitta');
+  const uncredited = creditedFeedRead('2026-09-01T00:00:00.000Z', null);
+  // The page's `tralbum.artist` says Nightgraft; the Page is Nightgraft Recordings.
+  const page = pageRead('2026-09-02T00:00:00.000Z');
+  const sweep = sweepRead('2026-09-03T00:00:00.000Z');
+  const recredited = creditedFeedRead('2026-09-04T00:00:00.000Z', 'Jay Mitta');
+  const credit = async (reads: readonly RawDocumentInput[]) => {
+    const { db, close } = await foldEach(reads);
+    const [row] = await listStoryRows(db);
+    close();
+    return row?.artistCredit;
+  };
+
+  assert.equal(await credit([uncredited]), null);
+  assert.equal(await credit([credited, page]), 'Jay Mitta');
+  assert.equal(await credit([page, credited]), 'Jay Mitta');
+  assert.equal(await credit([uncredited, page]), 'Nightgraft');
+  assert.equal(await credit([uncredited, page, recredited]), 'Jay Mitta');
+  assert.equal(await credit([credited, sweep]), 'Jay Mitta', 'the Sweep states no credit and erases none');
 });
 
 test('a pre-order whose feed entry is rewritten as out waits undated for its release page, in either fold order', async () => {

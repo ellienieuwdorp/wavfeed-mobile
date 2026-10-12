@@ -10,11 +10,11 @@ import type {
   ApiCuratedResponse,
   ApiItemType,
   ApiReleaseTracksResponse,
+  ApiTag,
   ApiUser,
   ApiWishlistResponse,
 } from '../domain/apiTypes';
 import { onBandcampHost } from '../bandcamp/wire';
-import { assembleFeed, itemKey } from '../domain/assemble';
 import { boughtChartOf, type BoughtRelease, boughtReleases } from '../domain/boughtChart';
 import { CROSSED_MAX_THRESHOLD, CROSSED_MIN_THRESHOLD, crossedListOf } from '../domain/boughtCrossed';
 import {
@@ -25,13 +25,13 @@ import {
   CURATED_WINDOW_DAYS,
 } from '../domain/curate';
 import { FEED_UPDATES_ENDPOINT } from '../domain/endpoints';
-import { buildDrops, buildNewReleases, type NewReleasesView } from '../domain/newReleases';
+import { newReleasesOf, type NewReleasesView } from '../domain/newReleases';
 import { storedBandId, storedTralbum } from '../domain/releasePage';
 import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from '../domain/rows';
 import { intervalFor, readDiscographyDates, type SweepTier, tierFor } from '../domain/sweep';
 import { readTralbumTracks } from '../domain/tralbumTracks';
 import type { ItemType, StoryType } from '../domain/types';
-import { aheadFrom, buildUpcoming, handoffFloor, UPCOMING_MAX_RELEASES } from '../domain/upcoming';
+import { aheadFrom, handoffFloor, UPCOMING_MAX_RELEASES } from '../domain/upcoming';
 import { DAY_MS } from '../lib/time';
 import { trackIds } from './drops';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
@@ -82,7 +82,9 @@ type ReleaseRecord = {
   num_tracks: number | null;
   is_preorder: number;
   on_release_day: number;
-  artist: string;
+  page_name: string;
+  artist_credit: string | null;
+  tags: string;
 };
 
 type FanRecord = { fan_id: number; username: string; name: string | null; image_id: number | null };
@@ -146,6 +148,27 @@ function releaseKey(itemType: ItemType, itemId: number): number {
   return itemId * 2 + (itemType === 't' ? 1 : 0);
 }
 
+/** The stored feed tags as rows carry them: places left out, each norm name once (task 0071, decision 7). */
+function rowTags(json: string): readonly ApiTag[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const seen = new Set<string>();
+  const tags: ApiTag[] = [];
+  for (const tag of parsed) {
+    if (typeof tag !== 'object' || tag === null) continue;
+    const { name, normName, isLoc } = tag as Record<string, unknown>;
+    if (typeof name !== 'string' || typeof normName !== 'string' || isLoc === true || seen.has(normName)) continue;
+    seen.add(normName);
+    tags.push({ name, normName });
+  }
+  return tags;
+}
+
 function toReleasePart(row: ReleaseRecord): ReleasePart | null {
   const itemType = asItemType(row.item_type);
   if (itemType === null) return null;
@@ -165,7 +188,9 @@ function toReleasePart(row: ReleaseRecord): ReleasePart | null {
     numTracks: row.num_tracks,
     isPreorder: row.is_preorder === 1,
     onReleaseDay: row.on_release_day === 1,
-    artist: row.artist,
+    pageName: row.page_name,
+    artistCredit: row.artist_credit,
+    tags: rowTags(row.tags),
   };
 }
 
@@ -202,7 +227,7 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit?: numb
   const releaseRows = await db.getAllAsync<ReleaseRecord>(
     `select r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
             r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks,
-            r.is_preorder, ${ON_RELEASE_DAY} as on_release_day, p.name as artist
+            r.is_preorder, ${ON_RELEASE_DAY} as on_release_day, p.name as page_name, r.artist_credit, r.tags
      from json_each(?) k
      join releases r on r.item_type = json_extract(k.value, '$[0]') and r.item_id = json_extract(k.value, '$[1]')
      join pages p on p.band_id = r.band_id`,
@@ -253,7 +278,9 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit?: numb
       numTracks: release.numTracks,
       isPreorder: release.isPreorder,
       onReleaseDay: release.onReleaseDay,
-      artist: release.artist,
+      pageName: release.pageName,
+      artistCredit: release.artistCredit,
+      tags: release.tags,
     });
   }
   return rows;
@@ -279,12 +306,14 @@ type UpcomingRecord = {
   featured_track_duration: number | null;
   num_streamable_tracks: number | null;
   num_tracks: number | null;
-  artist: string;
+  page_name: string;
+  artist_credit: string | null;
+  tags: string;
 };
 
 const UPCOMING_COLUMNS = `r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.is_preorder, r.label,
   r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks,
-  p.name as artist`;
+  p.name as page_name, r.artist_credit, r.tags`;
 
 function toUpcomingRow(row: UpcomingRecord): UpcomingReleaseRow | null {
   const itemType = asItemType(row.item_type);
@@ -305,7 +334,9 @@ function toUpcomingRow(row: UpcomingRecord): UpcomingReleaseRow | null {
     featuredTrackDuration: row.featured_track_duration,
     numStreamableTracks: row.num_streamable_tracks,
     numTracks: row.num_tracks,
-    artist: row.artist,
+    pageName: row.page_name,
+    artistCredit: row.artist_credit,
+    tags: rowTags(row.tags),
   };
 }
 
@@ -433,35 +464,45 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
   };
 }
 
+/** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
+const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
+
 /**
- * The web's New releases view in one read: `/api/upcoming` split at today's
- * GMT day, the new-release Feed Items (everything, anchor sort) filed into weeks, and the Drops (task 0041).
+ * Every Story of each Release New releases could draw: those a new-release Story names, the shelf's and the Drops'
+ * (`listed`), those a named Fan bought that have a release day (task 0071, decision 20), and the albums early Track
+ * Stories count on, with those Stories, which `onAlbums` moves onto them (task 0067, decision 3).
+ */
+function newReleasesScope(listed: readonly ItemPair[]): StoryScope {
+  const items = storiesOfItems(listed);
+  return {
+    where: `(s.item_type, s.item_id) in (select n.item_type, n.item_id from stories n where n.story_type = 'new_release')
+      or ${items.where}
+      or (s.item_type, s.item_id) in (select b.item_type, b.item_id from ${NAMED_PURCHASES}
+        and exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))
+      or s.id in (select id from early_track_stories)
+      or (s.item_type = 'a' and s.item_id in (select e.album_id from early_track_stories e))`,
+    params: items.params,
+    with: EARLY_TRACK_STORIES,
+    onAlbums: true,
+  };
+}
+
+/**
+ * The New releases view in one read: `/api/upcoming` split at today's GMT day, the new-release Feed Items (everything,
+ * anchor sort) filed into weeks with their buyers, the Releases followed Fans bought, and the Drops (tasks 0041, 0071).
  */
 export async function readNewReleases(db: SQLiteDatabase, options: { readonly now: Date }): Promise<NewReleasesView> {
-  const releases = await listUpcomingReleases(db, options.now);
+  const upcoming = await listUpcomingReleases(db, options.now);
   const drops = await listDrops(db);
-  const upcomingItems = storiesOfItems([...releases, ...drops.map((drop) => drop.release)].map((release) => [release.itemType, release.itemId]));
-  // The new-release filter drops every other type before Bursts, so the view's elements need only those Stories.
-  // A Track of a listed album may have Stories that count on it (task 0067, decision 3).
-  const rows = await loadStoryRows(db, {
-    where: `s.story_type = 'new_release' or ${upcomingItems.where}
-      or (s.item_type = 't' and s.item_id in (select t.item_id from releases t where t.item_type = 't' and t.album_id in (
-        select json_extract(value, '$[1]') from json_each(?) where json_extract(value, '$[0]') = 'a')))`,
-    params: [...upcomingItems.params, ...upcomingItems.params],
-    onAlbums: true,
-  });
-  const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
-  const wanted = new Set(releases.map(itemKey));
-  const upcoming = buildUpcoming(releases, rows.filter((row) => wanted.has(itemKey(row))));
-  return buildNewReleases(elements, upcoming, options.now, buildDrops(drops, rows));
+  const listed = [...upcoming, ...drops.map((drop) => drop.release)].map((release): ItemPair => [release.itemType, release.itemId]);
+  // ceiling: like Bought's read this loads most Stories; a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
+  const stories = await loadStoryRows(db, newReleasesScope(listed));
+  return newReleasesOf({ stories, upcoming, drops, now: options.now });
 }
 
 export type BoughtOptions =
   | { readonly mode: 'released'; readonly now?: Date }
   | { readonly mode: 'crossed'; readonly threshold: number; readonly now?: Date };
-
-/** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
-const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
 
 /**
  * Every Release either Bought mode could place: a named purchase and a release date, or the lowest crossing's named Fans.

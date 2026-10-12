@@ -271,6 +271,14 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    // Who a Release is by, apart from the Page that holds it: the feed entry's `band_name`, else a release page's
+    // `tralbum.artist` (task 0071, decision 18). PROJECTION_VERSION 8 replays the held Raw Documents to fill it.
+    version: 11,
+    sql: `
+      alter table releases add column artist_credit text;
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {

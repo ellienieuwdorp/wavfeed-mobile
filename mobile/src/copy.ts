@@ -410,7 +410,7 @@ export const copy = {
   play: (title: string, facts = '') => (facts === '' ? `Play ${title}` : `Play ${title}, ${facts}`),
   pause: (title: string, facts = '') => (facts === '' ? `Pause ${title}` : `Pause ${title}, ${facts}`),
   /** A row's title as VoiceOver hears the iOS row, before its facts (VIS-9). */
-  titleBy: (title: string, page: string) => `${title} by ${page}`,
+  titleBy: (title: string, artist: string) => `${title} by ${artist}`,
   more: (n: number) => `+${n}`,
   heart: {
     add: (title: string) => `Add ${title} to your Bandcamp wishlist`,

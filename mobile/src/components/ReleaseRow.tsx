@@ -21,7 +21,7 @@ import { useMembership } from '@/wishlist/state';
 
 import { Heart } from './Heart';
 import { PlayArt, useArtState } from './PlayArt';
-import { playableItemType, usePlay, type RowRelease } from './playable';
+import { artistOf, playableItemType, usePlay, type RowRelease } from './playable';
 import { heardWishlist, type SpokenActions } from './rowActions';
 import { RowMenu } from './RowMenu';
 
@@ -57,7 +57,7 @@ type RowProps = {
 type Spoken = { release: RowRelease; facts: string | undefined; onActivate: () => void; actions: SpokenActions };
 
 /**
- * The iOS row as one VoiceOver element (VIS-9): "Play Title by Page", the facts and the hidden heart's state, activation
+ * The iOS row as one VoiceOver element (VIS-9): "Play Title by Artist", the facts and the hidden heart's state, activation
  * playing and the menu's items as its actions; touch still lands on the art, the body and the heart inside it. Only
  * SpokenRow reads the transport and the wishlist, so a new play or press re-renders the element and not the cells it
  * wraps. Android's row is a plain View.
@@ -74,7 +74,7 @@ function RowElement({ spoken, style, children }: { spoken: Spoken | null; style:
 function SpokenRow({ release, facts, onActivate, actions, style, children }: Spoken & { style: ViewStyle; children: ReactNode }) {
   const { pause, watch } = useArtState(release);
   const membership = useMembership(release.itemType, release.itemId);
-  const named = copy.titleBy(release.title, release.artist);
+  const named = copy.titleBy(release.title, artistOf(release));
   const heard = spokenFacts([facts, heardWishlist(membership)]);
   return (
     <View
@@ -127,7 +127,7 @@ export function ReleaseRow({ release, detail, from, spoken, facts, boughtBy }: R
             >
               <Text numberOfLines={1} style={{ fontSize: type.rowTitle, lineHeight: type.rowTitleLine, color: c.ink }}>
                 <Text style={{ fontWeight: ios ? '600' : '500' }}>{release.title}</Text>
-                <Text style={{ color: c.sub }}>{sep + release.artist}</Text>
+                <Text style={{ color: c.sub }}>{sep + release.pageName}</Text>
               </Text>
               {detail}
             </Pressable>

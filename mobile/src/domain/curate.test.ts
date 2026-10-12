@@ -163,7 +163,8 @@ describe('in their own words', () => {
       itemType: 'a',
       itemId: '5001',
       title: 'Slow Harbour',
-      artist: 'Nightgraft',
+      pageName: 'Nightgraft',
+      artistCredit: 'Nightgraft',
       artId: '1204871',
       itemUrl: 'https://nightgraft.bandcamp.com/album/slow-harbour',
     });

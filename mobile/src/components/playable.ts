@@ -4,13 +4,17 @@
  */
 import { usePlayerActions, type PlayableRelease } from '@/components/player/playerState';
 import type { ApiItemType } from '@/domain/apiTypes';
+import { creditLine } from '@/domain/credit';
 import { hueFor, releaseArtUrl } from '@/lib/format';
 
 export type RowRelease = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  readonly artist: string;
+  /** The Page's name, which for a label's Page is not the artist (task 0071, decision 18). */
+  readonly pageName: string;
+  /** The feed's band_name, else the release page's tralbum.artist; null when neither credited anyone (decision 18). */
+  readonly artistCredit: string | null;
   readonly itemUrl: string;
   readonly artId: string | null;
   /** Null is self-released, absent is not known, as the player reads them. */
@@ -22,12 +26,17 @@ export function playableItemType(itemType: ApiItemType): PlayableRelease['itemTy
   return itemType === 'a' ? 'album' : 'track';
 }
 
+/** The name a row, the spoken row and the player call the artist: the credit, else the Page's name (decisions 11, 18). */
+export function artistOf(item: RowRelease): string {
+  return creditLine({ pageName: item.pageName, artistCredit: item.artistCredit, label: item.label ?? null }).artist;
+}
+
 export function toPlayable(item: RowRelease): PlayableRelease {
   return {
     itemType: playableItemType(item.itemType),
     itemId: item.itemId,
     title: item.title,
-    artist: item.artist,
+    artist: artistOf(item),
     url: item.itemUrl,
     artUrl: releaseArtUrl(item.artId),
     hue: hueFor(item.itemId),

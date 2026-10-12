@@ -50,7 +50,9 @@ export function storyRow(overrides: Partial<FeedStoryRow> = {}): FeedStoryRow {
     isPreorder: false,
     // A day the feed states, which New releases places the row on.
     onReleaseDay: true,
-    artist: 'Nightgraft',
+    pageName: 'Nightgraft',
+    artistCredit: 'Nightgraft',
+    tags: [],
     ...overrides,
   };
 }

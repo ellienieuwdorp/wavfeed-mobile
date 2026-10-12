@@ -43,7 +43,7 @@ describe('aggregation', () => {
     assert.equal(found.length, 1);
     const [item] = found;
     assert.deepEqual(
-      [item?.itemId, item?.bandId, item?.artId, item?.featuredTrackId, item?.title, item?.artist, item?.hasNewRelease],
+      [item?.itemId, item?.bandId, item?.artId, item?.featuredTrackId, item?.title, item?.pageName, item?.hasNewRelease],
       ['5001', '900', '1204871', '55501122', 'Slow Harbour', 'Nightgraft', true],
     );
     assert.deepEqual(

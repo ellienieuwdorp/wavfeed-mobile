@@ -18,6 +18,12 @@ export type ApiFanRef = {
   readonly imageId: string | null;
 };
 
+/** A feed tag on a Release: `normName` matches, `name` is shown. Places are never one (task 0071, decision 7). */
+export type ApiTag = {
+  readonly name: string;
+  readonly normName: string;
+};
+
 /** Review text a Fan wrote alongside a purchase (the wire's `why` field). */
 export type ApiReview = {
   readonly fan: ApiFanRef;
@@ -29,10 +35,13 @@ export type ApiFeedItem = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  /** The Page's name. Called artist in the UI ('Title · Artist'). */
-  readonly artist: string;
+  /** The name of the Release's Page, which is a label's as often as the artist's (task 0071, decision 18). */
+  readonly pageName: string;
+  /** Who the Release is by; null when nothing credited anyone. `creditLine` (credit.ts) puts the two together. */
+  readonly artistCredit: string | null;
   readonly bandId: string;
   readonly label: string | null;
+  readonly tags: readonly ApiTag[];
   /** Bandcamp art id for `f4.bcbits.com/img/a<artId>_<size>.jpg`; null means placeholder. */
   readonly artId: string | null;
   readonly itemUrl: string;
@@ -61,7 +70,8 @@ export type ApiBurstItem = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  readonly artist: string;
+  readonly pageName: string;
+  readonly artistCredit: string | null;
   readonly artId: string | null;
   readonly itemUrl: string;
   readonly storyDate: string;
@@ -120,7 +130,8 @@ export type ApiCuratedQuote = {
     readonly itemType: ApiItemType;
     readonly itemId: string;
     readonly title: string;
-    readonly artist: string;
+    readonly pageName: string;
+    readonly artistCredit: string | null;
     readonly artId: string | null;
     readonly itemUrl: string;
   };
@@ -136,10 +147,12 @@ export type ApiUpcomingRelease = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  /** The Page's name. Called artist in the UI ('Title · Artist'). */
-  readonly artist: string;
+  /** As `ApiFeedItem.pageName` and `artistCredit` (task 0071, decision 18). */
+  readonly pageName: string;
+  readonly artistCredit: string | null;
   readonly bandId: string;
   readonly label: string | null;
+  readonly tags: readonly ApiTag[];
   readonly artId: string | null;
   readonly itemUrl: string;
   readonly releaseDate: string;

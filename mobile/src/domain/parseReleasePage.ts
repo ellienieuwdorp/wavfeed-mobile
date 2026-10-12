@@ -1,7 +1,8 @@
 /**
  * The parser for a `release_page` Raw Document: the `data-tralbum` blob in, the release date, pre-order state, and how
  * many Tracks play of how many there are out (task 0041, decision 4); with the page's publish and edit moments and, on
- * a Track page, its album, which date a Drop (decision 7) and open an Upcoming album (task 0067, decision 1).
+ * a Track page, its album, which date a Drop (decision 7) and open an Upcoming album (task 0067, decision 1); and
+ * `tralbum.artist`, the credit a Release no feed entry credited takes (task 0071, decision 18).
  * Ported from server/packages/projection/src/parseReleasePage.ts (task 0036).
  */
 import { readTralbumTracks } from './tralbumTracks';
@@ -84,5 +85,6 @@ export function parseReleasePage(payload: unknown): ParsedReleasePage {
     publishedAt: readDate(current, 'publish_date') ?? null,
     modifiedAt: readDate(current, 'mod_date') ?? null,
     album: identity.itemType === 't' ? readTrackAlbum(root, tralbum, current) : null,
+    artistCredit: readText(tralbum, 'artist') ?? null,
   };
 }

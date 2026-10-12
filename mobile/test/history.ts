@@ -35,6 +35,8 @@ export function wireDate(ms: number): string {
 /**
  * Stories newest first; one Release in 33 is dated 40 days on, so Upcoming has rows. Every track shares its id with the
  * album four places before it: an album and a track can share an id (server migration 0002), and the store keys both.
+ * That album is the track's own, so a Track bought before its album's release day counts on the album (task 0067,
+ * decision 3).
  */
 export function makeHistory(size: HistorySize, now: Date): History {
   let seed = 20260925;
@@ -79,6 +81,27 @@ export function makeHistory(size: HistorySize, now: Date): History {
   return { releases, stories };
 }
 
+const TAGS: readonly (readonly [string, string])[] = [
+  ['Ambient', 'ambient'], ['Dub', 'dub'], ['Techno', 'techno'], ['Electronic', 'electronic'], ['Drone', 'drone'], ['Jazz', 'jazz'],
+];
+
+/** None to three tags by id, and a place on one Release in five, which rows leave out (task 0071, decision 7). */
+function tagsOf(r: Release): Record<string, unknown>[] {
+  const tags = Array.from({ length: r.id % 4 }, (_, i) => {
+    const [name, norm] = TAGS[(r.id + i) % TAGS.length] ?? ['Ambient', 'ambient'];
+    return { name, norm_name: norm, isloc: false };
+  });
+  return r.id % 5 === 0 ? [...tags, { name: 'Rotterdam', norm_name: 'rotterdam', isloc: true }] : tags;
+}
+
+/**
+ * The feed's `band_name`, the artist credit (task 0071, decision 18): another artist on the Page, the Page itself, none,
+ * or a compilation's, by id.
+ */
+function creditOf(r: Release): string | undefined {
+  return [`Artist ${r.id % 61}`, `Page ${r.band}`, undefined, 'Various Artists'][r.id % 4];
+}
+
 function entry(story: Story): Record<string, unknown> {
   const r = story.release;
   const path = r.type === 'a' ? 'album' : 'track';
@@ -87,10 +110,11 @@ function entry(story: Story): Record<string, unknown> {
     story_date: wireDate(story.at),
     fan_id: story.fan,
     band_id: r.band,
-    band_name: `Page ${r.band}`,
+    band_name: creditOf(r),
     band_url: `https://page${r.band}.bandcamp.com`,
     item_type: r.type,
     item_id: r.id,
+    album_id: r.type === 't' ? r.id : undefined,
     item_title: `Release ${r.id}`,
     item_url: `https://page${r.band}.bandcamp.com/${path}/release-${r.id}`,
     item_art_id: 7_000_000 + r.id,
@@ -104,7 +128,7 @@ function entry(story: Story): Record<string, unknown> {
     purchased: story.kind === 'fp' ? wireDate(story.at) : undefined,
     new_date: story.kind === 'nr' ? wireDate(r.at) : undefined,
     why: story.why,
-    tags: [{ name: 'ambient', norm_name: 'ambient', isloc: false }],
+    tags: tagsOf(r),
   };
 }
 
@@ -126,7 +150,7 @@ export function feedDocument(batch: readonly Story[], fetchedAt: number): RawDoc
 function releasePageDocument(release: Release, fetchedAt: number): RawDocumentInput {
   return {
     endpoint: 'release_page',
-    payload: { itemType: release.type, itemId: release.id, itemUrl: `https://page${release.band}.bandcamp.com/`, tralbum: { current: { release_date: wireDate(release.at) }, trackinfo: [] }, band: {} },
+    payload: { itemType: release.type, itemId: release.id, itemUrl: `https://page${release.band}.bandcamp.com/`, tralbum: { current: { release_date: wireDate(release.at) }, artist: `Page artist ${release.id}`, trackinfo: [] }, band: {} },
     fetchedAt: new Date(fetchedAt).toISOString(),
   };
 }
@@ -151,19 +175,34 @@ export async function enterHistory(db: SQLiteDatabase, history: History, now: Da
 
 type WideRecord = Record<string, string | number | null>;
 
-/** Every Story row through the one wide join, newest first. */
-export async function oracleRows(db: SQLiteDatabase): Promise<FeedStoryRow[]> {
+/**
+ * Every Story row through the one wide join, newest first. With `onAlbums`, a Track Story dated before its held album's
+ * release day reads as the album's (task 0067, decision 3), found here by its own join and not by the store's reads.
+ */
+export async function oracleRows(db: SQLiteDatabase, { onAlbums = false }: { readonly onAlbums?: boolean } = {}): Promise<FeedStoryRow[]> {
   const rows = await db.getAllAsync<WideRecord>(
-    `select s.id as story_id, s.story_type, s.story_date, s.review_text, f.fan_id, f.username as fan_username, f.name as fan_name,
+    `with placed as (
+       select s.id, s.story_type, s.story_date, s.review_text, s.fan_id,
+              case when al.item_id is null then s.item_type else 'a' end as item_type,
+              coalesce(al.item_id, s.item_id) as item_id
+       from stories s
+       left join releases t on ${onAlbums ? "s.item_type = 't'" : '0'} and t.item_type = 't' and t.item_id = s.item_id
+       left join releases al on al.item_type = 'a' and al.item_id = t.album_id and s.story_date < al.release_date
+     )
+     select s.id as story_id, s.story_type, s.story_date, s.review_text, f.fan_id, f.username as fan_username, f.name as fan_name,
             f.image_id as fan_image_id, r.item_type, r.item_id, r.band_id, r.title, r.url, r.art_id, r.release_date, r.label,
             r.featured_track_id, r.featured_track_title, r.featured_track_duration, r.num_streamable_tracks, r.num_tracks, r.is_preorder,
             (r.release_date is not null and (r.release_date_source = 'feed' or r.first_seen_at < r.release_date)) as on_release_day,
-            p.name as artist
-     from stories s join releases r on r.item_type = s.item_type and r.item_id = s.item_id join pages p on p.band_id = r.band_id
+            p.name as page_name, r.artist_credit, r.tags
+     from placed s join releases r on r.item_type = s.item_type and r.item_id = s.item_id join pages p on p.band_id = r.band_id
      left join fans f on f.fan_id = s.fan_id order by s.story_date desc, s.id desc`,
   );
   const num = (v: string | number | null | undefined): number | null => (typeof v === 'number' ? v : null);
   const str = (v: string | number | null | undefined): string | null => (typeof v === 'string' ? v : null);
+  const tags = (v: string | number | null | undefined): FeedStoryRow['tags'] =>
+    (JSON.parse(str(v) ?? '[]') as { name: string; normName: string; isLoc: boolean }[])
+      .filter((tag) => !tag.isLoc)
+      .map(({ name, normName }) => ({ name, normName }));
   return rows.map((row) => ({
     storyId: num(row.story_id) ?? 0,
     storyType: str(row.story_type) as FeedStoryRow['storyType'],
@@ -188,6 +227,8 @@ export async function oracleRows(db: SQLiteDatabase): Promise<FeedStoryRow[]> {
     numTracks: num(row.num_tracks),
     isPreorder: row.is_preorder === 1,
     onReleaseDay: row.on_release_day === 1,
-    artist: str(row.artist) ?? '',
+    pageName: str(row.page_name) ?? '',
+    artistCredit: str(row.artist_credit),
+    tags: tags(row.tags),
   }));
 }

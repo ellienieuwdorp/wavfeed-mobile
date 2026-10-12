@@ -34,6 +34,7 @@ describe('parseReleasePage', () => {
       publishedAt: new Date('2026-03-31T19:43:06Z'),
       modifiedAt: new Date('2026-03-31T19:43:06Z'),
       album: null,
+      artistCredit: 'Nightgraft',
     });
   });
 
@@ -50,6 +51,7 @@ describe('parseReleasePage', () => {
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: null,
       album: null,
+      artistCredit: null,
     });
   });
 
@@ -67,6 +69,7 @@ describe('parseReleasePage', () => {
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: new Date('2026-09-29T09:12:40Z'),
       album: null,
+      artistCredit: 'Nightgraft',
     });
   });
 
@@ -86,6 +89,7 @@ describe('parseReleasePage', () => {
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: new Date('2026-10-06T17:02:11Z'),
       album: { itemId: PREORDER_ITEM_ID, url: PREORDER_URL, releaseDate: new Date('2026-10-13T00:00:00Z'), isPreorder: true },
+      artistCredit: null,
     });
   });
 
