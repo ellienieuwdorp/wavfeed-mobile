@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
-import { copy, outOnPhrase } from '@/copy';
+import { copy, onDayPhrase } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
@@ -52,7 +52,8 @@ export default function UpcomingReleases() {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
       week.entries.forEach((r, n) => {
         const rule = n < week.entries.length - 1;
-        const day = outOnPhrase(releaseDay(r.releaseDate), at);
+        // Every row here is upcoming, so the eyebrow drops "out" as R5 names draws it (task 0071, decision 10, amended by the author 2026-10-12).
+        const day = onDayPhrase(releaseDay(r.releaseDate), at);
         list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day, tracksOut: r.numStreamableTracks, numTracks: r.numTracks, rule });
       });
     }

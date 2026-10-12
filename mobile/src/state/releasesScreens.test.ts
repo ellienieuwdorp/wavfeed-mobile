@@ -255,8 +255,8 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     const at = mount(file, db);
     t.after(at.unmount);
     const label = (items: readonly Item[]) => file.endsWith('/index.tsx') ? items.find((item) => item.kind === 'shelf')?.cards?.[0]?.day : items.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.day;
-    // A card's day and an Upcoming row's "out" day both carry the month (task 0071, decisions 10 and 14).
-    const [before, onTheDay] = file.endsWith('/index.tsx') ? ['Tue 13 Oct', 'Today'] : ['out Tue 13 Oct', 'out today'];
+    // A card's day and an Upcoming row's day both carry the month, with no "out" (task 0071, decisions 10 and 14).
+    const [before, onTheDay] = ['Tue 13 Oct', 'Today'];
     assert.equal(label(await at.read()), before);
     t.mock.timers.tick(30_000);
     assert.equal(label(await at.read()), onTheDay, 'labels follow local midnight while the Release remains Upcoming');
