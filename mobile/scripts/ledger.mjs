@@ -5,10 +5,10 @@
  * lists them from git with the commit each one names, `newest` picks a distribution's newest build, and `tagMessage`
  * writes the message the release scripts tag with, so writing and reading share one shape. `node scripts/ledger.mjs`
  * prints the newest build per distribution and `--json` the whole record; `tag <name> <summary> [Key=Value ...]` tags
- * HEAD of the repository it runs in and pushes the tag, printing the push to rerun when it fails.
+ * HEAD of the repository it runs in and publishes the tag; `publish-tag <name>` resumes that publication alone.
  */
 import { execFileSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /** A distribution, the store or page testers install from, and the platform its builds run on. */
 export const DISTRIBUTIONS = { testflight: 'ios', play: 'android', apk: 'android' };
@@ -17,6 +17,7 @@ export const PREFIX = { testflight: 'ios', play: 'android', apk: 'apk' };
 
 const SEP = '\u001f';
 const END = '\u001e';
+const RELEASE_TAG = /^(ios|android|apk)\/build-\d+$|^ota\/[a-z0-9-]+\/[a-z+]+\/\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$/;
 
 /** The trailers at the end of a tag message, as an object keyed by lower-case name. */
 export function trailers(message) {
@@ -74,26 +75,61 @@ export function tagMessage(summary, fields) {
   return `${summary}\n\n${lines.join('\n')}\n`;
 }
 
-/** Tags HEAD of the repository at `cwd` as `name` and pushes it; a failed push keeps the tag and says how to push it. */
-export function tag(name, summary, fields, cwd = process.cwd()) {
-  if (!/^(ios|android|apk)\/build-\d+$|^ota\/[a-z0-9-]+\/[a-z+]+\/\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$/.test(name)) throw new Error(`${name} is no release tag`);
-  execFileSync('git', ['tag', '-a', name, 'HEAD', '-F', '-'], { cwd, input: tagMessage(summary, fields) });
+// Publication confirms the annotated object on origin; retry never retags or republishes a build/update (task 0069).
+function publishTag(name, cwd) {
+  if (!RELEASE_TAG.test(name)) throw new Error(`${name} is no release tag`);
+  const ref = `refs/tags/${name}`;
+  const object = execFileSync('git', ['rev-parse', '--verify', ref], { cwd, encoding: 'utf8' }).trim();
+  if (execFileSync('git', ['cat-file', '-t', object], { cwd, encoding: 'utf8' }).trim() !== 'tag') throw new Error(`${name} is not annotated`);
+  const remoteObject = () => {
+    try {
+      const refs = execFileSync('git', ['ls-remote', '--refs', 'origin', ref], { cwd, encoding: 'utf8' });
+      return refs.trim().split('\n').map((line) => line.split('\t')).find(([, name]) => name === ref)?.[0] ?? null;
+    } catch (cause) {
+      throw new Error('could not confirm the release tag on origin', { cause });
+    }
+  };
   try {
-    execFileSync('git', ['push', '--quiet', 'origin', `refs/tags/${name}`], { cwd, stdio: ['ignore', 'inherit', 'inherit'] });
-  } catch {
-    console.error(`ledger: tagged ${name} here; push it with git push origin refs/tags/${name}`);
+    const before = remoteObject();
+    if (before && before !== object) throw new Error(`origin has a different annotated object for ${name}; no tag was replaced`);
+    if (before !== object) {
+      let pushError;
+      try {
+        execFileSync('git', ['push', '--quiet', '--no-follow-tags', 'origin', `${object}:${ref}`], { cwd, stdio: ['ignore', 'inherit', 'inherit'] });
+      } catch (cause) {
+        pushError = cause;
+      }
+      if (remoteObject() !== object) throw new Error(`origin does not advertise the release tag ${name}`, { cause: pushError });
+    }
+    console.log(`ledger: published ${name} on origin`);
+  } catch (cause) {
+    const script = `'${fileURLToPath(import.meta.url).replaceAll("'", "'\\''")}'`;
+    throw new Error(`ledger: ${cause.message}; ${name} is kept locally\nledger: resume tag publication only: node ${script} publish-tag ${name}`, { cause });
   }
-  console.log(`ledger: tagged ${name}`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href && process.argv[2] === 'tag') {
+/** Tags HEAD once; unconfirmed publication throws while keeping that annotated release record (task 0069). */
+export function tag(name, summary, fields, cwd = process.cwd()) {
+  if (!RELEASE_TAG.test(name)) throw new Error(`${name} is no release tag`);
+  execFileSync('git', ['tag', '-a', name, 'HEAD', '-F', '-'], { cwd, input: tagMessage(summary, fields) });
+  publishTag(name, cwd);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href && ['tag', 'publish-tag'].includes(process.argv[2])) {
   const [, , , name, summary, ...pairs] = process.argv;
   const fields = Object.fromEntries(pairs.map((pair) => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)]));
-  if (!name || !summary || pairs.some((pair) => !/^[A-Z][A-Za-z0-9-]*=./.test(pair))) {
-    console.error('usage: ledger.mjs tag <name> <summary> [Key=Value ...]');
+  const publishing = process.argv[2] === 'publish-tag';
+  if (!name || (publishing ? process.argv.length !== 4 : !summary || pairs.some((pair) => !/^[A-Z][A-Za-z0-9-]*=./.test(pair)))) {
+    console.error('usage: ledger.mjs tag <name> <summary> [Key=Value ...] | publish-tag <name>');
     process.exit(1);
   }
-  tag(name, summary, fields);
+  try {
+    if (publishing) publishTag(name, process.cwd());
+    else tag(name, summary, fields);
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 } else if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const entries = read();
   if (process.argv.includes('--json')) {
