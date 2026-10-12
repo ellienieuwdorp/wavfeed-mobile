@@ -9,14 +9,16 @@
  * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
- * a white edge in dark. Error capture is installed as this module loads, and its `ErrorBoundary` catches what a
- * tab's screen boundary does not (task 0038 decision 10).
+ * a white edge in dark. Everything sits under react-native-gesture-handler's root view, which the row's wishlist swipe
+ * needs (task 0071, decision 15 and slice 0). Error capture is installed as this module loads, and its `ErrorBoundary`
+ * catches what a tab's screen boundary does not (task 0038 decision 10).
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { setBackgroundColorAsync } from 'expo-system-ui';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppFailed } from '@/components/Failed';
 import { FirstRunAsk } from '@/components/FirstRunAsk';
@@ -82,23 +84,25 @@ export default function RootLayout() {
     },
   };
   return (
-    <ThemeProvider value={theme}>
-      <AppStateProvider runner={SAMPLE_MODE ? undefined : runner}>
-        <SampleGate>
-          <SharingProvider>
-            <GatherSchedule />
-            <FirstRunAsk />
-            <ScreenTally />
-            <PlayerProvider>
-              <NoticeProvider>
-                <StatusBar style={dark ? 'light' : 'dark'} />
-                <GuardedStack />
-              </NoticeProvider>
-            </PlayerProvider>
-          </SharingProvider>
-        </SampleGate>
-      </AppStateProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
+      <ThemeProvider value={theme}>
+        <AppStateProvider runner={SAMPLE_MODE ? undefined : runner}>
+          <SampleGate>
+            <SharingProvider>
+              <GatherSchedule />
+              <FirstRunAsk />
+              <ScreenTally />
+              <PlayerProvider>
+                <NoticeProvider>
+                  <StatusBar style={dark ? 'light' : 'dark'} />
+                  <GuardedStack />
+                </NoticeProvider>
+              </PlayerProvider>
+            </SharingProvider>
+          </SampleGate>
+        </AppStateProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
