@@ -42,7 +42,10 @@ function asItemType(value: string): ItemType | null {
   return value === 'a' || value === 't' ? value : null;
 }
 
-/** Newest Story first, then wishlist-only Releases by when they were wished for. */
+/**
+ * Pre-orders first, since none is drawn until its page dates it (task 0067, decision 5); within each, newest Story
+ * first, then wishlist-only Releases by when they were wished for.
+ */
 export async function readUndatedReleases(
   db: SQLiteDatabase,
   limit: number,
@@ -60,7 +63,7 @@ export async function readUndatedReleases(
      where r.release_date is null
        and ${REACHED}
        and ${ATTEMPT_OVER}
-     order by newest_story is null, newest_story desc, wished_at desc
+     order by r.is_preorder desc, newest_story is null, newest_story desc, wished_at desc
      limit ?`,
     [BACKOFF_AFTER_FAILURES, backoffBefore, retryBefore, limit],
   );

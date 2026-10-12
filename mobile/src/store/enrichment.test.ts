@@ -4,6 +4,7 @@
  * without a date waits a day, and a week once it has failed three times running. A pre-order the feed announces joins
  * it, and the date its page gives outlasts every later read of the same feed entry (task 0041, decision 1). An Upcoming
  * Release's page is due again when a day old or when the feed names more Tracks playing than it did (decision 8).
+ * Pre-orders are asked before the rest (task 0067, decision 5).
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -46,6 +47,17 @@ test('an attempted page waits a day, and a week after three failures', async () 
   await markReleasePageAttempt(db, { itemType: 'a', itemId: 11 }, 'unparsable', new Date(NOW + 2 * DAY));
   assert.deepEqual(await due(NOW + 9 * DAY - 1), [12]);
   assert.deepEqual(await due(NOW + 9 * DAY), [11, 12]);
+  close();
+});
+
+test('an undated pre-order is asked before a Release with a newer Story', async () => {
+  const { db, close } = await openTestStore();
+  // The pre-order's Story is 29 September, the purchase a week later.
+  const payload = feedPayload({ entries: [preorderNrEntry(), purchaseAt(11, Date.UTC(2026, 9, 6) / 1000)] });
+  await insertRawDocument(db, { endpoint: FEED_UPDATES_ENDPOINT, payload, fetchedAt: '2026-10-06T12:00:00.000Z' });
+  await fold(db);
+  const due = await readUndatedReleases(db, 10, new Date(Date.UTC(2026, 9, 6, 12)));
+  assert.deepEqual(due.map((release) => release.itemId), [PREORDER_ITEM_ID, 11]);
   close();
 });
 
