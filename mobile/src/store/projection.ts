@@ -66,8 +66,8 @@ async function readVersion(db: SQLiteDatabase, key: string): Promise<number | nu
 }
 
 /**
- * Replays when the held Projection is older than the code's, or resumes a replay to this version cut short; a newer
- * one, which a rolled back update leaves, is reported and kept (ARCH-13). Answers whether it replayed.
+ * Launch drains pending observations on the main connection even when the version matches (task 0070). An older
+ * Projection rebuilds and an interrupted replay resumes; a newer one stays (ARCH-13). Answers whether it replayed.
  */
 export async function ensureProjectionVersion(db: SQLiteDatabase, onProgress?: ReplayProgress): Promise<boolean> {
   const held = await readVersion(db, PROJECTION_VERSION_KEY);
@@ -76,7 +76,10 @@ export async function ensureProjectionVersion(db: SQLiteDatabase, onProgress?: R
     await replay(db, onProgress);
     return true;
   }
-  if (rebuilding === null && held === PROJECTION_VERSION) return false;
+  if (rebuilding === null && held === PROJECTION_VERSION) {
+    await foldStretches(db, { stretchMs: REPLAY_STRETCH_MS, connection: 'main', onProgress });
+    return false;
+  }
   if (rebuilding === null && held !== null && held > PROJECTION_VERSION) {
     reportCode('projection_newer', new Error(`projection version ${held} is newer than the code's ${PROJECTION_VERSION}`));
     return false;

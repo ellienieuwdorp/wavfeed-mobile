@@ -8,17 +8,9 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
-export const GATHER_INTERVAL_MS = 15 * 60 * 1000;
+import { GATHER_INTERVAL_MS, type Due } from './cadence';
 
 export type ScheduledReason = 'open' | 'timer';
-
-/** `walk`: a walk is pending; `due`: the last turn is fifteen minutes old or none ran; `no`: neither. */
-export type Due = 'walk' | 'due' | 'no';
-
-export function dueFrom(walkPending: boolean, lastTurnAt: number | null, now: number): Due {
-  if (walkPending) return 'walk';
-  return lastTurnAt === null || now - lastTurnAt >= GATHER_INTERVAL_MS ? 'due' : 'no';
-}
 
 export function useGatherSchedule(
   run: (reason: ScheduledReason) => unknown,

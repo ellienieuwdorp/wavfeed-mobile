@@ -22,6 +22,7 @@ import { newlyOutTracks } from '../domain/tralbumTracks';
 import { type BandcampAnswer, type BandcampDocument, type Identity, originOf, refusedOrDown } from '../bandcamp/wire';
 import { FEED_UPDATES_ENDPOINT, type ReleaseKey } from '../domain/endpoints';
 import type { DueRelease } from '../store/enrichment';
+import { GATHER_INTERVAL_MS } from './cadence';
 import { ForeignFanError, type GatherFailure, type GatherSink, type GatherState, type StorySample, type WalkState } from './sink';
 import { bandDetailsBreaker, SWEEP_TURN_MAX } from './sweep';
 
@@ -42,6 +43,8 @@ export type GatherOptions = {
   readonly now: () => number;
   readonly reason: GatherReason;
   readonly budgetMs: number;
+  /** A new pull may retry incomplete lists; its chain continuations retain the attempt gate (task 0070). */
+  readonly bypassListAttemptGate?: boolean;
   /** The pause before the feed's one retry; a timer unless a test passes its own clock. */
   readonly wait?: (ms: number) => Promise<void>;
 };
@@ -96,6 +99,7 @@ type Ctx = {
   readonly sink: GatherSink;
   readonly now: () => number;
   readonly budgetMs: number;
+  readonly bypassListAttemptGate: boolean;
   deadline: number;
   /**
    * When this turn's last feed answer landed, a `fan_dash_feed_updates` page or a depth probe answer; published as
@@ -133,6 +137,7 @@ async function turn(session: GatherSession, sink: GatherSink, options: GatherOpt
     sink,
     now: options.now,
     budgetMs: options.budgetMs,
+    bypassListAttemptGate: options.bypassListAttemptGate ?? options.reason === 'refresh',
     deadline: options.now() + options.budgetMs,
     feedReadAt: null,
     wait: options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
@@ -276,7 +281,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
       lastStatus: null,
       // A different Fan signed in: nothing gathered for the last one speaks for this one.
       ...(otherFan
-        ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, wishlistFetchedAt: null, wishlistAskedAt: null }
+        ? { initialWalkDone: false, storiesSoFar: 0, newestStoryDate: null, followsFetchedAt: null, followsAskedAt: null, wishlistFetchedAt: null, wishlistAskedAt: null }
         : {}),
     });
   } catch (error) {
@@ -514,6 +519,12 @@ function isDue(fetchedAt: number | null, nowMs: number): boolean {
   return fetchedAt === null || nowMs - fetchedAt >= LIST_INTERVAL_MS;
 }
 
+/** Incomplete reads stay due, with automatic attempts spaced by the gather cadence (task 0070, decision 4). */
+function listDue(ctx: Ctx, fetchedAt: number | null, askedAt: number | null): boolean {
+  return isDue(fetchedAt, ctx.now()) &&
+    (ctx.bypassListAttemptGate || askedAt === null || ctx.now() - askedAt >= GATHER_INTERVAL_MS);
+}
+
 async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   const { session, sink } = ctx;
   const state = await sink.readGatherState();
@@ -525,10 +536,12 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   await sink.patchGatherState({ phase: 'lists' });
 
   // The wishlist first: until it answers once, every heart is not asked yet.
-  if (isDue(state.wishlistFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
+  if (listDue(ctx, state.wishlistFetchedAt, state.wishlistAskedAt) && !outOfBudget(ctx)) {
     const wishlist = await session.fetchWishlistItems(identity.fanId, onDocument);
-    if (wishlist.kind === 'ok') await sink.patchGatherState({ wishlistFetchedAt: ctx.now(), wishlistAskedAt: ctx.now() });
-    else {
+    if (wishlist.kind === 'ok') {
+      // An admitted partial walk enables hearts, but only a complete read starts the six-hour gate (task 0070).
+      await sink.patchGatherState({ wishlistAskedAt: ctx.now(), ...(wishlist.value.complete ? { wishlistFetchedAt: ctx.now() } : {}) });
+    } else {
       const end = await settle(ctx, 'wishlist walk', wishlist);
       if (end === 'paused') return finishLists(ctx, wrote, end);
       await sink.patchGatherState({ wishlistAskedAt: ctx.now() });
@@ -537,10 +550,12 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   }
 
   // The follow page is addressed by handle; a Fan Bandcamp did not name waits for one.
-  if (identity.username !== null && isDue(state.followsFetchedAt, ctx.now()) && !outOfBudget(ctx)) {
+  if (identity.username !== null && listDue(ctx, state.followsFetchedAt, state.followsAskedAt) && !outOfBudget(ctx)) {
     const follows = await session.fetchFollowingBands(identity.fanId, identity.username, onDocument);
-    if (follows.kind === 'ok') await sink.patchGatherState({ followsFetchedAt: ctx.now() });
-    else if ((await settle(ctx, 'follows', follows)) === 'unreachable') return finishLists(ctx, wrote, 'unreachable');
+    await sink.patchGatherState({ followsAskedAt: ctx.now() });
+    if (follows.kind === 'ok') {
+      if (follows.value.complete) await sink.patchGatherState({ followsFetchedAt: ctx.now() });
+    } else if ((await settle(ctx, 'follows', follows)) === 'unreachable') return finishLists(ctx, wrote, 'unreachable');
   }
   return finishLists(ctx, wrote, 'go');
 }

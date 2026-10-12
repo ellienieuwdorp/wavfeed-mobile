@@ -37,7 +37,7 @@ import { trackIds } from './drops';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
-/** A ceiling on one read's Stories, not a page size: the rules fold what a view needs in memory, as the server does (ADR-0005). */
+/** The diagnostic raw Story listing's default bound; selected-Release view reads keep every Story (task 0070). */
 export const FEED_MAX_STORY_ROWS = 50_000;
 
 export const STREAM_URL_TTL_MS = DAY_MS;
@@ -172,16 +172,17 @@ function toReleasePart(row: ReleaseRecord): ReleasePart | null {
 /**
  * The Stories in `scope`, newest action first, as the flat rows the feed rules read. Stories cross narrow and each
  * Release and Fan crosses once, however many Stories share it: the wide join repeated every Release column per Story.
+ * Only the diagnostic listing supplies a limit; a view needs every selected Release's Stories before folding (task 0070).
  */
-async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
+async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit?: number): Promise<readonly FeedStoryRow[]> {
   const read = await db.getAllAsync<StoryRecord>(
     `${scope.with === undefined ? '' : `with ${scope.with}`}
      select s.id as story_id, s.story_type, s.story_date, s.review_text, s.fan_id, s.item_type, s.item_id
      from stories s
      where ${scope.where}
      order by s.story_date desc, s.id desc
-     limit ?`,
-    [...scope.params, limit],
+     ${limit === undefined ? '' : 'limit ?'}`,
+    limit === undefined ? [...scope.params] : [...scope.params, limit],
   );
   const moved = scope.onAlbums === true ? await earlyTrackAlbums(db) : new Map<number, ItemPair>();
   const stories = read.map((story) => {
@@ -258,7 +259,7 @@ async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: numbe
   return rows;
 }
 
-/** Every Story, newest action first, with its Release, that Release's Page and the acting Fan joined on. */
+/** A bounded diagnostic listing, newest action first, with Release, Page and Fan joined on; never an aggregate's input. */
 export async function listStoryRows(db: SQLiteDatabase, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
   return loadStoryRows(db, ALL_STORIES, limit);
 }
@@ -322,19 +323,30 @@ export const TRACK_OF_HELD_ALBUM = `(r.item_type = 't' and r.album_id is not nul
 /**
  * Releases dated ahead of today's GMT day, or out within the handoff and held
  * before they came out, whose Page is followed or which a Story reaches (ADR-0017), less the Tracks of held albums.
+ * Each half selects its own bounded Releases in one SQLite read, so handoff rows cannot spend Upcoming's capacity (task 0070).
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
+  const eligible = `select ${UPCOMING_COLUMNS}
+    from releases r
+    join pages p on p.band_id = r.band_id
+    where ${REACHED_BY_FOLLOW_OR_STORY}
+      and not ${TRACK_OF_HELD_ALBUM}`;
+  const ahead = aheadFrom(now).toISOString();
   const rows = await db.getAllAsync<UpcomingRecord>(
-    `select ${UPCOMING_COLUMNS}
-     from releases r
-     join pages p on p.band_id = r.band_id
-     where r.release_date >= ?
-       and (r.release_date >= ? or ${HELD_BEFORE_OUT})
-       and ${REACHED_BY_FOLLOW_OR_STORY}
-       and not ${TRACK_OF_HELD_ALBUM}
-     order by r.release_date asc, r.item_type asc, r.item_id asc
-     limit ?`,
-    [handoffFloor(now).toISOString(), aheadFrom(now).toISOString(), UPCOMING_MAX_RELEASES],
+    `with just_out as (
+       ${eligible}
+         and r.release_date >= ? and r.release_date < ? and ${HELD_BEFORE_OUT}
+       order by r.release_date asc, r.item_type asc, r.item_id asc
+       limit ?
+     ), upcoming as (
+       ${eligible}
+         and r.release_date >= ?
+       order by r.release_date asc, r.item_type asc, r.item_id asc
+       limit ?
+     )
+     select * from just_out union all select * from upcoming
+     order by release_date asc, item_type asc, item_id asc`,
+    [handoffFloor(now).toISOString(), ahead, UPCOMING_MAX_RELEASES, ahead, UPCOMING_MAX_RELEASES],
   );
   return rows.flatMap((row) => {
     const release = toUpcomingRow(row);

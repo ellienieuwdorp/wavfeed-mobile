@@ -14,7 +14,7 @@ import { WeekHead } from '@/components/WeekHead';
 import { actorSentence, copy, dayLabel, outOnPhrase, SELF_RELEASED, spokenFacts, tracksOutPhrase } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
-import { dayKey, useNow } from '@/lib/useNow';
+import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildUpcomingWeekSections } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
 import { readNewReleases } from '@/store';
@@ -45,8 +45,11 @@ function render({ item }: { item: Item }) {
 export default function UpcomingReleases() {
   useAppBarAtRest();
   const clearance = useDockClearance();
-  const day = dayKey(useNow());
-  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), day);
+  const now = useNow();
+  const day = dayKey(now);
+  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017, task 0070).
+  const releaseDate = releaseDayKey(now);
+  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
 
   const items = useMemo(() => {
     const list: Item[] = [];

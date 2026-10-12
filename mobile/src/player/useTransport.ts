@@ -1,9 +1,9 @@
 /**
  * The transport (DESIGN-UI section 10, ADR-0015, task 0036), following the web's PlayerContext.tsx: one expo-audio
  * player for the app's life, a play fetching the tracklist and starting the first streamable Track, the same Release
- * pressed again toggling pause, previous and next inside the Release, a Track ending advancing and the last one
- * stopping at rest. The lock screen and Control Centre get the Track through `setActiveForLockScreen`; expo-audio 57
- * gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
+ * pressed again toggling pause unless a Drop names another Track (task 0070), previous and next inside the Release,
+ * a Track ending advancing and the last one stopping at rest. The lock screen and Control Centre get the Track
+ * through `setActiveForLockScreen`; expo-audio 57 gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
  * so the tab bar does not re-render four times a second. A play's start, a stream that dies mid-Track and the listening
  * a Release got go to `track` as Tallies (task 0038, `src/tally/actions.ts`).
  */
@@ -112,6 +112,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   const stateRef = useRef<TransportState>(IDLE);
   const depsRef = useRef(deps);
   const loadRef = useRef(0);
+  const wantedTrackRef = useRef<string | null>(null);
   const quietUntil = useRef(0);
   const lockActive = useRef(false);
   /** The position a seek is travelling to; status ticks report the old position until AVPlayer lands it. */
@@ -168,6 +169,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     async (release: PlayableRelease, wantedTrackId: string | null, force: boolean, pressedOn?: Screen) => {
       loadRef.current += 1;
       const token = loadRef.current;
+      wantedTrackRef.current = wantedTrackId;
       const before = stateRef.current;
       const same = before.release !== null && isSameRelease(before.release, release);
       const kept = force && same ? before.tracks : [];
@@ -180,14 +182,20 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       audio.pause();
       apply({ ...IDLE, release, status: 'loading', tracks: kept });
       setClock(ZERO);
-      const tracklist = await loadTracklist(depsRef.current, release, force).catch(() => null);
+      let tracklist = await loadTracklist(depsRef.current, release, force).catch(() => null);
       if (loadRef.current !== token) return;
+      if (tracklist !== null && !force && wantedTrackRef.current !== null &&
+        !tracklist.tracks.some((track) => track.trackId === wantedTrackRef.current && isStreamable(track))) {
+        // A pending Drop target can outgrow the first page; read fresh once under this load's token (task 0070).
+        tracklist = await loadTracklist(depsRef.current, release, true).catch(() => null);
+        if (loadRef.current !== token) return;
+      }
       if (tracklist === null) {
         apply({ ...IDLE, release, status: 'error' });
         started('error');
         return;
       }
-      const wanted = tracklist.tracks.findIndex((track) => track.trackId === wantedTrackId && isStreamable(track));
+      const wanted = tracklist.tracks.findIndex((track) => track.trackId === wantedTrackRef.current && isStreamable(track));
       const index = wanted === -1 ? firstStreamableIndex(tracklist.tracks) : wanted;
       const expiresAt = Date.parse(tracklist.expiresAt);
       const loaded: TransportState = {
@@ -248,13 +256,26 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   const play = useCallback(
     (release: PlayableRelease, wantedTrackId: string | null = null, screen?: Screen) => {
       const from = stateRef.current;
-      if (from.release !== null && isSameRelease(from.release, release) && (from.status === 'ready' || from.status === 'loading')) {
-        toggle();
-        return;
+      if (from.release !== null && isSameRelease(from.release, release)) {
+        if (from.status === 'loading') {
+          // The active load starts the latest explicit Drop target; an ordinary art press keeps it (task 0070).
+          if (wantedTrackId !== null) wantedTrackRef.current = wantedTrackId;
+          return;
+        }
+        if (from.status === 'ready') {
+          if (wantedTrackId === null || (from.index !== null && from.tracks[from.index]?.trackId === wantedTrackId)) toggle();
+          else {
+            const index = from.tracks.findIndex((track) => track.trackId === wantedTrackId && isStreamable(track));
+            // A newer Drop can name a Track the held page does not yet stream (task 0070).
+            if (index === -1) void loadAndStart(release, wantedTrackId, true, screen);
+            else startTrack(index);
+          }
+          return;
+        }
       }
       void loadAndStart(release, wantedTrackId, false, screen);
     },
-    [loadAndStart, toggle],
+    [loadAndStart, startTrack, toggle],
   );
 
   const playAt = useCallback(

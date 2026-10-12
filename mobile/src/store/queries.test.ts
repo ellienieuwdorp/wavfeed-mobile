@@ -12,6 +12,10 @@ import { after, before, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import {
+  BAND_ID,
+  bandDetailsPayload,
+  discographyItem,
+  followingBandsFirstPage,
   FAN_ID,
   fanInfo,
   feedPayload,
@@ -30,7 +34,7 @@ import {
   releasePagePayload,
   tralbumBlob,
 } from '../../test/fixtures';
-import { DAY, enterHistory, makeHistory, oracleRows } from '../../test/history';
+import { DAY, enterHistory, type History, makeHistory, oracleRows } from '../../test/history';
 import { openTestStore } from '../../test/nodeDb';
 import { assembleFeed, itemKey } from '../domain/assemble';
 import { buildBoughtChart } from '../domain/boughtChart';
@@ -230,6 +234,163 @@ test('in Bought a Track bought before its album came out is a purchase of the al
     [['a', String(PREORDER_ITEM_ID), 2]],
   );
   close();
+});
+
+test('selected Releases retain older buyers, reviews and first crossings beyond 50,000 newer Stories', async () => {
+  const { db, close } = await openTestStore();
+  try {
+    const now = new Date('2026-10-12T12:00:00.000Z');
+    const recent = new Date('2026-10-12T10:00:00.000Z').getTime();
+    const releases: History['releases'] = Array.from({ length: 100 }, (_, index) => ({
+      type: 'a', id: 10000 + index, band: 1000 + index,
+      at: Date.parse('2026-10-13T00:00:00.000Z'), shown: 'story',
+    }));
+    const stories: History['stories'] = releases.flatMap((release) => [
+      { kind: 'nr' as const, fan: null, release, at: recent, why: null },
+      ...Array.from({ length: 500 }, (_, fan) => ({
+        kind: 'fp' as const, fan: 100000 + fan, release, at: recent, why: null,
+      })),
+    ]);
+    await enterHistory(db, { releases, stories }, now);
+    const thirdFanId = FAN_ID + 1;
+    const albumPurchase = (fanId: number, date: string) => fpEntry({
+      fan_id: fanId, story_date: date, purchased: date,
+      item_id: PREORDER_ITEM_ID, album_id: PREORDER_ITEM_ID,
+      item_title: 'Moth Season', album_title: 'Moth Season', item_url: PREORDER_URL, is_preorder: true,
+    });
+    await insertRawDocument(db, {
+      endpoint: 'fan_dash_feed_updates', fetchedAt: now.toISOString(),
+      payload: feedPayload({
+        entries: [
+          preorderTrackPurchase(2, { story_date: '01 Oct 2026 10:00:00 GMT', purchased: '01 Oct 2026 10:00:00 GMT', why: 'The older Track review' }),
+          albumPurchase(OTHER_FAN_ID, '02 Oct 2026 10:00:00 GMT'),
+          albumPurchase(thirdFanId, '12 Oct 2026 11:00:00 GMT'),
+          preorderNrEntry({ story_date: '12 Oct 2026 11:00:00 GMT' }),
+        ],
+        fanInfo: {
+          [String(FAN_ID)]: fanInfo(),
+          [String(OTHER_FAN_ID)]: fanInfo({ fan_id: OTHER_FAN_ID, username: 'secondfan' }),
+          [String(thirdFanId)]: fanInfo({ fan_id: thirdFanId, username: 'thirdfan' }),
+        },
+      }),
+    });
+    await insertRawDocument(db, {
+      endpoint: 'release_page', fetchedAt: now.toISOString(),
+      payload: releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob() }),
+    });
+    await fold(db);
+    assert.equal((await db.getFirstAsync<{ n: number }>('select count(*) as n from stories'))?.n, 50104);
+
+    const held = await readBoughtReleases(db);
+    const album = held.find(({ item }) => item.itemType === 'a' && item.itemId === String(PREORDER_ITEM_ID));
+    assert.ok(album);
+    const crossed = boughtView(held, { mode: 'crossed', threshold: 2 }).entries.find(({ item }) => item.itemId === String(PREORDER_ITEM_ID));
+    const curated = (await readCurated(db)).newFromPages.find((item) => item.itemId === String(PREORDER_ITEM_ID));
+    assert.ok(curated);
+    const upcoming = (await readNewReleases(db, { now })).upcoming.find((item) => item.itemId === String(PREORDER_ITEM_ID));
+    assert.ok(upcoming);
+    assert.deepEqual({
+      buyers: album.item.buyers.map((fan) => fan.fanId),
+      reviews: album.item.reviews.map(({ text }) => text),
+      crossedAt: crossed?.crossedAt,
+      trackDrawn: held.some(({ item }) => item.itemType === 't' && item.itemId === String(preorderTrackId(2))),
+      curatedBuyers: curated.buyers.map((fan) => fan.fanId),
+      upcomingBuyers: upcoming.buyers.map((fan) => fan.fanId),
+      upcomingReviews: upcoming.reviews.map(({ text }) => text),
+    }, {
+      buyers: [thirdFanId, OTHER_FAN_ID, FAN_ID].map(String),
+      reviews: ['The older Track review'],
+      crossedAt: '2026-10-02T10:00:00.000Z',
+      trackDrawn: false,
+      // Curated keeps the Track's own Story (task 0067); the album's older purchase still belongs to its full read.
+      curatedBuyers: [thirdFanId, OTHER_FAN_ID].map(String),
+      upcomingBuyers: [thirdFanId, OTHER_FAN_ID, FAN_ID].map(String),
+      upcomingReviews: ['The older Track review'],
+    });
+  } finally {
+    close();
+  }
+});
+
+test('the just-out handoff and Upcoming each retain 500 Releases in date and key order', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  const now = new Date('2026-10-12T23:59:59.999Z');
+  const item = (id: number, date: string, type = 'album') => discographyItem({
+    item_id: id, item_type: type, title: `Release ${id}`, release_date: date,
+  });
+  await insertRawDocument(db, {
+    endpoint: 'following_bands', payload: followingBandsFirstPage(), fetchedAt: '2026-09-20T00:00:00.000Z',
+  });
+  await insertRawDocument(db, {
+    endpoint: 'band_details', fetchedAt: '2026-09-20T01:00:00.000Z',
+    payload: bandDetailsPayload({ items: [
+      ...Array.from({ length: 501 }, (_, i) => item(10000 + i, '11 Oct 2026 00:00:00 GMT')),
+      // Reverse admission order, an album and a standalone Track sharing an id, and tied cutoff dates.
+      item(40000, '30 Oct 2026 00:00:00 GMT'),
+      item(30000, '14 Oct 2026 00:00:00 GMT', 'track'),
+      item(30002, '14 Oct 2026 00:00:00 GMT'),
+      item(30001, '14 Oct 2026 00:00:00 GMT'),
+      item(20000, '13 Oct 2026 00:00:00 GMT', 'track'),
+      ...Array.from({ length: 497 }, (_, i) => item(20496 - i, '13 Oct 2026 00:00:00 GMT')),
+    ] }),
+  });
+  await fold(db);
+  const justOut = Array.from({ length: 500 }, (_, i) => ['a', 10000 + i]);
+  const future = [
+    ...Array.from({ length: 497 }, (_, i) => ['a', 20000 + i]),
+    ['t', 20000], ['a', 30001], ['a', 30002],
+  ];
+  const held = await listUpcomingReleases(db, now);
+  assert.deepEqual(held.map((release) => [release.itemType, release.itemId]), [...justOut, ...future]);
+  const view = await readNewReleases(db, { now });
+  assert.deepEqual(view.upcoming.map((release) => [release.itemType, Number(release.itemId)]), future);
+  assert.deepEqual(view.weeks.flatMap((week) => week.releases.map((entry) => [entry.release.itemType, Number(entry.release.itemId)])), justOut);
+});
+
+test('both Upcoming query halves preserve the GMT window, prior holding and follow-or-Story reach', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  const item = (id: number, date: string | null, type = 'album', band = BAND_ID) => discographyItem({
+    item_id: id, item_type: type, band_id: band, title: `Release ${id}`, release_date: date,
+  });
+  await insertRawDocument(db, {
+    endpoint: 'following_bands', payload: followingBandsFirstPage(), fetchedAt: '2026-09-20T00:00:00.000Z',
+  });
+  await insertRawDocument(db, {
+    endpoint: 'band_details', fetchedAt: '2026-09-20T01:00:00.000Z',
+    payload: bandDetailsPayload({ items: [
+      item(1, '28 Sep 2026 00:00:00 GMT'), item(2, '12 Oct 2026 00:00:00 GMT'),
+      item(3, '13 Oct 2026 00:00:00 GMT'), item(4, '01 Nov 2026 00:00:00 GMT'),
+      item(5, '27 Sep 2026 00:00:00 GMT'), item(6, null),
+      item(11, '13 Oct 2026 00:00:00 GMT', 'track'),
+    ] }),
+  });
+  await insertRawDocument(db, {
+    endpoint: 'band_details', fetchedAt: '2026-09-20T01:00:00.000Z',
+    payload: bandDetailsPayload({ bandId: 2, items: [
+      item(7, '13 Oct 2026 00:00:00 GMT', 'album', 2),
+      item(8, '13 Oct 2026 00:00:00 GMT', 'album', 2),
+    ] }),
+  });
+  await insertRawDocument(db, {
+    endpoint: 'band_details', fetchedAt: '2026-10-12T00:00:00.000Z',
+    payload: bandDetailsPayload({ items: [item(9, '12 Oct 2026 00:00:00 GMT'), item(10, '11 Oct 2026 00:00:00 GMT')] }),
+  });
+  await insertRawDocument(db, {
+    endpoint: 'fan_dash_feed_updates', fetchedAt: '2026-10-12T01:00:00.000Z',
+    payload: feedPayload({ entries: [
+      fpEntry({ item_id: 8, album_id: 8, band_id: 2, item_url: 'https://other.bandcamp.com/album/eight' }),
+      fpEntry({ item_type: 't', item_id: 11, album_id: 3, item_url: 'https://nightgraft.bandcamp.com/track/eleven' }),
+    ] }),
+  });
+  await fold(db);
+  const now = new Date('2026-10-12T23:59:59.999Z');
+  // Every exclusion has a valid dated Release and held Page, except the explicitly undated control.
+  assert.equal((await db.getFirstAsync<{ album_id: number }>("select album_id from releases where item_type = 't' and item_id = 11"))?.album_id, 3);
+  assert.deepEqual((await listUpcomingReleases(db, now)).map((release) => release.itemId), [1, 2, 3, 8, 4]);
+  assert.deepEqual((await readNewReleases(db, { now })).upcoming.map((release) => release.itemId), ['3', '8', '4']);
+  assert.deepEqual((await readNewReleases(db, { now: new Date('2026-10-13T00:00:00.000Z') })).upcoming.map((release) => release.itemId), ['4']);
 });
 
 describe('over a long history', () => {

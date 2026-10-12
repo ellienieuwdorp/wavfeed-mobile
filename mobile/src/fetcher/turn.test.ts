@@ -73,6 +73,8 @@ let refuseFeed: (asked: number) => BandcampAnswer<never> | null;
 let releasePage: (itemId: number, itemType: 'a' | 't') => BandcampAnswer<ReleasePage>;
 /** Followed Pages the follow list answers with, as one stored page; none answers with no page. */
 let followed: readonly number[];
+let wishlisted: readonly number[];
+let listsComplete: boolean;
 /** What the poke costs the clock; none unless a test sets it. */
 let pokeMs: number;
 /** The lists and the feed, each named once per request, in the order the turn asked them. */
@@ -90,16 +92,31 @@ const session: GatherSession = {
     clock += pokeMs;
     return ok({ endpoint: 'fan_feed_page', payload: { url: `/${username}/feed`, status: 200, bytes: 0 }, fetchedAt: at() });
   },
-  async fetchWishlistItems() {
+  async fetchWishlistItems(_fanId, onDocument) {
     asked.push('wishlist');
-    return ok({ pages: 0, seen: 0, complete: true });
+    if (wishlisted.length > 0) {
+      const inputToken = `${Math.floor(clock / 1000)}::a::`;
+      await onDocument({
+        endpoint: 'wishlist_items', fetchedAt: at(),
+        payload: {
+          snapshot_started_at: at(), request: { fan_id: FAN.fanId, older_than_token: inputToken },
+          response: { items: wishlisted.map((itemId) => ({ tralbum_type: 'a', tralbum_id: itemId })), more_available: !listsComplete, last_token: 'next' },
+          snapshotPage: { number: 1, inputToken, nextToken: listsComplete ? null : 'next' },
+        },
+      });
+    }
+    return ok({ pages: wishlisted.length > 0 ? 1 : 0, seen: wishlisted.length, complete: listsComplete });
   },
   async fetchFollowingBands(_fanId, _username, onDocument) {
     asked.push('follows');
-    if (followed.length === 0) return ok({ pages: 0, seen: 0, complete: true });
+    if (followed.length === 0) return ok({ pages: 0, seen: 0, complete: listsComplete });
     clock += REQUEST_MS;
-    await onDocument({ endpoint: 'following_bands', payload: followingBandsFirstPage(followed, at()), fetchedAt: at() });
-    return ok({ pages: 1, seen: followed.length, complete: true });
+    const payload = followingBandsFirstPage(followed, at());
+    if (!listsComplete) {
+      payload.followingBands = { ...(payload.followingBands as Record<string, unknown>), following_bands: { item_count: followed.length + 1, last_token: 'next' } };
+    }
+    await onDocument({ endpoint: 'following_bands', payload, fetchedAt: at() });
+    return ok({ pages: 1, seen: followed.length, complete: listsComplete });
   },
   async fetchBandDetails(bandId) {
     clock += REQUEST_MS;
@@ -178,6 +195,8 @@ beforeEach(async () => {
   refuseFeed = () => null;
   releasePage = datedPage;
   followed = [];
+  wishlisted = [];
+  listsComplete = true;
   pokeMs = 0;
   asked = [];
 });
@@ -376,6 +395,59 @@ describe('the order of a turn (task 0046, decision 1)', () => {
     assert.equal((await turn(600_000, 'refresh')).outcome, 'failed');
     assert.deepEqual(asked, ['feed']);
     assert.equal(gather.wishlistFetchedAt, listed);
+  });
+});
+
+describe('list freshness (task 0070)', () => {
+  test('partial lists retain their additions and are asked on the next pull; only complete walks acquire the six-hour gate', async () => {
+    await followBands([1]);
+    await db.runAsync("insert into wishlist_items (item_type, item_id, last_seen_snapshot_at) values ('a', 1001, '')");
+    followed = [2];
+    wishlisted = [1000];
+    listsComplete = false;
+    bandDetails = ok({ kind: 'gone', status: 404 });
+    feed = stories(3, 2000);
+    const calls = () => ['wishlist', 'follows'].map((list) => asked.filter((request) => request === list).length);
+    const memberships = async () => [
+      (await db.getAllAsync<{ item_id: number }>('select item_id from wishlist_items order by item_id')).map((row) => row.item_id),
+      (await sink.readFollowedBands()).map((page) => page.bandId).sort(),
+    ];
+
+    assert.equal((await turn(REQUEST_MS)).outcome, 'out_of_budget');
+    assert.deepEqual(await memberships(), [[1000, 1001], [1, 2]], 'admitted partial pages stay additive');
+    assert.notEqual(gather.wishlistAskedAt, null, 'the first attempt makes hearts available');
+    const firstAsk = gather.wishlistAskedAt;
+    assert.equal(gather.initialWalkDone, false);
+
+    clock += 60_000;
+    assert.equal((await turn(600_000, 'refresh')).outcome, 'done');
+    assert.deepEqual(calls(), [2, 2], 'a pull asks both incomplete lists again');
+    assert.deepEqual([gather.wishlistFetchedAt, gather.followsFetchedAt], [null, null]);
+    assert.ok(gather.wishlistAskedAt !== null && gather.wishlistAskedAt > firstAsk!);
+    assert.equal(gather.initialWalkDone, true, 'the held first walk resumes');
+    assert.equal(await storyCount(), 3);
+
+    listsComplete = true;
+    clock += 60_000;
+    await turn(600_000, 'refresh');
+    assert.deepEqual(calls(), [3, 3]);
+    const completed = [gather.wishlistFetchedAt, gather.followsFetchedAt];
+    assert.ok(completed.every((stamp) => stamp !== null));
+    const lastAsk = gather.wishlistAskedAt;
+    clock += 60_000;
+    await turn(600_000, 'refresh');
+    assert.deepEqual(calls(), [3, 3], 'a completed read retains its six-hour gate');
+    assert.deepEqual([gather.wishlistFetchedAt, gather.followsFetchedAt], completed);
+    assert.equal(gather.wishlistAskedAt, lastAsk, 'skipping a fresh list is not an attempt');
+
+    listsComplete = false;
+    clock += LIST_INTERVAL_MS;
+    await turn(600_000, 'refresh');
+    assert.deepEqual(calls(), [4, 4]);
+    assert.deepEqual([gather.wishlistFetchedAt, gather.followsFetchedAt], completed, 'a partial retry cannot refresh an older completed read');
+    clock += 60_000;
+    await turn(600_000, 'refresh');
+    assert.deepEqual(calls(), [5, 5]);
   });
 });
 

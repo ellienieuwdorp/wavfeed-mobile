@@ -14,7 +14,8 @@ import { useCallback, useEffect } from 'react';
 import { AppState as NativeAppState } from 'react-native';
 
 import { isDemoFan } from '@/demo/demo';
-import { dueFrom, useGatherSchedule, type Due } from '@/fetcher/schedule';
+import { dueFrom, type Due } from '@/fetcher/cadence';
+import { useGatherSchedule } from '@/fetcher/schedule';
 import type { GatherSink, GatherState, WalkState } from '@/fetcher/sink';
 import { bandDetailsBreaker } from '@/fetcher/sweep';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
@@ -113,7 +114,11 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
     // Settings mid-chain ends it too, before the next probe can turn it into Bandcamp's.
     if (turn > 0 && (NativeAppState.currentState !== 'active' || (await holdsNoTurn(app)))) return ran();
     const before = await walkSpot(app.db);
-    running = runGatherTurn(app.session, sink, { now: Date.now, reason, budgetMs: BUDGET_MS[reason] }).finally(() => {
+    running = runGatherTurn(app.session, sink, {
+      now: Date.now, reason, budgetMs: BUDGET_MS[reason],
+      // A manual pull retries due lists once; continuing its feed walk retains the attempt gate (task 0070).
+      bypassListAttemptGate: reason === 'refresh' && turn === 0,
+    }).finally(() => {
       running = null;
     });
     const summary = await running;

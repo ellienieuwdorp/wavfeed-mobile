@@ -18,6 +18,7 @@ import type { FeedUpdatesPage } from '../bandcamp/session';
 import type { BandcampAnswer, Identity } from '../bandcamp/wire';
 import { loadDemo } from '../demo/demo';
 import type { GatherState, WalkState } from '../fetcher/sink';
+import { GATHER_INTERVAL_MS } from '../fetcher/cadence';
 import type { GatherReason, GatherSession } from '../fetcher/turn';
 import { readKv } from '../store';
 import type { Tally } from '../tally/catalogue';
@@ -130,6 +131,42 @@ test('a first walk longer than a dozen turns runs to its end in one sitting whil
   assert.ok(turns > 12, `took ${turns} turns`);
   assert.equal(await walkDone(), true);
   assert.equal(await walk(), null);
+});
+
+test('partial lists wait between automatic attempts and manual-chain continuations, but a new pull retries them (task 0070)', async (t) => {
+  feed = feed.slice(0, 40 * PAGE_SIZE);
+  const wishlistAsks: number[] = [];
+  const followsAsks: number[] = [];
+  t.mock.method(session, 'fetchWishlistItems', async () => {
+    wishlistAsks.push(Date.now());
+    return ok({ pages: 1, seen: 0, complete: false });
+  });
+  t.mock.method(session, 'fetchFollowingBands', async () => {
+    followsAsks.push(Date.now());
+    return ok({ pages: 1, seen: 0, complete: false });
+  });
+  const calls = () => [wishlistAsks.length, followsAsks.length];
+
+  await gather('refresh');
+  assert.ok(turns > 3, 'the manual chain continued through several feed turns');
+  assert.equal(await walkDone(), true);
+  assert.deepEqual(calls(), [1, 1], 'continuations do not repeat partial list walks');
+  assert.deepEqual(
+    [(await readKv<GatherState>(db, GATHER_KEY))?.wishlistFetchedAt, (await readKv<GatherState>(db, GATHER_KEY))?.followsFetchedAt],
+    [null, null],
+  );
+
+  await gather('timer');
+  assert.deepEqual(calls(), [1, 1], 'an automatic attempt waits for the fifteen-minute cadence');
+  mock.timers.tick(60_000);
+  await gather('refresh');
+  assert.deepEqual(calls(), [2, 2], 'a new pull bypasses the incomplete-attempt gate');
+  await gather('open');
+  assert.deepEqual(calls(), [2, 2], 'the next sink reads the persisted attempt gate');
+
+  mock.timers.tick(GATHER_INTERVAL_MS);
+  await gather('timer');
+  assert.deepEqual(calls(), [3, 3], 'automatic reads retry partial lists when the attempt gate expires');
 });
 
 test('the chain stops when the app leaves the foreground, with the walk held for the next wake', async () => {

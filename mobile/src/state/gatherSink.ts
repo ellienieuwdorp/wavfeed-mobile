@@ -39,6 +39,7 @@ import {
   readUndatedReleases,
   readUpcomingDue,
 } from '@/store/enrichment';
+import { PROJECTION_REBUILDING_KEY, PROJECTION_VERSION } from '@/store/projection';
 import { reportCode } from '@/tally/errors';
 
 export const WALK_KEY = 'walk';
@@ -84,7 +85,7 @@ export function patchGather({ db, setGather }: SinkDeps, patch: Partial<GatherSt
 }
 
 /**
- * The launch's replay after a parser change (ADR-0004). A replay, or one that failed partway, leaves `wishlist_items`
+ * The launch drains pending observations or replays after a parser change (ADR-0004, task 0070). A replay, or one that failed partway, leaves `wishlist_items`
  * without the heart presses `wishlist/state.ts` writes straight into it, so the wishlist is due on the next turn
  * (ARCH-3). A failed replay is a coded Error Report and resumes at the next launch; this never throws. Answers
  * whether it replayed.
@@ -94,10 +95,13 @@ export async function replayAtLaunch(deps: SinkDeps, onProgress?: ReplayProgress
   try {
     replayed = await ensureProjectionVersion(deps.db, onProgress);
   } catch (error) {
-    console.warn('replay after a parser change failed:', error instanceof Error ? error.message : String(error));
+    // Only the durable rebuild marker means wishlist rows were emptied; a failed drain keeps them (task 0070).
+    replayed = (await readKv<number>(deps.db, PROJECTION_REBUILDING_KEY).catch(() => PROJECTION_VERSION)) !== null;
+    console.warn('launch projection failed:', error instanceof Error ? error.message : String(error));
     reportCode('projection_replay_failed', error);
   }
-  if (replayed) await patchGather(deps, { wishlistFetchedAt: null }).catch(() => undefined);
+  // A rebuild erased local confirmations, so its next automatic read must bypass the attempt gate too (task 0070).
+  if (replayed) await patchGather(deps, { wishlistFetchedAt: null, wishlistAskedAt: null }).catch(() => undefined);
   return replayed;
 }
 

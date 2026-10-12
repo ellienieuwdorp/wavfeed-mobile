@@ -71,6 +71,8 @@ export type GatherState = {
   readonly phase: GatherPhase;
   readonly newestStoryDate: number | null;
   readonly followsFetchedAt: number | null;
+  /** Last follow-list attempt, separate from completed-read freshness (task 0070). */
+  readonly followsAskedAt: number | null;
   readonly wishlistFetchedAt: number | null;
   /** When the wishlist was last asked, whatever it answered; hearts take presses from the first ask on. */
   readonly wishlistAskedAt: number | null;
@@ -91,6 +93,7 @@ export const EMPTY_GATHER_STATE: GatherState = {
   phase: 'idle',
   newestStoryDate: null,
   followsFetchedAt: null,
+  followsAskedAt: null,
   wishlistFetchedAt: null,
   wishlistAskedAt: null,
   releasesDated: 0,

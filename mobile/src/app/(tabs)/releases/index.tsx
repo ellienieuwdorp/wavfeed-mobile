@@ -19,7 +19,7 @@ import { WeekHead } from '@/components/WeekHead';
 import { actorSentence, copy, dayLabel, outOnPhrase, PAGES_GAP_TAIL, SELF_RELEASED, spokenFacts, tracksOutPhrase } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { releaseDay } from '@/lib/dates';
-import { dayKey, useNow } from '@/lib/useNow';
+import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildSectionsFromWeeks } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
@@ -65,7 +65,9 @@ export default function NewReleases() {
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
-  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), day);
+  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017, task 0070).
+  const releaseDate = releaseDayKey(now);
+  const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
   const { refreshing, onRefresh } = useRefresh('releases');
   const appBar = useAppBar();
 
