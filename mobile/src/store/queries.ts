@@ -100,8 +100,34 @@ const STORY_JOIN = `stories s
   join releases r on r.item_type = s.item_type and r.item_id = s.item_id
   join pages p on p.band_id = r.band_id`;
 
-/** Which Stories a view loads: a `where` over `stories s`, and its values. */
-type StoryScope = { readonly where: string; readonly params: readonly SQLiteBindValue[] };
+/**
+ * Which Stories a view loads: a `where` over `stories s`, its values, and any `with` clause it reads. `onAlbums` reads a
+ * Story of a Track dated before its held album's release day as the album's, so its Fan is a buyer of the album (task
+ * 0067, decision 3); New releases and Bought ask for it, the feed does not, and the scope must load those Stories itself.
+ */
+type StoryScope = {
+  readonly where: string;
+  readonly params: readonly SQLiteBindValue[];
+  readonly with?: string;
+  readonly onAlbums?: boolean;
+};
+
+/**
+ * The Track Stories `onAlbums` moves, each with its album: dated before the held album's release day. Read whole from the
+ * album index, which is cheaper than a lookup per loaded Story.
+ */
+const EARLY_TRACK_SELECT = `select e.id, e.fan_id, e.story_type, t.album_id from releases t
+  join releases al on al.item_type = 'a' and al.item_id = t.album_id
+  join stories e on e.item_type = 't' and e.item_id = t.item_id
+  where t.item_type = 't' and t.album_id is not null and e.story_date < al.release_date`;
+
+const EARLY_TRACK_STORIES = `early_track_stories as materialized (${EARLY_TRACK_SELECT})`;
+
+/** Where each early Track Story counts, by Story id: its album's key. */
+async function earlyTrackAlbums(db: SQLiteDatabase): Promise<ReadonlyMap<number, ItemPair>> {
+  const early = await db.getAllAsync<{ id: number; album_id: number }>(EARLY_TRACK_SELECT);
+  return new Map(early.map((row) => [row.id, ['a', row.album_id] as const]));
+}
 
 const ALL_STORIES: StoryScope = { where: '1 = 1', params: [] };
 
@@ -148,14 +174,20 @@ function toReleasePart(row: ReleaseRecord): ReleasePart | null {
  * Release and Fan crosses once, however many Stories share it: the wide join repeated every Release column per Story.
  */
 async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit: number = FEED_MAX_STORY_ROWS): Promise<readonly FeedStoryRow[]> {
-  const stories = await db.getAllAsync<StoryRecord>(
-    `select s.id as story_id, s.story_type, s.story_date, s.review_text, s.fan_id, s.item_type, s.item_id
+  const read = await db.getAllAsync<StoryRecord>(
+    `${scope.with === undefined ? '' : `with ${scope.with}`}
+     select s.id as story_id, s.story_type, s.story_date, s.review_text, s.fan_id, s.item_type, s.item_id
      from stories s
      where ${scope.where}
      order by s.story_date desc, s.id desc
      limit ?`,
     [...scope.params, limit],
   );
+  const moved = scope.onAlbums === true ? await earlyTrackAlbums(db) : new Map<number, ItemPair>();
+  const stories = read.map((story) => {
+    const album = moved.get(story.story_id);
+    return album === undefined ? story : { ...story, item_type: album[0], item_id: album[1] };
+  });
   const items = new Map<number, ItemPair>();
   const fanIds = new Set<number>();
   for (const story of stories) {
@@ -276,13 +308,20 @@ function toUpcomingRow(row: UpcomingRecord): UpcomingReleaseRow | null {
   };
 }
 
-/** The shelf's reach: the Release's Page is followed, or a Story reaches the Release (ADR-0017). */
+/** The shelf's reach: the Release's Page is followed, or a Story reaches the Release or one of its Tracks (ADR-0017, task 0067). */
 export const REACHED_BY_FOLLOW_OR_STORY = `(exists (select 1 from follows f where f.band_id = r.band_id)
-  or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id))`;
+  or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id)
+  or (r.item_type = 'a' and exists (
+    select 1 from releases t where t.item_type = 't' and t.album_id = r.item_id
+      and exists (select 1 from stories s where s.item_type = 't' and s.item_id = t.item_id))))`;
+
+/** A Track whose album is held: never Upcoming on its own, since its album is drawn (task 0067, decision 2). */
+export const TRACK_OF_HELD_ALBUM = `(r.item_type = 't' and r.album_id is not null
+  and exists (select 1 from releases al where al.item_type = 'a' and al.item_id = r.album_id))`;
 
 /**
  * Releases dated ahead of today's GMT day, or out within the handoff and held
- * before they came out, whose Page is followed or which a Story reaches (ADR-0017).
+ * before they came out, whose Page is followed or which a Story reaches (ADR-0017), less the Tracks of held albums.
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
   const rows = await db.getAllAsync<UpcomingRecord>(
@@ -292,6 +331,7 @@ export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promi
      where r.release_date >= ?
        and (r.release_date >= ? or ${HELD_BEFORE_OUT})
        and ${REACHED_BY_FOLLOW_OR_STORY}
+       and not ${TRACK_OF_HELD_ALBUM}
      order by r.release_date asc, r.item_type asc, r.item_id asc
      limit ?`,
     [handoffFloor(now).toISOString(), aheadFrom(now).toISOString(), UPCOMING_MAX_RELEASES],
@@ -326,6 +366,7 @@ export async function listDrops(db: SQLiteDatabase): Promise<readonly DropRow[]>
      join pages p on p.band_id = r.band_id
      where r.release_date is not null
        and ${REACHED_BY_FOLLOW_OR_STORY}
+       and not ${TRACK_OF_HELD_ALBUM}
      order by d.day desc, d.item_type asc, d.item_id asc
      limit ?`,
     [DROPS_MAX],
@@ -389,9 +430,13 @@ export async function readNewReleases(db: SQLiteDatabase, options: { readonly no
   const drops = await listDrops(db);
   const upcomingItems = storiesOfItems([...releases, ...drops.map((drop) => drop.release)].map((release) => [release.itemType, release.itemId]));
   // The new-release filter drops every other type before Bursts, so the view's elements need only those Stories.
+  // A Track of a listed album may have Stories that count on it (task 0067, decision 3).
   const rows = await loadStoryRows(db, {
-    where: `s.story_type = 'new_release' or ${upcomingItems.where}`,
-    params: upcomingItems.params,
+    where: `s.story_type = 'new_release' or ${upcomingItems.where}
+      or (s.item_type = 't' and s.item_id in (select t.item_id from releases t where t.item_type = 't' and t.album_id in (
+        select json_extract(value, '$[1]') from json_each(?) where json_extract(value, '$[0]') = 'a')))`,
+    params: [...upcomingItems.params, ...upcomingItems.params],
+    onAlbums: true,
   });
   const { elements } = assembleFeed(rows, { types: ['new_release'], sort: 'anchor' });
   const wanted = new Set(releases.map(itemKey));
@@ -406,14 +451,22 @@ export type BoughtOptions =
 /** A purchase Story whose Fan is held: the only kind the Bought rules count as a buyer. */
 const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
 
-/** Every Release either Bought mode could place: a named purchase and a release date, or the lowest crossing's named Fans. */
+/**
+ * Every Release either Bought mode could place: a named purchase and a release date, or the lowest crossing's named Fans.
+ * A Track bought before its album came out is the album's (task 0067, decision 3).
+ */
 const BOUGHT_SCOPE: StoryScope = {
   where: `(s.item_type, s.item_id) in (
     select b.item_type, b.item_id from ${NAMED_PURCHASES}
     group by b.item_type, b.item_id
     having count(distinct b.fan_id) >= ?
-      or exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))`,
+      or exists (select 1 from releases r where r.item_type = b.item_type and r.item_id = b.item_id and r.release_date is not null))
+    or s.id in (select id from early_track_stories)
+    or (s.item_type = 'a' and s.item_id in (
+      select e.album_id from early_track_stories e join fans f on f.fan_id = e.fan_id where e.story_type = 'purchase'))`,
   params: [CROSSED_MIN_THRESHOLD],
+  with: EARLY_TRACK_STORIES,
+  onAlbums: true,
 };
 
 /**

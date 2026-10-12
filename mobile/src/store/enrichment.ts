@@ -13,7 +13,7 @@ import { readTralbumTracks, type TralbumTrack } from '../domain/tralbumTracks';
 import type { ItemType } from '../domain/types';
 import { aheadFrom } from '../domain/upcoming';
 import { DAY_MS } from '../lib/time';
-import { REACHED_BY_FOLLOW_OR_STORY } from './queries';
+import { TRACK_OF_HELD_ALBUM, REACHED_BY_FOLLOW_OR_STORY } from './queries';
 import { latestReleasePageDocument } from './rawDocuments';
 
 /** `dated` is the only outcome that clears the failure count: every other one left the Release undated. */
@@ -78,6 +78,7 @@ export async function readUndatedReleases(
  * did, which skips the day's wait after a read that went well and never a failure's wait. Those the feed is ahead on
  * first, then the longest unread. A page last read as a phone, and not asked since, is due once more whatever its age,
  * unless a failure's wait is running (decision 11): migration 7 marked its booking and the next one clears the mark.
+ * A Track whose album is held is never due; the album's page is (task 0067, decision 2).
  */
 export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date()): Promise<readonly DueRelease[]> {
   if (limit <= 0) return [];
@@ -95,6 +96,7 @@ export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Da
        left join release_page_attempts a on a.item_type = r.item_type and a.item_id = r.item_id
        where r.release_date >= ?
          and ${REACHED_BY_FOLLOW_OR_STORY}
+         and not ${TRACK_OF_HELD_ALBUM}
      )
      where behind or stale or phone
      order by behind desc, page_tracks_read_at is not null, page_tracks_read_at, release_date, item_type, item_id

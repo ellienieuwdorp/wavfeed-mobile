@@ -121,7 +121,9 @@ app, and a Release stops being Upcoming the day its release date arrives, and no
 Tracks that play earlier are Drops, and the Release stays on the shelf.
 That day is a GMT day, because Bandcamp writes every release date at midnight
 GMT and that is when the record becomes buyable (ADR-0017, amended 2026-08-29);
-it is the day the row and its week header name too.
+it is the day the row and its week header name too. A Track of an album is
+Upcoming only through its album, and a Story of it before that day counts on
+the album (task 0067).
 _Avoid_: pre-release, coming soon, future release, announcement, preorder as a
 synonym (`is_preorder` is Bandcamp's buyable state, which an Upcoming Release
 usually but not always has)

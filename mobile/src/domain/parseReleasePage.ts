@@ -1,11 +1,11 @@
 /**
  * The parser for a `release_page` Raw Document: the `data-tralbum` blob in, the release date, pre-order state, and how
  * many Tracks play of how many there are out (task 0041, decision 4); with the page's publish and edit moments and, on
- * a Track page, its album, which date a Drop (decision 7).
+ * a Track page, its album, which date a Drop (decision 7) and open an Upcoming album (task 0067, decision 1).
  * Ported from server/packages/projection/src/parseReleasePage.ts (task 0036).
  */
 import { readTralbumTracks } from './tralbumTracks';
-import type { ItemType, ParsedReleasePage } from './types';
+import type { ItemType, ParsedReleasePage, ParsedTrackAlbum } from './types';
 import { asRecord, asTralbumType, readDate, readId, readText } from './wire';
 
 export class ReleasePagePayloadError extends Error {
@@ -29,6 +29,34 @@ function readTrackCounts(tralbum: Record<string, unknown>): { readonly streamabl
   return { streamable: tracks.filter((track) => track.streamUrl !== null).length, total: tracks.length };
 }
 
+/** `album_url` is a path on the Track page's host, which may be a custom domain. */
+function readAlbumUrl(root: Record<string, unknown>, tralbum: Record<string, unknown>): string | null {
+  const path = readText(tralbum, 'album_url');
+  const base = readText(root, 'itemUrl') ?? readText(tralbum, 'url');
+  if (path === undefined || base === undefined) return null;
+  try {
+    const url = new URL(path, base);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function readTrackAlbum(
+  root: Record<string, unknown>,
+  tralbum: Record<string, unknown>,
+  current: Record<string, unknown>,
+): ParsedTrackAlbum | null {
+  const itemId = readId(current, 'album_id');
+  if (itemId === undefined) return null;
+  return {
+    itemId,
+    url: readAlbumUrl(root, tralbum),
+    releaseDate: readDate(tralbum, 'album_release_date') ?? null,
+    isPreorder: typeof tralbum.album_is_preorder === 'boolean' ? tralbum.album_is_preorder : null,
+  };
+}
+
 /**
  * Parses `{ itemType, itemId, itemUrl, tralbum, band }`. A track's date falls
  * back to `album_release_date`; `is_preorder` is read only where the page states it.
@@ -46,7 +74,6 @@ export function parseReleasePage(payload: unknown): ParsedReleasePage {
   const current = asRecord(tralbum.current) ?? {};
   const releaseDate = readDate(current, 'release_date') ?? readDate(tralbum, 'album_release_date');
   const counts = readTrackCounts(tralbum);
-  const albumId = identity.itemType === 't' ? readId(current, 'album_id') : undefined;
   return {
     itemType: identity.itemType,
     itemId: identity.itemId,
@@ -56,6 +83,6 @@ export function parseReleasePage(payload: unknown): ParsedReleasePage {
     numTracks: counts?.total ?? null,
     publishedAt: readDate(current, 'publish_date') ?? null,
     modifiedAt: readDate(current, 'mod_date') ?? null,
-    albumId: albumId ?? null,
+    album: identity.itemType === 't' ? readTrackAlbum(root, tralbum, current) : null,
   };
 }

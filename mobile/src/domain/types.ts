@@ -77,8 +77,17 @@ export type ParsedReleasePage = {
   readonly publishedAt: Date | null;
   /** `current.mod_date`: moves when a Track comes out and on any later edit. */
   readonly modifiedAt: Date | null;
-  /** A Track page's album, from `current.album_id`; null on an album page or a Track with no album. */
-  readonly albumId: number | null;
+  /** A Track page's album; null on an album page or a Track with no album. */
+  readonly album: ParsedTrackAlbum | null;
+};
+
+/** What a Track page states about its album, `current.album_id` and the `album_*` fields (task 0067, decision 1). */
+export type ParsedTrackAlbum = {
+  readonly itemId: number;
+  /** `album_url` on the Track page's host; null when the page names none. */
+  readonly url: string | null;
+  readonly releaseDate: Date | null;
+  readonly isPreorder: boolean | null;
 };
 
 export type ParsedCatalogRelease = {

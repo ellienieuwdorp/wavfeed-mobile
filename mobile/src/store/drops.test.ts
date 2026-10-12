@@ -3,7 +3,8 @@
  * Drops from Raw Documents (task 0041, decisions 6 and 7): each read that shows more Tracks of an Upcoming Release
  * playing than any before writes one, dated on the Release's first read by the page's publish date or the Story's, and
  * after it by the read unless a Track page of a Track it let out dates it inside the window between the reads; one per
- * GMT day; and a rebuild from scratch writes the same Drops on the same days (ADR-0004).
+ * GMT day; and a rebuild from scratch writes the same Drops on the same days (ADR-0004). A Track of the Release bought
+ * alone is the Release on the shelf and in the weeks, and opens it when no other read has (task 0067).
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -20,11 +21,13 @@ import {
   preorderNrEntry,
   preorderTrackId,
   preorderTrackPageBlob,
+  preorderTrackPurchase,
   preorderTralbumBlob,
   releasePagePayload,
 } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
 import { BAND_DETAILS_ENDPOINT, FEED_UPDATES_ENDPOINT, FOLLOWING_BANDS_ENDPOINT, RELEASE_PAGE_ENDPOINT } from '../domain/endpoints';
+import { readUpcomingDue } from './enrichment';
 import { fold, rebuild } from './projection';
 import { listDrops, readNewReleases } from './queries';
 import { insertRawDocument, type RawDocumentInput } from './rawDocuments';
@@ -49,6 +52,11 @@ function trackRead(fetchedAt: string, trackNum: number, modDate: string): RawDoc
     tralbum: preorderTrackPageBlob(trackNum, modDate),
   });
   return { endpoint: RELEASE_PAGE_ENDPOINT, payload, fetchedAt };
+}
+
+/** A feed read in which a Fan bought the pre-order's second Track alone. */
+function trackBought(fetchedAt: string): RawDocumentInput {
+  return { endpoint: FEED_UPDATES_ENDPOINT, payload: feedPayload({ entries: [preorderTrackPurchase(2)] }), fetchedAt };
 }
 
 /** Each read stored and folded before the next, as a gather turn does. */
@@ -183,5 +191,47 @@ test('a Drop is drawn only while its Page is followed or a Story reaches its Rel
   const view = await readNewReleases(db, { now: new Date(Date.UTC(2026, 9, 2, 12)) });
   assert.deepEqual(await drops(db), []);
   assert.deepEqual([view.upcoming.length, view.weeks.length], [0, 0]);
+  close();
+});
+
+test("a Track bought alone is its album on the shelf, in the weeks and on its release day, and its buyer is the album's", async () => {
+  const { db, close } = await gathered([
+    ...ANNOUNCED,
+    trackBought('2026-10-02T21:09:00.000Z'),
+    trackRead('2026-10-02T23:21:00.000Z', 2, '29 Sep 2026 09:12:40 GMT'),
+  ]);
+  const placed = async (now: Date) => {
+    const view = await readNewReleases(db, { now });
+    return {
+      shelf: view.upcoming.map((release) => [release.itemType, release.itemId, release.numStreamableTracks, release.numTracks, release.buyers.length]),
+      weeks: view.weeks.flatMap((week) => week.releases.map((entry) => entry.key)),
+    };
+  };
+
+  assert.deepEqual(await placed(new Date(Date.UTC(2026, 9, 12, 15))), {
+    shelf: [['a', String(PREORDER_ITEM_ID), 1, 4, 1]],
+    weeks: [`drop:a:${PREORDER_ITEM_ID}:2026-09-29`],
+  });
+  assert.deepEqual((await placed(new Date(Date.UTC(2026, 9, 13, 12)))).weeks, [
+    `item:a:${PREORDER_ITEM_ID}`,
+    `drop:a:${PREORDER_ITEM_ID}:2026-09-29`,
+  ]);
+  close();
+});
+
+test('a Track page opens the Upcoming album no other read named, which is drawn and read in its place', async () => {
+  const { db, close } = await gathered([
+    trackBought('2026-10-02T21:09:00.000Z'),
+    trackRead('2026-10-02T23:21:00.000Z', 2, '29 Sep 2026 09:12:40 GMT'),
+  ]);
+  const now = new Date(Date.UTC(2026, 9, 3, 12));
+  const view = await readNewReleases(db, { now });
+
+  assert.deepEqual(
+    view.upcoming.map((release) => [release.itemType, release.itemId, release.title, release.itemUrl, release.releaseDate, release.numTracks, release.buyers.length]),
+    [['a', String(PREORDER_ITEM_ID), 'Moth Season', PREORDER_URL, '2026-10-13T00:00:00.000Z', null, 1]],
+  );
+  assert.deepEqual(view.weeks, []);
+  assert.deepEqual(await readUpcomingDue(db, 10, now), [{ itemType: 'a', itemId: PREORDER_ITEM_ID, url: PREORDER_URL }]);
   close();
 });

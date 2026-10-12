@@ -4,20 +4,28 @@
  * the full join (task 0036, decision 3), and a rebuild from the Raw Documents must answer the same again (ADR-0004).
  * Bought is read once and placed per mode on every switch, so that placing answers the rules at each threshold too.
  * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well, and the
- * player's tracklist off a stored release page, every Track the page names (task 0041, decision 5).
+ * player's tracklist off a stored release page, every Track the page names (task 0041, decision 5). A Track bought
+ * before its album came out counts as the album in Bought (task 0067, decision 3).
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import {
+  FAN_ID,
+  fanInfo,
   feedPayload,
+  fpEntry,
   ITEM_ID,
+  OTHER_FAN_ID,
   nrEntry,
   PREORDER_ITEM_ID,
   PREORDER_URL,
   preorderNrEntry,
   phonePreorderTralbumBlob,
+  preorderTrackId,
+  preorderTrackPageBlob,
+  preorderTrackPurchase,
   preorderTralbumBlob,
   releasePagePayload,
   tralbumBlob,
@@ -188,6 +196,39 @@ test('a Track with no file on a Release that is out is out, with no preview', as
     ['Slow Harbour', true, true],
     ['Silt', true, false],
   ]);
+  close();
+});
+
+test('in Bought a Track bought before its album came out is a purchase of the album', async () => {
+  const { db, close } = await openTestStore();
+  const albumBought = fpEntry({
+    fan_id: OTHER_FAN_ID,
+    item_id: PREORDER_ITEM_ID,
+    item_title: 'Moth Season',
+    item_url: PREORDER_URL,
+    album_id: PREORDER_ITEM_ID,
+    album_title: 'Moth Season',
+    is_preorder: true,
+  });
+  const payload = feedPayload({
+    entries: [preorderTrackPurchase(2), albumBought],
+    fanInfo: { [String(FAN_ID)]: fanInfo(), [String(OTHER_FAN_ID)]: fanInfo({ fan_id: OTHER_FAN_ID, username: 'otherfan' }) },
+  });
+  const trackPage = releasePagePayload({
+    itemType: 't',
+    itemId: preorderTrackId(2),
+    itemUrl: 'https://nightgraft.bandcamp.com/track/lamp-glass',
+    tralbum: preorderTrackPageBlob(2, '29 Sep 2026 09:12:40 GMT'),
+  });
+  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload, fetchedAt: '2026-10-02T21:09:00.000Z' });
+  await insertRawDocument(db, { endpoint: 'release_page', payload: trackPage, fetchedAt: '2026-10-02T23:21:00.000Z' });
+  await fold(db);
+
+  const bought = await readBoughtReleases(db);
+  assert.deepEqual(
+    bought.map((release) => [release.item.itemType, release.item.itemId, release.item.buyers.length]),
+    [['a', String(PREORDER_ITEM_ID), 2]],
+  );
   close();
 });
 

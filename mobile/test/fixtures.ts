@@ -247,6 +247,26 @@ export function preorderNrEntry(overrides: Fields = {}): Fields {
   });
 }
 
+/** A Fan bought one Track of the pre-order alone, the way "hey" of "chrysalis" was bought (task 0067). */
+export function preorderTrackPurchase(trackNum: number, overrides: Fields = {}): Fields {
+  const [trackId, title, path] = PREORDER_TRACKS[trackNum - 1] ?? [0, '', ''];
+  return fpEntry({
+    story_date: '02 Oct 2026 18:19:06 GMT',
+    purchased: '02 Oct 2026 18:19:06 GMT',
+    item_type: 't',
+    item_id: trackId,
+    item_title: title,
+    item_url: `https://nightgraft.bandcamp.com${path}`,
+    album_id: PREORDER_ITEM_ID,
+    album_title: 'Moth Season',
+    featured_track: trackId,
+    featured_track_title: title,
+    num_streamable_tracks: 1,
+    sale_item_type: 't',
+    ...overrides,
+  });
+}
+
 /** The pre-order's four Tracks: id, title and Track page path. */
 const PREORDER_TRACKS: readonly (readonly [number, string, string])[] = [
   [66602201, 'Pupa', '/track/pupa'],
@@ -337,6 +357,7 @@ export function preorderTrackPageBlob(trackNum: number, modDate: string): Fields
     is_preorder: null,
     album_is_preorder: true,
     album_release_date: PREORDER_RELEASE_DATE,
+    album_url: '/album/moth-season',
     trackinfo: [preorderTrack(trackNum, true)],
     url: `https://nightgraft.bandcamp.com${PREORDER_TRACKS[trackNum - 1]?.[2] ?? ''}`,
   };

@@ -256,8 +256,8 @@ export async function foldPageTrackRead(db: SQLiteDatabase, doc: RawDocument, pa
  * a Track's own release moment should Bandcamp ever state one.
  */
 export async function foldTrackPage(db: SQLiteDatabase, parsed: ParsedReleasePage): Promise<void> {
-  if (parsed.itemType !== 't' || parsed.albumId === null || parsed.modifiedAt === null) return;
-  const album: ReleaseRef = { itemType: 'a', itemId: parsed.albumId };
+  if (parsed.itemType !== 't' || parsed.album === null || parsed.modifiedAt === null) return;
+  const album: ReleaseRef = { itemType: 'a', itemId: parsed.album.itemId };
   const drop = await db.getFirstAsync<DropRecord>(
     `select ${DROP_COLUMNS} from drops d
      where d.item_type = 'a' and d.item_id = ? and d.dated_by in ('read', 'track')

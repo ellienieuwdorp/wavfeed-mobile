@@ -220,6 +220,13 @@ const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    // The Tracks of an album, which reach it and count on it before its release day (task 0067, decisions 3 and 4).
+    version: 9,
+    sql: `
+      create index releases_album_id on releases (item_type, album_id, item_id);
+    `,
+  },
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<number> {

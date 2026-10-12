@@ -23,6 +23,7 @@ import {
   preorderNrEntry,
   preorderTrackId,
   preorderTrackPageBlob,
+  preorderTrackPurchase,
   preorderTralbumBlob,
   releasePagePayload,
 } from '../../test/fixtures';
@@ -39,6 +40,7 @@ import { insertRawDocument, type RawDocumentInput } from './rawDocuments';
 
 /** Undoes the migrations after `version`, so a test starts from the store a device held then. */
 async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
+  if (version < 9) await db.execAsync('drop index releases_album_id;');
   if (version < 8) await db.execAsync('drop table projection_failures;');
   if (version < 7) await db.execAsync('alter table release_page_attempts drop column asked_as_phone;');
   if (version < 6) {
@@ -98,7 +100,7 @@ test('migration 4 adds the Tally outbox to a store at version 3, whose rows are 
   await heldAt(db, 3);
   await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
 
-  assert.equal(await migrate(db), 8);
+  assert.equal(await migrate(db), 9);
 
   await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
   await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
@@ -248,13 +250,41 @@ test('migration 7 on a store whose clock ran ahead makes a page due once, not un
   close();
 });
 
+test('migration 9 and the replay it comes with put the album of a Track bought alone on the shelf in its place', async () => {
+  const { db, close } = await openTestStore();
+  const now = new Date(Date.UTC(2026, 9, 3, 12));
+  const track = preorderTrackId(2);
+  await insertRawDocument(db, {
+    endpoint: FEED_UPDATES_ENDPOINT,
+    payload: feedPayload({ entries: [preorderTrackPurchase(2)] }),
+    fetchedAt: '2026-10-02T21:09:00.000Z',
+  });
+  await insertRawDocument(db, {
+    endpoint: RELEASE_PAGE_ENDPOINT,
+    payload: releasePagePayload({ itemType: 't', itemId: track, itemUrl: 'https://nightgraft.bandcamp.com/track/lamp-glass', tralbum: preorderTrackPageBlob(2, '29 Sep 2026 09:12:40 GMT') }),
+    fetchedAt: '2026-10-02T23:21:00.000Z',
+  });
+  await fold(db);
+  // The store as a device held it at migration 8 and Projection version 5, whose fold opened no album.
+  await db.execAsync(`delete from releases where item_type = 'a'; insert or replace into kv (key, value) values ('${PROJECTION_VERSION_KEY}', '5');`);
+  await heldAt(db, 8);
+  const shelf = async () => (await listUpcomingReleases(db, now)).map((release) => [release.itemType, release.itemId]);
+  assert.deepEqual(await shelf(), [['t', track]]);
+
+  await migrate(db);
+  assert.equal(await ensureProjectionVersion(db), true);
+
+  assert.deepEqual(await shelf(), [['a', PREORDER_ITEM_ID]]);
+  close();
+});
+
 test('a store a newer bundle migrated past the code opens as it is, reported as schema_newer', async () => {
   const { db, close } = await openTestStore();
   await turnSharingOn(db, '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10', Date.now());
   errorReports.setSink(db);
   await db.execAsync("create table later (x); insert into schema_migrations (version, applied_at) values (99, '2026-10-01')");
 
-  assert.equal(await migrate(db), 8);
+  assert.equal(await migrate(db), 9);
 
   assert.ok(await db.getFirstAsync("select name from sqlite_master where name = 'later'"));
   const rows = await db.getAllAsync<{ body: string }>("select body from tally_outbox where kind = 'error'");

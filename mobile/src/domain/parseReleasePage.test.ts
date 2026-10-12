@@ -12,6 +12,7 @@ import {
   bandBlob,
   ITEM_ID,
   PREORDER_ITEM_ID,
+  PREORDER_URL,
   preorderTrackId,
   preorderTrackPageBlob,
   phonePreorderTralbumBlob,
@@ -32,7 +33,7 @@ describe('parseReleasePage', () => {
       numTracks: 3,
       publishedAt: new Date('2026-03-31T19:43:06Z'),
       modifiedAt: new Date('2026-03-31T19:43:06Z'),
-      albumId: null,
+      album: null,
     });
   });
 
@@ -48,7 +49,7 @@ describe('parseReleasePage', () => {
       numTracks: 4,
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: null,
-      albumId: null,
+      album: null,
     });
   });
 
@@ -65,11 +66,11 @@ describe('parseReleasePage', () => {
       numTracks: 4,
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: new Date('2026-09-29T09:12:40Z'),
-      albumId: null,
+      album: null,
     });
   });
 
-  test("reads a Track page's album and its edit moment, and its album's publish date (task 0041)", () => {
+  test("reads a Track page's album, its edit moment, and its album's day and address (tasks 0041 and 0067)", () => {
     const trackId = preorderTrackId(3);
     const parsed = parseReleasePage(
       releasePagePayload({ itemType: 't', itemId: trackId, tralbum: preorderTrackPageBlob(3, '06 Oct 2026 17:02:11 GMT') }),
@@ -84,7 +85,7 @@ describe('parseReleasePage', () => {
       numTracks: 1,
       publishedAt: new Date('2026-09-29T09:12:40Z'),
       modifiedAt: new Date('2026-10-06T17:02:11Z'),
-      albumId: PREORDER_ITEM_ID,
+      album: { itemId: PREORDER_ITEM_ID, url: PREORDER_URL, releaseDate: new Date('2026-10-13T00:00:00Z'), isPreorder: true },
     });
   });
 

@@ -21,7 +21,17 @@ import { BandDetailsPayloadError, parseBandDetails } from '../domain/parseBandDe
 import { FollowingBandsPayloadError, parseFollowingBands } from '../domain/parseFollowingBands';
 import { parseReleasePage, ReleasePagePayloadError } from '../domain/parseReleasePage';
 import { parseWishlistItems, WishlistItemsPayloadError } from '../domain/parseWishlistItems';
-import type { ItemType, MutableSkippedCounts, ParsedFan, ParsedPage, ParsedRelease, ParsedStory, SkippedCounts } from '../domain/types';
+import type {
+  ItemType,
+  MutableSkippedCounts,
+  ParsedFan,
+  ParsedPage,
+  ParsedRelease,
+  ParsedReleasePage,
+  ParsedStory,
+  SkippedCounts,
+} from '../domain/types';
+import { aheadFrom } from '../domain/upcoming';
 import { reportCode } from '../tally/errors';
 import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
 import { BUSY_TIMEOUT_MS, type FoldConnection, withFoldLock } from './foldLock';
@@ -37,9 +47,10 @@ export const REPLAY_STRETCH_MS = 1000;
  * Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). Version 3 is how
  * a phone holding a pre-order dated by its feed entry mends itself after migration 5 (task 0041, decision 2); version 4
  * writes the Drops its Raw Documents already hold after migration 6 (decision 6); version 5 counts the Tracks a
- * phone's page names without an id (decision 4).
+ * phone's page names without an id (decision 4); version 6 lets the Track pages held open their Upcoming albums (task
+ * 0067, decision 6).
  */
-export const PROJECTION_VERSION = 5;
+export const PROJECTION_VERSION = 6;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
 /** Set in the transaction that empties the derived tables, cleared in the one that writes the version (ARCH-1). */
 export const PROJECTION_REBUILDING_KEY = 'projectionRebuildingTo';
@@ -281,7 +292,8 @@ type Enrichment = {
 };
 
 /**
- * An update, never an insert: a public page states a date, not a Release. Answers whether a held row took it. The
+ * An update, never an insert: a public page states a date, not a Release, save the Upcoming album a Track page names
+ * (`openUpcomingAlbum`). Answers whether a held row took it. The
  * release page and the Sweep's item with no link both come through here, each naming itself as the date's source.
  */
 async function enrichReleaseFromPage(
@@ -387,6 +399,58 @@ async function foldNewReleaseCounts(db: SQLiteDatabase, doc: RawDocument, parsed
   }
 }
 
+/**
+ * A Track page whose album is still ahead of the read's GMT day opens the album's Release, or fills one held, its date by
+ * the same ranking as any page's (task 0067, decision 1). The title is the `album_title` the feed gave the Track, and the
+ * Page, art and featured Track are the Track's own, so a Track no feed entry named an album title for opens nothing.
+ */
+async function openUpcomingAlbum({ db, run }: Folding, doc: RawDocument, parsed: ParsedReleasePage): Promise<boolean> {
+  const album = parsed.album;
+  if (album === null || album.url === null || album.releaseDate === null) return false;
+  if (album.releaseDate < aheadFrom(new Date(doc.fetchedAt))) return false;
+  const track = await db.getFirstAsync<{
+    band_id: number;
+    title: string;
+    album_title: string | null;
+    art_id: number | null;
+    featured_track_duration: number | null;
+  }>(
+    `select band_id, title, album_title, art_id, featured_track_duration from releases where item_type = 't' and item_id = ?`,
+    [parsed.itemId],
+  );
+  if (track === null || track.album_title === null) return false;
+  await run(
+    `insert into releases (
+       item_type, item_id, band_id, title, url, art_id, release_date, release_date_source, release_date_read_at,
+       featured_track_id, featured_track_title, featured_track_duration, is_preorder, first_seen_at, last_seen_at
+     ) values ('a', ?, ?, ?, ?, ?, ?, 'page', ?, ?, ?, ?, ?, ?, ?)
+     on conflict (item_type, item_id) do update set
+       art_id = coalesce(releases.art_id, excluded.art_id),
+       ${releaseDateSet('excluded', 'releases')},
+       featured_track_id = coalesce(releases.featured_track_id, excluded.featured_track_id),
+       featured_track_title = coalesce(releases.featured_track_title, excluded.featured_track_title),
+       featured_track_duration = coalesce(releases.featured_track_duration, excluded.featured_track_duration),
+       first_seen_at = min(releases.first_seen_at, excluded.first_seen_at),
+       last_seen_at = max(releases.last_seen_at, excluded.last_seen_at)`,
+    [
+      album.itemId,
+      track.band_id,
+      track.album_title,
+      album.url,
+      track.art_id,
+      album.releaseDate.toISOString(),
+      doc.fetchedAt,
+      parsed.itemId,
+      track.title,
+      track.featured_track_duration,
+      flag(album.isPreorder) ?? 0,
+      doc.fetchedAt,
+      doc.fetchedAt,
+    ],
+  );
+  return true;
+}
+
 async function projectReleasePage({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseReleasePage>;
   try {
@@ -396,9 +460,10 @@ async function projectReleasePage({ db, run }: Folding, doc: RawDocument): Promi
     throw err;
   }
   const enriched = await enrichReleaseFromPage(run, parsed, doc.fetchedAt, 'page');
+  const opened = await openUpcomingAlbum({ db, run }, doc, parsed);
   await foldPageTrackRead(db, doc, parsed);
   await foldTrackPage(db, parsed);
-  return result('projected', { releasesEnriched: enriched ? 1 : 0 });
+  return result('projected', { releasesEnriched: enriched ? 1 : 0, releasesUpserted: opened ? 1 : 0 });
 }
 
 async function pageExists(db: SQLiteDatabase, bandId: number): Promise<boolean> {
