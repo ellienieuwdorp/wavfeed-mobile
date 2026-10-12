@@ -2,9 +2,13 @@
  * The row menu's items as a screen reader's actions (the phone app review, VIS-9 and FLOW-13): VoiceOver's actions rotor
  * and TalkBack's actions menu list every item that would take a press, under its menu label, except play, which is the
  * control's own activation, and Bought by where the row names who bought it. RowMenu.tsx builds the items and hands
- * these to the row and its art. The iOS row is one element, so the heart's state it hides is said in its label.
+ * these to the row and its art. The iOS row is one element and the Android row's body another, so their label says the
+ * whole row (heardRow), and an Upcoming card says the same (heardParts): the faces as who bought it and the wishlist
+ * state rows and cards no longer draw (task 0071, decisions 12, 13, 14 and 16).
  */
-import { copy } from '@/copy';
+import { boughtByPhrase, copy, spokenFacts } from '@/copy';
+import type { ApiFanRef } from '@/domain/apiTypes';
+import type { CreditLine } from '@/domain/credit';
 import type { Membership } from '@/wishlist/state';
 
 export type RowAction = { readonly key: string; readonly label: string; readonly enabled: boolean; readonly run: () => void };
@@ -29,4 +33,29 @@ export function spokenActions<Fan>(actions: readonly RowAction[], fans: readonly
 /** The heart's state as the iOS row's label says it after the facts; off and not asked yet say nothing. */
 export function heardWishlist(membership: Membership): string | null {
   return membership.known && membership.on ? copy.heart.on : null;
+}
+
+/** What a row draws, as its label reads it: the credit line's two names, the day, the count and the faces. */
+export type HeardRow = {
+  readonly title: string;
+  readonly credit: CreditLine;
+  /** The eyebrow's words, "Wed 7" or "out Tue 13 Oct"; null when the row has no day. */
+  readonly day: string | null;
+  /** "1 of 4 tracks" from tracksOutPhrase, where the row draws the pill. */
+  readonly count: string | null;
+  readonly buyers: readonly ApiFanRef[];
+};
+
+/** A Release as a row or an Upcoming card says it: "Title by Artist", then "Page, Wed 7, 1 of 4 tracks, bought by ana". */
+export function heardParts(row: HeardRow, membership: Membership): { readonly named: string; readonly facts: string } {
+  return {
+    named: copy.titleBy(row.title, row.credit.artist),
+    facts: spokenFacts([row.credit.extra, row.day, row.count, boughtByPhrase(row.buyers), heardWishlist(membership)]),
+  };
+}
+
+/** "Play Title by Artist, Page, Wed 7, 1 of 4 tracks, bought by ana and 1 other, on your Bandcamp wishlist". */
+export function heardRow(row: HeardRow, membership: Membership, pause: boolean): string {
+  const { named, facts } = heardParts(row, membership);
+  return pause ? copy.pause(named, facts) : copy.play(named, facts);
 }

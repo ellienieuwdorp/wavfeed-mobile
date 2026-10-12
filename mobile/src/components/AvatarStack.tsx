@@ -1,6 +1,7 @@
 /**
- * The faces of the Fans who bought it: 20pt discs, the Fan's Bandcamp image or one initial, overlapping by 6pt, capped
- * at five with a faint "+N" after (DESIGN-UI section 3, the v2 client canvas). With `opens` set the stack is a button
+ * The faces of the Fans who bought it: 20pt discs in a 2pt ring, the Fan's Bandcamp image or one initial, overlapping by
+ * 6pt, capped at five (two on an Upcoming card) with a faint "+N" after (DESIGN-UI section 3, task 0071 decisions 12
+ * and 14). With `opens` set the stack is a button
  * whose press area stays inside its own line, opening the Bought by sheet with these Fans (the canvas, sections 6 and 7). A
  * disc does not grow with the text size, so its initial does not either (review VIS-1).
  */
@@ -18,11 +19,11 @@ import { Type } from './Type';
 export const AVATAR_CAP = 5;
 const DISC = 20;
 /**
- * 2pt above the faces and 8pt below: on a row the stack sits in the fact line, 2pt under the title, above the body's
- * 8pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11). Android's ripple
+ * 2pt above the faces and 8pt below: on a row the stack ends the credit line, 1pt under the title, above the body's
+ * 9pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11). Android's ripple
  * is bounded to the stack for the same reason; a borderless one would spread past the slop into the title.
- * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; the stack in a trailing slot outside the row body,
- * as the canvas's Bought board draws it, is the upgrade.
+ * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; a stack the full height of the row's right edge,
+ * under the pill, is the upgrade.
  */
 const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 
@@ -53,9 +54,9 @@ export function openBoughtBy(fans: readonly ApiFanRef[]) {
   router.push({ pathname: '/bought-by', params: { fans: JSON.stringify(fans) } });
 }
 
-export function AvatarStack({ fans, ring, opens = false }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean }) {
+export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; cap?: number }) {
   const { c } = useTokens();
-  const shown = fans.slice(0, AVATAR_CAP);
+  const shown = fans.slice(0, cap);
   const more = fans.length - shown.length;
   const names = fans.map((fan) => fan.username).join(', ');
   const stack = (
@@ -86,7 +87,7 @@ export function AvatarStack({ fans, ring, opens = false }: { fans: readonly ApiF
           </View>
         );
       })}
-      {more > 0 ? <Type style={{ marginLeft: 6, fontSize: 11, color: c.faint }}>{copy.more(more)}</Type> : null}
+      {more > 0 ? <Type style={{ marginLeft: 4, fontSize: 11, color: c.faint }}>{copy.more(more)}</Type> : null}
     </View>
   );
   if (!opens || fans.length === 0) return stack;

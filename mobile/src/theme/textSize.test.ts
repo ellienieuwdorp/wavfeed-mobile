@@ -24,8 +24,12 @@ test('a multiplier between categories takes the smaller category’s size', () =
   assert.equal(largeTitleSize(1.2), 36);
 });
 
-test('a caption title is one line at the default size and holds two lines above it, at the row cap', () => {
-  assert.deepEqual(captionTitle(1), { numberOfLines: 1, style: null });
-  assert.deepEqual(captionTitle(1.2), { numberOfLines: 2, style: { lineHeight: 20, minHeight: 48 } });
-  assert.deepEqual(captionTitle(2.643), { numberOfLines: 2, style: { lineHeight: 20, minHeight: 64 } });
+test('a caption title is one line at the default size and holds two lines above it, sized to the row cap', () => {
+  assert.deepEqual(captionTitle(1), { numberOfLines: 1, allowFontScaling: true, style: null });
+  const unscaled = { numberOfLines: 2, allowFontScaling: false } as const;
+  assert.deepEqual(captionTitle(1.2), { ...unscaled, style: { fontSize: 18, lineHeight: 24, minHeight: 48, includeFontPadding: false } });
+  assert.deepEqual(captionTitle(2.643), { ...unscaled, style: { fontSize: 24, lineHeight: 32, minHeight: 64, includeFontPadding: false } });
+  // An Upcoming card's day keeps its own type, its letter spacing scaled with it (task 0071, decision 14).
+  const day = captionTitle(2, { fontSize: 11, lineHeight: 16, letterSpacing: 0.55 });
+  assert.deepEqual(day, { ...unscaled, style: { fontSize: 11 * 1.6, lineHeight: 16 * 1.6, letterSpacing: 0.55 * 1.6, minHeight: 2 * 16 * 1.6, includeFontPadding: false } });
 });

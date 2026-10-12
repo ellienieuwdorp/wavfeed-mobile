@@ -4,7 +4,7 @@
  */
 import { usePlayerActions, type PlayableRelease } from '@/components/player/playerState';
 import type { ApiItemType } from '@/domain/apiTypes';
-import { creditLine } from '@/domain/credit';
+import { creditLine, type CreditLine } from '@/domain/credit';
 import { hueFor, releaseArtUrl } from '@/lib/format';
 
 export type RowRelease = {
@@ -26,9 +26,14 @@ export function playableItemType(itemType: ApiItemType): PlayableRelease['itemTy
   return itemType === 'a' ? 'album' : 'track';
 }
 
+/** The credit line's two names for a Release (task 0071, decision 11). */
+export function creditOf(item: RowRelease): CreditLine {
+  return creditLine({ pageName: item.pageName, artistCredit: item.artistCredit, label: item.label ?? null });
+}
+
 /** The name a row, the spoken row and the player call the artist: the credit, else the Page's name (decisions 11, 18). */
 export function artistOf(item: RowRelease): string {
-  return creditLine({ pageName: item.pageName, artistCredit: item.artistCredit, label: item.label ?? null }).artist;
+  return creditOf(item).artist;
 }
 
 export function toPlayable(item: RowRelease): PlayableRelease {

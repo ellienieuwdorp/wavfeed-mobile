@@ -1,8 +1,9 @@
 /**
  * Bought on the store (DESIGN-UI section 3, The Bought view): "By release week" is the weekly chart, top three a week with
  * "Show all N"; "Bought by many" lists every Release in the week it reached the chosen number of people you follow, picked in
- * the menu under the mode's line in that mode only. Rows carry the faces of who bought it, which open the Bought by sheet,
- * and the label; quiet runs say their dates and stop. A switch places what one read holds (task 0036): the picker and its
+ * the menu under the mode's line in that mode only. Rows are New releases' own, the release day, the credit line and the
+ * faces of who bought it, which open the Bought by sheet (task 0071, decisions 10 to 12); quiet runs say their dates and
+ * stop. No Upcoming shelf (decision 14). A switch places what one read holds (task 0036): the picker and its
  * line take the new mode at once, the rows follow in a deferred render with a spinner closing the line until they land,
  * and only a first screen of them mounts before the list grows in its own batches, since swapping the whole render window
  * in one commit (about 150 rows at the default window) is what held the old rows on screen for seconds.
@@ -11,7 +12,6 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } fro
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { useAppBar } from '@/components/AppBar';
-import { Buyers, buyersFacts } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { GapRow } from '@/components/GapRow';
 import { MenuSelect } from '@/components/MenuSelect';
@@ -19,7 +19,6 @@ import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented, type Segment } from '@/components/Segmented';
-import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
 import {
   BOUGHT_THRESHOLDS,
@@ -30,12 +29,11 @@ import {
   expanderLabel,
   outOnPhrase,
   thresholdOptionLabel,
-  tracksOutPhrase,
   type BoughtMode,
 } from '@/copy';
 import type { ApiBoughtCrossedResponse, ApiBoughtResponse, ApiFeedItem } from '@/domain/apiTypes';
 import { boughtHalves, type BoughtHalves } from '@/domain/boughtChart';
-import { parseIsoDate, releaseDay as localDayOf, startOfWeek } from '@/lib/dates';
+import { calendarDaysBetween, parseIsoDate, releaseDay as localDayOf, startOfWeek } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildSectionsFromWeeks, buildWeekSections } from '@/lib/weekSections';
 import { useLiveQuery } from '@/state/appState';
@@ -61,37 +59,42 @@ const THRESHOLD_OPTIONS = BOUGHT_THRESHOLDS.map((n) => ({ value: n, label: thres
 
 type Choice = { readonly mode: BoughtMode; readonly threshold: number };
 
-type Answer = { mode: 'released'; upcoming: BoughtHalves['upcoming']; data: ApiBoughtResponse } | { mode: 'crossed'; threshold: number; data: ApiBoughtCrossedResponse };
+type Answer = { mode: 'released'; data: ApiBoughtResponse } | { mode: 'crossed'; threshold: number; data: ApiBoughtCrossedResponse };
 
 type Item =
   | { key: string; kind: 'header'; choice: Choice; switching: boolean }
   | { key: string; kind: 'empty'; nothing: string }
-  | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: ApiFeedItem }
+  | { key: string; kind: 'release'; release: ApiFeedItem; day: string | null; upcoming: boolean; rule: boolean }
   | { key: string; kind: 'all'; week: string; expanded: boolean; total: number }
   | { key: string; kind: 'gap'; text: string };
 
 /** The chart files only what is out; "Bought by many" goes by purchase week, so it places both halves. */
 function answerOf(held: BoughtHalves, choice: Choice): Answer {
-  if (choice.mode === 'released') return { mode: 'released', upcoming: held.upcoming, data: boughtView(held.out, { mode: 'released' }) };
+  if (choice.mode === 'released') return { mode: 'released', data: boughtView(held.out, { mode: 'released' }) };
   return { mode: 'crossed', threshold: choice.threshold, data: boughtView([...held.out, ...held.upcoming], { mode: 'crossed', threshold: choice.threshold }) };
 }
 
-/** Bought's cards count the Tracks that play as New releases' do, and draw no Drop rows (task 0041, decisions 9 and 10). */
-function shelfOf(upcoming: BoughtHalves['upcoming'], at: Date): readonly ShelfCard[] {
-  return upcoming.flatMap((r) => {
-    if (r.releaseDate === null) return [];
-    const on = localDayOf(r.releaseDate.toISOString());
-    const count = tracksOutPhrase(r.item.numStreamableTracks, r.item.numTracks);
-    return [{ key: `${r.item.itemType}:${r.item.itemId}`, release: r.item, day: dayLabel(on, at), out: outOnPhrase(on, at), count, buyers: r.item.buyers }];
+/**
+ * A row's day as New releases says it, "out Tue 13 Oct" while not out yet, when it also carries the "1/4" pill (task
+ * 0071, decisions 10 and 12); no day for an undated purchase.
+ */
+function dayOf(release: ApiFeedItem, at: Date): { day: string | null; upcoming: boolean } {
+  if (release.releaseDate === null) return { day: null, upcoming: false };
+  const on = localDayOf(release.releaseDate);
+  return calendarDaysBetween(on, at) < 0 ? { day: outOnPhrase(on, at), upcoming: true } : { day: dayLabel(on, at), upcoming: false };
+}
+
+/** Each week's rows, the last with no hairline above what follows (task 0071, decision 10). */
+function pushRows(list: Item[], week: string, releases: readonly ApiFeedItem[], at: Date) {
+  releases.forEach((r, n) => {
+    list.push({ key: `${week}:${r.itemType}:${r.itemId}`, kind: 'release', release: r, ...dayOf(r, at), rule: n < releases.length - 1 });
   });
 }
 
 function rowsOf(answer: Answer, at: Date, open: ReadonlySet<string>): Item[] {
   const list: Item[] = [];
   if (answer.mode === 'released') {
-    if (answer.upcoming.length > 0) list.push({ key: 'shelf', kind: 'shelf', cards: shelfOf(answer.upcoming, at) });
     const sections = buildSectionsFromWeeks(
       answer.data.weeks.map((w) => ({ start: startOfWeek(parseIsoDate(w.weekStart)), entries: w.entries })),
       at,
@@ -105,7 +108,7 @@ function rowsOf(answer: Answer, at: Date, open: ReadonlySet<string>): Item[] {
       const expanded = open.has(section.key);
       list.push({ key: section.key, kind: 'week', heading: section.heading, detail: section.detail });
       const shown = expanded ? section.entries : section.entries.slice(0, BOUGHT_TOP_ENTRIES);
-      for (const r of shown) list.push({ key: `${section.key}:${r.itemType}:${r.itemId}`, kind: 'release', release: r });
+      pushRows(list, section.key, shown, at);
       if (section.entries.length > BOUGHT_TOP_ENTRIES) {
         list.push({ key: `all:${section.key}`, kind: 'all', week: section.key, expanded, total: section.entries.length });
       }
@@ -118,7 +121,7 @@ function rowsOf(answer: Answer, at: Date, open: ReadonlySet<string>): Item[] {
         continue;
       }
       list.push({ key: section.key, kind: 'week', heading: section.heading, detail: section.detail });
-      for (const e of section.entries) list.push({ key: `${section.key}:${e.item.itemType}:${e.item.itemId}`, kind: 'release', release: e.item });
+      pushRows(list, section.key, section.entries.map((e) => e.item), at);
     }
   }
   if (list.length === 0) {
@@ -175,8 +178,9 @@ function Header({ choice, switching, setMode, setThreshold }: { choice: Choice; 
 }
 
 /** A cell re-rendered for its index or a rebuilt item ("Show all" shifts every cell after it) keeps its row while the Release is the same. */
-const BoughtRow = memo(function BoughtRow({ release }: { release: ApiFeedItem }) {
-  return <ReleaseRow release={release} facts={buyersFacts(release)} boughtBy={release.buyers} detail={<Buyers release={release} />} />;
+const BoughtRow = memo(function BoughtRow({ release, day, upcoming, rule }: { release: ApiFeedItem; day: string | null; upcoming: boolean; rule: boolean }) {
+  const tracksOut = upcoming ? release.numStreamableTracks : null;
+  return <ReleaseRow release={release} day={day} tracksOut={tracksOut} numTracks={release.numTracks} buyers={release.buyers} rule={rule} />;
 });
 
 function ShowAll({ label, onPress }: { label: string; onPress: () => void }) {
@@ -246,8 +250,6 @@ export default function Bought() {
           return <Header choice={item.choice} switching={item.switching} setMode={setMode} setThreshold={setThreshold} />;
         case 'empty':
           return <EmptyState filling={copy.empty.fillingBought} nothing={item.nothing} />;
-        case 'shelf':
-          return <UpcomingShelf cards={item.cards} more="/bought/upcoming" />;
         case 'week':
           return <WeekHead week={item.heading} range={item.detail} />;
         case 'gap':
@@ -255,7 +257,7 @@ export default function Bought() {
         case 'all':
           return <ShowAll label={expanderLabel(item.expanded, item.total)} onPress={() => toggle(item.week)} />;
         case 'release':
-          return <BoughtRow release={item.release} />;
+          return <BoughtRow release={item.release} day={item.day} upcoming={item.upcoming} rule={item.rule} />;
       }
     },
     [toggle],

@@ -1,18 +1,17 @@
 /**
- * Every Upcoming Release people you follow bought, the Bought shelf's "View more" (DESIGN-UI section 3, task 0037):
- * the weeks read forwards, nearest first, and a row is a Bought row with its release day as the trailing fact and
- * "1 of 4 tracks" after the label once a Track plays (task 0041, decision 9).
+ * Every Upcoming Release people you follow bought (DESIGN-UI section 3, task 0037): the weeks read forwards, nearest
+ * first, in New releases' rows. Nothing links here since the Bought view lost its shelf (task 0071, decision 14); the
+ * route goes with Bought's tab (task 0071, slice 4).
  */
 import { useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
-import { Buyers, buyersFacts } from '@/components/Buyers';
 import { EmptyState } from '@/components/EmptyState';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
-import { copy, dayLabel, outOnPhrase, spokenFacts, tracksOutPhrase } from '@/copy';
+import { copy, outOnPhrase } from '@/copy';
 import type { ApiFeedItem } from '@/domain/apiTypes';
 import { boughtHalves } from '@/domain/boughtChart';
 import { releaseDay } from '@/lib/dates';
@@ -24,7 +23,7 @@ import { readBoughtReleases } from '@/store/queries';
 type Item =
   | { key: string; kind: 'empty' }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: ApiFeedItem; day: string; out: string; count: string | null };
+  | { key: string; kind: 'release'; release: ApiFeedItem; day: string; rule: boolean };
 
 function render({ item }: { item: Item }) {
   switch (item.kind) {
@@ -33,15 +32,7 @@ function render({ item }: { item: Item }) {
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'release':
-      return (
-        <ReleaseRow
-          release={item.release}
-          spoken={spokenFacts([item.count, item.out])}
-          facts={buyersFacts(item.release, item.count, item.out)}
-          boughtBy={item.release.buyers}
-          detail={<Buyers release={item.release} fact={item.count} trailing={item.day} />}
-        />
-      );
+      return <ReleaseRow release={item.release} day={item.day} tracksOut={item.release.numStreamableTracks} numTracks={item.release.numTracks} buyers={item.release.buyers} rule={item.rule} />;
   }
 }
 
@@ -61,10 +52,9 @@ export default function UpcomingBought() {
     const upcoming = boughtHalves(held, new Date(gmtDay)).upcoming.flatMap((r) => (r.releaseDate === null ? [] : [{ item: r.item, on: dayOf(r.releaseDate) }]));
     for (const week of buildUpcomingWeekSections(upcoming, (r) => r.on, at)) {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
-      for (const r of week.entries) {
-        const count = tracksOutPhrase(r.item.numStreamableTracks, r.item.numTracks);
-        list.push({ key: `${r.item.itemType}:${r.item.itemId}`, kind: 'release', release: r.item, day: dayLabel(r.on, at), out: outOnPhrase(r.on, at), count });
-      }
+      week.entries.forEach((r, n) => {
+        list.push({ key: `${r.item.itemType}:${r.item.itemId}`, kind: 'release', release: r.item, day: outOnPhrase(r.on, at), rule: n < week.entries.length - 1 });
+      });
     }
     if (list.length === 0) list.push({ key: 'empty', kind: 'empty' });
     return list;

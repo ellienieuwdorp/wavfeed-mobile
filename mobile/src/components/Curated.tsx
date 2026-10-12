@@ -18,7 +18,7 @@ import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { AvatarStack } from './AvatarStack';
 import { Heart } from './Heart';
 import { PlayArt } from './PlayArt';
-import { heartFor } from './ReleaseRow';
+import { playableItemType } from './playable';
 import { RowMenu, RowSurface } from './RowMenu';
 import { Type } from './Type';
 
@@ -49,7 +49,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
       {(openMenu) => (
         <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
-            <Type numberOfLines={title.numberOfLines} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{item.title}</Type>
+            <Type numberOfLines={title.numberOfLines} allowFontScaling={title.allowFontScaling} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{item.title}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.pageName}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{releasedOnPhrase(item.releaseDate, item.latestStoryDate, now)}</Type>
           </View>
@@ -57,6 +57,11 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
       )}
     </RowMenu>
   );
+}
+
+/** The card's heart: the Release's key, its title for the label, and the surface it sits on. */
+function heartFor(release: ApiFeedItem) {
+  return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title, surface: 'row' as const };
 }
 
 /** The heart's drawn icon sits on the card's padding line; its 44pt or 48dp target reaches into the padding (DESIGN-UI section 12). */

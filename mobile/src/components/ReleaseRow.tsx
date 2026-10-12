@@ -1,31 +1,41 @@
 /**
- * One Release as a two-line list cell: artwork, "Title · Artist", a detail line, and the heart trailing (the v2 client
- * canvas, iOS and Android boards). The art is the row's play control (PlayArt, DESIGN-UI section 11); a press on the
- * body plays too, lighting the whole row in the track tone on the UI thread on iOS and drawing the ripple on Android,
- * where the body is one TalkBack element beside the art and the heart, carrying the row menu's items as its actions.
- * On iOS VoiceOver meets the whole row as one element that names the Release, its Page, `facts` and whether it is on
- * the wishlist, plays on activation and carries the same actions (VIS-9). The art, the body and the heart sit side by
- * side, none inside another's Pressable. The iOS separator starts at the text edge. A long press on the art or the body
- * opens the row menu (see RowMenu). New releases and Bought share it via the detail slot. A Drop's row starts at the
- * Track `from` names and its art speaks the facts in `spoken` (task 0041, decision 10).
+ * One Release as a list cell of three lines and a right edge (task 0071, decisions 10 to 13, the R5 canvas): 56pt art,
+ * then the day in small caps, the title and the credit line ("artist · Page or label", creditText). A Drop's "1/4" pill
+ * ends at the right edge on the title line and the faces of who bought it end at the same edge on the credit line, so
+ * the title truncates against the pill and the credit line against the faces. No heart: the long press menu and the
+ * screen reader's actions keep the wishlist item. The art is the row's play control (PlayArt, DESIGN-UI section 11); a
+ * press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and drawing the ripple on
+ * Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one element and on Android the
+ * body is one TalkBack button beside the art; both say the whole row (heardRow) and carry the row menu's items as their
+ * actions (VIS-9). The art and the body sit side by side, neither inside the other's Pressable. The iOS hairline runs
+ * from the text column to the screen's edge, left out where `rule` is false (above a week head) and around the row in
+ * the transport. A long press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track
+ * `from` names (task 0041, decision 10).
  */
 import type { ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import { copy, sep, spokenFacts } from '@/copy';
+import { creditText, spokenFacts, tracksOutPhrase, tracksOutPill } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { usePressMotion } from '@/player/motion';
-import { ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
+import { ripple, rowText, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
 
-import { Heart } from './Heart';
-import { PlayArt, useArtState } from './PlayArt';
-import { artistOf, playableItemType, usePlay, type RowRelease } from './playable';
-import { heardWishlist, type SpokenActions } from './rowActions';
+import { AvatarStack } from './AvatarStack';
+import { PlayArt, useArtState, useInTransport } from './PlayArt';
+import { creditOf, usePlay, type RowRelease } from './playable';
+import { heardRow, type HeardRow, type SpokenActions } from './rowActions';
 import { RowMenu } from './RowMenu';
+import { Type } from './Type';
 
 const ios = Platform.OS === 'ios';
+const ART = 56;
+const GAP = ios ? 12 : 16;
+const MIN_HEIGHT = ios ? 68 : 72;
+const TRAILING = 16;
+/** The iOS hairline starts at the text column: the 20pt gutter, the art and the gap. */
+const RULE_LEFT = 20 + ART + GAP;
 
 /**
  * Spread on a FlatList of these rows or of Upcoming's cards: `strictMode` memoises FlatList's row renderer (react-native
@@ -36,125 +46,194 @@ const ios = Platform.OS === 'ios';
  */
 export const ROW_LIST = { strictMode: true, removeClippedSubviews: false } as object;
 
-/** The heart lane's props for a Release: its key, its title for the label, and the row it sits on. */
-export function heartFor(release: RowRelease) {
-  return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title, surface: 'row' as const };
-}
-
 type RowProps = {
   release: RowRelease;
-  detail: ReactNode;
+  /** The eyebrow: "Wed 7" from dayLabel, or "out Tue 13 Oct" from outOnPhrase for a Drop or a Release not out yet. */
+  day: string | null;
+  /** The Tracks of a Drop or an Upcoming Release that play, and how many it has: the "1/4" pill. */
+  tracksOut?: number | null;
+  numTracks?: number | null;
+  /** The people you follow who bought it, as the faces. */
+  buyers: readonly ApiFanRef[];
   /** The Track a press starts at; the first that streams when absent. */
   from?: string | null;
-  /** From spokenFacts: what the art's label says after the title. */
-  spoken?: string;
-  /** From spokenFacts: the detail line as VoiceOver hears the iOS row, `spoken` when absent. */
-  facts?: string;
-  /** The Fans the detail line's faces name, offered to a screen reader as Bought by. */
-  boughtBy?: readonly ApiFanRef[];
+  /** The iOS hairline under the row; false above a week head or anything else that is not a row. */
+  rule: boolean;
 };
 
-type Spoken = { release: RowRelease; facts: string | undefined; onActivate: () => void; actions: SpokenActions };
-
 /**
- * The iOS row as one VoiceOver element (VIS-9): "Play Title by Artist", the facts and the hidden heart's state, activation
- * playing and the menu's items as its actions; touch still lands on the art, the body and the heart inside it. Only
- * SpokenRow reads the transport and the wishlist, so a new play or press re-renders the element and not the cells it
- * wraps. Android's row is a plain View.
+ * The "1/4" pill (task 0071, decision 12): tabular figures in a 1pt border on the surface. A row's pill in the dark sits
+ * on the row itself (`onRow`); a card's keeps the surface, as CSS5 draws them.
  */
-function RowElement({ spoken, style, children }: { spoken: Spoken | null; style: ViewStyle; children: ReactNode }) {
-  if (spoken === null) return <View style={style}>{children}</View>;
+export function Pill({ text, onRow = false }: { text: string; onRow?: boolean }) {
+  const { c, dark } = useTokens();
   return (
-    <SpokenRow {...spoken} style={style}>
-      {children}
-    </SpokenRow>
+    <View style={{ marginLeft: 'auto', flexShrink: 0, borderWidth: 1, borderColor: c.border, borderRadius: 5, paddingVertical: 2, paddingHorizontal: 5, backgroundColor: dark && onRow ? 'transparent' : c.surface }}>
+      <Type style={{ fontSize: 11.5, lineHeight: 12, fontWeight: '600', letterSpacing: 0.23, fontVariant: ['tabular-nums'], includeFontPadding: false, color: c.sub }}>{text}</Type>
+    </View>
   );
 }
 
-function SpokenRow({ release, facts, onActivate, actions, style, children }: Spoken & { style: ViewStyle; children: ReactNode }) {
+/** The faces at a line's right end, 2pt in from it as the canvas draws them. */
+export function Faces({ fans, cap }: { fans: readonly ApiFanRef[]; cap?: number }) {
+  if (fans.length === 0) return null;
+  return (
+    <View style={{ marginLeft: 'auto', marginRight: 2, flexShrink: 0 }}>
+      <AvatarStack fans={fans} cap={cap} opens />
+    </View>
+  );
+}
+
+/** The label the iOS row and the Android body say, kept current with the transport and the wishlist. */
+function useHeard(release: RowRelease, heard: HeardRow): { label: string; watch: ReactNode } {
   const { pause, watch } = useArtState(release);
   const membership = useMembership(release.itemType, release.itemId);
-  const named = copy.titleBy(release.title, artistOf(release));
-  const heard = spokenFacts([facts, heardWishlist(membership)]);
+  return { label: heardRow(heard, membership, pause), watch };
+}
+
+type Spoken = { release: RowRelease; heard: HeardRow; onActivate: () => void; actions: SpokenActions };
+
+/**
+ * The iOS row as one VoiceOver element (VIS-9): activation plays and the menu's items are its actions; touch still lands
+ * on the art and the body inside it. Only it reads the transport and the wishlist, so a new play or press re-renders
+ * the element and not the cells it wraps.
+ */
+function SpokenRow({ release, heard, onActivate, actions, style, children }: Spoken & { style: ViewStyle; children: ReactNode }) {
+  const { label, watch } = useHeard(release, heard);
   return (
-    <View
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={pause ? copy.pause(named, heard) : copy.play(named, heard)}
-      onAccessibilityTap={onActivate}
-      {...actions}
-      style={style}
-    >
+    <View accessible accessibilityRole="button" accessibilityLabel={label} onAccessibilityTap={onActivate} {...actions} style={style}>
       {watch}
       {children}
     </View>
   );
 }
 
-export function ReleaseRow({ release, detail, from, spoken, facts, boughtBy }: RowProps) {
-  const { c, type } = useTokens();
-  const play = usePlay();
-  const rule = ios ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border } : null;
-  const { width } = useWindowDimensions();
-  const { progress, onPressIn, onPressOut } = usePressMotion();
-  const lit = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) }));
-  const height = ios ? 60 : 64;
-  const art = ios ? 44 : 40;
-  const gap = ios ? 12 : 16;
-  const slop = (height - art) / 2;
+/** Android's body as one TalkBack button saying the whole row, the menu's items as its actions. */
+function TalkBackBody({ release, heard, actions, onPress, onLongPress, children }: { release: RowRelease; heard: HeardRow; actions: SpokenActions; onPress: () => void; onLongPress: () => void; children: ReactNode }) {
+  const { c } = useTokens();
+  const { label, watch } = useHeard(release, heard);
   return (
-    <RowMenu release={release} width={width} boughtBy={boughtBy}>
-      {(openMenu, actions) => (
-        <RowElement
-          spoken={ios ? { release, facts: facts ?? spoken, onActivate: () => play(release, from), actions } : null}
-          style={{ flexDirection: 'row', alignItems: 'center', minHeight: height, paddingLeft: type.gutter, paddingRight: ios ? 8 : 4, gap }}
-        >
-          {ios ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} /> : null}
-          <PlayArt release={release} size={art} radius={ios ? 6 : 8} onLongPress={openMenu} from={from} spoken={spoken} hitSlop={{ top: slop, bottom: slop, left: type.gutter }} />
-          <View style={[{ flex: 1, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center' }, rule]}>
-            <Pressable
-              onPress={() => play(release, from)}
-              onLongPress={openMenu}
-              onPressIn={ios ? onPressIn : undefined}
-              onPressOut={ios ? onPressOut : undefined}
-              unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
-              hitSlop={{ left: gap }}
-              accessible={!ios}
-              accessibilityRole={ios ? undefined : 'button'}
-              {...(ios ? null : actions)}
-              android_ripple={ripple(c.track)}
-              style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center', gap: 2, paddingVertical: 8 }}
-            >
-              <Text numberOfLines={1} style={{ fontSize: type.rowTitle, lineHeight: type.rowTitleLine, color: c.ink }}>
-                <Text style={{ fontWeight: ios ? '600' : '500' }}>{release.title}</Text>
-                <Text style={{ color: c.sub }}>{sep + release.pageName}</Text>
-              </Text>
-              {detail}
-            </Pressable>
-            <Heart {...heartFor(release)} />
-          </View>
-        </RowElement>
-      )}
-    </RowMenu>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
+      hitSlop={{ left: GAP }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      {...actions}
+      android_ripple={ripple(c.track)}
+      style={BODY}
+    >
+      {watch}
+      {children}
+    </Pressable>
   );
 }
 
-/** `trailing` keeps its own Text, faint, so the joined facts truncate before it does (DESIGN-UI section 3). */
-export function FactLine({ parts, trailing }: { parts: (string | null | undefined)[]; trailing?: string | null }) {
-  const { c, type } = useTokens();
-  const style = { fontSize: type.fact, lineHeight: type.factLine };
-  const line = (
-    <Text numberOfLines={1} style={[style, { color: c.sub }, trailing ? { flexShrink: 1 } : null]}>
-      {parts.filter(Boolean).join(sep)}
-    </Text>
-  );
-  if (!trailing) return line;
+/** The art's press area is the row's full height, the art centred in it, so no strip above or below it is dead. */
+const ART_COLUMN: ViewStyle = { alignSelf: 'stretch', justifyContent: 'center' };
+
+const BODY: ViewStyle = { flex: 1, alignSelf: 'stretch', justifyContent: 'center', gap: 1, paddingVertical: 9 };
+
+/**
+ * The row in the transport, lit in the track tone with no hairline under it; on iOS it also covers the hairline of the
+ * row above, which later cells draw over. Only it reads the transport, so a new play re-renders it and not the row.
+ */
+function RowLight({ release, rule }: { release: RowRelease; rule: boolean }) {
+  const { c } = useTokens();
+  const live = useInTransport(release);
   return (
-    <View style={{ flexDirection: 'row' }}>
-      {line}
-      <Text numberOfLines={1} style={[style, { flexShrink: 0, color: c.faint }]}>
-        {sep + trailing}
-      </Text>
-    </View>
+    <>
+      {live ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }]} /> : null}
+      {ios && live ? <View pointerEvents="none" style={[styles.cover, { backgroundColor: c.bg }]} /> : null}
+      {ios && rule && !live ? <View pointerEvents="none" style={[styles.rule, { backgroundColor: c.border }]} /> : null}
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  cover: { position: 'absolute', left: 0, right: 0, top: -StyleSheet.hairlineWidth, height: StyleSheet.hairlineWidth },
+  rule: { position: 'absolute', left: RULE_LEFT, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
+});
+
+export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, buyers, from, rule }: RowProps) {
+  const { c, type } = useTokens();
+  const play = usePlay();
+  const { width } = useWindowDimensions();
+  const { progress, onPressIn, onPressOut } = usePressMotion();
+  const lit = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) }));
+  const credit = creditOf(release);
+  const count = tracksOutPhrase(tracksOut, numTracks);
+  const pill = tracksOutPill(tracksOut, numTracks);
+  const heard: HeardRow = { title: release.title, credit, day, count, buyers };
+  const lines = (
+    <>
+      {day ? (
+        <Type numberOfLines={1} style={[rowText.eyebrow, { color: c.faint, marginBottom: 1 }]}>
+          {day}
+        </Type>
+      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Type numberOfLines={1} style={[rowText.title, { flexShrink: 1, color: c.ink }]}>
+          {release.title}
+        </Type>
+        {pill ? <Pill text={pill} onRow /> : null}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Type numberOfLines={1} style={[rowText.credit, { flexShrink: 1, color: c.sub }]}>
+          {creditText(credit)}
+        </Type>
+        <Faces fans={buyers} />
+      </View>
+    </>
+  );
+  const row: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: MIN_HEIGHT, paddingLeft: type.gutter, paddingRight: TRAILING, gap: GAP };
+  return (
+    <RowMenu release={release} width={width} boughtBy={buyers}>
+      {(openMenu, actions) => {
+        const art = (
+          <PlayArt
+            release={release}
+            size={ART}
+            radius={ios ? 6 : 8}
+            onLongPress={openMenu}
+            from={from}
+            spoken={count === null ? undefined : spokenFacts([count, day])}
+            hitSlop={{ left: type.gutter }}
+            style={ART_COLUMN}
+          />
+        );
+        if (!ios) {
+          return (
+            <View style={row}>
+              <RowLight release={release} rule={rule} />
+              {art}
+              <TalkBackBody release={release} heard={heard} actions={actions} onPress={() => play(release, from)} onLongPress={openMenu}>
+                {lines}
+              </TalkBackBody>
+            </View>
+          );
+        }
+        return (
+          <SpokenRow release={release} heard={heard} onActivate={() => play(release, from)} actions={actions} style={row}>
+            <RowLight release={release} rule={rule} />
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} />
+            {art}
+            <Pressable
+              onPress={() => play(release, from)}
+              onLongPress={openMenu}
+              onPressIn={onPressIn}
+              onPressOut={onPressOut}
+              unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
+              hitSlop={{ left: GAP }}
+              accessible={false}
+              style={BODY}
+            >
+              {lines}
+            </Pressable>
+          </SpokenRow>
+        );
+      }}
+    </RowMenu>
   );
 }

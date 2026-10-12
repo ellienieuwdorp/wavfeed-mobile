@@ -1,13 +1,14 @@
 /// <reference types="node" />
 /**
  * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
- * Upcoming card and a Drop row state, the release day a Drop row names (task 0041, decisions 9 and 10), and the line
- * under the player sheet's title.
+ * Upcoming card and a Drop row state, as words and as the pill (task 0041, decision 9; task 0071, decision 12), the
+ * release day a Drop row and a card name (task 0041, decision 10; task 0071, decision 14), and the line under the
+ * player sheet's title.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backTo, catchUpHeader, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase } from './copy';
+import { backTo, catchUpHeader, onDayPhrase, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase, tracksOutPill } from './copy';
 
 const at = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -32,18 +33,16 @@ test('while something plays, the catch-up reads as one line under the large titl
   assert.equal(catchUpHeader('getting set up', null), 'Getting set up');
 });
 
-test('the count shows once a Track plays and the total is known, plural by the total', () => {
-  assert.deepEqual(
-    [tracksOutPhrase(1, 4), tracksOutPhrase(2, 4), tracksOutPhrase(1, 1), tracksOutPhrase(6, 6)],
-    ['1 of 4 tracks', '2 of 4 tracks', '1 of 1 track', '6 of 6 tracks'],
-  );
-  assert.deepEqual([tracksOutPhrase(0, 4), tracksOutPhrase(1, null), tracksOutPhrase(null, 4), tracksOutPhrase(3, 2)], [null, null, null, null]);
+test('the count shows once a Track plays and the total is known, plural by the total, the pill when the words do', () => {
+  const shown = [[1, 4, '1 of 4 tracks', '1/4'], [2, 4, '2 of 4 tracks', '2/4'], [1, 1, '1 of 1 track', '1/1'], [6, 6, '6 of 6 tracks', '6/6']] as const;
+  for (const [out, total, words, pill] of shown) assert.deepEqual([tracksOutPhrase(out, total), tracksOutPill(out, total)], [words, pill]);
+  for (const [out, total] of [[0, 4], [1, null], [null, 4], [3, 2]] as const) assert.deepEqual([tracksOutPhrase(out, total), tracksOutPill(out, total)], [null, null]);
 });
 
-test('a Drop row names the release day with its month', () => {
-  const now = new Date(2026, 8, 29, 12);
-  assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
-  assert.equal(outOnPhrase(new Date(2026, 8, 29), now), 'out today');
+test('a Drop row and an Upcoming card name the release day with its month, even in this month', () => {
+  const now = new Date(2026, 9, 5, 12);
+  assert.deepEqual([outOnPhrase(new Date(2026, 9, 13), now), onDayPhrase(new Date(2026, 9, 13), now)], ['out Tue 13 Oct', 'Tue 13 Oct']);
+  assert.deepEqual([outOnPhrase(new Date(2026, 9, 5), now), onDayPhrase(new Date(2026, 9, 5), now)], ['out today', 'Today']);
 });
 
 test('the player names the Release under the Track only when the title line does not (finding VIS-17)', () => {

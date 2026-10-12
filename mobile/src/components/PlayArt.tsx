@@ -42,7 +42,9 @@ type Props = {
   onLongPress: OpenMenu;
   /** The Track a press starts at, a Drop's newest (task 0041, decision 10); the first that streams when absent. */
   from?: string | null;
-  /** Facts the label speaks after the title, from spokenFacts: an Upcoming card's count and release day (task 0041). */
+  /** What the label names before its facts: "Title by Artist" on an Upcoming card (heardParts); the title when absent. */
+  named?: string;
+  /** Facts the label speaks after the name, from spokenFacts: a card's credit, day, count and buyers (task 0071). */
   spoken?: string;
   hitSlop?: Insets | number;
   style?: StyleProp<ViewStyle>;
@@ -87,14 +89,19 @@ function PauseWatch({ onPause }: { onPause: (pause: boolean) => void }) {
 
 export type ArtState = { live: boolean; pause: boolean; watch: ReactNode };
 
+/** Whether `release` is the one in the transport, playing or not; it changes only when another Release plays. */
+export function useInTransport(release: RowRelease): boolean {
+  return isCurrent(usePlayerRelease(), release);
+}
+
 /** Whether `release` is the one in the transport and shows pause; render `watch` to keep `pause` current. */
 export function useArtState(release: RowRelease): ArtState {
-  const live = isCurrent(usePlayerRelease(), release);
+  const live = useInTransport(release);
   const [pause, setPause] = useState(false);
   return { live, pause: live && pause, watch: live ? <PauseWatch onPause={setPause} /> : null };
 }
 
-export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitSlop, style, children }: Props) {
+export function PlayArt({ release, size, radius, onLongPress, from, named, spoken, hitSlop, style, children }: Props) {
   const play = usePlay();
   const { live, pause, watch } = useArtState(release);
   const actions = useSpokenActions();
@@ -112,7 +119,7 @@ export function PlayArt({ release, size, radius, onLongPress, from, spoken, hitS
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       hitSlop={hitSlop}
       accessibilityRole="button"
-      accessibilityLabel={pause ? copy.pause(release.title, spoken) : copy.play(release.title, spoken)}
+      accessibilityLabel={pause ? copy.pause(named ?? release.title, spoken) : copy.play(named ?? release.title, spoken)}
       {...actions}
       style={style}
     >

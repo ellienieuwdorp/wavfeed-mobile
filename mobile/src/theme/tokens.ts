@@ -27,9 +27,20 @@ export const type = {
   sub: ios ? 13 : 14,
   body: 16,
   gutter: ios ? 20 : 16,
-  /** Android's body-large and body-medium line heights; iOS keeps the font's own. */
+  /** Android's body-large line height; iOS keeps the font's own. */
   rowTitleLine: ios ? undefined : 24,
-  factLine: ios ? undefined : 20,
+} as const;
+
+/**
+ * The three lines of a Release row and an Upcoming card (task 0071, decisions 10 and 14, the R5 canvas's CSS5): the day
+ * in small caps, the title and the credit line. Android takes Roboto's sizes and a lighter weight.
+ */
+export const rowText = {
+  eyebrow: { fontSize: 11, lineHeight: ios ? 14 : 16, fontWeight: ios ? '600' : '500', letterSpacing: 0.55, textTransform: 'uppercase' },
+  title: { fontSize: ios ? 15 : 16, lineHeight: ios ? 20 : 22, fontWeight: ios ? '600' : '500' },
+  /** A card's title keeps 15 on Android, at the card's weight. */
+  cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: ios ? '600' : '500' },
+  credit: { fontSize: ios ? 13 : 14, lineHeight: ios ? 18 : 20 },
 } as const;
 
 /** A Material state layer's ripple for a bounded surface, or for an icon button's 40dp circle when `radius` is given. */

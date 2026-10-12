@@ -29,7 +29,7 @@ import * as gatherSink from './gatherSink';
 const require = createRequire(import.meta.url);
 const ts = require('typescript') as typeof import('typescript');
 type Element = { readonly props: { readonly data: readonly Item[] } };
-type Item = { readonly kind: string; readonly key: string; readonly day?: string; readonly count?: string | null; readonly cards?: readonly { readonly day: string; readonly count: string | null }[] };
+type Item = { readonly kind: string; readonly key: string; readonly day?: string; readonly tracksOut?: number | null; readonly numTracks?: number | null; readonly cards?: readonly { readonly day: string }[] };
 type Slot = { value?: unknown; deps?: readonly unknown[]; cleanup?: () => void };
 
 function load(file: string, imports: Record<string, unknown>) {
@@ -164,6 +164,12 @@ function previewPage(playing: number): BandcampDocument {
   };
 }
 
+/** The "1/4" pill the Upcoming list draws on the shelf-held Release's row. */
+function pillOf(items: readonly Item[]): string | null | undefined {
+  const item = items.find((entry) => entry.key === `a:${PREORDER_ITEM_ID}`);
+  return item === undefined ? undefined : copy.tracksOutPill(item.tracksOut ?? null, item.numTracks ?? null);
+}
+
 async function seedUndetailedUpcoming(db: SQLiteDatabase) {
   await insertRawDocument(db, { endpoint: 'following_bands', payload: followingBandsFirstPage(), fetchedAt: '2026-09-29T10:00:00.000Z' });
   await insertRawDocument(db, {
@@ -180,33 +186,32 @@ test('a preview page refreshes mounted Upcoming facts; duplicate pages, coalesce
   await seedUndetailedUpcoming(db);
   const at = mount('../app/(tabs)/releases/upcoming.tsx', db, true);
   t.after(at.unmount);
-  const count = (items: readonly Item[]) => items.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.count;
-  assert.equal(count(await at.read()), null, 'the shelf-held Release initially has no page-derived count');
+  assert.equal(pillOf(await at.read()), null, 'the shelf-held Release initially has no page-derived pill');
   const first = previewPage(1);
   assert.equal((await at.app().putRaw(first)).deduped, false);
   assert.equal((await db.getFirstAsync<{ n: number }>('select num_tracks as n from releases where item_id = ?', [PREORDER_ITEM_ID]))?.n, 5);
-  assert.equal(count(await at.read()), '1 of 5 tracks', 'the preview fold must reach the mounted Upcoming query without a gather');
+  assert.equal(pillOf(await at.read()), '1/5', 'the preview fold must reach the mounted Upcoming query without a gather');
   const version = at.app().version;
   assert.equal((await at.app().putRaw({ ...first, fetchedAt: new Date(Date.now() + 1).toISOString() })).deduped, true);
   await at.read();
   assert.equal(at.app().version, version, 'an identical page does not invalidate the view');
   await at.app().putRaw(previewPage(2));
   await at.app().putRaw(previewPage(3));
-  assert.equal(count(await at.read()), '1 of 5 tracks', 'rapid pages share the existing trailing invalidation');
+  assert.equal(pillOf(await at.read()), '1/5', 'rapid pages share the existing trailing invalidation');
   t.mock.timers.tick(1_999);
-  assert.equal(count(await at.read()), '1 of 5 tracks');
+  assert.equal(pillOf(await at.read()), '1/5');
   t.mock.timers.tick(1);
-  assert.equal(count(await at.read()), '3 of 5 tracks');
+  assert.equal(pillOf(await at.read()), '3/5');
   assert.equal(at.app().version, version + 1, 'both admitted pages share one version move');
   at.focus(false);
   await at.read();
   await at.app().putRaw(previewPage(4));
   t.mock.timers.tick(2_000);
-  assert.equal(count(await at.read()), '3 of 5 tracks', 'a hidden screen retains its last followed version');
+  assert.equal(pillOf(await at.read()), '3/5', 'a hidden screen retains its last followed version');
   t.mock.timers.tick(9_999);
-  assert.equal(count(await at.read()), '3 of 5 tracks');
+  assert.equal(pillOf(await at.read()), '3/5');
   t.mock.timers.tick(1);
-  assert.equal(count(await at.read()), '4 of 5 tracks', 'the settled hidden screen follows the successful preview fold');
+  assert.equal(pillOf(await at.read()), '4/5', 'the settled hidden screen follows the successful preview fold');
   const after = at.app().version;
   await at.app().putRaw({ endpoint: CRUMBS_PAGE_ENDPOINT, payload: { url: PREORDER_URL, status: 200, bytes: 50 }, fetchedAt: new Date().toISOString() });
   await at.read();
@@ -220,14 +225,14 @@ test('a preview page whose fold fails keeps the mounted answer and version while
   await seedUndetailedUpcoming(db);
   const at = mount('../app/(tabs)/releases/upcoming.tsx', db, true);
   t.after(at.unmount);
-  assert.equal((await at.read()).find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.count, null);
+  assert.equal(pillOf(await at.read()), null);
   const version = at.app().version;
   await db.execAsync("create trigger full before update on releases begin select raise(abort, 'database or disk is full'); end");
   await assert.rejects(at.app().putRaw(previewPage(1)), /database or disk is full/);
   t.mock.timers.tick(12_000);
   const answer = await at.read();
   assert.equal(at.app().version, version);
-  assert.equal(answer.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.count, null);
+  assert.equal(pillOf(answer), null);
   assert.equal((await countForProjection(db)).waiting, 1, 'the failed fold retains the committed observation');
 });
 
@@ -250,13 +255,15 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     const at = mount(file, db);
     t.after(at.unmount);
     const label = (items: readonly Item[]) => file.endsWith('/index.tsx') ? items.find((item) => item.kind === 'shelf')?.cards?.[0]?.day : items.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.day;
-    assert.equal(label(await at.read()), 'Tue 13');
+    // A card's day and an Upcoming row's "out" day both carry the month (task 0071, decisions 10 and 14).
+    const [before, onTheDay] = file.endsWith('/index.tsx') ? ['Tue 13 Oct', 'Today'] : ['out Tue 13 Oct', 'out today'];
+    assert.equal(label(await at.read()), before);
     t.mock.timers.tick(30_000);
-    assert.equal(label(await at.read()), 'Today', 'labels follow local midnight while the Release remains Upcoming');
+    assert.equal(label(await at.read()), onTheDay, 'labels follow local midnight while the Release remains Upcoming');
     t.mock.timers.tick(7_170_000);
     assert.equal(new Date().getHours(), 1);
     assert.equal(new Date().getUTCDate(), 12);
-    assert.equal(label(await at.read()), 'Today');
+    assert.equal(label(await at.read()), onTheDay);
     t.mock.timers.tick(30_000);
     assert.equal(new Date().getHours(), 2);
     assert.equal(new Date().getUTCDate(), 13);

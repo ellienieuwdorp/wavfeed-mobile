@@ -7,6 +7,7 @@
 import { Platform } from 'react-native';
 
 import type { ApiFanRef } from '@/domain/apiTypes';
+import type { CreditLine } from '@/domain/credit';
 import type { GatherPhase } from '@/fetcher/sink';
 import {
   calendarDaysBetween,
@@ -119,21 +120,36 @@ export function dayLabel(value: string | Date, now: Date): string {
 
 /**
  * "1 of 4 tracks": the Tracks of an Upcoming Release that play, once one does and the total is known (task 0041,
- * decision 9); a total under the count is not a known one. Counted by the total, so "1 of 1 track".
+ * decision 9); a total under the count is not a known one. Counted by the total, so "1 of 1 track". A screen reader
+ * hears it where a row or a card draws tracksOutPill.
  */
 export function tracksOutPhrase(out: number | null, total: number | null): string | null {
   if (out === null || total === null || out < 1 || out > total) return null;
   return `${out} of ${total} ${total === 1 ? 'track' : 'tracks'}`;
 }
 
+/** "1/4", the same count as the pill at a row's or a card's right edge (task 0071, decision 12). */
+export function tracksOutPill(out: number | null, total: number | null): string | null {
+  return tracksOutPhrase(out, total) === null ? null : `${out}/${total}`;
+}
+
 /**
- * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day. The month always shows, unlike in dayLabel, since a
- * Drop row sits under the week it was let out in, often another month's (finding VIS-6).
+ * "Tue 13 Oct", "Today" on the day: an Upcoming card's day (task 0071, decision 14). The month always shows, unlike in
+ * dayLabel, as it does in outOnPhrase.
+ */
+export function onDayPhrase(value: string | Date, now: Date): string {
+  if (isSameDay(value, now)) return 'Today';
+  const date = toDate(value);
+  return formatDatePart(date, { weekday: true, year: date.getFullYear() !== now.getFullYear() });
+}
+
+/**
+ * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day: the day of a Drop's row and of a row not out yet
+ * (task 0071, decision 10). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let
+ * out in, often another month's (finding VIS-6).
  */
 export function outOnPhrase(value: string | Date, now: Date): string {
-  if (isSameDay(value, now)) return 'out today';
-  const date = toDate(value);
-  return `out ${formatDatePart(date, { weekday: true, year: date.getFullYear() !== now.getFullYear() })}`;
+  return isSameDay(value, now) ? 'out today' : `out ${onDayPhrase(value, now)}`;
 }
 
 /**
@@ -143,6 +159,11 @@ export function outOnPhrase(value: string | Date, now: Date): string {
 export function sheetSubtitle(artist: string, releaseTitle: string, trackTitle: string | null): string {
   const same = trackTitle === null || trackTitle.trim().toLowerCase() === releaseTitle.trim().toLowerCase();
   return same ? artist : artist + sep + releaseTitle;
+}
+
+/** "Jay Mitta · Nyege Nyege Tapes" (task 0071, decision 11): one line, so the name after the separator truncates first. */
+export function creditText(line: CreditLine): string {
+  return line.extra === null ? line.artist : line.artist + sep + line.extra;
 }
 
 /** The facts a play control speaks after its title, comma separated as speech reads them. */
@@ -217,12 +238,10 @@ export function signalSentence(item: SignalSource, now: Date): string {
   return joinMiddot(parts);
 }
 
-/** A Release only the sweep knows has no actor, so it carries no sentence (DESIGN-UI section 3). */
-export function actorSentence(item: Pick<SignalSource, 'buyers' | 'wishlisters'>): string {
-  const buyers = describeFans(item.buyers);
-  if (buyers !== null) return `bought by ${buyers}`;
-  const wishlisters = describeFans(item.wishlisters);
-  return wishlisters === null ? '' : `wishlisted by ${wishlisters}`;
+/** "bought by dj_okonkwo and 1 other": what a row's or a card's faces say to a screen reader (task 0071, decision 12). */
+export function boughtByPhrase(fans: readonly ApiFanRef[]): string | null {
+  const buyers = describeFans(fans);
+  return buyers === null ? null : `bought by ${buyers}`;
 }
 
 export const SELF_RELEASED = 'self-released';
