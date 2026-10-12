@@ -4,7 +4,7 @@
  */
 import type { MutableSkippedCounts, ParsedFollowingBands } from './types';
 import { noSkips } from './types';
-import { asId, asRecord, readDate, readId } from './wire';
+import { asCount, asId, asRecord, readDate, readId } from './wire';
 
 export class FollowingBandsPayloadError extends Error {
   override readonly name = 'FollowingBandsPayloadError';
@@ -35,8 +35,8 @@ function readItemEntries(items: readonly unknown[], bandIds: Set<number>, skippe
 function isTerminal(followingBands: Record<string, unknown>, batchSize: number): boolean {
   if (Array.isArray(followingBands.items)) return followingBands.more_available === false;
   const sequence = asRecord(followingBands.following_bands);
-  const itemCount = sequence === undefined ? undefined : sequence.item_count;
-  return typeof itemCount === 'number' && batchSize >= itemCount;
+  const itemCount = asCount(sequence?.item_count);
+  return itemCount !== undefined && batchSize >= itemCount;
 }
 
 /** Parses `{ fanId, page, snapshotStartedAt, followingBands }` in either of its two shapes. */

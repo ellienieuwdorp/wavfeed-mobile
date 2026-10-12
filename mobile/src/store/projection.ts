@@ -36,6 +36,7 @@ import { reportCode } from '../tally/errors';
 import { foldFeedTrackRead, foldPageTrackRead, foldTrackPage } from './drops';
 import { BUSY_TIMEOUT_MS, type FoldConnection, withFoldLock } from './foldLock';
 import { countForProjection, listForProjection, type RawDocument } from './rawDocuments';
+import { completeSnapshot, invalidateSnapshot } from './snapshots';
 
 export const FOLD_BATCH_SIZE = 50;
 /** A fold beside a running gather commits after about this long, far inside `BUSY_TIMEOUT_MS` (PERF-2). */
@@ -48,9 +49,10 @@ export const REPLAY_STRETCH_MS = 1000;
  * a phone holding a pre-order dated by its feed entry mends itself after migration 5 (task 0041, decision 2); version 4
  * writes the Drops its Raw Documents already hold after migration 6 (decision 6); version 5 counts the Tracks a
  * phone's page names without an id (decision 4); version 6 lets the Track pages held open their Upcoming albums (task
- * 0067, decision 6).
+ * 0067, decision 6); version 7 validates whole membership snapshots before removals and replays catalog observations
+ * (task 0068).
  */
-export const PROJECTION_VERSION = 6;
+export const PROJECTION_VERSION = 7;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
 /** Set in the transaction that empties the derived tables, cleared in the one that writes the version (ARCH-1). */
 export const PROJECTION_REBUILDING_KEY = 'projectionRebuildingTo';
@@ -529,13 +531,16 @@ async function projectBandDetails({ db, run }: Folding, doc: RawDocument): Promi
   );
 }
 
-/** Only a terminal page of a walk that carried its start may sweep the follows it no longer lists. */
-async function projectFollowingBands({ run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
+/** A terminal page removes old follows only with the whole snapshot's page proof (task 0068). */
+async function projectFollowingBands({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseFollowingBands>;
   try {
     parsed = parseFollowingBands(doc.payload);
   } catch (err) {
-    if (err instanceof FollowingBandsPayloadError) return result('unparsable');
+    if (err instanceof FollowingBandsPayloadError) {
+      await invalidateSnapshot(db, doc);
+      return result('unparsable');
+    }
     throw err;
   }
   const seenAt = iso(parsed.snapshotStartedAt) ?? doc.fetchedAt;
@@ -549,20 +554,23 @@ async function projectFollowingBands({ run }: Folding, doc: RawDocument): Promis
     );
   }
   let removed = 0;
-  if (parsed.terminal && parsed.snapshotStartedAt !== null) {
+  if (parsed.snapshotStartedAt !== null && await completeSnapshot(db, doc, parsed.terminal, parsed.skipped.unparsable)) {
     const swept = await run('delete from follows where last_seen_at < ?', [parsed.snapshotStartedAt.toISOString()]);
     removed = swept.changes;
   }
   return result('projected', { followsUpserted: parsed.bandIds.length, followsRemoved: removed }, parsed.skipped);
 }
 
-/** Items are stamped with the walk's start, and only a terminal page removes what the snapshot stopped seeing. */
-async function projectWishlistItems({ run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
+/** Items carry the walk's start; only a validated complete snapshot removes older membership (task 0068). */
+async function projectWishlistItems({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseWishlistItems>;
   try {
     parsed = parseWishlistItems(doc.payload);
   } catch (err) {
-    if (err instanceof WishlistItemsPayloadError) return result('unparsable');
+    if (err instanceof WishlistItemsPayloadError) {
+      await invalidateSnapshot(db, doc);
+      return result('unparsable');
+    }
     throw err;
   }
   const snapshot = parsed.snapshotStartedAt.toISOString();
@@ -577,7 +585,7 @@ async function projectWishlistItems({ run }: Folding, doc: RawDocument): Promise
     );
   }
   let removed = 0;
-  if (parsed.terminal) {
+  if (await completeSnapshot(db, doc, parsed.terminal, parsed.skipped.unparsable)) {
     removed = (await run('delete from wishlist_items where last_seen_snapshot_at < ?', [snapshot])).changes;
   }
   return result('projected', { wishlistItemsUpserted: parsed.items.length, wishlistItemsRemoved: removed }, parsed.skipped);
@@ -669,10 +677,16 @@ async function foldDocument(folding: Folding, doc: RawDocument): Promise<Project
        on conflict (raw_document_id) do update set error = excluded.error`,
       [doc.id, doc.endpoint, error instanceof Error ? error.name : typeof error],
     );
+    await invalidateSnapshot(db, doc);
     reportCode('fold_failed', error);
     outcome = 'failed';
   }
   await db.execAsync('release fold_document');
+  await run(
+    `insert into projection_observation_progress (endpoint, last_observation_id) values (?, ?)
+     on conflict (endpoint) do update set last_observation_id = max(projection_observation_progress.last_observation_id, excluded.last_observation_id)`,
+    [doc.endpoint, doc.observationId],
+  );
   await run(
     `insert into projection_progress (endpoint, last_raw_id) values (?, ?)
      on conflict (endpoint) do update set last_raw_id = max(projection_progress.last_raw_id, excluded.last_raw_id)`,
@@ -686,7 +700,7 @@ async function foldDocument(folding: Folding, doc: RawDocument): Promise<Project
  * WAL one that read before another connection committed cannot then write, so each stretch takes the lock before it
  * lists what to fold.
  */
-const TAKE_WRITE_LOCK = 'update projection_progress set last_raw_id = last_raw_id where 0';
+const TAKE_WRITE_LOCK = 'update projection_observation_progress set last_observation_id = last_observation_id where 0';
 
 type FoldOptions = { readonly stretchMs: number; readonly connection: FoldConnection; readonly onProgress?: ReplayProgress };
 
@@ -767,7 +781,9 @@ export async function rebuild(db: SQLiteDatabase, onProgress?: ReplayProgress): 
         delete from wishlist_items;
         delete from follows;
         delete from projection_progress;
+        delete from projection_observation_progress;
         delete from projection_failures;
+        delete from projection_snapshots;
       `);
       await txn.runAsync('insert into kv (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [
         PROJECTION_REBUILDING_KEY,

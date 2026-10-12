@@ -50,6 +50,7 @@ export type FollowingBandsEnvelope = {
   readonly page: number;
   readonly snapshotStartedAt: string;
   readonly followingBands: unknown;
+  readonly snapshotPage?: SnapshotPage;
 };
 
 /** `wishlist_items`: `snapshot_started_at` is the walk's start (ISO). */
@@ -58,6 +59,14 @@ export type WishlistItemsEnvelope = {
   readonly snapshot_started_at: string;
   readonly request: unknown;
   readonly response: unknown;
+  readonly snapshotPage?: SnapshotPage;
+};
+
+/** The source page and request/answer cursors that prove a contiguous membership snapshot (task 0067). */
+export type SnapshotPage = {
+  readonly number: number;
+  readonly inputToken: string | null;
+  readonly nextToken: string | null;
 };
 
 /** The `stories` envelope of a feed-updates page, checked only as far as pagination needs. */

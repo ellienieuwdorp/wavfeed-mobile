@@ -15,50 +15,30 @@
  * that reason when Bandcamp gave one.
  */
 import { openURL } from 'expo-linking';
-import type { SQLiteDatabase } from 'expo-sqlite';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
-import type { WishlistFailure, WishlistWire, WishlistWriteKind } from '@/bandcamp/wishlist';
+import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 import { useNotice, type NoticeLine } from '@/components/noticeState';
 import { copy } from '@/copy';
-import { isDemoFan } from '@/demo/demo';
-import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import { devLog } from '@/lib/devLog';
 import { webUrl } from '@/lib/format';
 import { failedHaptic, turnedOnHaptic } from '@/lib/haptics';
-import { useAppState, type AppState } from '@/state/appState';
+import { useAppState } from '@/state/appState';
 import { standingOf } from '@/state/standing';
-import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
-import { readNewestBandcampReleaseUrl, readTracklist } from '@/store/queries';
 import { connectHref, wishlistActionFinished, type PressSurface } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
 
 import { wishlistCopy } from './copy';
-import { keyOf, loadMembership, shownOf, subscribe } from './membership';
+import { exchange, type PressFailure, type Sent, type WishlistTarget } from './exchange';
+import { keyOf, loadMembership, shownOf, subscribe, wishlistLifetime } from './membership';
 import { pressItem, type Tell } from './press';
 
-/** What a press acts on, and the Release whose Page the write has to name. */
-export type WishlistTarget = {
-  readonly itemType: ItemType;
-  readonly itemId: string;
-  readonly release: { readonly itemType: ItemType; readonly itemId: string };
-};
+export type { WishlistTarget } from './exchange';
 
 /** What a heart draws: `on` is the Fan's last press while its exchange travels, else what Bandcamp confirmed. */
 export type Membership = { readonly known: false } | { readonly known: true; readonly on: boolean };
-
-export type PressFailure = WishlistFailure | 'not_signed_in' | 'unknown_item' | 'not_on_release';
-type BandSource = 'page' | 'fetched_page' | 'row';
-type Sent = {
-  readonly failure: PressFailure | null;
-  readonly reason: string | null;
-  readonly band: { readonly id: string; readonly from: BandSource } | null;
-  readonly wire: WishlistWire | null;
-  /** The Release's page, where a refused press can be made by hand. */
-  readonly url?: string;
-};
 
 /**
  * What the item's hearts draw, a travelling press's intent over the confirmed answer. Each heart selects its own key's
@@ -67,88 +47,12 @@ type Sent = {
 export function useMembership(itemType: ItemType, itemId: string): Membership {
   const { db, version, gather } = useAppState();
   const key = keyOf(itemType, itemId);
-  const answer = useSyncExternalStore(subscribe, () => shownOf(db, key));
+  const listen = useCallback((listener: () => void) => subscribe(db, listener), [db]);
+  const answer = useSyncExternalStore(listen, () => shownOf(db, key));
   useEffect(() => loadMembership(db, version), [db, version]);
   const asked = gather.wishlistFetchedAt !== null || gather.wishlistAskedAt !== null;
   if (!asked || answer === 'unknown') return { known: false };
   return { known: true, on: answer === 'on' };
-}
-
-type Band = { id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null; url: string };
-
-/**
- * The server's order (api wishlist.ts): the stored page's `current.band_id`, a fresh page when none is held, the row.
- * The row is read first for its `url`, the page the write reads its crumb from, so a Release with no row is unknown.
- */
-async function readBand(app: AppState, release: WishlistTarget['release']): Promise<Band | null> {
-  const itemId = Number(release.itemId);
-  if (!Number.isSafeInteger(itemId)) return null;
-  const row = await app.db.getFirstAsync<{ band_id: number; url: string }>(
-    'select band_id, url from releases where item_type = ? and item_id = ?',
-    [release.itemType, itemId],
-  );
-  if (row === null) return null;
-  const stored = await readTracklist(app.db, release.itemType, itemId);
-  if (stored !== null) return { id: stored.bandId, from: 'page', tracklist: stored, url: row.url };
-  const answer = await app.session.fetchReleasePage(row.url, { itemType: release.itemType, itemId });
-  if (answer.kind === 'ok' && answer.value.kind === 'page') {
-    await app.putRaw(answer.value.document);
-    const fetched = await readTracklist(app.db, release.itemType, itemId);
-    if (fetched !== null) return { id: fetched.bandId, from: 'fetched_page', tracklist: fetched, url: row.url };
-  }
-  return { id: String(row.band_id), from: 'row', tracklist: null, url: row.url };
-}
-
-/** Bandcamp writes ids as numbers or digit strings; both sides are compared as canonical digits. */
-function sameId(left: string, right: string): boolean {
-  const canonical = (id: string) => id.trim().replace(/^0+(?=\d)/, '');
-  return canonical(left) === canonical(right);
-}
-
-async function writeMembership(db: SQLiteDatabase, target: WishlistTarget, bandId: string, on: boolean) {
-  const itemId = Number(target.itemId);
-  if (!on) {
-    await db.runAsync('delete from wishlist_items where item_type = ? and item_id = ?', [target.itemType, itemId]);
-    return;
-  }
-  const now = new Date().toISOString();
-  await db.runAsync(
-    `insert into wishlist_items (item_type, item_id, band_id, added_at, last_seen_snapshot_at) values (?, ?, ?, ?, ?)
-     on conflict (item_type, item_id) do update set
-       band_id = coalesce(excluded.band_id, wishlist_items.band_id),
-       last_seen_snapshot_at = max(excluded.last_seen_snapshot_at, wishlist_items.last_seen_snapshot_at)`,
-    [target.itemType, itemId, Number(bandId), now, now],
-  );
-}
-
-/** The documents are already stored by the time this answers. A Track press names a Track its Release holds. */
-async function exchange(app: AppState, target: WishlistTarget, action: WishlistWriteKind): Promise<Sent> {
-  const identity = await readKv<StoredIdentity>(app.db, IDENTITY_KEY);
-  // `useWishlistPress` turns these away before flipping; the stored identity is what the write names, so it is checked
-  // again. A sign-out after the press is not: it empties the jar, Bandcamp answers logged out and the heart reverts.
-  if (identity === null || isDemoFan(identity.fanId)) return { failure: 'not_signed_in', reason: null, band: null, wire: null };
-  const found = await readBand(app, target.release);
-  if (found === null) return { failure: 'unknown_item', reason: null, band: null, wire: null };
-  const band = { id: found.id, from: found.from };
-  const tracks = found.tracklist?.tracks ?? [];
-  if (target.itemType === 't' && !sameId(target.itemId, target.release.itemId) && tracks.length > 0) {
-    if (!tracks.some((track) => track.trackId !== null && sameId(track.trackId, target.itemId))) {
-      return { failure: 'not_on_release', reason: null, band, wire: null };
-    }
-  }
-  const item = {
-    fanId: identity.fanId,
-    itemType: target.itemType,
-    itemId: target.itemId.trim(),
-    bandId: band.id,
-    releaseUrl: found.url,
-    standInUrl: await readNewestBandcampReleaseUrl(app.db),
-  };
-  const outcome = action === 'add' ? await app.session.collectItem(item) : await app.session.uncollectItem(item);
-  for (const document of outcome.documents) await app.putRaw(document);
-  if (!outcome.ok) return { failure: outcome.failure, reason: outcome.reason, band, wire: outcome.wire, url: found.url };
-  await writeMembership(app.db, target, band.id, action === 'add');
-  return { failure: null, reason: null, band, wire: outcome.wire };
 }
 
 /**
@@ -209,6 +113,8 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
   const { track } = useSharing();
   return useCallback(
     (target, action) => {
+      const lifetime = wishlistLifetime(app.db);
+      if (!lifetime.active()) return false;
       const key = keyOf(target.itemType, target.itemId);
       const onTrack = key !== keyOf(target.release.itemType, target.release.itemId);
       const standing = standingOf(app.gather.identity, app.gather.pausedReason);
@@ -223,13 +129,15 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
         const sending: WishlistWriteKind = on ? 'add' : 'remove';
         let told = false;
         try {
-          const sent = await exchange(app, target, sending);
+          const sent = await exchange(app, target, sending, lifetime);
+          if (!lifetime.active() || sent === null) return null;
           told = true;
           track(wishlistActionFinished({ action: sending, surface, onTrack, failure: sent.failure, wire: sent.wire }));
           logPress(sending, target, sent);
           const { failure, reason, url } = sent;
           return failure === null ? null : () => tell(noticeFor(failure, reason, url));
         } catch (error: unknown) {
+          if (!lifetime.active()) return null;
           console.warn(`wishlist ${sending} ${key} threw:`, error instanceof Error ? error.message : String(error));
           if (!told) track(wishlistActionFinished({ action: sending, surface, onTrack, failure: 'other', wire: null }));
           return () => tell(noticeFor('other'));
@@ -239,9 +147,9 @@ export function useWishlistPress(surface: PressSurface): (target: WishlistTarget
         show(line);
         failedHaptic();
       };
-      if (action === 'add') turnedOnHaptic();
-      pressItem(key, action === 'add', { db: app.db, send, saved: app.invalidate });
-      return true;
+      const taken = pressItem(key, action === 'add', { db: app.db, send, saved: app.invalidate });
+      if (taken && action === 'add') turnedOnHaptic();
+      return taken;
     },
     [app, show, track, surface],
   );

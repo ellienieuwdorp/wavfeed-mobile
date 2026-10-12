@@ -216,7 +216,7 @@ export async function foldFeedTrackRead(
     readAt: doc.fetchedAt,
     newlyOut: [],
     async firstDay() {
-      const published = await heldPublishedAt(db, release, doc.id);
+      const published = await heldPublishedAt(db, release, doc.observationId);
       return published === null
         ? { at: release.storyDate.toISOString(), datedBy: 'story' }
         : { at: published, datedBy: 'published' };
@@ -230,7 +230,7 @@ export async function foldFeedTrackRead(
  */
 export async function foldPageTrackRead(db: SQLiteDatabase, doc: RawDocument, parsed: ParsedReleasePage): Promise<void> {
   if (parsed.numStreamableTracks === null) return;
-  const before = await latestReleasePageDocument(db, parsed.itemType, parsed.itemId, doc.id);
+  const before = await latestReleasePageDocument(db, parsed.itemType, parsed.itemId, doc.observationId);
   const newlyOut = newlyOutTracks(before === null ? null : storedTralbum(before.payload), storedTralbum(doc.payload));
   await foldTrackRead(db, {
     itemType: parsed.itemType,

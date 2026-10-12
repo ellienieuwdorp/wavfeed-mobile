@@ -28,7 +28,7 @@ export const SCREENS = [
   'other',
 ] as const;
 
-/** `PressFailure` in `src/wishlist/state.ts`, spelled out so this file imports nothing. */
+/** `PressFailure` in `src/wishlist/exchange.ts`, spelled out so this file imports nothing. */
 const PRESS_FAILURES = [
   'logged_out',
   'bandcamp_rejected',

@@ -8,6 +8,7 @@
  * newer bundle migrated past the code opens as it is and is reported (review finding ARCH-13).
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,10 +37,11 @@ import { markReleasePageAttempt, readOwedTrackPages, readUndatedReleases, readUp
 import { migrate } from './migrations';
 import { ensureProjectionVersion, fold, PROJECTION_VERSION_KEY } from './projection';
 import { listDrops, listUpcomingReleases, readNewReleases } from './queries';
-import { insertRawDocument, type RawDocumentInput } from './rawDocuments';
+import { countForProjection, insertRawDocument, listForProjection, type RawDocumentInput } from './rawDocuments';
 
 /** Undoes the migrations after `version`, so a test starts from the store a device held then. */
 async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
+  if (version < 10) await db.execAsync('drop trigger raw_document_observed; drop table projection_snapshots; drop table projection_observation_progress; drop table raw_document_observations;');
   if (version < 9) await db.execAsync('drop index releases_album_id;');
   if (version < 8) await db.execAsync('drop table projection_failures;');
   if (version < 7) await db.execAsync('alter table release_page_attempts drop column asked_as_phone;');
@@ -63,6 +65,15 @@ async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
   await db.runAsync('delete from schema_migrations where version > ?', [version]);
 }
 
+/** The old bundle's insertion contract, used only to construct pre-observation migration fixtures (task 0068). */
+async function insertLegacyRaw(db: SQLiteDatabase, input: RawDocumentInput): Promise<void> {
+  const payload = JSON.stringify(input.payload);
+  await db.runAsync(
+    'insert into raw_documents (endpoint, payload, fetched_at, content_hash) values (?, ?, ?, ?) on conflict (endpoint, content_hash) do nothing',
+    [input.endpoint, payload, input.fetchedAt, createHash('sha256').update(payload).digest('hex')],
+  );
+}
+
 /** Books a release page attempt as the code at store version 6 did, before migration 7 marked phone bookings. */
 async function bookAtVersion6(db: SQLiteDatabase, key: ReleaseKey, outcome: 'dated' | 'undated', at: Date): Promise<void> {
   await db.runAsync(
@@ -83,9 +94,9 @@ test('migration 3 deletes the feed pokes stored as HTML and leaves no crumb in t
   await heldAt(db, 2);
   const html = `<meta id="js-crumbs-data" data-crumbs="{&quot;collect_item_cb&quot;:&quot;${CRUMB}&quot;}">`;
   const url = 'https://bandcamp.com/ellie/feed';
-  await insertRawDocument(db, { endpoint: 'fan_feed_page', payload: { url, html }, fetchedAt: FETCHED_AT });
+  await insertLegacyRaw(db, { endpoint: 'fan_feed_page', payload: { url, html }, fetchedAt: FETCHED_AT });
   const feed = feedPayload({ entries: [] });
-  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feed, fetchedAt: FETCHED_AT });
+  await insertLegacyRaw(db, { endpoint: 'fan_dash_feed_updates', payload: feed, fetchedAt: FETCHED_AT });
 
   await migrate(db);
 
@@ -98,9 +109,9 @@ test('migration 3 deletes the feed pokes stored as HTML and leaves no crumb in t
 test('migration 4 adds the Tally outbox to a store at version 3, whose rows are a Tally or an Error Report', async () => {
   const { db } = await openTestStore();
   await heldAt(db, 3);
-  await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
+  await insertLegacyRaw(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [] }), fetchedAt: FETCHED_AT });
 
-  assert.equal(await migrate(db), 9);
+  assert.equal(await migrate(db), 10);
 
   await db.runAsync("insert into tally_outbox (kind, body, created_at) values ('tally', '[]', 1)");
   await assert.rejects(db.runAsync("insert into tally_outbox (kind, body, created_at) values ('note', '[]', 1)"), /CHECK/);
@@ -128,7 +139,7 @@ test('migration 5 and the replay it comes with put a pre-order the feed dated ba
     { endpoint: RELEASE_PAGE_ENDPOINT, payload: page, fetchedAt: '2026-09-29T10:05:00.000Z' },
     { endpoint: FEED_UPDATES_ENDPOINT, payload: announced(4), fetchedAt: '2026-09-29T11:00:00.000Z' },
   ];
-  for (const read of reads) await insertRawDocument(db, read);
+  for (const read of reads) await insertLegacyRaw(db, read);
   await db.execAsync(`
     insert into pages (band_id, name, url, first_seen_at, last_seen_at)
       values (${BAND_ID}, 'Nightgraft Recordings', 'https://nightgraft.bandcamp.com', '2026-09-29T10:00:00.000Z', '2026-09-29T11:00:00.000Z');
@@ -188,7 +199,6 @@ test("migration 7 makes an Upcoming page and a Drop's Track page read as a phone
 
   // The store as the phone held it at migration 6: the pre-order announced with one Track out, then read on 5 October
   // with a second out, a Drop dated by that read, and the Track page that could not date it.
-  await heldAt(db, 6);
   await insertRawDocument(db, {
     endpoint: FEED_UPDATES_ENDPOINT,
     payload: feedPayload({ entries: [preorderNrEntry()] }),
@@ -201,6 +211,7 @@ test("migration 7 makes an Upcoming page and a Drop's Track page read as a phone
   const days = async () => (await listDrops(db)).map((drop) => drop.day);
   assert.deepEqual(await days(), ['2026-10-05', '2026-09-29']);
 
+  await heldAt(db, 6);
   await migrate(db);
   migrated = true;
   const due = async (iso: string) => ({
@@ -232,7 +243,6 @@ test('migration 7 on a store whose clock ran ahead makes a page due once, not un
   const due = async (iso: string) => (await readUpcomingDue(db, 10, new Date(iso))).map((r) => r.itemId);
 
   // The phone read the page as a phone on 1 October with its clock a week fast, then the clock was put right.
-  await heldAt(db, 6);
   await insertRawDocument(db, {
     endpoint: FEED_UPDATES_ENDPOINT,
     payload: feedPayload({ entries: [preorderNrEntry()] }),
@@ -241,6 +251,7 @@ test('migration 7 on a store whose clock ran ahead makes a page due once, not un
   await fold(db);
   await read(phonePreorderTralbumBlob([2]), '2026-10-08T10:05:00.000Z');
 
+  await heldAt(db, 6);
   await migrate(db);
   migrated = true;
   assert.deepEqual(await due('2026-10-01T10:00:00.000Z'), [PREORDER_ITEM_ID]);
@@ -284,11 +295,40 @@ test('a store a newer bundle migrated past the code opens as it is, reported as 
   errorReports.setSink(db);
   await db.execAsync("create table later (x); insert into schema_migrations (version, applied_at) values (99, '2026-10-01')");
 
-  assert.equal(await migrate(db), 9);
+  assert.equal(await migrate(db), 10);
 
   assert.ok(await db.getFirstAsync("select name from sqlite_master where name = 'later'"));
   const rows = await db.getAllAsync<{ body: string }>("select body from tally_outbox where kind = 'error'");
   assert.deepEqual(rows.map((row) => (JSON.parse(row.body) as ErrorReport).code), ['schema_newer']);
   errorReports.setSink(null);
   close();
+});
+
+test('migration 10 preserves gapped raw provenance and cursors, and admits older-bundle inserts after rollback', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  // Build the old projected state, then remove the additive schema before exercising its migration.
+  const first = { endpoint: FEED_UPDATES_ENDPOINT, payload: feedPayload({ entries: [preorderNrEntry()] }), fetchedAt: FETCHED_AT };
+  const held = await insertRawDocument(db, first);
+  await fold(db);
+  await heldAt(db, 9);
+  await db.runAsync('update raw_documents set id = 3 where id = ?', [held.id]);
+  await db.runAsync('update stories set raw_document_id = 3');
+  await db.runAsync('update projection_progress set last_raw_id = 3');
+  const later = { ...first, payload: feedPayload({ entries: [preorderNrEntry({ item_id: PREORDER_ITEM_ID + 1, album_id: PREORDER_ITEM_ID + 1 })] }) };
+  await insertLegacyRaw(db, later);
+  await db.runAsync('update raw_documents set id = 7 where id = 4');
+
+  await migrate(db);
+
+  assert.deepEqual(await countForProjection(db), { waiting: 1, held: 2 });
+  const pending = await listForProjection(db, 10);
+  assert.deepEqual(pending.map((doc) => [doc.id, doc.observationId, doc.fetchedAt]), [[7, 7, FETCHED_AT]]);
+  await fold(db);
+  assert.deepEqual((await db.getAllAsync<{ raw_document_id: number }>('select raw_document_id from stories order by raw_document_id')).map((row) => row.raw_document_id), [3, 7]);
+  await insertLegacyRaw(db, { ...first, payload: feedPayload({ entries: [preorderNrEntry({ item_id: PREORDER_ITEM_ID + 2, album_id: PREORDER_ITEM_ID + 2 })] }) });
+  const observed = await listForProjection(db, 10);
+  assert.deepEqual(observed.map((doc) => [doc.id, doc.observationId]), [[8, 8]], 'the schema trigger observes the legacy writer');
+  await fold(db);
+  assert.equal((await db.getFirstAsync<{ n: number }>('select count(*) as n from stories'))?.n, 3);
 });

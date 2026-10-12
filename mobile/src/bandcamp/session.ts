@@ -18,7 +18,7 @@ import {
 import { Platform } from 'react-native';
 
 import { utf8Bytes } from '../domain/hash';
-import { asRecord } from '../domain/wire';
+import { asCount, asRecord } from '../domain/wire';
 import { SAMPLE_MODE } from '../dev/sampleMode';
 import { readJsonAttribute } from './htmlBlob';
 import {
@@ -338,17 +338,24 @@ export class BandcampSession {
     const followingBands = extractFollowingBands(first.text);
     if (followingBands === null) return { kind: 'error', status: first.status };
 
-    await onDocument({
-      endpoint: FOLLOWING_BANDS_ENDPOINT,
-      payload: { fanId, page: 1, snapshotStartedAt, followingBands },
-      fetchedAt,
-    });
     const sequence = asRecord(followingBands.following_bands);
-    const itemCount = finiteNumber(sequence?.item_count);
+    const itemCount = asCount(sequence?.item_count);
     let token = typeof sequence?.last_token === 'string' ? sequence.last_token : null;
     let seen = countEntries(asRecord(followingBands.item_cache)?.following_bands);
-    let complete = itemCount !== null && seen >= itemCount;
+    let complete = itemCount !== undefined && seen >= itemCount;
     let pages = 1;
+
+    await onDocument({
+      endpoint: FOLLOWING_BANDS_ENDPOINT,
+      payload: {
+        fanId, page: 1, snapshotStartedAt, followingBands,
+        snapshotPage: {
+          number: 1, inputToken: null,
+          nextToken: complete ? null : token,
+        },
+      },
+      fetchedAt,
+    });
 
     for (let page = 2; page <= FOLLOWING_BANDS_MAX_PAGES && !complete && token !== null; page += 1) {
       const request = { fan_id: fanId, older_than_token: token, count: FOLLOWING_BANDS_PAGE_SIZE };
@@ -366,7 +373,10 @@ export class BandcampSession {
 
       await onDocument({
         endpoint: FOLLOWING_BANDS_ENDPOINT,
-        payload: { fanId, page, snapshotStartedAt, followingBands: body },
+        payload: {
+          fanId, page, snapshotStartedAt, followingBands: body,
+          snapshotPage: { number: page, inputToken: token, nextToken: body.more_available === false ? null : body.last_token ?? null },
+        },
         fetchedAt: pageFetchedAt,
       });
       pages += 1;
@@ -408,7 +418,10 @@ export class BandcampSession {
 
       await onDocument({
         endpoint: WISHLIST_ITEMS_ENDPOINT,
-        payload: { url, snapshot_started_at: snapshotStartedAt, request, response: body },
+        payload: {
+          url, snapshot_started_at: snapshotStartedAt, request, response: body,
+          snapshotPage: { number: page + 1, inputToken: token, nextToken: body.more_available === false ? null : body.last_token ?? null },
+        },
         fetchedAt,
       });
       pages += 1;

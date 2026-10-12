@@ -11,6 +11,12 @@ import { reportCode } from '../tally/errors';
 
 type Migration = { readonly version: number; readonly sql: string };
 
+const OBSERVATION_SOURCE = `select id, endpoint,
+  case endpoint
+    when 'band_details' then cast(json_extract(payload, '$.bandId') as text)
+    when 'release_page' then json_extract(payload, '$.itemType') || ':' || cast(json_extract(payload, '$.itemId') as text)
+  end as source_key, fetched_at from raw_documents`;
+
 const MIGRATIONS: readonly Migration[] = [
   {
     version: 1,
@@ -225,6 +231,44 @@ const MIGRATIONS: readonly Migration[] = [
     version: 9,
     sql: `
       create index releases_album_id on releases (item_type, album_id, item_id);
+    `,
+  },
+  {
+    // Immutable bodies are observed in their own order, including a catalog's return to an old body. The trigger
+    // also admits new bodies written by a rolled-back bundle; legacy cursors keep physical raw ids (task 0068).
+    version: 10,
+    sql: `
+      create table raw_document_observations (
+        id integer primary key autoincrement,
+        raw_document_id integer not null references raw_documents(id) on delete cascade,
+        endpoint text not null,
+        source_key text,
+        fetched_at text not null
+      );
+      create index raw_document_observations_source on raw_document_observations (endpoint, source_key, id desc);
+      create index raw_document_observations_body on raw_document_observations (raw_document_id, id);
+      insert into raw_document_observations (id, raw_document_id, endpoint, source_key, fetched_at)
+        select id, id, endpoint, source_key, fetched_at from (${OBSERVATION_SOURCE}) order by id;
+      create trigger raw_document_observed after insert on raw_documents begin
+        insert into raw_document_observations (raw_document_id, endpoint, source_key, fetched_at)
+          ${OBSERVATION_SOURCE} where id = new.id;
+      end;
+      create table projection_observation_progress (
+        endpoint text primary key,
+        last_observation_id integer not null
+      );
+      insert into projection_observation_progress (endpoint, last_observation_id)
+        select endpoint, last_raw_id from projection_progress;
+      create table projection_snapshots (
+        endpoint text not null,
+        snapshot_started_at text not null,
+        next_page integer not null default 1,
+        next_token text,
+        seen_tokens text not null default '[]',
+        invalid integer not null default 0,
+        complete integer not null default 0,
+        primary key (endpoint, snapshot_started_at)
+      );
     `,
   },
 ];

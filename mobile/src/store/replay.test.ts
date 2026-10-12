@@ -94,6 +94,7 @@ test('a store failure fails the fold with the cursor where it was, and the next 
 
   assert.deepEqual(await db.getAllAsync('select * from projection_failures'), []);
   assert.deepEqual(await db.getAllAsync('select * from projection_progress'), []);
+  assert.deepEqual(await db.getAllAsync('select * from projection_observation_progress'), []);
   assert.deepEqual(await reportedCodes(), []);
   await db.execAsync('drop trigger full');
   assert.equal((await fold(db)).documentsProcessed, 2);
@@ -107,6 +108,7 @@ test('a replay cut short resumes from the cursors on the next launch and empties
   await setKv(PROJECTION_REBUILDING_KEY, PROJECTION_VERSION);
   await setKv(PROJECTION_VERSION_KEY, PROJECTION_VERSION - 1);
   await db.runAsync('update projection_progress set last_raw_id = 1');
+  await db.runAsync('update projection_observation_progress set last_observation_id = 1');
   await db.runAsync('delete from stories where item_id <> 7000');
   await db.runAsync("insert into fans (fan_id, username, first_seen_at, last_seen_at) values (?, 'held', '', '')", [LEFT_BY_REPLAY]);
 
@@ -129,6 +131,7 @@ test('a replay reports its progress after each stretch, counting a resumed one f
 
   await setKv(PROJECTION_REBUILDING_KEY, PROJECTION_VERSION);
   await db.runAsync('update projection_progress set last_raw_id = 1');
+  await db.runAsync('update projection_observation_progress set last_observation_id = 1');
   const resumed: [number, number][] = [];
   await ensureProjectionVersion(db, (done, total) => resumed.push([done, total]));
   assert.deepEqual(resumed, [[2, 3], [3, 3]]);

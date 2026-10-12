@@ -8,7 +8,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { intentOf, membershipOf, patchMembership, setIntent } from './membership';
+import { intentOf, membershipOf, patchMembership, setIntent, wishlistLifetime, type WishlistLifetime } from './membership';
 
 /** Raises the failure's notice; an exchange that went through answers null. */
 export type Tell = () => void;
@@ -21,30 +21,41 @@ export type Travel = {
   readonly saved: () => void;
 };
 
-const latest = new Map<string, Travel>();
+const travels = new WeakMap<WishlistLifetime, Map<string, Travel>>();
 
-export function pressItem(key: string, on: boolean, travel: Travel): void {
-  const travelling = intentOf(key) !== null;
+export function pressItem(key: string, on: boolean, travel: Travel): boolean {
+  const lifetime = wishlistLifetime(travel.db);
+  if (!lifetime.active()) return false;
+  let latest = travels.get(lifetime);
+  if (latest === undefined) {
+    latest = new Map();
+    travels.set(lifetime, latest);
+  }
+  const travelling = intentOf(travel.db, key) !== null;
   latest.set(key, travel);
-  setIntent(key, on);
-  if (!travelling) void carry(key, on);
+  setIntent(travel.db, key, on);
+  if (!travelling) void carry(lifetime, latest, key, on);
+  return true;
 }
 
-async function carry(key: string, sent: boolean): Promise<void> {
+async function carry(lifetime: WishlistLifetime, latest: Map<string, Travel>, key: string, sent: boolean): Promise<void> {
+  if (!lifetime.active()) return;
   const travel = latest.get(key);
   if (travel === undefined) return;
   const tell = await travel.send(sent);
-  const intent = intentOf(key) ?? sent;
+  // A sent remote write cannot be recalled; its old owner publishes nothing and sends no follow-up (task 0068).
+  if (!lifetime.active()) return;
+  const intent = intentOf(travel.db, key) ?? sent;
   if (tell === null) {
-    patchMembership(key, sent);
+    patchMembership(travel.db, key, sent);
     travel.saved();
-    if (intent !== sent) return carry(key, intent);
+    if (intent !== sent) return carry(lifetime, latest, key, intent);
     latest.delete(key);
-    setIntent(key, null);
+    setIntent(travel.db, key, null);
     return;
   }
   const truth = membershipOf(travel.db, key) === 'on';
   latest.delete(key);
-  setIntent(key, null);
+  setIntent(travel.db, key, null);
   if (intent !== truth) tell();
 }

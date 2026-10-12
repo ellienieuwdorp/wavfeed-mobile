@@ -26,6 +26,7 @@ import type { GatherReason } from '@/fetcher/turn';
 import { deleteStoreFile, emptyStore, fold, insertRawDocument, openStore } from '@/store';
 import type { Tally } from '@/tally/catalogue';
 import { errorReports, reportCode } from '@/tally/errors';
+import { retireWishlist } from '@/wishlist/membership';
 
 import { loadGatherState, replayAtLaunch } from './gatherSink';
 
@@ -139,6 +140,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
 
   const removeStore = useCallback(async () => {
     if (!db) return;
+    await retireWishlist(db);
     removed.add(db);
     setDb(null);
     errorReports.setSink(null);

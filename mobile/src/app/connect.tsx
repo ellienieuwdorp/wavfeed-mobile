@@ -25,6 +25,7 @@ import { Glyph } from '@/components/Glyph';
 import { connectFrom, failSignIn, finishSignIn, openSignIn, type SignInFailure, type SignInVisit } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { beginWishlist, retireWishlist } from '@/wishlist/membership';
 
 const ios = Platform.OS === 'ios';
 /** The header's Cancel reads the tokens itself: `Stack.Screen` hands `headerLeft` over in a layout effect, one render late. */
@@ -137,7 +138,9 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       }
       let held = await readStoredIdentity(app.db);
       if (held !== null && isDemoFan(held.fanId)) {
+        await retireWishlist(app.db);
         await emptyStore(app.db);
+        beginWishlist(app.db);
         held = null;
       }
       if (held !== null && held.fanId !== probe.value.fanId) {

@@ -118,6 +118,23 @@ test('the feed and the pages write a Drop per rise, a Track page dates the later
   close();
 });
 
+test('a Drop compares against the previous observation when an earlier page body returned', async (t) => {
+  const { db, close } = await gathered([
+    ...ANNOUNCED,
+    albumRead('2026-10-02T12:00:00.000Z', [2, 3]),
+    albumRead('2026-10-03T12:00:00.000Z', [2]),
+    albumRead('2026-10-04T12:00:00.000Z', [2, 3, 4]),
+  ]);
+  t.after(close);
+  const held = () => db.getFirstAsync<{ after_read_at: string; track_ids: string }>(
+    "select after_read_at, track_ids from drops where item_type = 'a' and item_id = ? and day = '2026-10-04'", [PREORDER_ITEM_ID],
+  );
+  const expected = { after_read_at: '2026-10-03T12:00:00.000Z', track_ids: JSON.stringify([preorderTrackId(3), preorderTrackId(4)]) };
+  assert.deepEqual({ ...await held() }, expected);
+  await rebuild(db);
+  assert.deepEqual({ ...await held() }, expected);
+});
+
 test("a Track page moment outside the reads' window leaves the Drop on its read's day, and the newest inside dates it", async () => {
   const later = [...ANNOUNCED, albumRead('2026-10-08T12:00:00.000Z', [2, 3, 4])];
   const edits = [

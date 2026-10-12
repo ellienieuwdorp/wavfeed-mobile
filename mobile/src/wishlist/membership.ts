@@ -5,57 +5,130 @@
  * since it may not hold the write. Beside the set sits each item's intent, what the Fan's last press asked for while
  * its exchange travels (ADR-0016 amendment 2026-10-02): every heart and row menu for that item draws the intent over
  * the set, so a press shows everywhere at once. Each heart selects its own key's answer, so a change re-renders only
- * the hearts it moves.
+ * the hearts it moves. Each database owns a lifetime, retired before its contents are removed; late reads and presses
+ * cannot publish into a replacement lifetime, including a Demo conversion that keeps the database handle (task 0068).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ItemType } from '@/domain/types';
 import { readWishlistState } from '@/store/queries';
 
-type At = { readonly db: SQLiteDatabase; readonly version: number };
-type Held = At & { readonly keys: ReadonlySet<string> };
+type Held = { readonly version: number; readonly keys: ReadonlySet<string> };
+
+/** Captured by an exchange before it awaits, so a replacement on the same database cannot revive it (task 0068). */
+export type WishlistLifetime = {
+  readonly active: () => boolean;
+  /** Admits local persistence while active, tracks its drain, and returns false if retired before settlement (task 0068). */
+  readonly runLocal: (work: () => Promise<unknown>) => Promise<boolean>;
+};
+
+type Store = {
+  held: Held | null;
+  inflight: { readonly version: number } | null;
+  intents: ReadonlyMap<string, boolean>;
+  generation: number;
+  retired: boolean;
+  readonly lifetime: WishlistLifetime;
+  readonly listeners: Set<() => void>;
+  readonly local: Set<Promise<boolean>>;
+};
 
 /** One heart's answer: `unknown` until a read of this store has landed. */
 export type KeyMembership = 'unknown' | 'on' | 'off';
 
-let held: Held | null = null;
-let inflight: At | null = null;
-let intents: ReadonlyMap<string, boolean> = new Map();
-let generation = 0;
-const listeners = new Set<() => void>();
+const stores = new WeakMap<SQLiteDatabase, Store>();
+
+function fresh(listeners = new Set<() => void>()): Store {
+  const store: Store = {
+    held: null, inflight: null, intents: new Map(), generation: 0, retired: false,
+    listeners, local: new Set(),
+    lifetime: {
+      active: () => !store.retired,
+      runLocal(work) {
+        if (store.retired) return Promise.resolve(false);
+        // Registration precedes work, including synchronous callbacks inside it; retired queued work never starts.
+        const operation = Promise.resolve().then(async () => {
+          if (store.retired) return false;
+          await work();
+          return !store.retired;
+        });
+        store.local.add(operation);
+        const settled = () => store.local.delete(operation);
+        void operation.then(settled, settled);
+        return operation;
+      },
+    },
+  };
+  return store;
+}
+
+function storeOf(db: SQLiteDatabase): Store {
+  let store = stores.get(db);
+  if (store === undefined) {
+    store = fresh();
+    stores.set(db, store);
+  }
+  return store;
+}
+
+export function wishlistLifetime(db: SQLiteDatabase): WishlistLifetime {
+  return storeOf(db).lifetime;
+}
+
+/** Retires immediately and drains admitted local persistence before close or erasure; network work is not awaited (task 0068). */
+export async function retireWishlist(db: SQLiteDatabase): Promise<void> {
+  const store = storeOf(db);
+  store.retired = true;
+  store.held = null;
+  store.inflight = null;
+  store.intents = new Map();
+  notify(store);
+  await Promise.allSettled(store.local);
+}
+
+/** The Demo conversion opens a fresh lifetime only after emptying the same database (task 0068). */
+export function beginWishlist(db: SQLiteDatabase): void {
+  const old = storeOf(db);
+  if (!old.retired) return;
+  const store = fresh(old.listeners);
+  stores.set(db, store);
+  notify(store);
+}
 
 export function keyOf(itemType: ItemType, itemId: string): string {
   return `${itemType}:${itemId}`;
 }
 
-function notify() {
-  for (const listener of listeners) listener();
+function notify(store: Store) {
+  for (const listener of store.listeners) listener();
 }
 
-export function subscribe(listener: () => void): () => void {
+export function subscribe(db: SQLiteDatabase, listener: () => void): () => void {
+  const { listeners } = storeOf(db);
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-function covers(at: At | null, db: SQLiteDatabase, version: number): boolean {
-  return at !== null && at.db === db && at.version >= version;
+function covers(at: { readonly version: number } | null, version: number): boolean {
+  return at !== null && at.version >= version;
 }
 
 /** Reads the set for `version` unless it is held or already being read; the in-flight version is set before the await. */
 export function loadMembership(db: SQLiteDatabase, version: number): void {
-  if (covers(held, db, version) || covers(inflight, db, version)) return;
-  const flight: At = { db, version };
-  const started = generation;
-  inflight = flight;
+  const store = storeOf(db);
+  if (store.retired || covers(store.held, version) || covers(store.inflight, version)) return;
+  const flight = { version };
+  const started = store.generation;
+  store.inflight = flight;
   const land = () => {
-    if (inflight === flight) inflight = null;
+    if (store.inflight === flight) store.inflight = null;
   };
   void readWishlistState(db).then(
     (answer) => {
       land();
-      if (started !== generation || covers(held, db, version)) return;
-      held = { db, version, keys: new Set(answer.items.map((item) => keyOf(item.itemType, item.itemId))) };
-      notify();
+      if (store.retired || started !== store.generation || covers(store.held, version)) return;
+      store.held = { version, keys: new Set(answer.items.map((item) => keyOf(item.itemType, item.itemId))) };
+      notify(store);
     },
     land,
   );
@@ -63,37 +136,41 @@ export function loadMembership(db: SQLiteDatabase, version: number): void {
 
 /** What the store last confirmed, whatever a press is asking for. */
 export function membershipOf(db: SQLiteDatabase, key: string): KeyMembership {
-  if (held === null || held.db !== db) return 'unknown';
+  const { held, retired } = storeOf(db);
+  if (retired || held === null) return 'unknown';
   return held.keys.has(key) ? 'on' : 'off';
 }
 
 /** What a heart draws: the travelling press's intent over the confirmed answer. */
 export function shownOf(db: SQLiteDatabase, key: string): KeyMembership {
   const confirmed = membershipOf(db, key);
-  const intent = intents.get(key);
+  const intent = storeOf(db).intents.get(key);
   if (confirmed === 'unknown' || intent === undefined) return confirmed;
   return intent ? 'on' : 'off';
 }
 
-export function patchMembership(key: string, on: boolean) {
-  if (held === null) return;
-  const keys = new Set(held.keys);
+export function patchMembership(db: SQLiteDatabase, key: string, on: boolean) {
+  const store = storeOf(db);
+  if (store.retired || store.held === null) return;
+  const keys = new Set(store.held.keys);
   if (on) keys.add(key);
   else keys.delete(key);
-  generation += 1;
-  held = { ...held, keys };
-  notify();
+  store.generation += 1;
+  store.held = { ...store.held, keys };
+  notify(store);
 }
 
 /** The membership the item's last press asked for, null while no exchange for it travels. */
-export function intentOf(key: string): boolean | null {
-  return intents.get(key) ?? null;
+export function intentOf(db: SQLiteDatabase, key: string): boolean | null {
+  return storeOf(db).intents.get(key) ?? null;
 }
 
-export function setIntent(key: string, on: boolean | null) {
-  const next = new Map(intents);
+export function setIntent(db: SQLiteDatabase, key: string, on: boolean | null) {
+  const store = storeOf(db);
+  if (store.retired) return;
+  const next = new Map(store.intents);
   if (on === null) next.delete(key);
   else next.set(key, on);
-  intents = next;
-  notify();
+  store.intents = next;
+  notify(store);
 }
