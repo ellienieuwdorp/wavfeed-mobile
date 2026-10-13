@@ -16,7 +16,20 @@ _Avoid_: user (reserved for our own accounts), buyer, collector
 **Page**:
 An artist or label presence on Bandcamp, the thing a Fan follows. Bandcamp's
 internal name is "band" (`band_id`); we say Page because labels aren't bands.
-_Avoid_: band, artist account, label account
+A Page's name is not who a Release is by; that is the **artist credit**.
+_Avoid_: band, artist account, label account, artist (for a Page's name)
+
+**Artist credit**:
+Who a Release is by, as Bandcamp credits it: the feed entry's `band_name`,
+else a release page's `tralbum.artist`, else none (task 0071, decision 18).
+Often not the Page's name: a label's Page holds Releases by many artists, and
+a compilation's credit is "Various Artists". Stored as
+`releases.artist_credit` and carried as `artistCredit` beside `pageName`; with
+none held a row names the Page alone. On the phone it leads the credit line
+under a title, "artist · X", where X is the Page when it differs, else the
+label credit (task 0071, decision 11).
+_Avoid_: band name (outside parser code; `band_name` is the wire field), byline,
+Page name
 
 **Release**:
 An album or single track published by a Page, Bandcamp's "tralbum" (`item_type`
@@ -183,7 +196,8 @@ _Avoid_: favorite, like, save, wishlist
 
 **Wishlist**:
 Bandcamp's own save-for-later list on a Fan's account. The one thing wavfeed
-writes to Bandcamp (ADR-0016): a press on the heart adds a Release or a Track
+writes to Bandcamp (ADR-0016): a press on the heart, or on the phone a swipe
+right across a row (ADR-0016, amended 2026-10-12), adds a Release or a Track
 to the signed-in Fan's own wishlist, or removes it, through a **Wishlist
 Action**. "Wishlisted" is the state Bandcamp confirmed, never a guess. On the
 phone the heart draws the Fan's last press over it while a Wishlist Action
