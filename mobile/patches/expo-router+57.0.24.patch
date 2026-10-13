@@ -1,0 +1,26 @@
+Keeps the iOS native tab view mounted when a trigger's `hidden` flips (task 0071, decision 5).
+
+expo-router keys NativeTabsView on the visible triggers' route keys, so showing or hiding a
+trigger remounts every tab: their stacks, scroll positions and state. The key came with
+https://github.com/expo/expo/pull/42329 ("react-native-screens does not support dynamic changes
+to tab visibility"). On iOS, react-native-screens 4.26.2 inserts and removes the tab in place,
+so the patch drops the key there; Android keeps it, since its tabs host still does not remove a
+screen natively (https://github.com/software-mansion/react-native-screens/pull/4812).
+
+Drop this patch when expo-router stops keying the tab view on iOS. Applied by postinstall
+(patch-package --error-on-fail --error-on-warn), so an expo-router upgrade fails the install
+until the patch is regenerated or removed; see mobile/README.md.
+
+diff --git a/node_modules/expo-router/build/native-tabs/NativeBottomTabsNavigator.js b/node_modules/expo-router/build/native-tabs/NativeBottomTabsNavigator.js
+index 76a6b95..fce8c94 100644
+--- a/node_modules/expo-router/build/native-tabs/NativeBottomTabsNavigator.js
++++ b/node_modules/expo-router/build/native-tabs/NativeBottomTabsNavigator.js
+@@ -143,7 +143,7 @@ function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, lab
+             });
+         }
+     }, [descriptors, navigation, state.key]);
+-    return ((0, jsx_runtime_1.jsx)(NavigationContent, { children: (0, jsx_runtime_1.jsx)(exports.NativeTabsContext, { value: true, children: (0, react_1.createElement)(NativeTabsView_1.NativeTabsView, { ...rest, key: visibleTabsKeys, focusedIndex: focusedIndex, 
++    return ((0, jsx_runtime_1.jsx)(NavigationContent, { children: (0, jsx_runtime_1.jsx)(exports.NativeTabsContext, { value: true, children: (0, react_1.createElement)(NativeTabsView_1.NativeTabsView, { ...rest, key: process.env.EXPO_OS === 'ios' ? undefined : visibleTabsKeys, focusedIndex: focusedIndex, 
+                 // Provenance should only be sent with updates, and updates
+                 // on JS side are only triggered by rerender, so passing ref
+                 // here is ok.

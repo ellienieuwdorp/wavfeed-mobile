@@ -66,9 +66,10 @@ test('the list is filtered only while the filter is on and chooses something', (
   assert.deepEqual(toReleaseFilter({ on: true, people: { on: false, min: 3 }, tags: ['dub'] }), { people: { on: false, min: 3 }, tags: ['dub'] });
 });
 
-test('Clear filters turns the filter off at the first settings', () => {
-  assert.deepEqual(cleared(), { ...FIRST_SETTINGS, on: false });
+test('Clear filters turns the filter and the people switch off with no tags, so the next tap opens the sheet', () => {
+  assert.deepEqual(cleared(), { on: false, people: { on: false, min: 2 }, tags: [] });
   assert.equal(isActive(cleared()), false);
+  assert.equal(circlePress(cleared()).openSheet, true);
 });
 
 test("Feed's link turns the people filter on at 1+ and keeps the tags; no number leaves the settings alone", () => {

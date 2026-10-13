@@ -49,9 +49,13 @@ export function circlePress(saved: FilterSettings | null): { readonly next: Filt
   return { next: { ...saved, on: !saved.on }, openSheet: false };
 }
 
-/** "Clear filters" (decision 9): the filter off and its choices back to the first ones, so every Release shows again. */
+/**
+ * "Clear filters" (decision 9 as amended): the filter off with the people switch off and no tags, so every Release
+ * shows again, the filter chooses nothing, and the circle's next tap opens the sheet. The minimum goes back to the
+ * first settings' (Open 10).
+ */
 export function cleared(): FilterSettings {
-  return { ...FIRST_SETTINGS, on: false };
+  return { on: false, people: { on: false, min: FIRST_SETTINGS.people.min }, tags: [] };
 }
 
 /**

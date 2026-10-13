@@ -1,6 +1,6 @@
 /**
  * New releases when the filter keeps nothing (task 0071, decision 9, the round-two empty board): "Nothing matches", the
- * filter named, and "Clear filters", which turns the filter off at its first settings so every Release shows again.
+ * filter named, and "Clear filters", which turns the filter off with the people switch off and no tags (see `cleared`).
  */
 import { Platform, Pressable, View } from 'react-native';
 

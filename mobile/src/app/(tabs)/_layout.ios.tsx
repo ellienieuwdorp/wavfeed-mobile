@@ -7,9 +7,10 @@
  * the author's Open 1 answer: stay native): a trigger with the search role, so iOS 26 draws it as its own glass circle
  * at the right and keeps it there, beside the inline player, when the bar minimises. Its route is a placeholder no tap
  * can reach, since the trigger is disabled: the native side refuses the selection and still emits `tabPress`, which
- * toggles the filter on New releases and its pushed list and opens New releases from the other tabs. The item stands on
- * every tab: expo-router keys the whole tab view on the set of visible triggers, so hiding it off New releases would
- * remount every tab on each switch. Without Liquid Glass it stays hidden and the dock's circle stands in (see Dock).
+ * toggles the filter. The item shows while New releases is the focused tab, its pushed list included, and hides on
+ * the others; expo-router keys the tab view on the set of visible triggers, which remounted every tab on each switch,
+ * and `patches/expo-router+57.0.24.patch` drops that key on iOS (task 0071, decision 5 as amended).
+ * Without Liquid Glass it stays hidden and the dock's circle stands in (see Dock).
  * Off it is the system's filter symbol; on, the drawn glyph in the accent on a disc of the tint, a colour image per
  * scheme. The tab host takes the token scheme as its own
  * `overrideUserInterfaceStyle`, set during the same Fabric mount as the token colours, so the glass, the headers'
@@ -18,6 +19,7 @@
  */
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useState } from 'react';
 
 import { ScreenFailed } from '@/components/Failed';
 import { AccessoryPlayer, playerInAccessory } from '@/components/player/MiniPlayer';
@@ -27,7 +29,7 @@ import { FILTER_ON, TAB_GLYPHS } from '@/components/tabGlyphs';
 import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
-/** Fixed for the app's life, so the set of visible triggers never changes. */
+/** Fixed for the app's life. */
 const glass = isLiquidGlassAvailable();
 
 /** A screen that throws while drawing shows its fallback under the tab bar (task 0038 decision 10). */
@@ -38,8 +40,15 @@ export default function TabsLayout() {
   const current = usePlayerRelease();
   const accessory = playerInAccessory() && current !== null;
   const filter = useFilterToggle();
+  // The focused tab by its screens' focus events, so the sheets over a tab leave the item as it was.
+  const [focused, setFocused] = useState<string>(unstable_settings.initialRouteName);
   return (
-    <NativeTabs tintColor={c.accent} minimizeBehavior="onScrollDown" unstable_nativeProps={{ colorScheme: dark ? 'dark' : 'light' }}>
+    <NativeTabs
+      tintColor={c.accent}
+      minimizeBehavior="onScrollDown"
+      unstable_nativeProps={{ colorScheme: dark ? 'dark' : 'light' }}
+      screenListeners={({ route }) => ({ focus: () => setFocused(route.name) })}
+    >
       {accessory ? (
         <NativeTabs.BottomAccessory>
           <AccessoryPlayer />
@@ -57,9 +66,9 @@ export default function TabsLayout() {
         name="filter-toggle"
         role="search"
         disabled
-        hidden={!glass}
+        hidden={!glass || focused !== 'releases'}
         accessibilityLabel={copy.filter.toggle(filter.on)}
-        listeners={{ tabPress: filter.pressFromBar }}
+        listeners={{ tabPress: filter.press }}
       >
         {filter.on ? (
           <NativeTabs.Trigger.Icon src={dark ? FILTER_ON.dark : FILTER_ON.light} renderingMode="original" />
