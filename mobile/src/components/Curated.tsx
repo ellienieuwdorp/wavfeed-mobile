@@ -10,7 +10,7 @@
 import { router, type Href } from 'expo-router';
 import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
-import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep, tracksOutPhrase, tracksOutPill } from '@/copy';
+import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep, tracksOutPhrase, tracksOutBadge } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
 import { notOutYet } from '@/domain/newReleases';
 import { captionTitle } from '@/theme/textSize';
@@ -47,7 +47,7 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
  */
 function partial(item: ApiFeedItem, now: Date): { badge: string | null; spoken: string | undefined } {
   if (!notOutYet(item, now)) return { badge: null, spoken: undefined };
-  return { badge: tracksOutPill(item.numStreamableTracks, item.numTracks), spoken: tracksOutPhrase(item.numStreamableTracks, item.numTracks) ?? undefined };
+  return { badge: tracksOutBadge(item.numStreamableTracks, item.numTracks), spoken: tracksOutPhrase(item.numStreamableTracks, item.numTracks) ?? undefined };
 }
 
 export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {

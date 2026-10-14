@@ -8,7 +8,8 @@
  * (`badge`) sits on the art's bottom-left corner on a dark backing, white figures fixed in size so it stays inside the
  * art at every text size; the label says the count with the other facts. Only the art in the transport reads usePlayer
  * (useArtState); every other one reads the Release alone, whose identity changes only when another Release plays.
- * Nothing above it may be a Pressable taking the tap (RowSurface in RowMenu.tsx); `children` draw under the art inside
+ * Inside a row's swipe a press plays nothing for a touch the swipe took (useTakenBySwipe). Nothing above it may be a
+ * Pressable taking the tap (RowSurface in RowMenu.tsx); `children` draw under the art inside
  * the same control, as a cover's captions do. A screen reader finds the row menu's items as its actions (VIS-9, FLOW-13).
  */
 import { useLayoutEffect, useState, type ReactNode } from 'react';
@@ -26,8 +27,12 @@ import { showsPause } from './player/MiniPlayer';
 import { usePlayer, usePlayerRelease, type PlayableRelease } from './player/playerState';
 import { playableItemType, usePlay, type RowRelease } from './playable';
 import { useSpokenActions, type OpenMenu } from './RowMenu';
+import { useTakenBySwipe } from './WishlistSwipe';
 
-/** Art from this size up takes the card's badge; the 56 rows and quotes take the small one. */
+/**
+ * Art from this size up takes the card's badge; the 56 rows take the small one. The Feed's quotes carry no badge: a
+ * quote holds no Track counts or release day (ApiCuratedQuote).
+ */
 const LARGE_ART = 80;
 /** Art is any colour in either theme, so its marks are white over black. */
 const ON_ART = '#ffffff';
@@ -47,7 +52,7 @@ type Props = {
   named?: string;
   /** Facts the label speaks after the name, from spokenFacts: a card's credit, day, count and buyers (task 0071). */
   spoken?: string;
-  /** "1/4" from tracksOutPill: a partial Release's count on the bottom-left corner (task 0071, decision 12 as amended 2026-10-14). */
+  /** "1/4" from tracksOutBadge: a partial Release's count on the bottom-left corner (task 0071, decision 12 as amended 2026-10-14). */
   badge?: string | null;
   hitSlop?: Insets | number;
   style?: StyleProp<ViewStyle>;
@@ -109,10 +114,13 @@ export function PlayArt({ release, size, radius, onLongPress, from, named, spoke
   const reduced = useReduceMotion();
   const lift = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : 1 - (1 - PRESS_SCALE) * progress.get() }] }));
   const shade = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) * PRESS_SHADE }));
+  const taken = useTakenBySwipe();
   const glyph = pause ? 'pause' : 'play';
   return (
     <Pressable
-      onPress={() => play(release, from)}
+      onPress={() => {
+        if (!taken()) play(release, from);
+      }}
       onLongPress={onLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}

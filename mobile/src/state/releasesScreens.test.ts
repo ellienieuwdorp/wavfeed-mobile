@@ -182,10 +182,10 @@ function previewPage(playing: number): BandcampDocument {
   };
 }
 
-/** The "1/4" pill the Upcoming list draws on the shelf-held Release's row. */
-function pillOf(items: readonly Item[]): string | null | undefined {
+/** The "1/4" badge the Upcoming list draws on the shelf-held Release's row. */
+function badgeOf(items: readonly Item[]): string | null | undefined {
   const item = items.find((entry) => entry.key === `a:${PREORDER_ITEM_ID}`);
-  return item === undefined ? undefined : copy.tracksOutPill(item.tracksOut ?? null, item.numTracks ?? null);
+  return item === undefined ? undefined : copy.tracksOutBadge(item.tracksOut ?? null, item.numTracks ?? null);
 }
 
 async function seedUndetailedUpcoming(db: SQLiteDatabase) {
@@ -204,32 +204,32 @@ test('a preview page refreshes mounted Upcoming facts; duplicate pages, coalesce
   await seedUndetailedUpcoming(db);
   const at = mount('../app/(tabs)/releases/upcoming.tsx', db, true);
   t.after(at.unmount);
-  assert.equal(pillOf(await at.read()), null, 'the shelf-held Release initially has no page-derived pill');
+  assert.equal(badgeOf(await at.read()), null, 'the shelf-held Release initially has no page-derived badge');
   const first = previewPage(1);
   assert.equal((await at.app().putRaw(first)).deduped, false);
   assert.equal((await db.getFirstAsync<{ n: number }>('select num_tracks as n from releases where item_id = ?', [PREORDER_ITEM_ID]))?.n, 5);
-  assert.equal(pillOf(await at.read()), '1/5', 'the preview fold must reach the mounted Upcoming query without a gather');
+  assert.equal(badgeOf(await at.read()), '1/5', 'the preview fold must reach the mounted Upcoming query without a gather');
   const version = at.app().version;
   assert.equal((await at.app().putRaw({ ...first, fetchedAt: new Date(Date.now() + 1).toISOString() })).deduped, true);
   await at.read();
   assert.equal(at.app().version, version, 'an identical page does not invalidate the view');
   await at.app().putRaw(previewPage(2));
   await at.app().putRaw(previewPage(3));
-  assert.equal(pillOf(await at.read()), '1/5', 'rapid pages share the existing trailing invalidation');
+  assert.equal(badgeOf(await at.read()), '1/5', 'rapid pages share the existing trailing invalidation');
   t.mock.timers.tick(1_999);
-  assert.equal(pillOf(await at.read()), '1/5');
+  assert.equal(badgeOf(await at.read()), '1/5');
   t.mock.timers.tick(1);
-  assert.equal(pillOf(await at.read()), '3/5');
+  assert.equal(badgeOf(await at.read()), '3/5');
   assert.equal(at.app().version, version + 1, 'both admitted pages share one version move');
   at.focus(false);
   await at.read();
   await at.app().putRaw(previewPage(4));
   t.mock.timers.tick(2_000);
-  assert.equal(pillOf(await at.read()), '3/5', 'a hidden screen retains its last followed version');
+  assert.equal(badgeOf(await at.read()), '3/5', 'a hidden screen retains its last followed version');
   t.mock.timers.tick(9_999);
-  assert.equal(pillOf(await at.read()), '3/5');
+  assert.equal(badgeOf(await at.read()), '3/5');
   t.mock.timers.tick(1);
-  assert.equal(pillOf(await at.read()), '4/5', 'the settled hidden screen follows the successful preview fold');
+  assert.equal(badgeOf(await at.read()), '4/5', 'the settled hidden screen follows the successful preview fold');
   const after = at.app().version;
   await at.app().putRaw({ endpoint: CRUMBS_PAGE_ENDPOINT, payload: { url: PREORDER_URL, status: 200, bytes: 50 }, fetchedAt: new Date().toISOString() });
   await at.read();
@@ -243,14 +243,14 @@ test('a preview page whose fold fails keeps the mounted answer and version while
   await seedUndetailedUpcoming(db);
   const at = mount('../app/(tabs)/releases/upcoming.tsx', db, true);
   t.after(at.unmount);
-  assert.equal(pillOf(await at.read()), null);
+  assert.equal(badgeOf(await at.read()), null);
   const version = at.app().version;
   await db.execAsync("create trigger full before update on releases begin select raise(abort, 'database or disk is full'); end");
   await assert.rejects(at.app().putRaw(previewPage(1)), /database or disk is full/);
   t.mock.timers.tick(12_000);
   const answer = await at.read();
   assert.equal(at.app().version, version);
-  assert.equal(pillOf(answer), null);
+  assert.equal(badgeOf(answer), null);
   assert.equal((await countForProjection(db)).waiting, 1, 'the failed fold retains the committed observation');
 });
 

@@ -1,14 +1,14 @@
 /// <reference types="node" />
 /**
  * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
- * Upcoming card and a Drop row state, as words and as the pill (task 0041, decision 9; task 0071, decision 12), the
+ * Upcoming card and a Drop row state, as words and as the badge (task 0041, decision 9; task 0071, decision 12), the
  * release day a Drop row and a card name (task 0041, decision 10; task 0071, decision 14), and the line under the
  * player sheet's title.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backTo, catchUpHeader, copy, countedHeader, onDayPhrase, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase, tracksOutPill } from './copy';
+import { backTo, catchUpHeader, copy, countedHeader, onDayPhrase, outOnPhrase, sheetSubtitle, soFar, tracksOutPhrase, tracksOutBadge } from './copy';
 
 const at = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -33,10 +33,10 @@ test('while something plays, the catch-up reads as one line under the large titl
   assert.equal(catchUpHeader('getting set up', null), 'Getting set up');
 });
 
-test('the count shows once a Track plays and the total is known, plural by the total, the pill when the words do', () => {
+test('the count shows once a Track plays and the total is known, plural by the total, the badge when the words do', () => {
   const shown = [[1, 4, '1 of 4 tracks', '1/4'], [2, 4, '2 of 4 tracks', '2/4'], [1, 1, '1 of 1 track', '1/1'], [6, 6, '6 of 6 tracks', '6/6']] as const;
-  for (const [out, total, words, pill] of shown) assert.deepEqual([tracksOutPhrase(out, total), tracksOutPill(out, total)], [words, pill]);
-  for (const [out, total] of [[0, 4], [1, null], [null, 4], [3, 2]] as const) assert.deepEqual([tracksOutPhrase(out, total), tracksOutPill(out, total)], [null, null]);
+  for (const [out, total, words, badge] of shown) assert.deepEqual([tracksOutPhrase(out, total), tracksOutBadge(out, total)], [words, badge]);
+  for (const [out, total] of [[0, 4], [1, null], [null, 4], [3, 2]] as const) assert.deepEqual([tracksOutPhrase(out, total), tracksOutBadge(out, total)], [null, null]);
 });
 
 test('a Drop row and an Upcoming card draw the release day with its month and no weekday, which only the label says', () => {

@@ -30,6 +30,12 @@ export function toReleaseFilter(settings: FilterSettings | null): ReleaseFilter 
   return { people: { on: held.people.on, min: clampMinimum(held.people.min) }, tags: held.tags };
 }
 
+/** The settings with one tag chosen or unchosen; choosing a tag already chosen leaves it once. */
+export function withTag(settings: FilterSettings, tag: string, on: boolean): FilterSettings {
+  const rest = settings.tags.filter((t) => t !== tag);
+  return { people: settings.people, tags: on ? [...rest, tag] : rest };
+}
+
 /**
  * Feed's "Bought by people you follow" link (Open 8): New releases with the people filter on at the link's minimum,
  * 1+ from Feed, keeping the tags the Fan chose. A `people` value that is no number leaves the settings as they were.

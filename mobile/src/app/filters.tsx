@@ -19,8 +19,8 @@ import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
 import { SearchField, Stepper, TAG_MARK, TagMark } from '@/components/filter/Controls';
 import { copy } from '@/copy';
-import { filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, shownTags } from '@/domain/releaseFilter';
-import { NOTHING_CHOSEN, toReleaseFilter } from '@/state/filterSettings';
+import { clampMinimum, filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, shownTags } from '@/domain/releaseFilter';
+import { NOTHING_CHOSEN, toReleaseFilter, withTag } from '@/state/filterSettings';
 import { useReleaseFilter } from '@/state/releaseFilter';
 import { PRESS_FLASH, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -49,7 +49,10 @@ export default function Filters() {
   const group = ios ? { backgroundColor: cell, borderRadius: 12, borderCurve: 'continuous' as const, overflow: 'hidden' as const } : {};
   const rule = (inset: number) => (ios ? <View style={{ height: 0.5, marginLeft: inset, backgroundColor: c.border }} /> : null);
 
-  const toggleTag = (name: string, on: boolean) => change({ people: settings.people, tags: on ? [...settings.tags, name] : settings.tags.filter((t) => t !== name) });
+  // Each change applies to the settings held when it lands, so two taps inside one render both count: a tap on a tag
+  // flips what is held, not what the last render drew.
+  const toggleTag = (name: string) => change((held) => withTag(held, name, !held.tags.includes(name)));
+  const setPeople = (on: boolean) => change((held) => ({ people: { ...held.people, on }, tags: held.tags }));
 
   // react-native-screens sizes an iOS sheet's ScrollView to the sheet less the one view above it, so the bar is that
   // view, kept unflattened, and the sheet's ground is the screen's own (contentStyle in app/_layout.tsx).
@@ -82,10 +85,10 @@ export default function Filters() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: ios ? 6 : 12, paddingBottom: 24 + insets.bottom }}
       >
         <View style={group}>
-          <Row onPress={() => change({ people: { ...settings.people, on: !settings.people.on }, tags: settings.tags })} role="switch" checked={settings.people.on} ownsFocus={ios}>
+          <Row onPress={() => change((held) => ({ people: { ...held.people, on: !held.people.on }, tags: held.tags }))} role="switch" checked={settings.people.on} ownsFocus={ios}>
             <Glyph name="people" size={24} colour={c.accent} weight="regular" />
             <Text style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{copy.filter.people}</Text>
-            <NativeSwitch value={settings.people.on} onChange={(on) => change({ people: { ...settings.people, on }, tags: settings.tags })} label={copy.filter.people} />
+            <NativeSwitch value={settings.people.on} onChange={setPeople} label={copy.filter.people} />
           </Row>
           {rule(16)}
           <View
@@ -95,7 +98,7 @@ export default function Filters() {
             <Text style={{ fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
               {copy.filter.atLeast}
             </Text>
-            <Stepper value={min} min={PEOPLE_MIN} max={PEOPLE_MAX} spoken={copy.filter.minimum} onChange={(n) => change({ people: { on: true, min: n }, tags: settings.tags })} />
+            <Stepper value={min} min={PEOPLE_MIN} max={PEOPLE_MAX} spoken={copy.filter.minimum} onStep={(by) => change((held) => ({ people: { on: true, min: clampMinimum(held.people.min + by) }, tags: held.tags }))} />
             <Text style={{ flex: 1, fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
               {copy.filter.peopleWord(min)}
             </Text>
@@ -123,8 +126,8 @@ export default function Filters() {
             return (
               <View key={tag.normName}>
                 {n > 0 ? rule(16 + TAG_MARK + 10) : null}
-                <Row onPress={() => toggleTag(tag.normName, !on)} role="checkbox" checked={on} minHeight={ios ? 44 : 48} label={`${tag.name}, ${copy.filter.count(tag.count)}`}>
-                  <TagMark on={on} onChange={(next) => toggleTag(tag.normName, next)} />
+                <Row onPress={() => toggleTag(tag.normName)} role="checkbox" checked={on} minHeight={ios ? 44 : 48} label={`${tag.name}, ${copy.filter.count(tag.count)}`}>
+                  <TagMark on={on} onChange={() => toggleTag(tag.normName)} />
                   <Text numberOfLines={1} style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{tag.name}</Text>
                   <Text style={{ minWidth: COUNT_WIDTH, textAlign: 'right', fontSize: ios ? 15 : 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{tag.count}</Text>
                 </Row>

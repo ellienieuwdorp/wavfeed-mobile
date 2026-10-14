@@ -10,15 +10,18 @@
  * press; iOS shows nothing, the swipe again is the undo. The pan starts only past the screen's edge strips, which keep
  * iOS's edge pop and Android's back gesture, and only on a sideways drag: an up or down move fails it, so the list
  * scrolls, and a still finger keeps the long press and the art's tap. A swipe left is taken and moves nothing, with no
- * rubber band. While membership is not asked yet, the Demo's case, the swipe is off, as the heart takes no press then.
- * The panel is drawn from a row's first touch on, so a list mounting rows after a filter change does not build one
- * for each (the author's request of 2026-10-14).
+ * rubber band. On iOS the pan taking the touch does not cancel the row's Pressables (iOS 26.5 simulator, 2026-10-14), so
+ * a swipe whose finger lifts over the row ended as the row's press and played it; the row's and the art's presses ask
+ * useTakenBySwipe first and play nothing for a touch the swipe took. While membership is not asked yet, the Demo's
+ * case, the swipe is off, as the heart takes no press then. The panel is drawn from a row's first touch on, so a list
+ * mounting rows after a filter change does not build one for each (the author's request of 2026-10-14); the touch only
+ * sets a shared value that the panel's own slot reads, so the row and its pan are not rendered again mid-touch.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import type { WishlistWriteKind } from '@/bandcamp/wishlist';
@@ -47,13 +50,34 @@ const GLYPH = 24;
 /** Critically damped, so the row settles at rest without passing it. */
 const BACK = { mass: 1, stiffness: 400, damping: 40 };
 
-/** How far the enclosing row's swipe has moved it, for what the row hides while it is moved. */
-const SwipeOffset = createContext<SharedValue<number> | null>(null);
+/**
+ * A press this long after a swipe ended is the swipe's own touch ending: the press reaches JS after the gesture's end
+ * on the UI thread, and no finger lifts and taps again this fast.
+ */
+const TAKEN_MS = 250;
+
+/** The wall clock, the same on the UI thread and in JS. */
+function clock(): number {
+  'worklet';
+  return Date.now();
+}
+
+/**
+ * The enclosing row's swipe: how far it has moved the row, for what the row hides while it is moved, and when it last
+ * ended, for the presses inside it.
+ */
+const SwipeState = createContext<{ dx: SharedValue<number>; endedAt: SharedValue<number> } | null>(null);
 
 /** Hides a row's hairline while its swipe moves it (CSS5's `.row5.sw .rin::after`); shown outside a swipe. */
 export function useHiddenWhileSwiped() {
-  const dx = useContext(SwipeOffset);
+  const dx = useContext(SwipeState)?.dx ?? null;
   return useAnimatedStyle(() => ({ opacity: dx !== null && dx.get() > 0 ? 0 : 1 }));
+}
+
+/** For a press inside a row: whether the enclosing swipe took the touch that ends in it, so the press plays nothing. */
+export function useTakenBySwipe(): () => boolean {
+  const swipe = useContext(SwipeState);
+  return () => swipe !== null && clock() - swipe.endedAt.get() < TAKEN_MS;
 }
 
 type Props = { release: RowRelease; width: number; children: ReactNode };
@@ -67,6 +91,8 @@ export function WishlistSwipe({ release, width, children }: Props) {
   const dx = useSharedValue(0);
   const armed = useSharedValue(false);
   const removing = useSharedValue(false);
+  const endedAt = useSharedValue(0);
+  const state = useMemo(() => ({ dx, endedAt }), [dx, endedAt]);
 
   const commit = (action: WishlistWriteKind) => {
     const key = { itemType: release.itemType, itemId: release.itemId };
@@ -80,7 +106,7 @@ export function WishlistSwipe({ release, width, children }: Props) {
     });
   };
 
-  const [drawn, setDrawn] = useState(false);
+  const touched = useSharedValue(false);
   const pan = Gesture.Pan()
     .enabled(verb !== null)
     .activeOffsetX([-DECIDE, DECIDE])
@@ -88,7 +114,7 @@ export function WishlistSwipe({ release, width, children }: Props) {
     .hitSlop({ left: -EDGE, right: -EDGE })
     .onBegin(() => {
       // A finger is down at least DECIDE points before the row moves, which leaves the panel a frame or two to mount.
-      if (!drawn) scheduleOnRN(setDrawn, true);
+      touched.set(true);
     })
     .onStart(() => {
       removing.set(verb === 'remove');
@@ -102,6 +128,7 @@ export function WishlistSwipe({ release, width, children }: Props) {
       if (at.armed) scheduleOnRN(turnedOnHaptic);
     })
     .onEnd((_e, success) => {
+      endedAt.set(clock());
       if (success && armed.get()) scheduleOnRN(commit, removing.get() ? 'remove' : 'add');
     })
     .onFinalize(() => {
@@ -113,9 +140,9 @@ export function WishlistSwipe({ release, width, children }: Props) {
   return (
     <GestureDetector gesture={pan}>
       <View>
-        {drawn ? <Panel dx={dx} armed={armed} removing={removing} width={width} /> : null}
+        <PanelSlot touched={touched} dx={dx} armed={armed} removing={removing} width={width} />
         <Animated.View style={[{ backgroundColor: c.bg }, slide]}>
-          <SwipeOffset.Provider value={dx}>{children}</SwipeOffset.Provider>
+          <SwipeState.Provider value={state}>{children}</SwipeState.Provider>
         </Animated.View>
       </View>
     </GestureDetector>
@@ -123,6 +150,18 @@ export function WishlistSwipe({ release, width, children }: Props) {
 }
 
 type PanelProps = { dx: SharedValue<number>; armed: SharedValue<boolean>; removing: SharedValue<boolean>; width: number };
+
+/** Mounts the panel once the row is first touched, re-rendering only itself, never the row's gesture. */
+function PanelSlot({ touched, ...panel }: PanelProps & { touched: SharedValue<boolean> }) {
+  const [drawn, setDrawn] = useState(false);
+  useAnimatedReaction(
+    () => touched.get(),
+    (now, before) => {
+      if (now && !before) scheduleOnRN(setDrawn, true);
+    },
+  );
+  return drawn ? <Panel {...panel} /> : null;
+}
 
 /** The orange panel under a moved row, with its heart and its words. */
 function Panel({ dx, armed, removing, width }: PanelProps) {

@@ -3,7 +3,8 @@
  * The filter's settings on the install (task 0071, decisions 5, 8 and 9 as amended 2026-10-14, and Open 8):
  * they survive a round trip through the `kv` table, a value saved while the filter had its own switch reads as nothing
  * chosen when that switch was off, a stored minimum comes back inside the stepper's range, the filter is active exactly
- * when something is chosen, and Feed's link turns the people filter on at its minimum while the tags stay.
+ * when something is chosen, Feed's link turns the people filter on at its minimum while the tags stay, and taps on tags
+ * applied one after another each count.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -19,6 +20,7 @@ import {
   readFilterSettings,
   toReleaseFilter,
   withPeopleLink,
+  withTag,
   writeFilterSettings,
   type FilterSettings,
 } from './filterSettings';
@@ -79,4 +81,11 @@ test('the pill and the empty state name the minimum with the switch on and the c
   const tags = [{ normName: 'dub', name: 'Dub', count: 4 }];
   assert.deepEqual(namedFilter(SAVED, tags), { min: 3, tags: ['ambient', 'Dub'] });
   assert.deepEqual(namedFilter({ ...SAVED, people: { on: false, min: 3 } }, tags), { min: null, tags: ['ambient', 'Dub'] });
+});
+
+test('tag taps applied one after another to the held settings each count, and choosing a tag twice keeps it once', () => {
+  const taps = [(held: FilterSettings) => withTag(held, 'jazz', true), (held: FilterSettings) => withTag(held, 'ambient', true), (held: FilterSettings) => withTag(held, 'jazz', false)];
+  const held = taps.reduce((settings, tap) => tap(settings), NOTHING_CHOSEN);
+  assert.deepEqual(held, { people: NOTHING_CHOSEN.people, tags: ['ambient'] });
+  assert.deepEqual(withTag(SAVED, 'dub', true).tags, ['ambient', 'dub']);
 });

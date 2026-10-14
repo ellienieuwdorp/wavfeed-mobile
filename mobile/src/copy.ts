@@ -119,15 +119,15 @@ export function dayLabel(value: string | Date, now: Date): string {
 /**
  * "1 of 4 tracks": the Tracks of an Upcoming Release that play, once one does and the total is known (task 0041,
  * decision 9); a total under the count is not a known one. Counted by the total, so "1 of 1 track". A screen reader
- * hears it where a row or a card draws tracksOutPill.
+ * hears it where a row, a card or the Feed's art draws tracksOutBadge.
  */
 export function tracksOutPhrase(out: number | null, total: number | null): string | null {
   if (out === null || total === null || out < 1 || out > total) return null;
   return `${out} of ${total} ${total === 1 ? 'track' : 'tracks'}`;
 }
 
-/** "1/4", the same count as the pill at a row's or a card's right edge (task 0071, decision 12). */
-export function tracksOutPill(out: number | null, total: number | null): string | null {
+/** "1/4", the same count as the badge on the art's bottom-left corner (PlayArt `badge`; task 0071, decision 12 as amended 2026-10-14). */
+export function tracksOutBadge(out: number | null, total: number | null): string | null {
   return tracksOutPhrase(out, total) === null ? null : `${out}/${total}`;
 }
 

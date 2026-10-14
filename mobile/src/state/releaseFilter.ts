@@ -12,7 +12,7 @@ import type { NewReleasesView } from '@/domain/newReleases';
 import { reportCode } from '@/tally/errors';
 
 import { useAppState } from './appState';
-import { readFilterSettings, writeFilterSettings, type FilterSettings } from './filterSettings';
+import { NOTHING_CHOSEN, readFilterSettings, writeFilterSettings, type FilterSettings } from './filterSettings';
 
 type Snapshot = {
   readonly db: SQLiteDatabase | null;
@@ -55,8 +55,11 @@ export type ReleaseFilterState = {
   readonly settings: FilterSettings | null;
   /** The view New releases last read, unfiltered; null before it has. */
   readonly view: NewReleasesView | null;
-  /** Takes effect at once everywhere and is written to `kv`; a write that fails reaches the rejection tracker. */
-  readonly update: (next: FilterSettings) => void;
+  /**
+   * Takes effect at once everywhere and is written to `kv`; a write that fails reaches the rejection tracker. A function
+   * is applied to the settings held now, not to a render's, so taps closer together than the sheet re-renders each land.
+   */
+  readonly update: (next: FilterSettings | ((held: FilterSettings) => FilterSettings)) => void;
 };
 
 export function useReleaseFilter(): ReleaseFilterState {
@@ -68,8 +71,9 @@ export function useReleaseFilter(): ReleaseFilterState {
     loaded: current.loaded,
     settings: current.settings,
     view: current.view,
-    update: (next) => {
+    update: (change) => {
       if (snapshot.db !== db) return;
+      const next = typeof change === 'function' ? change(snapshot.settings ?? NOTHING_CHOSEN) : change;
       publish({ ...snapshot, settings: next });
       void writeFilterSettings(db, next);
     },

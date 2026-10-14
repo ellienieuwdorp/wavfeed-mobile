@@ -18,7 +18,7 @@ import { memo, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import { creditText, spokenFacts, tracksOutPhrase, tracksOutPill } from '@/copy';
+import { creditText, spokenFacts, tracksOutPhrase, tracksOutBadge } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { usePressMotion } from '@/player/motion';
 import { ripple, rowText, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
@@ -30,7 +30,7 @@ import { creditOf, usePlay, type RowRelease } from './playable';
 import { heardRow, type HeardRow, type SpokenActions } from './rowActions';
 import { RowMenu } from './RowMenu';
 import { Type } from './Type';
-import { useHiddenWhileSwiped, WishlistSwipe } from './WishlistSwipe';
+import { useHiddenWhileSwiped, useTakenBySwipe, WishlistSwipe } from './WishlistSwipe';
 
 const ios = Platform.OS === 'ios';
 const ART = 56;
@@ -58,7 +58,7 @@ type RowProps = {
   day: string | null;
   /** The day as the label says it: "Wed 7" from dayLabel, "out Tue 13 Oct" with its weekday. */
   heardDay: string;
-  /** The Tracks of a Drop or an Upcoming Release that play, and how many it has: the "1/4" pill. */
+  /** The Tracks of a Drop or an Upcoming Release that play, and how many it has: the "1/4" badge on the art's corner. */
   tracksOut?: number | null;
   numTracks?: number | null;
   /** The people you follow who bought it, as the faces. */
@@ -116,9 +116,12 @@ function SpokenRow({ release, heard, onActivate, actions, style, children }: Spo
 function TalkBackBody({ release, heard, actions, onPress, onLongPress, children }: { release: RowRelease; heard: HeardRow; actions: SpokenActions; onPress: () => void; onLongPress: () => void; children: ReactNode }) {
   const { c } = useTokens();
   const { label, watch } = useHeard(release, heard);
+  const taken = useTakenBySwipe();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (!taken()) onPress();
+      }}
       onLongPress={onLongPress}
       unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
       hitSlop={{ left: GAP }}
@@ -129,6 +132,27 @@ function TalkBackBody({ release, heard, actions, onPress, onLongPress, children 
       style={BODY}
     >
       {watch}
+      {children}
+    </Pressable>
+  );
+}
+
+/** iOS's body, the text column: a press plays unless the row's swipe took the touch, and it lights the row. */
+function IosBody({ onPress, onLongPress, onPressIn, onPressOut, children }: { onPress: () => void; onLongPress: () => void; onPressIn: () => void; onPressOut: () => void; children: ReactNode }) {
+  const taken = useTakenBySwipe();
+  return (
+    <Pressable
+      onPress={() => {
+        if (!taken()) onPress();
+      }}
+      onLongPress={onLongPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
+      hitSlop={{ left: GAP }}
+      accessible={false}
+      style={BODY}
+    >
       {children}
     </Pressable>
   );
@@ -174,7 +198,7 @@ export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tra
   const lit = useAnimatedStyle(() => ({ opacity: Math.max(0, progress.get()) }));
   const credit = creditOf(release);
   const count = tracksOutPhrase(tracksOut, numTracks);
-  const pill = tracksOutPill(tracksOut, numTracks);
+  const badge = tracksOutBadge(tracksOut, numTracks);
   const heard: HeardRow = { title: release.title, credit, day: heardDay, count, buyers };
   const lines = (
     <>
@@ -206,7 +230,7 @@ export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tra
             onLongPress={openMenu}
             from={from}
             spoken={count === null ? undefined : spokenFacts([count, heardDay])}
-            badge={pill}
+            badge={badge}
             hitSlop={{ left: type.gutter }}
             style={ART_COLUMN}
           />
@@ -230,18 +254,9 @@ export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tra
               <RowLight release={release} rule={rule} />
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: c.track }, lit]} />
               {art}
-              <Pressable
-                onPress={() => play(release, from)}
-                onLongPress={openMenu}
-                onPressIn={onPressIn}
-                onPressOut={onPressOut}
-                unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
-                hitSlop={{ left: GAP }}
-                accessible={false}
-                style={BODY}
-              >
+              <IosBody onPress={() => play(release, from)} onLongPress={openMenu} onPressIn={onPressIn} onPressOut={onPressOut}>
                 {lines}
-              </Pressable>
+              </IosBody>
             </SpokenRow>
           </WishlistSwipe>
         );

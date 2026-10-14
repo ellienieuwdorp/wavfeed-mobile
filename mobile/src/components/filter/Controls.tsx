@@ -25,14 +25,15 @@ export function useFill(): ColorValue {
 
 /**
  * One adjustable element to a screen reader, its value the sentence it sits in (`spoken`), so a swipe up or down
- * changes the minimum and is heard; the minus and plus inside are for touch only.
+ * changes the minimum and is heard; the minus and plus inside are for touch only. It reports a step, not a value, so
+ * the owner applies it to what it holds when the tap lands.
  */
-export function Stepper({ value, min, max, onChange, spoken }: { value: number; min: number; max: number; onChange: (n: number) => void; spoken: (n: number) => string }) {
+export function Stepper({ value, min, max, onStep, spoken }: { value: number; min: number; max: number; onStep: (by: 1 | -1) => void; spoken: (n: number) => string }) {
   const { c, dark } = useTokens();
   const fill = useFill();
-  const step = (by: number, enabled: boolean, glyph: 'minus' | 'plus') => (
+  const step = (by: 1 | -1, enabled: boolean, glyph: 'minus' | 'plus') => (
     <Pressable
-      onPress={enabled ? () => onChange(value + by) : undefined}
+      onPress={enabled ? () => onStep(by) : undefined}
       disabled={!enabled}
       accessible={false}
       importantForAccessibility="no"
@@ -51,8 +52,8 @@ export function Stepper({ value, min, max, onChange, spoken }: { value: number; 
       accessibilityValue={{ min, max, now: value, text: spoken(value) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(event) => {
-        const next = event.nativeEvent.actionName === 'increment' ? value + 1 : event.nativeEvent.actionName === 'decrement' ? value - 1 : value;
-        if (next !== value && next >= min && next <= max) onChange(next);
+        const by = event.nativeEvent.actionName === 'increment' ? 1 : event.nativeEvent.actionName === 'decrement' ? -1 : 0;
+        if (by !== 0 && value + by >= min && value + by <= max) onStep(by);
       }}
       style={{ flexDirection: 'row', alignItems: 'center', height: 32, borderRadius: 8, borderCurve: 'continuous', backgroundColor: fill, overflow: 'hidden', flexShrink: 0 }}
     >

@@ -13,7 +13,7 @@ import type { Href } from 'expo-router';
 import { memo } from 'react';
 import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 
-import { copy, creditText, tracksOutPhrase, tracksOutPill } from '@/copy';
+import { copy, creditText, tracksOutPhrase, tracksOutBadge } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { captionTitle } from '@/theme/textSize';
 import { rowText, useTokens } from '@/theme/tokens';
@@ -42,7 +42,7 @@ export type ShelfCard = {
   readonly day: string;
   /** "out Tue 13 Oct", the same day as the card's label speaks it, weekday included. */
   readonly out: string;
-  /** The Tracks that play and how many it has: the "1/4" pill, "1 of 4 tracks" to a screen reader. */
+  /** The Tracks that play and how many it has: the "1/4" badge on the art's corner, "1 of 4 tracks" to a screen reader. */
   readonly tracksOut: number | null;
   readonly numTracks: number | null;
   /** The people you follow who bought it. */
@@ -60,14 +60,14 @@ const Card = memo(function Card({ card }: { card: ShelfCard }) {
   const day = captionTitle(fontScale, rowText.eyebrow);
   const lift = ((day.style?.lineHeight ?? rowText.eyebrow.lineHeight) - FACE) / 2;
   const credit = creditOf(card.release);
-  const pill = tracksOutPill(card.tracksOut, card.numTracks);
+  const badge = tracksOutBadge(card.tracksOut, card.numTracks);
   const membership = useMembership(card.release.itemType, card.release.itemId);
   const heard = heardParts({ title: card.release.title, credit, day: card.out, count: tracksOutPhrase(card.tracksOut, card.numTracks), buyers: card.buyers }, membership);
   return (
     <View style={{ width: CARD }}>
       <RowMenu release={card.release} width={CARD} boughtBy={card.buyers}>
         {(openMenu) => (
-          <PlayArt release={card.release} size={CARD} radius={ios ? 8 : 12} onLongPress={openMenu} named={heard.named} spoken={heard.facts} badge={pill} style={{ width: CARD }}>
+          <PlayArt release={card.release} size={CARD} radius={ios ? 8 : 12} onLongPress={openMenu} named={heard.named} spoken={heard.facts} badge={badge} style={{ width: CARD }}>
             <View style={{ gap: 2, marginTop: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 1 }}>
                 <Type numberOfLines={day.numberOfLines} allowFontScaling={day.allowFontScaling} style={[rowText.eyebrow, { flexShrink: 1, marginVertical: Math.max(0, -lift), color: c.faint }, day.style]}>{card.day}</Type>

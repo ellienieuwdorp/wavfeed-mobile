@@ -41,7 +41,7 @@ export type HeardRow = {
   readonly credit: CreditLine;
   /** The eyebrow's words, "Wed 7" or "out Tue 13 Oct"; null when the row has no day. */
   readonly day: string | null;
-  /** "1 of 4 tracks" from tracksOutPhrase, where the row draws the pill. */
+  /** "1 of 4 tracks" from tracksOutPhrase, where the row's art draws the badge. */
   readonly count: string | null;
   readonly buyers: readonly ApiFanRef[];
 };
