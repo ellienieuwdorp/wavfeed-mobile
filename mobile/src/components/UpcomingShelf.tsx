@@ -10,6 +10,7 @@
  * full list.
  */
 import type { Href } from 'expo-router';
+import { memo } from 'react';
 import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 
 import { copy, creditText, tracksOutPhrase, tracksOutPill } from '@/copy';
@@ -48,7 +49,11 @@ export type ShelfCard = {
   readonly buyers: readonly ApiFanRef[];
 };
 
-function Card({ card }: { card: ShelfCard }) {
+/**
+ * A card whose facts are the same as last time skips its render, though the screen builds its card objects afresh on
+ * every change (the author's request of 2026-10-14).
+ */
+const Card = memo(function Card({ card }: { card: ShelfCard }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
   const title = captionTitle(fontScale, rowText.cardTitle);
@@ -76,6 +81,10 @@ function Card({ card }: { card: ShelfCard }) {
       </RowMenu>
     </View>
   );
+}, (a, b) => sameCard(a.card, b.card));
+
+function sameCard(a: ShelfCard, b: ShelfCard): boolean {
+  return a.release === b.release && a.day === b.day && a.out === b.out && a.tracksOut === b.tracksOut && a.numTracks === b.numTracks && a.buyers === b.buyers;
 }
 
 const keyOf = (card: ShelfCard) => card.key;

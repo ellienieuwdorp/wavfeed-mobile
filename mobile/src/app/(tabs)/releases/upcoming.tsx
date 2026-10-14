@@ -4,7 +4,7 @@
  * the "1/4" on the art once a Track plays (task 0071, decisions 10 and 12). New releases' filter narrows it as it does the
  * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters".
  */
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
@@ -53,11 +53,13 @@ export default function UpcomingReleases() {
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
 
   const { settings } = useReleaseFilter();
+  // The Filters sheet takes a tap at once; this list follows as a deferred render, as New releases' does.
+  const applied = useDeferredValue(settings);
 
   const items = useMemo(() => {
     const list: Item[] = [];
     if (view === null) return list;
-    const filtered = filterNewReleases(view, toReleaseFilter(settings));
+    const filtered = filterNewReleases(view, toReleaseFilter(applied));
     const at = new Date(day);
     for (const week of buildUpcomingWeekSections(filtered.view.upcoming, (r) => releaseDay(r.releaseDate), at)) {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
@@ -72,13 +74,13 @@ export default function UpcomingReleases() {
       });
     }
     if (list.length === 0) {
-      if (settings !== null && isActive(settings) && view.upcoming.length > 0) {
-        const named = namedFilter(settings, filtered.tags);
+      if (applied !== null && isActive(applied) && view.upcoming.length > 0) {
+        const named = namedFilter(applied, filtered.tags);
         list.push({ key: 'nomatch', kind: 'nomatch', named: copy.filter.nothingNamed(named.min, named.tags) });
       } else list.push({ key: 'empty', kind: 'empty' });
     }
     return list;
-  }, [view, settings, day]);
+  }, [view, applied, day]);
 
   return (
     <FlatList

@@ -80,6 +80,7 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
       return at.value;
     },
     useCallback: (fn: unknown, deps: readonly unknown[]) => hooks.useMemo(() => fn, deps),
+    useDeferredValue: (value: unknown) => value,
     useRef: (initial: unknown) => {
       const at = slot();
       if (!('value' in at)) at.value = { current: initial };
@@ -118,8 +119,8 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
     },
     '@/components/filter/NothingMatches': {}, '@/domain/releaseFilter': releaseFilter, '@/state/filterSettings': filterSettings,
     '@/state/releaseFilter': {
-      useReleaseFilter: () => ({ loaded: true, settings: filter.settings, filtered: null, update: (next: FilterSettings) => { filter.updates.push(next); filter.settings = next; dirty = true; } }),
-      publishFiltered: () => {},
+      useReleaseFilter: () => ({ loaded: true, settings: filter.settings, view: null, update: (next: FilterSettings) => { filter.updates.push(next); filter.settings = next; dirty = true; } }),
+      publishView: () => {},
     },
     '@/components/AppBar': { useAppBar: () => ({ scroll: {} }), useAppBarAtRest: () => {} },
     '@/components/EmptyState': {}, '@/components/GapRow': {}, '@/components/player/Dock': { useDockClearance: () => 0 },

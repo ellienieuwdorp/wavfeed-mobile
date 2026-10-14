@@ -14,7 +14,7 @@
  * press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track `from` names (task
  * 0041, decision 10).
  */
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
@@ -45,9 +45,12 @@ const RULE_LEFT = 20 + ART + GAP;
  * Lists/FlatList.js), so with a stable `renderItem` a mounted row re-renders only when its item does, not whenever the
  * screen does. The types in use do not declare the prop yet, hence the cast. `removeClippedSubviews`, on by default on Android, detaches and reattaches cells
  * as they scroll, which leaves a Compose host inside one (the row menu) with no window position:
- * every Compose menu opens empty at the window's corner until a configuration change.
+ * every Compose menu opens empty at the window's corner until a configuration change. `windowSize` keeps two screens
+ * of rows mounted either side of the visible one instead of ten: a filter change mounts every row new to that window
+ * in one commit, and the default's 130 or so held New releases for most of a second (the author's request of
+ * 2026-10-14). ceiling: a fast fling can outrun the batches that mount rows ahead; cheaper rows are the upgrade.
  */
-export const ROW_LIST = { strictMode: true, removeClippedSubviews: false } as object;
+export const ROW_LIST = { strictMode: true, removeClippedSubviews: false, windowSize: 5 } as object;
 
 type RowProps = {
   release: RowRelease;
@@ -159,7 +162,11 @@ const styles = StyleSheet.create({
   rule: { position: 'absolute', left: RULE_LEFT, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
 });
 
-export function ReleaseRow({ release, day, heardDay, tracksOut = null, numTracks = null, buyers, from, rule }: RowProps) {
+/**
+ * Memoised: a list hands its rows the view's own Release objects and plain values, so when a filter change rebuilds the
+ * list's items a row still standing skips its render (the author's request of 2026-10-14).
+ */
+export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tracksOut = null, numTracks = null, buyers, from, rule }: RowProps) {
   const { c, type } = useTokens();
   const play = usePlay();
   const { width } = useWindowDimensions();
@@ -241,4 +248,4 @@ export function ReleaseRow({ release, day, heardDay, tracksOut = null, numTracks
       }}
     </RowMenu>
   );
-}
+});

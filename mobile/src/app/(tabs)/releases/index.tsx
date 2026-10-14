@@ -10,7 +10,7 @@
  * `/releases?people=1` turns the people filter on at 1+ and keeps the tags (Open 8).
  */
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useEffectEvent, useMemo } from 'react';
+import { useDeferredValue, useEffect, useEffectEvent, useMemo } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 
 import { useAppBar } from '@/components/AppBar';
@@ -31,7 +31,7 @@ import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildSectionsFromWeeks, narrowSections } from '@/lib/weekSections';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { isActive, namedFilter, toReleaseFilter, withPeopleLink } from '@/state/filterSettings';
-import { publishFiltered, useReleaseFilter } from '@/state/releaseFilter';
+import { publishView, useReleaseFilter } from '@/state/releaseFilter';
 import { useRefresh } from '@/state/refresh';
 import { readNewReleases } from '@/store';
 import { useTokens } from '@/theme/tokens';
@@ -81,10 +81,14 @@ export default function NewReleases() {
   const appBar = useAppBar();
   const { db } = useAppState();
   const { loaded, settings, update } = useReleaseFilter();
-  const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(settings))), [view, settings]);
+  // The Filters sheet takes a tap at once; this list follows as a deferred render that a newer tap interrupts.
+  const applied = useDeferredValue(settings);
+  const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(applied))), [view, applied]);
   useEffect(() => {
-    if (filtered !== null) publishFiltered(db, filtered);
-  }, [db, filtered]);
+    if (view !== null) publishView(db, view);
+  }, [db, view]);
+  // The quiet runs are the whole view's, so a week the filter empties never reads as a quiet one (decision 8).
+  const sections = useMemo(() => (view === null ? null : buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), new Date(day))), [view, day]);
 
   // A link that arrives as `?people=N` (Feed's, Open 8) is taken once the saved settings are read, then cleared from
   // this screen's own route, so a later visit by the tab bar finds no param to take again.
@@ -100,7 +104,7 @@ export default function NewReleases() {
   }, [loaded, people]);
 
   const items = useMemo(() => {
-    const named = settings !== null && isActive(settings) && filtered !== null ? namedFilter(settings, filtered.tags) : null;
+    const named = applied !== null && isActive(applied) && filtered !== null ? namedFilter(applied, filtered.tags) : null;
     const list: Item[] = [
       {
         key: 'header',
@@ -109,7 +113,7 @@ export default function NewReleases() {
         filteredBy: named === null ? null : copy.filter.filteredBy(named.min, named.tags),
       },
     ];
-    if (filtered === null || view === null) return list;
+    if (filtered === null || view === null || sections === null) return list;
     const shown = filtered.view;
     const at = new Date(day);
     if (shown.upcoming.length > 0) {
@@ -119,10 +123,8 @@ export default function NewReleases() {
       });
       list.push({ key: 'shelf', kind: 'shelf', cards });
     }
-    // The quiet runs are the whole view's, so a week the filter empties never reads as a quiet one (decision 8).
-    const all = buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), at);
     const kept = new Set(shown.weeks.flatMap((w) => w.releases.map((placed) => placed.key)));
-    const released = shown === view ? all : narrowSections(all, (placed) => kept.has(placed.key));
+    const released = shown === view ? sections : narrowSections(sections, (placed) => kept.has(placed.key));
     for (const section of released) {
       if (section.kind === 'gap') {
         list.push({ key: section.key, kind: 'gap', text: section.label });
@@ -149,7 +151,7 @@ export default function NewReleases() {
       else list.push({ key: 'empty', kind: 'empty' });
     }
     return list;
-  }, [view, filtered, settings, day]);
+  }, [view, sections, filtered, applied, day]);
 
   return (
     <FlatList

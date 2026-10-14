@@ -85,6 +85,21 @@ test('the sheet counts tags after the people filter, each minimum alone, and eve
   assert.deepEqual([result.total, result.matching], [5, 2]);
 });
 
+test('one view filtered tap after tap answers each filter as a view read afresh does', () => {
+  const held = view();
+  const taps: ReleaseFilter[] = [
+    { people: { on: false, min: 2 }, tags: ['dub'] },
+    { people: { on: false, min: 2 }, tags: ['dub', 'techno'] },
+    { people: { on: false, min: 2 }, tags: ['techno', 'dub'] },
+    { people: { on: true, min: 2 }, tags: ['dub', 'techno'] },
+    { people: { on: true, min: 3 }, tags: ['dub', 'techno'] },
+    { people: { on: false, min: 3 }, tags: ['dub', 'techno'] },
+    { people: { on: false, min: 3 }, tags: [] },
+    { people: { on: true, min: 2 }, tags: ['dub'] },
+  ];
+  for (const filter of [...taps, ...taps]) assert.deepEqual(filterNewReleases(held, filter), filterNewReleases(view(), filter), JSON.stringify(filter));
+});
+
 test('a minimum outside the stepper is read as its nearest end', () => {
   assert.deepEqual([0, 3.7, 40, Number.NaN].map(clampMinimum), [1, 3, 6, 1]);
   assert.deepEqual(shown({ people: { on: true, min: 0 }, tags: [] }), shown({ people: { on: true, min: 1 }, tags: [] }));

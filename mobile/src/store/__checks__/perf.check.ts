@@ -1,9 +1,9 @@
 /// <reference types="node" />
 /**
  * Times the store's view reads on a long history (task 0036): 10,000 synthetic Stories over 3,000 Releases, 500 Fans
- * and 400 Pages folded over `node:sqlite`, New releases' filter over the view already read, the domain rules alone,
- * then a small fold, and the launch replay a PROJECTION_VERSION bump starts, with how many times it reported progress.
- * The store is a file, so each fold stretch opens its own connection as on the phone (test/nodeDb.ts). That each read
+ * and 400 Pages folded over `node:sqlite`, New releases' filter on a view read afresh and a tap's on one already
+ * filtered (task 0071), the domain rules alone, then a small fold, and the launch replay a PROJECTION_VERSION bump
+ * starts, with how many times it reported progress. The store is a file, so each fold stretch opens its own connection as on the phone (test/nodeDb.ts). That each read
  * answers what the rules answer is src/store/queries.test.ts. Run: `npm run perf`.
  */
 import { rmSync } from 'node:fs';
@@ -48,7 +48,12 @@ async function main(): Promise<void> {
   await time('listStoryRows', () => listStoryRows(db));
   await time('readNewReleases', () => readNewReleases(db, { now: NOW }));
   const view = await readNewReleases(db, { now: NOW });
-  await time('filter: 2+ you follow', async () => filterNewReleases(view, { people: { on: true, min: 2 }, tags: [] }));
+  // The first filter on each view read builds what that view's filters share (domain/releaseFilter.ts), so each run gets its own.
+  const fresh = await Promise.all(Array.from({ length: 6 }, () => readNewReleases(db, { now: NOW })));
+  await time('filter: first on a view', async () => filterNewReleases(fresh.pop() ?? view, { people: { on: true, min: 2 }, tags: [] }));
+  // A tap in the Filters sheet on a view already filtered once: a fresh filter each time, so no held answer is reused.
+  let tap = 0;
+  await time('filter: a tap', async () => filterNewReleases(view, { people: { on: true, min: 1 + (tap++ % 6) }, tags: [`tap${tap}`] }));
   await time('readCurated', () => readCurated(db));
 
   const rows = await oracleRows(db);
