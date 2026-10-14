@@ -5,8 +5,7 @@
  * gitignored (iOS build 4's fingerprint held its `ios/`), so they are ignored by path; `.gitignore` only matters to a
  * checked-in native project; `eas.json` and the npm scripts shape how a build is made and what its hook uploads, except
  * EAS Build's install hooks, which run beside prebuild and stay hashed; the app's version is a store label that changes
- * with a new build whose native side may be the same; the expo-router patch changes JavaScript only (task 0071), and is
- * named with its version, so a patch regenerated for another expo-router counts again until it is listed here.
+ * with a new build whose native side may be the same.
  */
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
@@ -18,6 +17,6 @@ const hooks = ['eas-build-pre-install', 'eas-build-post-install'].map((name) => 
 /** @type {import('expo/fingerprint').Config} */
 module.exports = {
   sourceSkips: SourceSkips.GitIgnore | SourceSkips.PackageJsonScriptsAll | SourceSkips.ExpoConfigVersions,
-  ignorePaths: ['eas.json', 'ios/**/*', 'android/**/*', 'patches/expo-router+57.0.24.patch'],
+  ignorePaths: ['eas.json', 'ios/**/*', 'android/**/*'],
   extraSources: [{ type: 'contents', id: 'easBuildInstallHooks', contents: JSON.stringify(hooks), reasons: ['easBuildInstallHooks'] }],
 };

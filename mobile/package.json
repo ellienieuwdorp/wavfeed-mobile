@@ -46,7 +46,6 @@
     "aws4fetch": "^1.0.20",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
-    "patch-package": "^8.0.1",
     "sf-symbols-typescript": "^2.2.0",
     "typescript": "~6.0.3"
   },
@@ -55,7 +54,6 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "lint": "expo lint",
-    "postinstall": "patch-package --error-on-fail --error-on-warn",
     "eas-build-on-success": "node scripts/upload-map.mjs",
     "test": "node --import ./test/register.mjs --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test 'src/**/*.test.ts' 'scripts/**/*.test.mjs'",
     "test:coverage": "node --import ./test/register.mjs --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' 'src/**/*.test.ts'",
