@@ -10,8 +10,9 @@
 import { router, type Href } from 'expo-router';
 import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
-import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep } from '@/copy';
+import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep, tracksOutPhrase, tracksOutPill } from '@/copy';
 import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
+import { notOutYet } from '@/domain/newReleases';
 import { captionTitle } from '@/theme/textSize';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -40,6 +41,15 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
   );
 }
 
+/**
+ * A Release not out yet with some Tracks out carries its "1/4" on the art, and its label says "1 of 4 tracks" (task
+ * 0071, decision 12 as amended by the author 2026-10-14); a released one's count says nothing new.
+ */
+function partial(item: ApiFeedItem, now: Date): { badge: string | null; spoken: string | undefined } {
+  if (!notOutYet(item, now)) return { badge: null, spoken: undefined };
+  return { badge: tracksOutPill(item.numStreamableTracks, item.numTracks), spoken: tracksOutPhrase(item.numStreamableTracks, item.numTracks) ?? undefined };
+}
+
 export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
@@ -47,7 +57,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   return (
     <RowMenu release={item} width={COVER}>
       {(openMenu) => (
-        <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} style={{ width: COVER }}>
+        <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} {...partial(item, now)} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
             <Type numberOfLines={title.numberOfLines} allowFontScaling={title.allowFontScaling} style={[{ fontSize: 15, fontWeight: ios ? '600' : '500', color: c.ink }, title.style]}>{item.title}</Type>
             <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{item.pageName}</Type>
@@ -75,7 +85,7 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
       {(openMenu) => (
         <RowSurface open={openMenu} style={{ backgroundColor: c.surface, borderRadius: ios ? 14 : 16, padding: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <PlayArt release={item} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} />
+            <PlayArt release={item} size={88} radius={ios ? 8 : 12} onLongPress={openMenu} {...partial(item, now)} />
             <View style={{ flex: 1, gap: 4 }}>
               <Type numberOfLines={1} style={{ fontSize: 16, fontWeight: ios ? '600' : '500', color: c.ink }}>{item.title}</Type>
               <Type numberOfLines={1} style={{ fontSize: 13, color: c.sub }}>{[item.pageName, item.label].filter(Boolean).join(sep)}</Type>

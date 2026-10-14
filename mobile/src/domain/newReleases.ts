@@ -86,6 +86,11 @@ export function isOutYet(releaseDate: string, now: Date): boolean {
   return day <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 }
 
+/** A Feed Item not out yet: dated after today, or a pre-order no page has dated (task 0041, decision 1). */
+export function notOutYet(item: Pick<ApiFeedItem, 'releaseDate' | 'isPreorder'>, now: Date): boolean {
+  return item.releaseDate === null ? item.isPreorder : !isOutYet(item.releaseDate, now);
+}
+
 export function startOfWeek(value: Date): Date {
   const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() + 6) % 7));
@@ -121,7 +126,7 @@ export function buildNewReleases(
   const drawn = new Map<string, number>();
   for (const element of elements) {
     if (element.kind !== 'item') continue;
-    if (element.releaseDate === null ? element.isPreorder : !isOutYet(element.releaseDate, now)) continue;
+    if (notOutYet(element, now)) continue;
     const date = placedOn(element);
     dated.push({ kind: 'release', key: `item:${element.itemType}:${element.itemId}`, date, release: element });
     drawn.set(`${element.itemType}:${element.itemId}`, date.getTime());

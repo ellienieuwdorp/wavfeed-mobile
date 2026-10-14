@@ -2,8 +2,9 @@
  * The Filters sheet's own controls (task 0071, decision 7, CSS4's `.stp`, `.isearch` and `.mfield`): neither platform's
  * kit has a stepper that holds its value between minus and plus, so this one is drawn, 32 high on the system's
  * tertiary fill with its value in the middle, minus refused at the low end and plus at the high; the tag search is
- * iOS's rounded search field or Material's outlined one; a tag's mark is the iOS checkmark or Material's checkbox
- * through @expo/ui's Compose Checkbox, hidden from TalkBack because the row it sits in is the checkbox.
+ * iOS's rounded search field or Material's outlined one; a tag's mark is a checkbox leading its row, empty or ticked
+ * (the author, 2026-10-14): SF Symbols' square and checkmark.square.fill on iOS, Material's checkbox through @expo/ui's
+ * Compose Checkbox on Android, hidden from TalkBack because the row it sits in is the checkbox.
  */
 import { Host, Checkbox } from '@expo/ui/jetpack-compose';
 import { Platform, PlatformColor, Pressable, Text, TextInput, View, type ColorValue } from 'react-native';
@@ -13,6 +14,8 @@ import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
+/** The iOS checkbox's square; the tag rows' hairline starts past it (app/filters.tsx). */
+export const TAG_MARK = 22;
 
 /** iOS's tertiary system fill, which CSS4 draws as `--fill3`; Android takes the same greys. */
 export function useFill(): ColorValue {
@@ -102,12 +105,10 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
   );
 }
 
-/** A chosen tag's mark: the iOS checkmark in its 20 wide slot, or Material's checkbox. */
+/** A tag's checkbox: on iOS the square, ticked and filled in the accent when chosen, else empty in the faint tone. */
 export function TagMark({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   const { c, dark } = useTokens();
-  if (ios) {
-    return <View style={{ width: 20, marginLeft: -4, alignItems: 'center' }}>{on ? <Glyph name="check" size={17} colour={c.accent} /> : null}</View>;
-  }
+  if (ios) return <Glyph name={on ? 'boxOn' : 'boxOff'} size={TAG_MARK} colour={on ? c.accent : c.faint} weight="regular" />;
   return (
     // Claiming the responder keeps a tap on the box from also pressing the row around it.
     <View importantForAccessibility="no-hide-descendants" onStartShouldSetResponder={() => true}>

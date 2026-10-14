@@ -7,7 +7,7 @@
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { PixelRatio, Pressable, Text, View } from 'react-native';
+import { PixelRatio, Pressable, Text, View, type Insets } from 'react-native';
 
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
@@ -19,11 +19,10 @@ import { Type } from './Type';
 export const AVATAR_CAP = 5;
 const DISC = 20;
 /**
- * 2pt above the faces and 8pt below: on a row the stack ends the credit line, 1pt under the title, above the body's
- * 9pt padding, so its press area never reaches into the title (finding VIS-13, DESIGN-UI section 11). Android's ripple
- * is bounded to the stack for the same reason; a borderless one would spread past the slop into the title.
- * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; a stack the full height of the row's right edge,
- * under the pill, is the upgrade.
+ * 2pt above the faces and 8pt below, on the Feed's card where the stack has its own line under the credit line, so its
+ * press area never reaches into the line above (finding VIS-13, DESIGN-UI section 11); a row or an Upcoming card passes
+ * its own (FACES_SLOP in ReleaseRow.tsx). Android's ripple is bounded to the stack for the same reason; a borderless one
+ * would spread past the slop.
  */
 const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 
@@ -54,7 +53,7 @@ export function openBoughtBy(fans: readonly ApiFanRef[]) {
   router.push({ pathname: '/bought-by', params: { fans: JSON.stringify(fans) } });
 }
 
-export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; cap?: number }) {
+export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, hitSlop = SLOP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; cap?: number; hitSlop?: Insets }) {
   const { c } = useTokens();
   const shown = fans.slice(0, cap);
   const more = fans.length - shown.length;
@@ -97,7 +96,7 @@ export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP }: { f
       accessibilityRole="button"
       accessibilityLabel={copy.boughtBy.stack(names)}
       accessibilityHint={copy.boughtBy.hint}
-      hitSlop={SLOP}
+      hitSlop={hitSlop}
       android_ripple={ripple(c.track)}
       style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}
     >

@@ -34,7 +34,8 @@ export type GlyphName =
   | 'search'
   | 'minus'
   | 'plus'
-  | 'check'
+  | 'boxOff'
+  | 'boxOn'
   | 'expand';
 
 const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion: IonName }>> = {
@@ -56,7 +57,8 @@ const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion:
   search: { sf: 'magnifyingglass', md: 'search', ion: 'search' },
   minus: { sf: 'minus', md: 'remove', ion: 'remove' },
   plus: { sf: 'plus', md: 'add', ion: 'add' },
-  check: { sf: 'checkmark', md: 'check', ion: 'checkmark' },
+  boxOff: { sf: 'square', md: 'check_box_outline_blank', ion: 'square-outline' },
+  boxOn: { sf: 'checkmark.square.fill', md: 'check_box', ion: 'checkbox' },
   expand: { sf: 'chevron.down', md: 'keyboard_arrow_down', ion: 'chevron-down' },
 };
 

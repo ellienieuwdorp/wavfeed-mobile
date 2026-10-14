@@ -1,13 +1,14 @@
 /**
  * The Filters sheet (task 0071, decision 7, R5 count option C, the round-four flow and Number and icon boards): the
  * bar, the people group, then the tags. On iOS the bar holds Clear, "Filters" over the live count, and Done, on the
- * grouped sheet's own greys; on Android "Filters" with the count trailing and no buttons, a tap outside, a drag down or
- * back closing it. The people group is the people glyph, "Bought by people you follow" and its switch, and under it
+ * grouped sheet's own greys; on Android "Filters" and the count, then Clear as a Material text button at the row's end
+ * (Open 11, answered by the author 2026-10-14), a tap outside, a drag down or back closing it. The people group is the people glyph, "Bought by people you follow" and its switch, and under it
  * "At least [−] 2 [+] people" with the Releases that minimum alone keeps in the tag counts' column (Open 4, option C).
  * The tags follow, highest count first, counted after the people filter (Open 3), places left out; the first few
  * show, any chosen one among them, then "Show all 34"; the search narrows them by name. Every change is written at
  * once, so the list behind changes with each tap (see state/releaseFilter.ts); no change is counted (Open 5). It opens
- * with nothing chosen the first time, and Clear goes back there (decisions 5 and 7 as amended 2026-10-14).
+ * with nothing chosen the first time, and Clear goes back there on both platforms (decisions 5 and 7 as amended
+ * 2026-10-14). Each tag leads with its checkbox (TagMark).
  */
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
-import { SearchField, Stepper, TagMark } from '@/components/filter/Controls';
+import { SearchField, Stepper, TAG_MARK, TagMark } from '@/components/filter/Controls';
 import { copy } from '@/copy';
 import { PEOPLE_MAX, PEOPLE_MIN, shownTags } from '@/domain/releaseFilter';
 import { NOTHING_CHOSEN } from '@/state/filterSettings';
@@ -64,9 +65,12 @@ export default function Filters() {
       ) : (
         <View collapsable={false}>
           <View style={{ alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: c.sub, opacity: 0.5, marginTop: 22 }} />
-          <View accessible accessibilityRole="header" style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 14, paddingHorizontal: 24 }}>
-            <Text style={{ fontSize: 24, lineHeight: 32, color: c.ink }}>{copy.filter.title}</Text>
-            <Text style={{ fontSize: 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{count}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 10, paddingLeft: 24, paddingRight: 12 }}>
+            <View accessible accessibilityRole="header" style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 12 }}>
+              <Text style={{ fontSize: 24, lineHeight: 32, color: c.ink }}>{copy.filter.title}</Text>
+              <Text style={{ fontSize: 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{count}</Text>
+            </View>
+            <TextButton label={copy.filter.clearAll} onPress={() => change(NOTHING_CHOSEN)} />
           </View>
         </View>
       )}
@@ -116,7 +120,7 @@ export default function Filters() {
             const on = settings.tags.includes(tag.normName);
             return (
               <View key={tag.normName}>
-                {n > 0 ? rule(42) : null}
+                {n > 0 ? rule(16 + TAG_MARK + 10) : null}
                 <Row onPress={() => toggleTag(tag.normName, !on)} role="checkbox" checked={on} minHeight={ios ? 44 : 48} label={`${tag.name}, ${copy.filter.count(tag.count)}`}>
                   <TagMark on={on} onChange={(next) => toggleTag(tag.normName, next)} />
                   <Text numberOfLines={1} style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{tag.name}</Text>
@@ -150,6 +154,18 @@ function BarButton({ label, bold = false, onPress }: { label: string; bold?: boo
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ opacity: pressedOpacity(pressed), paddingVertical: 6 })}>
       <Text style={{ fontSize: 17, fontWeight: bold ? '600' : '400', color: c.accent }}>{label}</Text>
     </Pressable>
+  );
+}
+
+/** Material 3's text button, the label in the accent, its ripple a pill the 48 height of its target. */
+function TextButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { c } = useTokens();
+  return (
+    <View style={{ borderRadius: 24, overflow: 'hidden' }}>
+      <Pressable onPress={onPress} accessibilityRole="button" android_ripple={ripple(c.track)} style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: 0.1, color: c.accentText }}>{label}</Text>
+      </Pressable>
+    </View>
   );
 }
 

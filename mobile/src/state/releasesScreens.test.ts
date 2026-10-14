@@ -32,7 +32,7 @@ import * as gatherSink from './gatherSink';
 const require = createRequire(import.meta.url);
 const ts = require('typescript') as typeof import('typescript');
 type Element = { readonly props: { readonly data: readonly Item[] } };
-type Item = { readonly kind: string; readonly key: string; readonly day?: string; readonly tracksOut?: number | null; readonly numTracks?: number | null; readonly cards?: readonly { readonly day: string }[] };
+type Item = { readonly kind: string; readonly key: string; readonly day?: string; readonly heardDay?: string; readonly tracksOut?: number | null; readonly numTracks?: number | null; readonly cards?: readonly { readonly day: string; readonly out: string }[] };
 type Slot = { value?: unknown; deps?: readonly unknown[]; cleanup?: () => void };
 
 function load(file: string, imports: Record<string, unknown>) {
@@ -272,9 +272,13 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     const at = mount(file, db);
     t.after(at.unmount);
     const label = (items: readonly Item[]) => file.endsWith('/index.tsx') ? items.find((item) => item.kind === 'shelf')?.cards?.[0]?.day : items.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.day;
-    // A card's day and an Upcoming row's day both carry the month, with no "out" (task 0071, decisions 10 and 14).
-    const [before, onTheDay] = ['Tue 13 Oct', 'Today'];
-    assert.equal(label(await at.read()), before);
+    // A card's day and an Upcoming row's day both carry the month, with no "out" and no weekday (task 0071, decisions 10
+    // and 14, amended by the author 2026-10-14).
+    const [before, onTheDay] = ['13 Oct', 'Today'];
+    const first = await at.read();
+    assert.equal(label(first), before);
+    const heard = file.endsWith('/index.tsx') ? first.find((item) => item.kind === 'shelf')?.cards?.[0]?.out : first.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.heardDay;
+    assert.equal(heard, 'out Tue 13 Oct', 'the label keeps the weekday the eyebrow leaves out');
     t.mock.timers.tick(30_000);
     assert.equal(label(await at.read()), onTheDay, 'labels follow local midnight while the Release remains Upcoming');
     t.mock.timers.tick(7_170_000);
@@ -287,7 +291,9 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     const items = await at.read();
     if (file.endsWith('/index.tsx')) {
       assert.equal(items.some((item) => item.kind === 'shelf'), false, 'GMT midnight removes the Upcoming shelf without a store change');
-      assert.equal(items.some((item) => item.kind === 'release' && item.key === `item:a:${PREORDER_ITEM_ID}`), true, 'the released weeks receive the held Release');
+      const released = items.find((item) => item.kind === 'release' && item.key === `item:a:${PREORDER_ITEM_ID}`);
+      assert.ok(released, 'the released weeks receive the held Release');
+      assert.deepEqual([released.day, released.heardDay], [undefined, 'Today'], 'a released row draws no day line and its label still says the day');
     } else {
       assert.equal(items.map((item) => item.kind).join(','), 'empty', 'GMT midnight removes the Release from the full Upcoming list');
     }

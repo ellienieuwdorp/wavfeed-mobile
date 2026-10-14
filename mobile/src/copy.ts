@@ -132,22 +132,23 @@ export function tracksOutPill(out: number | null, total: number | null): string 
 }
 
 /**
- * "Tue 13 Oct", "Today" on the day: an Upcoming card's day (task 0071, decision 14). The month always shows, unlike in
- * dayLabel, as it does in outOnPhrase.
+ * "13 Oct", "Today" on the day: the day an Upcoming card or an Upcoming list row draws (task 0071, decision 14, amended
+ * by the author 2026-10-14: no weekday on a day not out yet). The month always shows, unlike in dayLabel, as it does in
+ * outOnPhrase. `weekday` puts the day's name back, "Tue 13 Oct", for what a screen reader hears.
  */
-export function onDayPhrase(value: string | Date, now: Date): string {
+export function onDayPhrase(value: string | Date, now: Date, { weekday = false }: { weekday?: boolean } = {}): string {
   if (isSameDay(value, now)) return 'Today';
   const date = toDate(value);
-  return formatDatePart(date, { weekday: true, year: date.getFullYear() !== now.getFullYear() });
+  return formatDatePart(date, { weekday, year: date.getFullYear() !== now.getFullYear() });
 }
 
 /**
- * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day: the day of a Drop's row and of a row not out yet
- * (task 0071, decision 10). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let
- * out in, often another month's (finding VIS-6).
+ * "out 13 Oct" (task 0041, decision 10), "out today" on the day: the day a Drop's row draws (task 0071, decision 10,
+ * amended 2026-10-14). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let out
+ * in, often another month's (finding VIS-6). `weekday` gives "out Tue 13 Oct", as the row's label says it.
  */
-export function outOnPhrase(value: string | Date, now: Date): string {
-  return isSameDay(value, now) ? 'out today' : `out ${onDayPhrase(value, now)}`;
+export function outOnPhrase(value: string | Date, now: Date, options: { weekday?: boolean } = {}): string {
+  return isSameDay(value, now) ? 'out today' : `out ${onDayPhrase(value, now, options)}`;
 }
 
 /**

@@ -1,16 +1,18 @@
 /**
- * One Release as a list cell of three lines and a right edge (task 0071, decisions 10 to 13, the R5 canvas): 56pt art,
- * then the day in small caps, the title and the credit line ("artist · Page or label", creditText). A Drop's "1/4" pill
- * ends at the right edge on the title line and the faces of who bought it end at the same edge on the credit line, so
- * the title truncates against the pill and the credit line against the faces. No heart: a swipe right wishlists (WishlistSwipe,
- * decision 15), and the long press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI section 11); a
- * press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and drawing the ripple on
- * Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one element and on Android the
- * body is one TalkBack button beside the art; both say the whole row (heardRow) and carry the row menu's items as their
- * actions (VIS-9). The art and the body sit side by side, neither inside the other's Pressable. The iOS hairline runs
- * from the text column to the screen's edge, left out where `rule` is false (above a week head) and around the row in
- * the transport. A long press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track
- * `from` names (task 0041, decision 10).
+ * One Release as a list cell (task 0071, decisions 10 to 13 as amended by the author 2026-10-14): 56pt art, then for a
+ * Drop or a Release not out yet the day in small caps, the title, and the credit line ("artist · Page or label",
+ * creditText); a released row is the title and the credit line alone. The faces of who bought it end the title line at
+ * the right edge, so the title truncates against them and the credit line runs the full width. A partial Release's
+ * "1/4" sits on the art's corner (PlayArt). No heart: a swipe right wishlists (WishlistSwipe, decision 15), and the long
+ * press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI
+ * section 11); a press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and
+ * drawing the ripple on Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one
+ * element and on Android the body is one TalkBack button beside the art; both say the whole row (heardRow), its day
+ * with the weekday whether the row draws a day or not, and carry the row menu's items as their actions (VIS-9). The art
+ * and the body sit side by side, neither inside the other's Pressable. The iOS hairline runs from the text column to
+ * the screen's edge, left out where `rule` is false (above a week head) and around the row in the transport. A long
+ * press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track `from` names (task
+ * 0041, decision 10).
  */
 import type { ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
@@ -49,8 +51,10 @@ export const ROW_LIST = { strictMode: true, removeClippedSubviews: false } as ob
 
 type RowProps = {
   release: RowRelease;
-  /** The eyebrow: "Wed 7" from dayLabel, or "out Tue 13 Oct" from outOnPhrase for a Drop or a Release not out yet. */
+  /** The eyebrow: "out 13 Oct" from outOnPhrase for a Drop, "13 Oct" from onDayPhrase in the Upcoming list; null on a released row. */
   day: string | null;
+  /** The day as the label says it: "Wed 7" from dayLabel, "out Tue 13 Oct" with its weekday. */
+  heardDay: string;
   /** The Tracks of a Drop or an Upcoming Release that play, and how many it has: the "1/4" pill. */
   tracksOut?: number | null;
   numTracks?: number | null;
@@ -63,24 +67,20 @@ type RowProps = {
 };
 
 /**
- * The "1/4" pill (task 0071, decision 12): tabular figures in a 1pt border on the surface. A row's pill in the dark sits
- * on the row itself (`onRow`); a card's keeps the surface, as CSS5 draws them.
+ * 8pt above the faces and 2pt below: on a row they end the title line, so the press area reaches up into the padding or
+ * the short day line's empty end and never down into the credit line; on a card they end the day line, over the gap
+ * under the art (finding VIS-13, DESIGN-UI section 11).
+ * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; a stack the full height of the row's right edge is
+ * the upgrade.
  */
-export function Pill({ text, onRow = false }: { text: string; onRow?: boolean }) {
-  const { c, dark } = useTokens();
-  return (
-    <View style={{ marginLeft: 'auto', flexShrink: 0, borderWidth: 1, borderColor: c.border, borderRadius: 5, paddingVertical: 2, paddingHorizontal: 5, backgroundColor: dark && onRow ? 'transparent' : c.surface }}>
-      <Type style={{ fontSize: 11.5, lineHeight: 12, fontWeight: '600', letterSpacing: 0.23, fontVariant: ['tabular-nums'], includeFontPadding: false, color: c.sub }}>{text}</Type>
-    </View>
-  );
-}
+const FACES_SLOP = { top: 8, bottom: 2, left: 8, right: 8 };
 
-/** The faces at a line's right end, 2pt in from it as the canvas draws them. */
-export function Faces({ fans, cap }: { fans: readonly ApiFanRef[]; cap?: number }) {
+/** The faces at a line's right end, 2pt in from it as the canvas draws them; `top` sets them down from the line's top. */
+export function Faces({ fans, cap, top = 0 }: { fans: readonly ApiFanRef[]; cap?: number; top?: number }) {
   if (fans.length === 0) return null;
   return (
-    <View style={{ marginLeft: 'auto', marginRight: 2, flexShrink: 0 }}>
-      <AvatarStack fans={fans} cap={cap} opens />
+    <View style={{ marginLeft: 'auto', marginRight: 2, marginTop: top, flexShrink: 0 }}>
+      <AvatarStack fans={fans} cap={cap} opens hitSlop={FACES_SLOP} />
     </View>
   );
 }
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   rule: { position: 'absolute', left: RULE_LEFT, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
 });
 
-export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, buyers, from, rule }: RowProps) {
+export function ReleaseRow({ release, day, heardDay, tracksOut = null, numTracks = null, buyers, from, rule }: RowProps) {
   const { c, type } = useTokens();
   const play = usePlay();
   const { width } = useWindowDimensions();
@@ -168,7 +168,7 @@ export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, b
   const credit = creditOf(release);
   const count = tracksOutPhrase(tracksOut, numTracks);
   const pill = tracksOutPill(tracksOut, numTracks);
-  const heard: HeardRow = { title: release.title, credit, day, count, buyers };
+  const heard: HeardRow = { title: release.title, credit, day: heardDay, count, buyers };
   const lines = (
     <>
       {day ? (
@@ -176,18 +176,15 @@ export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, b
           {day}
         </Type>
       ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Type numberOfLines={1} style={[rowText.title, { flexShrink: 1, color: c.ink }]}>
           {release.title}
         </Type>
-        {pill ? <Pill text={pill} onRow /> : null}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Type numberOfLines={1} style={[rowText.credit, { flexShrink: 1, color: c.sub }]}>
-          {creditText(credit)}
-        </Type>
         <Faces fans={buyers} />
       </View>
+      <Type numberOfLines={1} style={[rowText.credit, { color: c.sub }]}>
+        {creditText(credit)}
+      </Type>
     </>
   );
   const row: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: MIN_HEIGHT, paddingLeft: type.gutter, paddingRight: TRAILING, gap: GAP };
@@ -201,7 +198,8 @@ export function ReleaseRow({ release, day, tracksOut = null, numTracks = null, b
             radius={ios ? 6 : 8}
             onLongPress={openMenu}
             from={from}
-            spoken={count === null ? undefined : spokenFacts([count, day])}
+            spoken={count === null ? undefined : spokenFacts([count, heardDay])}
+            badge={pill}
             hitSlop={{ left: type.gutter }}
             style={ART_COLUMN}
           />
