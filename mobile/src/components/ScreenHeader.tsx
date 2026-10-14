@@ -8,7 +8,7 @@
  * capped below the large title, so the title stays the header's largest text (review VIS-1). The catch-up is no live
  * region: a screen reader hears it on focus, and only the walk's end and pause unprompted (NoticeProvider, VIS-2).
  * The store build banner follows the lines on every tab (task 0064), hideable everywhere but Settings. New releases
- * passes its count, which leads the line ("310 releases · updated 12 min ago"), and while its filter is on the
+ * passes its count, which leads the line ("310 releases · updated 12 min ago"), and while its filter is active the
  * "Filtered by" pill in place of that line, 14 under the title on iOS and 16 on Android; during the first walk the
  * catch-up keeps its place and the pill follows it (task 0071, decision 6).
  */

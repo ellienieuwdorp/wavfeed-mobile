@@ -6,9 +6,7 @@
  * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
  * swaps glyphs and text. The whole bar opens the player to a touch; to VoiceOver, which reaches nothing inside an
  * element, the art and titles are the open button beside play, while TalkBack reaches into the bar's own
- * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4). Beside New releases'
- * filter circle it is decision 3's card, 56 high and as wide as the row leaves it, with the art and play scaled to fit
- * (task 0071, the author's Open 1 answer).
+ * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { router } from 'expo-router';
@@ -19,15 +17,13 @@ import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
 import { playerCopy } from '@/player/copy';
 import { playerNote, playPress } from '@/player/transport';
-import { CARD_SHADOW, ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { usePlayer, usePlayerRelease, type Player, type PlayableRelease } from './playerState';
 
 const ios = Platform.OS === 'ios';
 
 export const CAPSULE = ios ? 56 : 64;
-/** The card beside the filter circle (task 0071, decision 3). */
-const CARD = 56;
 
 export function playerInAccessory(): boolean {
   return ios && isLiquidGlassAvailable();
@@ -64,7 +60,7 @@ export function usePlayControl(): PlayControl {
   };
 }
 
-function PlayPause({ box, glyph, primary = false, radius = 16 }: { box: number; glyph: number; primary?: boolean; radius?: number }) {
+function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number; primary?: boolean }) {
   const { c } = useTokens();
   const control = usePlayControl();
   return (
@@ -76,7 +72,7 @@ function PlayPause({ box, glyph, primary = false, radius = 16 }: { box: number; 
       accessibilityLabel={control.label}
       accessibilityState={{ disabled: !control.enabled }}
       android_ripple={ripple(primary ? c.onAccent : c.track)}
-      style={({ pressed }) => ({ width: box, height: box, borderRadius: primary ? radius : box / 2, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: primary ? c.accent : undefined, opacity: pressedOpacity(pressed, control.dim ? 0.4 : 1) })}
+      style={({ pressed }) => ({ width: box, height: box, borderRadius: primary ? 16 : box / 2, overflow: ios ? undefined : 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: primary ? c.accent : undefined, opacity: pressedOpacity(pressed, control.dim ? 0.4 : 1) })}
     >
       <Glyph name={control.pause ? 'pause' : 'play'} size={glyph} colour={primary ? c.onAccent : c.ink} />
     </Pressable>
@@ -106,10 +102,10 @@ function Titles({ release, note, single = false }: { release: PlayableRelease; n
   );
 }
 
-function Contents({ release, inline = false, compact = false }: { release: PlayableRelease; inline?: boolean; compact?: boolean }) {
+function Contents({ release, inline = false }: { release: PlayableRelease; inline?: boolean }) {
   const { c } = useTokens();
   const note = playerNote(usePlayer());
-  const art = ios ? (inline ? 26 : 34) : compact ? 40 : 48;
+  const art = ios ? (inline ? 26 : 34) : 48;
   const open = () => router.push('/player');
   const label = playerCopy.open(release.title, note);
   return (
@@ -131,7 +127,7 @@ function Contents({ release, inline = false, compact = false }: { release: Playa
         <Artwork hue={release.hue} url={release.artUrl} size={art} radius={ios ? (inline ? 5 : 6) : art / 2} />
         <Titles release={release} note={note} single={inline} />
       </View>
-      {ios ? <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} /> : compact ? <PlayPause box={40} glyph={22} primary radius={14} /> : <PlayPause box={48} glyph={24} primary />}
+      {ios ? <PlayPause box={inline ? 36 : 44} glyph={inline ? 18 : 21} /> : <PlayPause box={48} glyph={24} primary />}
     </Pressable>
   );
 }
@@ -142,12 +138,11 @@ export function AccessoryPlayer() {
   return current ? <Contents release={current} inline={placement === 'inline'} /> : null;
 }
 
-/** `beside`: the 56 card that shares its row with the filter circle, its width the row's to give (task 0071, decision 3). */
-export function MiniPlayer({ beside = false }: { beside?: boolean }) {
+export function MiniPlayer() {
   const { c, dark } = useTokens();
   const current = usePlayerRelease();
   if (!current) return null;
-  const shape = beside ? { height: CARD, borderRadius: CARD / 2, flex: 1, minWidth: 0 } : { height: CAPSULE, borderRadius: CAPSULE / 2, marginHorizontal: ios ? 14 : 16 };
+  const shape = { height: CAPSULE, borderRadius: CAPSULE / 2, marginHorizontal: ios ? 14 : 16 };
   if (ios) {
     const glass = isLiquidGlassAvailable();
     return (
@@ -157,8 +152,8 @@ export function MiniPlayer({ beside = false }: { beside?: boolean }) {
     );
   }
   return (
-    <View style={[shape, { backgroundColor: dark ? c.borderLight : c.surface, boxShadow: beside ? CARD_SHADOW : '0 3px 6px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }]}>
-      <Contents release={current} compact={beside} />
+    <View style={[shape, { backgroundColor: dark ? c.borderLight : c.surface, boxShadow: '0 3px 6px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }]}>
+      <Contents release={current} />
     </View>
   );
 }

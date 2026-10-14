@@ -1,12 +1,13 @@
 /**
  * The Filters sheet (task 0071, decision 7, R5 count option C, the round-four flow and Number and icon boards): the
- * bar, the people group, then the tags. On iOS the bar holds Reset, "Filters" over the live count, and Done, on the
+ * bar, the people group, then the tags. On iOS the bar holds Clear, "Filters" over the live count, and Done, on the
  * grouped sheet's own greys; on Android "Filters" with the count trailing and no buttons, a tap outside, a drag down or
  * back closing it. The people group is the people glyph, "Bought by people you follow" and its switch, and under it
  * "At least [−] 2 [+] people" with the Releases that minimum alone keeps in the tag counts' column (Open 4, option C).
  * The tags follow, highest count first, counted after the people filter (Open 3), places left out; the first few
  * show, any chosen one among them, then "Show all 34"; the search narrows them by name. Every change is written at
- * once, so the list behind changes with each tap (see state/releaseFilter.ts); no change is counted (Open 5).
+ * once, so the list behind changes with each tap (see state/releaseFilter.ts); no change is counted (Open 5). It opens
+ * with nothing chosen the first time, and Clear goes back there (decisions 5 and 7 as amended 2026-10-14).
  */
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -18,7 +19,7 @@ import { NativeSwitch } from '@/components/NativeSwitch';
 import { SearchField, Stepper, TagMark } from '@/components/filter/Controls';
 import { copy } from '@/copy';
 import { PEOPLE_MAX, PEOPLE_MIN, shownTags } from '@/domain/releaseFilter';
-import { FIRST_SETTINGS, type FilterSettings } from '@/state/filterSettings';
+import { NOTHING_CHOSEN } from '@/state/filterSettings';
 import { useReleaseFilter } from '@/state/releaseFilter';
 import { PRESS_FLASH, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -31,11 +32,10 @@ const COUNT_WIDTH = 34;
 export default function Filters() {
   const { c } = useTokens();
   const insets = useSafeAreaInsets();
-  const { settings: saved, filtered, update } = useReleaseFilter();
+  const { settings: saved, filtered, update: change } = useReleaseFilter();
   const [query, setQuery] = useState('');
   const [all, setAll] = useState(false);
-  const settings = saved ?? FIRST_SETTINGS;
-  const change = (next: Omit<FilterSettings, 'on'>) => update({ ...next, on: true });
+  const settings = saved ?? NOTHING_CHOSEN;
   const min = settings.people.min;
   const tags = filtered?.tags ?? [];
   const byMinimum = filtered?.byMinimum.find((m) => m.min === min)?.count ?? 0;
@@ -58,7 +58,7 @@ export default function Filters() {
             <Text style={{ fontSize: 17, fontWeight: '600', color: c.ink }}>{copy.filter.title}</Text>
             <Text style={{ fontSize: 12, lineHeight: 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{count}</Text>
           </View>
-          <BarButton label={copy.filter.reset} onPress={() => update(FIRST_SETTINGS)} />
+          <BarButton label={copy.filter.clearAll} onPress={() => change(NOTHING_CHOSEN)} />
           <BarButton label={copy.filter.done} bold onPress={() => router.back()} />
         </View>
       ) : (

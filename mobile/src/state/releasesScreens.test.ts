@@ -305,24 +305,24 @@ test("New releases takes ?people=1 as the people filter at 1+ with the Fan's tag
     endpoint: 'release_page', payload: releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob() }), fetchedAt: '2026-09-29T10:05:00.000Z',
   });
   await fold(db);
-  const rig: FilterRig = { settings: { on: false, people: { on: false, min: 4 }, tags: ['dub'] }, params: { people: '1' }, updates: [] };
+  const rig: FilterRig = { settings: { people: { on: false, min: 4 }, tags: ['dub'] }, params: { people: '1' }, updates: [] };
   const at = mount('../app/(tabs)/releases/index.tsx', db, false, rig);
   t.after(at.unmount);
   const items = await at.read();
-  assert.deepEqual(rig.updates, [{ on: true, people: { on: true, min: 1 }, tags: ['dub'] }]);
+  assert.deepEqual(rig.updates, [{ people: { on: true, min: 1 }, tags: ['dub'] }]);
   assert.equal(rig.params.people, undefined, 'the param is cleared once taken');
   const header = items.find((item) => item.kind === 'header') as Item & { filteredBy: string | null };
   assert.equal(header.filteredBy, 'Filtered by 1+ you follow · dub');
   // Nobody bought the one held Release, so the filter keeps nothing and names itself.
   assert.equal(items.map((item) => item.kind).join(','), 'header,nomatch');
-  // The Fan turns the filter off; a later render finds no param, and following the link again is a new link.
-  rig.settings = { ...rig.settings!, on: false };
+  // The Fan clears the filter; a later render finds no param, and following the link again is a new link.
+  rig.settings = filterSettings.NOTHING_CHOSEN;
   at.touch();
   await at.read();
   assert.equal(rig.updates.length, 1, 'a cleared link is not taken again');
   rig.params = { people: '1' };
   at.touch();
   await at.read();
-  assert.deepEqual(rig.updates.at(-1), { on: true, people: { on: true, min: 1 }, tags: ['dub'] });
+  assert.deepEqual(rig.updates.at(-1), { people: { on: true, min: 1 }, tags: [] });
   assert.equal(rig.updates.length, 2);
 });

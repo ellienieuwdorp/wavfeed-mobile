@@ -1,5 +1,5 @@
 /**
- * The New releases filter as one store the screen, its circle and the Filters sheet share (task 0071, decisions 5 to
+ * The New releases filter as one store the screen, its button and the Filters sheet share (task 0071, decisions 5 to
  * 9): the settings read once per store from `kv` and written back on every change, and the last filtered view the
  * screen drew, so the sheet's counts are the list's (decision 21) without reading the store a second time. The sheet
  * is its own route, so the screen publishes what it filtered and the sheet subscribes.
@@ -49,7 +49,7 @@ function loadFor(db: SQLiteDatabase): void {
 }
 
 export type ReleaseFilterState = {
-  /** False until the saved settings have been read; the circle waits for it, so a first tap is never misread. */
+  /** False until the saved settings have been read, so a link that sets them waits for what is saved. */
   readonly loaded: boolean;
   readonly settings: FilterSettings | null;
   /** What the screen last drew, with its counts; null before it has. */

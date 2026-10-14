@@ -23,7 +23,7 @@ const BAR_TITLE = 17;
 /** A screen the tab's view pushes, under a plain native header on both platforms. */
 export type Pushed = { readonly name: string; readonly title: string };
 
-/** `filter`: New releases, whose dock carries the filter circle where the tab bar has no place for it (see Dock). */
+/** `filter`: New releases, whose dock carries the filter button over its lists (see Dock). */
 export function TabStack({ title, raised = false, pushed = [], filter = false }: { title: string; raised?: boolean; pushed?: readonly Pushed[]; filter?: boolean }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();

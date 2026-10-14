@@ -1,8 +1,9 @@
 /// <reference types="node" />
 /**
- * The filter's settings on the install (task 0071, decisions 5, 8 and 9, Open 8): they survive a round trip through
- * the `kv` table, the first tap opens the sheet and later taps only toggle, a stored minimum comes back inside the
- * stepper's range, and Feed's link turns the people filter on at its minimum while the tags stay.
+ * The filter's settings on the install (task 0071, decisions 5, 8 and 9 as amended 2026-10-14, and Open 8):
+ * they survive a round trip through the `kv` table, a value saved while the filter had its own switch reads as nothing
+ * chosen when that switch was off, a stored minimum comes back inside the stepper's range, the filter is active exactly
+ * when something is chosen, and Feed's link turns the people filter on at its minimum while the tags stay.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -10,12 +11,10 @@ import { test } from 'node:test';
 import { openTestStore } from '../../test/nodeDb';
 import { writeKv } from '../store/kv';
 import {
-  circlePress,
-  cleared,
   FILTER_KEY,
-  FIRST_SETTINGS,
   isActive,
   namedFilter,
+  NOTHING_CHOSEN,
   parseSettings,
   readFilterSettings,
   toReleaseFilter,
@@ -24,7 +23,7 @@ import {
   type FilterSettings,
 } from './filterSettings';
 
-const SAVED: FilterSettings = { on: true, people: { on: true, min: 3 }, tags: ['ambient', 'dub'] };
+const SAVED: FilterSettings = { people: { on: true, min: 3 }, tags: ['ambient', 'dub'] };
 
 test('saved settings come back from the kv table as written, and nothing saved reads as null', async (t) => {
   const { db, close } = await openTestStore();
@@ -32,51 +31,45 @@ test('saved settings come back from the kv table as written, and nothing saved r
   assert.equal(await readFilterSettings(db), null);
   await writeFilterSettings(db, SAVED);
   assert.deepEqual(await readFilterSettings(db), SAVED);
-  await writeFilterSettings(db, { ...SAVED, on: false, tags: [] });
-  assert.deepEqual(await readFilterSettings(db), { ...SAVED, on: false, tags: [] });
+  await writeFilterSettings(db, NOTHING_CHOSEN);
+  assert.deepEqual(await readFilterSettings(db), NOTHING_CHOSEN);
+});
+
+test('settings saved with the old on switch read as they applied: off is nothing chosen, on keeps its choices', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  await writeKv(db, FILTER_KEY, { on: false, people: { on: true, min: 4 }, tags: ['dub'] });
+  assert.deepEqual(await readFilterSettings(db), { people: { on: false, min: 4 }, tags: [] });
+  await writeKv(db, FILTER_KEY, { on: true, people: { on: true, min: 4 }, tags: ['dub'] });
+  assert.deepEqual(await readFilterSettings(db), { people: { on: true, min: 4 }, tags: ['dub'] });
 });
 
 test('a stored minimum outside the stepper is read inside it, and a value this code never wrote is null', async (t) => {
   const { db, close } = await openTestStore();
   t.after(close);
-  await writeKv(db, FILTER_KEY, { on: true, people: { on: true, min: 40 }, tags: ['dub', 'dub', 7, ''] });
-  assert.deepEqual(await readFilterSettings(db), { on: true, people: { on: true, min: 6 }, tags: ['dub'] });
+  await writeKv(db, FILTER_KEY, { people: { on: true, min: 40 }, tags: ['dub', 'dub', 7, ''] });
+  assert.deepEqual(await readFilterSettings(db), { people: { on: true, min: 6 }, tags: ['dub'] });
   assert.equal(parseSettings({ ...SAVED, people: { on: true, min: 0 } })?.people.min, 1);
-  for (const value of [null, 'on', { on: 'yes', people: { on: true, min: 2 }, tags: [] }, { on: true, people: null, tags: [] }, { on: true, people: { on: true, min: 2 } }]) {
+  for (const value of [null, 'on', { on: 'yes', people: { on: true, min: 2 }, tags: [] }, { people: null, tags: [] }, { people: { on: true, min: 2 } }]) {
     assert.equal(parseSettings(value), null, JSON.stringify(value));
   }
 });
 
-test('the first tap opens the sheet at people 2+ with no tags; later taps toggle with the last settings and open nothing', () => {
-  assert.deepEqual(circlePress(null), { next: FIRST_SETTINGS, openSheet: true });
-  assert.deepEqual(FIRST_SETTINGS, { on: true, people: { on: true, min: 2 }, tags: [] });
-  assert.deepEqual(circlePress(SAVED), { next: { ...SAVED, on: false }, openSheet: false });
-  assert.deepEqual(circlePress({ ...SAVED, on: false }), { next: SAVED, openSheet: false });
-  const nothingChosen = { on: false, people: { on: false, min: 4 }, tags: [] };
-  assert.deepEqual(circlePress(nothingChosen), { next: { ...nothingChosen, on: true }, openSheet: true });
-});
-
-test('the list is filtered only while the filter is on and chooses something', () => {
+test('the filter is active exactly when the people switch is on or a tag is chosen, and nothing is chosen at first', () => {
   assert.equal(isActive(null), false);
-  assert.equal(isActive(SAVED), true);
-  assert.equal(isActive({ ...SAVED, on: false }), false);
-  assert.equal(isActive({ on: true, people: { on: false, min: 2 }, tags: [] }), false);
-  assert.deepEqual(toReleaseFilter({ ...SAVED, on: false }), { people: { on: false, min: 3 }, tags: [] });
-  assert.deepEqual(toReleaseFilter(SAVED), { people: { on: true, min: 3 }, tags: ['ambient', 'dub'] });
-  assert.deepEqual(toReleaseFilter({ on: true, people: { on: false, min: 3 }, tags: ['dub'] }), { people: { on: false, min: 3 }, tags: ['dub'] });
-});
-
-test('Clear filters turns the filter and the people switch off with no tags, so the next tap opens the sheet', () => {
-  assert.deepEqual(cleared(), { on: false, people: { on: false, min: 2 }, tags: [] });
-  assert.equal(isActive(cleared()), false);
-  assert.equal(circlePress(cleared()).openSheet, true);
+  assert.equal(isActive(NOTHING_CHOSEN), false);
+  assert.deepEqual(NOTHING_CHOSEN, { people: { on: false, min: 2 }, tags: [] });
+  assert.equal(isActive({ people: { on: true, min: 3 }, tags: [] }), true);
+  assert.equal(isActive({ people: { on: false, min: 3 }, tags: ['dub'] }), true);
+  assert.deepEqual(toReleaseFilter(null), NOTHING_CHOSEN);
+  assert.deepEqual(toReleaseFilter({ people: { on: true, min: 9 }, tags: ['dub'] }), { people: { on: true, min: 6 }, tags: ['dub'] });
 });
 
 test("Feed's link turns the people filter on at 1+ and keeps the tags; no number leaves the settings alone", () => {
-  assert.deepEqual(withPeopleLink(SAVED, '1'), { on: true, people: { on: true, min: 1 }, tags: ['ambient', 'dub'] });
-  assert.deepEqual(withPeopleLink({ ...SAVED, on: false, people: { on: false, min: 5 } }, ['1']), { on: true, people: { on: true, min: 1 }, tags: ['ambient', 'dub'] });
-  assert.deepEqual(withPeopleLink(null, '1'), { on: true, people: { on: true, min: 1 }, tags: [] });
-  assert.deepEqual(withPeopleLink(null, '9'), { on: true, people: { on: true, min: 6 }, tags: [] });
+  assert.deepEqual(withPeopleLink(SAVED, '1'), { people: { on: true, min: 1 }, tags: ['ambient', 'dub'] });
+  assert.deepEqual(withPeopleLink({ ...SAVED, people: { on: false, min: 5 } }, ['1']), { people: { on: true, min: 1 }, tags: ['ambient', 'dub'] });
+  assert.deepEqual(withPeopleLink(null, '1'), { people: { on: true, min: 1 }, tags: [] });
+  assert.deepEqual(withPeopleLink(null, '9'), { people: { on: true, min: 6 }, tags: [] });
   assert.equal(withPeopleLink(SAVED, undefined), SAVED);
   assert.equal(withPeopleLink(SAVED, 'many'), SAVED);
   assert.equal(withPeopleLink(null, ''), null);

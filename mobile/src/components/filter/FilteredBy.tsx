@@ -1,5 +1,5 @@
 /**
- * "Filtered by 2+ you follow · ambient, dub" under New releases' title while the filter is on (task 0071, decision 6,
+ * "Filtered by 2+ you follow · ambient, dub" under New releases' title while a filter is active (task 0071, decision 6,
  * CSS3's `.fby`): the filter glyph at 16, the words and a chevron on the tint, 32 high and fully rounded, its left edge
  * on the title's. It scrolls away with the title, and a tap opens the Filters sheet.
  */
@@ -11,7 +11,7 @@ import { Type } from '@/components/Type';
 import { copy } from '@/copy';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
-import { FILTERS_ROUTE } from './useFilterToggle';
+import { FILTERS_ROUTE } from './FilterButton';
 
 const ios = Platform.OS === 'ios';
 
@@ -19,10 +19,10 @@ export function FilteredBy({ text }: { text: string }) {
   const { c } = useTokens();
   return (
     <Pressable
-      onPress={() => router.push(FILTERS_ROUTE)}
+      onPress={() => router.navigate(FILTERS_ROUTE)}
       accessibilityRole="button"
       accessibilityLabel={text}
-      accessibilityHint={copy.filter.filteredByHint}
+      accessibilityHint={copy.filter.openHint}
       android_ripple={ripple(c.track)}
       style={({ pressed }) => ({
         alignSelf: 'flex-start',

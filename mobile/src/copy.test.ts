@@ -73,7 +73,7 @@ test("New releases' header counts the view, and the filter's lines name only wha
   assert.equal(f.minimum(1), 'At least 1 person you follow');
   assert.equal(f.minimum(2), 'At least 2 people you follow');
   assert.deepEqual([f.peopleWord(1), f.peopleWord(2)], ['person', 'people']);
-  assert.equal(f.toggle(true), 'Filter, on');
+  assert.deepEqual([f.button(true), f.button(false)], ['Filters, active', 'Filters, none active']);
   assert.equal(f.nothingNamed(5, ['idm', 'piano']), 'Nothing tagged idm or piano that 5 people you follow bought.');
   assert.equal(f.nothingNamed(1, []), 'Nothing that someone you follow bought.');
   assert.equal(f.nothingNamed(null, ['ambient', 'dub', 'idm']), 'Nothing tagged ambient, dub or idm.');

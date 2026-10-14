@@ -1,4 +1,4 @@
-/** The releases tab's stack, for the native header and, where the tab bar cannot hold it, the filter circle (see TabStack). */
+/** The releases tab's stack, for the native header and the filter button over its lists (see TabStack and Dock). */
 import { TabStack } from '@/components/TabStack';
 import { copy } from '@/copy';
 

@@ -60,9 +60,8 @@ const SCREEN_PATHS: Readonly<Record<string, Screen>> = {
   '/bought-by': 'bought_by',
   // The ask shows only while sharing is off and holds the same switch as the Settings group, so it counts as settings.
   '/usage': 'settings',
-  // New releases' Filters sheet and the iOS bar's filter item belong to New releases (task 0071); neither is counted.
+  // New releases' Filters sheet belongs to New releases (task 0071) and is not counted.
   '/filters': 'releases',
-  '/filter-toggle': 'releases',
 };
 
 /** Route params and query strings never reach a Tally: only the path's template is looked up. */

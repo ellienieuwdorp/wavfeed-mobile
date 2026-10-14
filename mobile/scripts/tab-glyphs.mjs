@@ -3,9 +3,7 @@
  * Renders the Feed and New releases tab glyphs (task 0071, decision 2) to `assets/tabs/` at 24pt, one image per state
  * at @1x, @2x and @3x, black on transparent: the tab bars draw them as templates, so only the alpha counts and the
  * tint is the bar's. The selected calendar's day dot is cut out of its fill, so the bar's ground shows through it.
- * Settings keeps the system gear. The filter's on state for the iOS bar's trailing item (task 0071, decision 5 and the
- * Open 1 answer) is drawn in colour instead, one image per scheme: the drawn filter glyph at stroke 2.75 in the accent
- * on a disc of the tint, from theme/palette.ts. Chromium draws the SVG, from any project that has Playwright installed:
+ * Settings keeps the system gear. Chromium draws the SVG, from any project that has Playwright installed:
  * `node scripts/tab-glyphs.mjs <path inside that project>`.
  */
 import { mkdir } from 'node:fs/promises';
@@ -31,17 +29,6 @@ const GLYPHS = {
     + `<g mask="url(#knock)"><rect ${RECT} ${stroke(2, '#000')}/><path d="${TABS}" ${stroke()}/></g>`,
 };
 
-/** The palette's tint and accent per scheme (theme/palette.ts), for the filter's on state. */
-const FILTER_ON = { light: { tint: '#e2ecfb', accent: '#0687f5' }, dark: { tint: '#2b4a73', accent: '#66a8f4' } };
-const FILTER_POINTS = 30;
-const FILTER = 'M3 7 H21 M6.5 12 H17.5 M10 17 H14';
-const COLOURED = Object.fromEntries(
-  Object.entries(FILTER_ON).map(([scheme, { tint, accent }]) => [
-    `filter-on-${scheme}`,
-    `<circle cx="12" cy="12" r="12" fill="${tint}"/><g transform="translate(3.6 3.6) scale(0.7)"><path d="${FILTER}" fill="none" stroke="${accent}" stroke-width="2.75" stroke-linecap="round"/></g>`,
-  ]),
-);
-
 const from = process.argv[2];
 if (from === undefined) {
   console.error('usage: node scripts/tab-glyphs.mjs <path inside a project with playwright installed>');
@@ -53,10 +40,8 @@ const browser = await chromium.launch();
 try {
   for (const scale of SCALES) {
     const page = await browser.newPage({ deviceScaleFactor: scale, viewport: { width: POINTS, height: POINTS } });
-    const all = [...Object.entries(GLYPHS).map(([name, body]) => [name, body, POINTS]), ...Object.entries(COLOURED).map(([name, body]) => [name, body, FILTER_POINTS])];
-    for (const [name, body, points] of all) {
-      await page.setViewportSize({ width: points, height: points });
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${points}" height="${points}" viewBox="0 0 24 24">${body}</svg>`;
+    for (const [name, body] of Object.entries(GLYPHS)) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${POINTS}" height="${POINTS}" viewBox="0 0 24 24">${body}</svg>`;
       await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block}</style>${svg}`);
       const file = `${name}${scale === 1 ? '' : `@${scale}x`}.png`;
       await page.screenshot({ path: new URL(file, OUT).pathname, omitBackground: true });
@@ -66,4 +51,4 @@ try {
 } finally {
   await browser.close();
 }
-console.log(`Rendered ${Object.keys(GLYPHS).length + Object.keys(COLOURED).length} tab glyphs at ${SCALES.map((s) => `@${s}x`).join(', ')} into assets/tabs.`);
+console.log(`Rendered ${Object.keys(GLYPHS).length} tab glyphs at ${SCALES.map((s) => `@${s}x`).join(', ')} into assets/tabs.`);

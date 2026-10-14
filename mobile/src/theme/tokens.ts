@@ -66,8 +66,8 @@ export function pressedOpacity(pressed: boolean, base = 1): number {
 /** How long a row in a scrolling list waits before it lights, so a drag that starts on it scrolls without a flash. */
 export const SCROLL_PRESS_DELAY_MS = 120;
 
-/** Material's level-2 elevation: the mini player card and the filter circle on New releases (task 0071, decision 3). */
-export const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.30), 0 2px 6px 2px rgba(0,0,0,0.15)';
+/** Material's level-3 elevation, a FAB's at rest: New releases' filter button on Android (task 0071, decision 5). */
+export const FAB_SHADOW = '0 1px 3px rgba(0,0,0,0.30), 0 4px 8px 3px rgba(0,0,0,0.15)';
 
 /** Where Material's full-height sheet stops below the status bar, so a sheet taller than the window is capped there. */
 export const SHEET_TOP = 24;

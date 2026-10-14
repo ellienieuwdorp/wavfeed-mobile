@@ -3,8 +3,9 @@
  * first (DESIGN-UI section 3, task 0037). Rows carry the day, the credit line and the faces of who bought it (task
  * 0071, decisions 10 to 12). A Drop is the same row on its day, its day "out Tue 13 Oct" and its count the "1/4" pill,
  * and its art plays the Release from the newest Track it let out (task 0041, decision 10). The filter (task 0071,
- * decisions 5 to 9) narrows the shelf and the weeks; with it off the line under the title counts the view, with it on
- * the "Filtered by" pill stands there, and a filter that keeps nothing says so with "Clear filters". A link to
+ * decisions 6 to 9) narrows the shelf and the weeks; with nothing chosen the line under the title counts the view,
+ * while a filter is active the "Filtered by" pill stands there, and a filter that keeps nothing says so with "Clear
+ * filters". The filter button floats over the list (see Dock). A link to
  * `/releases?people=1` turns the people filter on at 1+ and keeps the tags (Open 8).
  */
 import { useLocalSearchParams, useNavigation } from 'expo-router';

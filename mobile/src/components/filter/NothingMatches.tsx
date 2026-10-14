@@ -1,13 +1,14 @@
 /**
  * New releases when the filter keeps nothing (task 0071, decision 9, the round-two empty board): "Nothing matches", the
- * filter named, and "Clear filters", which turns the filter off with the people switch off and no tags (see `cleared`).
+ * filter named, and "Clear filters", which chooses nothing again: the people switch off at 2 and no tags (task 0071,
+ * decision 9 as amended 2026-10-14), as the sheet's Clear does.
  */
 import { Platform, Pressable, View } from 'react-native';
 
 import { Glyph } from '@/components/Glyph';
 import { Type } from '@/components/Type';
 import { copy } from '@/copy';
-import { cleared } from '@/state/filterSettings';
+import { NOTHING_CHOSEN } from '@/state/filterSettings';
 import { useReleaseFilter } from '@/state/releaseFilter';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -26,7 +27,7 @@ export function NothingMatches({ named }: { named: string }) {
       </Type>
       <Type style={{ fontSize: 15, lineHeight: 20, color: c.sub, textAlign: 'center' }}>{named}</Type>
       <Pressable
-        onPress={() => update(cleared())}
+        onPress={() => update(NOTHING_CHOSEN)}
         accessibilityRole="button"
         android_ripple={ripple(c.track)}
         hitSlop={8}

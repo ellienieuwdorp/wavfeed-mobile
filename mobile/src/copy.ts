@@ -349,7 +349,7 @@ export function releasesCount(n: number): string {
   return `${new Intl.NumberFormat('en-GB').format(n)} ${n === 1 ? 'release' : 'releases'}`;
 }
 
-/** "310 releases · updated 12 min ago": New releases' line under its title with the filter off (decision 6). */
+/** "310 releases · updated 12 min ago": New releases' line under its title with nothing chosen (decision 6). */
 export function countedHeader(n: number, note: string | null): string {
   return joinMiddot([releasesCount(n), note === null ? null : note.charAt(0).toLowerCase() + note.slice(1)]);
 }
@@ -447,14 +447,17 @@ export const copy = {
     removed: 'Removed from your Bandcamp wishlist',
     undo: 'Undo',
   },
-  /** New releases' filter (task 0071, decisions 5 to 9 and Open 4): the circle, the "Filtered by" pill, the sheet, nothing matching. */
+  /**
+   * New releases' filter (task 0071, decisions 5 to 9 as amended 2026-10-14, and Open 4): the floating button, the
+   * "Filtered by" pill, the sheet, nothing matching.
+   */
   filter: {
-    toggle: (on: boolean) => (on ? 'Filter, on' : 'Filter, off'),
-    toggleHint: 'Turns the filter on or off',
+    button: (active: boolean) => (active ? 'Filters, active' : 'Filters, none active'),
     filteredBy,
-    filteredByHint: 'Opens the filters',
+    openHint: 'Opens the filters',
     title: 'Filters',
-    reset: 'Reset',
+    /** The sheet's top-left button: the people switch off and no tags, as "Clear filters" does. */
+    clearAll: 'Clear',
     done: 'Done',
     people: 'Bought by people you follow',
     atLeast: 'At least',
