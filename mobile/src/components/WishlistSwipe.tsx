@@ -11,9 +11,11 @@
  * iOS's edge pop and Android's back gesture, and only on a sideways drag: an up or down move fails it, so the list
  * scrolls, and a still finger keeps the long press and the art's tap. A swipe left is taken and moves nothing, with no
  * rubber band. While membership is not asked yet, the Demo's case, the swipe is off, as the heart takes no press then.
+ * The panel is drawn from a row's first touch on, so a list mounting rows after a filter change does not build one
+ * for each (the author's request of 2026-10-14).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
@@ -78,11 +80,16 @@ export function WishlistSwipe({ release, width, children }: Props) {
     });
   };
 
+  const [drawn, setDrawn] = useState(false);
   const pan = Gesture.Pan()
     .enabled(verb !== null)
     .activeOffsetX([-DECIDE, DECIDE])
     .failOffsetY([-DECIDE, DECIDE])
     .hitSlop({ left: -EDGE, right: -EDGE })
+    .onBegin(() => {
+      // A finger is down at least DECIDE points before the row moves, which leaves the panel a frame or two to mount.
+      if (!drawn) scheduleOnRN(setDrawn, true);
+    })
     .onStart(() => {
       removing.set(verb === 'remove');
       armed.set(false);
@@ -101,41 +108,51 @@ export function WishlistSwipe({ release, width, children }: Props) {
       dx.set(reduce ? 0 : withSpring(0, BACK));
     });
 
-  const panel = useAnimatedStyle(() => ({ width: dx.get() }));
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: dx.get() }] }));
-  const addReach = useAnimatedStyle(() => ({ opacity: !removing.get() && !armed.get() ? 1 : 0 }));
-  const addCommit = useAnimatedStyle(() => ({ opacity: !removing.get() && armed.get() ? 1 : 0 }));
-  const removeReach = useAnimatedStyle(() => ({ opacity: removing.get() && !armed.get() ? 1 : 0 }));
-  const removeCommit = useAnimatedStyle(() => ({ opacity: removing.get() && armed.get() ? 1 : 0 }));
 
   return (
     <GestureDetector gesture={pan}>
       <View>
-        <Animated.View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={[styles.panel, { backgroundColor: c.wishlist }, panel]}>
-          <Animated.View style={[styles.reach, addReach]}>
-            <Ionicons name="heart-outline" size={GLYPH} color={ON_PANEL} />
-          </Animated.View>
-          <Animated.View style={[styles.reach, removeReach]}>
-            <Ionicons name="heart-dislike-outline" size={GLYPH} color={ON_PANEL} />
-          </Animated.View>
-          <Animated.View style={[styles.commit, { width }, addCommit]}>
-            <Ionicons name="heart" size={GLYPH} color={ON_PANEL} />
-            <Type numberOfLines={1} style={styles.word}>
-              {copy.swipe.add}
-            </Type>
-          </Animated.View>
-          <Animated.View style={[styles.commit, { width }, removeCommit]}>
-            <Ionicons name="heart-dislike" size={GLYPH} color={ON_PANEL} />
-            <Type numberOfLines={1} style={styles.word}>
-              {copy.swipe.remove}
-            </Type>
-          </Animated.View>
-        </Animated.View>
+        {drawn ? <Panel dx={dx} armed={armed} removing={removing} width={width} /> : null}
         <Animated.View style={[{ backgroundColor: c.bg }, slide]}>
           <SwipeOffset.Provider value={dx}>{children}</SwipeOffset.Provider>
         </Animated.View>
       </View>
     </GestureDetector>
+  );
+}
+
+type PanelProps = { dx: SharedValue<number>; armed: SharedValue<boolean>; removing: SharedValue<boolean>; width: number };
+
+/** The orange panel under a moved row, with its heart and its words. */
+function Panel({ dx, armed, removing, width }: PanelProps) {
+  const { c } = useTokens();
+  const panel = useAnimatedStyle(() => ({ width: dx.get() }));
+  const addReach = useAnimatedStyle(() => ({ opacity: !removing.get() && !armed.get() ? 1 : 0 }));
+  const addCommit = useAnimatedStyle(() => ({ opacity: !removing.get() && armed.get() ? 1 : 0 }));
+  const removeReach = useAnimatedStyle(() => ({ opacity: removing.get() && !armed.get() ? 1 : 0 }));
+  const removeCommit = useAnimatedStyle(() => ({ opacity: removing.get() && armed.get() ? 1 : 0 }));
+  return (
+    <Animated.View pointerEvents="none" importantForAccessibility="no-hide-descendants" style={[styles.panel, { backgroundColor: c.wishlist }, panel]}>
+      <Animated.View style={[styles.reach, addReach]}>
+        <Ionicons name="heart-outline" size={GLYPH} color={ON_PANEL} />
+      </Animated.View>
+      <Animated.View style={[styles.reach, removeReach]}>
+        <Ionicons name="heart-dislike-outline" size={GLYPH} color={ON_PANEL} />
+      </Animated.View>
+      <Animated.View style={[styles.commit, { width }, addCommit]}>
+        <Ionicons name="heart" size={GLYPH} color={ON_PANEL} />
+        <Type numberOfLines={1} style={styles.word}>
+          {copy.swipe.add}
+        </Type>
+      </Animated.View>
+      <Animated.View style={[styles.commit, { width }, removeCommit]}>
+        <Ionicons name="heart-dislike" size={GLYPH} color={ON_PANEL} />
+        <Type numberOfLines={1} style={styles.word}>
+          {copy.swipe.remove}
+        </Type>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
