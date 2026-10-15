@@ -15,7 +15,7 @@ import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 import { copy, creditText, tracksOutPhrase, tracksOutBadge } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { captionTitle } from '@/theme/textSize';
-import { rowText, useTokens } from '@/theme/tokens';
+import { ON_ART, rowText, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
 
 import { AvatarStack } from './AvatarStack';
@@ -29,11 +29,15 @@ import { RowMenu } from './RowMenu';
 import { Type } from './Type';
 
 const ios = Platform.OS === 'ios';
-const CARD = 112;
+/**
+ * The art and the card's width: 112 grown a fifth (the author, 2026-10-15), set to 136, a whole number of pixels at
+ * 2x, 3x and Android's 2.625 (420dpi) and on the 4dp grid, while the text and the marks keep their sizes (task 0071,
+ * decision 14).
+ */
+const CARD = 136;
 const GAP = 12;
 /** A card's faces: two at most, then "+N", beside the "1/4" on the art's bottom edge (task 0071, decision 14). */
 const CARD_FACES = 2;
-const FACE = 20;
 
 /**
  * The faces' press area, 44pt tall on iOS and 48dp on Android: up into the art and down and right to its edges, past
@@ -80,7 +84,7 @@ const Card = memo(function Card({ card }: { card: ShelfCard }) {
             spoken={heard.facts}
             badge={badge}
             day={card.day}
-            faces={card.buyers.length === 0 ? null : <AvatarStack fans={card.buyers} cap={CARD_FACES} size={FACE} opens onArt hitSlop={FACES_SLOP} />}
+            faces={card.buyers.length === 0 ? null : <AvatarStack fans={card.buyers} cap={CARD_FACES} size={ON_ART.face} opens onArt hitSlop={FACES_SLOP} />}
             style={{ width: CARD }}
           >
             <View style={{ gap: 2, marginTop: 10 }}>

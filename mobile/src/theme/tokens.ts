@@ -50,7 +50,23 @@ export const rowText = {
  * 0071, decisions 12 and 14).
  */
 const ART_TEXT: TextStyle = { fontSize: 12, lineHeight: 16, fontWeight: '700', fontVariant: ['tabular-nums'], includeFontPadding: false };
-export const ON_ART = { ink: '#ffffff', ground: 'rgba(0,0,0,0.66)', text: ART_TEXT, small: { ...ART_TEXT, fontSize: 10, lineHeight: 13 } } as const;
+/** An Upcoming card's faces: 20pt discs on a backing 1pt past them (task 0071, decision 14). */
+const ART_FACE = 20;
+const ART_EDGE = 1;
+/**
+ * `mark` is the height of every mark on art 80pt and up: the faces' backing sets it, and the day and the "1/4" take it
+ * with their figures centred, so the three marks on a card stand one height (task 0071, decision 14 as amended
+ * 2026-10-15).
+ */
+export const ON_ART = {
+  ink: '#ffffff',
+  ground: 'rgba(0,0,0,0.66)',
+  text: ART_TEXT,
+  small: { ...ART_TEXT, fontSize: 10, lineHeight: 13 },
+  face: ART_FACE,
+  edge: ART_EDGE,
+  mark: ART_FACE + 2 * ART_EDGE,
+} as const;
 
 /** A Material state layer's ripple for a bounded surface, or for an icon button's 40dp circle when `radius` is given. */
 export function ripple(colour: string, radius?: number) {

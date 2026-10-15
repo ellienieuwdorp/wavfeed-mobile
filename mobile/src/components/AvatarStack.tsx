@@ -31,11 +31,11 @@ const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 /**
  * The ring between discs on the art's backing, solid since a disc's ring hides the one it overlaps, and the fill of the
  * "+N" disc that ends the stack there. A disc where the rows write "+N" holds the stack at three discs' width whatever
- * N is, so it clears a "12/14" on a 112 card (task 0071, decision 14 as amended 2026-10-15).
+ * N is, so it clears a "12/14" on a card (task 0071, decision 14 as amended 2026-10-15).
  */
 const ART_RING = '#1c1c1c';
-/** The backing's edge around the discs. */
-const ART_PAD = 1;
+/** The backing's edge around the discs, which with them sets the art marks' height (ON_ART.mark). */
+const ART_PAD = ON_ART.edge;
 
 /** A Fan's image at the size that covers `size` in this screen's pixels (finding VIS-M3). */
 function faceUrl(fan: ApiFanRef, size: number): string | null {

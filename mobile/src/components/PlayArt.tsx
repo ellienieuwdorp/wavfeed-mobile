@@ -70,13 +70,16 @@ function isCurrent(current: PlayableRelease | null, release: RowRelease): boolea
   return current !== null && current.itemId === release.itemId && current.itemType === playableItemType(release.itemType);
 }
 
-/** A mark on the art's bottom-left corner, or mirrored to its top-right one; the day reads in capitals as on a row. */
+/**
+ * A mark on the art's bottom-left corner, or mirrored to its top-right one; the day reads in capitals as on a row. On
+ * large art it stands as tall as the faces' backing, its figures centred (ON_ART.mark).
+ */
 function Badge({ text, size, corner }: { text: string; size: number; corner: 'bottomLeft' | 'topRight' }) {
   const large = size >= LARGE_ART;
   const inset = artInset(size);
   const at = corner === 'bottomLeft' ? { left: inset, bottom: inset } : { right: inset, top: inset };
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', ...at, borderRadius: large ? 6 : 4, borderCurve: 'continuous', paddingHorizontal: large ? 5 : 3, paddingVertical: large ? 1 : 0, backgroundColor: ON_ART.ground }}>
+    <View pointerEvents="none" style={{ position: 'absolute', ...at, borderRadius: large ? 6 : 4, borderCurve: 'continuous', paddingHorizontal: large ? 5 : 3, height: large ? ON_ART.mark : undefined, justifyContent: 'center', backgroundColor: ON_ART.ground }}>
       <Text allowFontScaling={false} style={[large ? ON_ART.text : ON_ART.small, { color: ON_ART.ink, textTransform: 'uppercase' }]}>
         {text}
       </Text>
