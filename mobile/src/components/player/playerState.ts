@@ -1,12 +1,15 @@
 /**
  * The player as the chrome reads it (DESIGN-UI section 10, ADR-0015, task 0036), split so a reader re-renders only on
  * what it draws: stable controls, the Release in the transport, the Track and its state, and the position ticks. The
- * transport's Tallies go to the sharing provider's `track`, naming the screen a play was pressed on (task 0038).
+ * transport's Tallies go to the sharing provider's `track`, naming the screen a play was pressed on (task 0038). The
+ * tree under it draws once the last-played Release is restored, so the iOS bar's accessory holds it from the first
+ * frame (task 0071, Open 13; `useResume`).
  */
 import { usePathname } from 'expo-router';
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import type { PlayableRelease } from '@/player/transport';
+import { useResume } from '@/player/useResume';
 import { useTransport, type PlayerClock, type Transport } from '@/player/useTransport';
 import { useAppState } from '@/state/appState';
 import type { Screen } from '@/tally/catalogue';
@@ -15,8 +18,9 @@ import { screenFor } from '@/tally/tally';
 
 export type { PlayableRelease, PlayerStatus } from '@/player/transport';
 export type { PlayerClock } from '@/player/useTransport';
-export type Player = Transport;
 export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek' | 'playAt' | 'isPlaying'>;
+/** The player as the chrome reads it; restoring and forgetting belong to the provider. */
+export type Player = Omit<Transport, 'restore' | 'forget'>;
 
 const PlayerContext = createContext<Player | null>(null);
 const ActionsContext = createContext<PlayerActions | null>(null);
@@ -31,13 +35,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     here.current = screenFor(pathname);
   }, [pathname]);
   const screen = useCallback(() => here.current, []);
-  const { transport, clock } = useTransport({ ...useAppState(), track, screen });
+  const app = useAppState();
+  const { transport, clock } = useTransport({ ...app, track, screen });
+  const ready = useResume(transport, clock, app.db, app.gather.identity?.fanId ?? null);
   const { play, toggle, next, previous, seek, playAt, isPlaying, release } = transport;
   const actions = useMemo<PlayerActions>(
     () => ({ play, toggle, next, previous, seek, playAt, isPlaying }),
     [play, toggle, next, previous, seek, playAt, isPlaying],
   );
-  const tree = createElement(ClockContext.Provider, { value: clock }, children);
+  const tree = createElement(ClockContext.Provider, { value: clock }, ready ? children : null);
   return createElement(
     ActionsContext.Provider,
     { value: actions },

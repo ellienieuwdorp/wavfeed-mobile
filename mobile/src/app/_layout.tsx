@@ -10,8 +10,9 @@
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
  * a white edge in dark. Everything sits under react-native-gesture-handler's root view, which the row's wishlist swipe
- * needs (task 0071, decision 15 and slice 0). Error capture is installed as this module loads, and its `ErrorBoundary`
- * catches what a tab's screen boundary does not (task 0038 decision 10).
+ * needs (task 0071, decision 15 and slice 0). On iOS 26 a cover in the page colour hides a launch until the tab bar's
+ * accessory has drawn (task 0071, Open 13; `launchCover.tsx`). Error capture is installed as this module loads, and
+ * its `ErrorBoundary` catches what a tab's screen boundary does not (task 0038 decision 10).
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -23,6 +24,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppFailed } from '@/components/Failed';
 import { FirstRunAsk } from '@/components/FirstRunAsk';
 import { NoticeProvider } from '@/components/noticeState';
+import { LaunchCover } from '@/components/player/launchCover';
 import { PlayerProvider } from '@/components/player/playerState';
 import { copy } from '@/copy';
 import { sampleRig } from '@/dev/rig';
@@ -99,6 +101,7 @@ export default function RootLayout() {
                 <NoticeProvider>
                   <StatusBar style={dark ? 'light' : 'dark'} />
                   <GuardedStack />
+                  <LaunchCover />
                 </NoticeProvider>
               </PlayerProvider>
             </SharingProvider>

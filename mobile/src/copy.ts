@@ -659,5 +659,7 @@ export const copy = {
     next: 'Next track',
     trackTitle: (n: number, title: string) => `${n}. ${title}`,
     openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
+    /** The iOS bar's accessory before anything has played (task 0071, Open 13), Apple Music's "Not Playing". */
+    nothingPlaying: 'Nothing playing',
   },
 } as const;

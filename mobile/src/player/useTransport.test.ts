@@ -16,6 +16,8 @@ import { insertRawDocument } from '@/store/rawDocuments';
 import * as actions from '@/tally/actions';
 import type { Tally } from '@/tally/catalogue';
 
+import { readTracklist } from '@/store/queries';
+
 import { openTestStore } from '../../test/nodeDb';
 import * as start from './start';
 import * as transport from './transport';
@@ -64,6 +66,8 @@ function mount(deps: transport.TransportDeps & TransportTallies) {
   const effects: (() => void | (() => void))[] = [];
   const cleanups: (() => void)[] = [];
   const calls: string[] = [];
+  let lockScreen = 0;
+  let onStatus: ((status: Record<string, unknown>) => void) | null = null;
   let cursor = 0;
   let mounted = false;
   let refuses = false;
@@ -88,10 +92,14 @@ function mount(deps: transport.TransportDeps & TransportTallies) {
     replace: ({ uri }: { uri: string }) => { calls.push(`replace ${uri}`); },
     play: () => { calls.push('play'); if (refuses) throw new Error('Session activation failed'); },
     pause: () => { calls.push('pause'); },
-    seekTo: async () => {},
-    setActiveForLockScreen: () => {},
+    seekTo: async (seconds: number) => { calls.push(`seek ${seconds}`); },
+    setActiveForLockScreen: () => { lockScreen += 1; },
+    clearLockScreenControls: () => {},
     updateLockScreenMetadata: () => {},
-    addListener: () => ({ remove() {} }),
+    addListener: (_name: string, listener: (status: Record<string, unknown>) => void) => {
+      onStatus = listener;
+      return { remove() { onStatus = null; } };
+    },
   };
   const imports: Record<string, unknown> = {
     react: hooks,
@@ -115,7 +123,10 @@ function mount(deps: transport.TransportDeps & TransportTallies) {
     return result.transport;
   };
   const controls = read();
-  return { controls, read, calls, refuse: (on: boolean) => { refuses = on; }, unmount: () => cleanups.forEach((cleanup) => cleanup()) };
+  const emit = (status: Record<string, unknown>) => onStatus?.({
+    isLoaded: true, playing: true, isBuffering: false, timeControlStatus: 'playing', didJustFinish: false, duration: 90, ...status,
+  });
+  return { controls, read, calls, emit, lockScreen: () => lockScreen, refuse: (on: boolean) => { refuses = on; }, unmount: () => cleanups.forEach((cleanup) => cleanup()) };
 }
 
 async function rig(t: TestContext, stored: BandcampDocument | null = page()) {
@@ -350,4 +361,110 @@ test('a newer Release retires a pending targeted load before its native start', 
   assert.equal(at.read().release?.itemId, '2');
   assert.equal(at.read().track?.trackId, '101');
   assert.equal(at.read().playing, true);
+});
+
+/** A launch's restore of `RELEASE` at its second Track, 30 seconds in, off the page stored in the rig (task 0071, Open 13). */
+async function restored(at: Awaited<ReturnType<typeof rig>>) {
+  const tracklist = await readTracklist(at.db, 'a', 1);
+  assert.ok(tracklist);
+  at.controls.restore({ release: RELEASE, tracklist, index: 1, position: 30 });
+}
+
+test('a restored Release touches no audio until play, which starts its Track where it was left or moved to', async (t) => {
+  const at = await rig(t);
+  await restored(at);
+  assert.equal(at.read().track?.trackId, '102');
+  assert.equal(at.read().status, 'ready');
+  assert.equal(at.read().playing, false);
+  assert.deepEqual(at.calls, [], 'no stream and no session before a press');
+  at.controls.seek(50);
+  assert.deepEqual(at.calls, []);
+  assert.equal(at.lockScreen(), 0, 'nothing on the lock screen before a press');
+  at.controls.toggle();
+  assert.equal(at.lockScreen(), 1);
+  assert.deepEqual(at.calls, [`replace ${NEW_URI}`, 'seek 50', 'play']);
+  assert.equal(at.read().playing, true);
+  assert.equal(at.reads(), 0);
+  const started = at.tallies.filter((tally) => tally.name === 'playback_started');
+  assert.deepEqual(started.map((tally) => tally.props.result), ['playing']);
+  at.controls.toggle();
+  at.controls.toggle();
+  assert.deepEqual(at.calls.slice(-2), ['pause', 'play'], 'once started it pauses and resumes in place');
+});
+
+test('a restore never replaces a Release already in the transport', async (t) => {
+  const at = await rig(t);
+  at.controls.play(RELEASE, '101');
+  await settle();
+  await restored(at);
+  assert.equal(at.read().track?.trackId, '101');
+  assert.equal(at.read().playing, true);
+});
+
+test('a restored Release whose stream URLs expired reads its page afresh, then starts at the saved position', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const at = await rig(t);
+  await restored(at);
+  t.mock.timers.tick(25 * 60 * 60_000);
+  const refreshed = `${NEW_URI}?token=renewed`;
+  at.fetchWith(async () => ({ kind: 'ok', value: { kind: 'page', document: page(1, new Date().toISOString(), true, [OLD_URI, refreshed]) } }));
+  at.controls.toggle();
+  await settle();
+  assert.deepEqual(at.calls.slice(-3), [`replace ${refreshed}`, 'seek 30', 'play']);
+  assert.equal(at.read().playing, true);
+  assert.equal(at.reads(), 1);
+  const started = at.tallies.filter((tally) => tally.name === 'playback_started');
+  assert.deepEqual(started.map((tally) => tally.props.retried), [false], 'the first press on a restore is no retry');
+});
+
+test('a retry after a failed fresh read starts the restored Track where it was left', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const at = await rig(t);
+  await restored(at);
+  t.mock.timers.tick(25 * 60 * 60_000);
+  at.fetchWith(async () => { throw new Error('offline'); });
+  at.controls.toggle();
+  await settle();
+  assert.equal(at.read().status, 'error');
+  const refreshed = `${NEW_URI}?token=renewed`;
+  at.fetchWith(async () => ({ kind: 'ok', value: { kind: 'page', document: page(1, new Date().toISOString(), true, [OLD_URI, refreshed]) } }));
+  // The mini player's "Try again" press, which names no Track in the error state.
+  at.controls.play(RELEASE, at.read().track?.trackId ?? null);
+  await settle();
+  assert.equal(at.read().track?.trackId, '102');
+  assert.deepEqual(at.calls.slice(-3), [`replace ${refreshed}`, 'seek 30', 'play']);
+  const started = at.tallies.filter((tally) => tally.name === 'playback_started');
+  assert.deepEqual(started.map((tally) => [tally.props.result, tally.props.retried]), [['error', false], ['playing', true]]);
+});
+
+test('a seek before a restored stream loads is not pulled back to the saved position', async (t) => {
+  const at = await rig(t);
+  await restored(at);
+  at.controls.toggle();
+  at.controls.seek(70);
+  at.emit({ currentTime: 70 });
+  assert.deepEqual(at.calls, [`replace ${NEW_URI}`, 'seek 30', 'play', 'seek 70']);
+});
+
+test("a restored Release whose page cannot be read afresh after expiry says it can't play", async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const at = await rig(t);
+  await restored(at);
+  t.mock.timers.tick(25 * 60 * 60_000);
+  at.fetchWith(async () => { throw new Error('offline'); });
+  at.controls.toggle();
+  await settle();
+  assert.equal(at.read().status, 'error');
+  assert.equal(transport.playerNote(at.read()), "Can't play this right now");
+  assert.deepEqual(at.calls.filter((call) => call.startsWith('replace')), []);
+});
+
+test('forgetting empties the transport and stops what plays', async (t) => {
+  const at = await rig(t);
+  at.controls.play(RELEASE, '101');
+  await settle();
+  at.controls.forget();
+  assert.equal(at.read().release, null);
+  assert.equal(at.read().playing, false);
+  assert.equal(at.calls.at(-1), 'pause');
 });

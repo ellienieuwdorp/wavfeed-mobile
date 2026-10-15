@@ -5,7 +5,10 @@
  * a Track ending advancing and the last one stopping at rest. The lock screen and Control Centre get the Track
  * through `setActiveForLockScreen`; expo-audio 57 gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
  * so the tab bar does not re-render four times a second. A play's start, a stream that dies mid-Track and the listening
- * a Release got go to `track` as Tallies (task 0038, `src/tally/actions.ts`).
+ * a Release got go to `track` as Tallies (task 0038, `src/tally/actions.ts`). A launch can `restore` the last-played
+ * Release paused (task 0071, Open 13): its Track sits at its index with no stream on the audio player, no audio session
+ * taken and nothing on the lock screen, until a press starts that Track at the saved position, reading the page afresh
+ * first when its stream URLs have expired (`resume.ts`).
  */
 import { setAudioModeAsync, useAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +18,7 @@ import type { ApiReleaseTrack } from '@/domain/apiTypes';
 import { listenStep, playbackStarted, type Listening, type PlayerChange, type PlayResult } from '@/tally/actions';
 import type { Screen, Tally } from '@/tally/catalogue';
 
+import type { Resume } from './resume';
 import { startAt, startAudio } from './start';
 import {
   firstStreamableIndex,
@@ -65,12 +69,19 @@ export type Transport = {
   readonly playAt: (index: number) => void;
   /** Whether audio plays now, read at a press without re-rendering on every change. */
   readonly isPlaying: () => boolean;
+  /** Puts a saved Release in the transport, paused, while nothing else is in it; touches no audio (task 0071, Open 13). */
+  readonly restore: (resume: Resume) => void;
+  /** Empties the transport, as when the store's Fan changes under it. */
+  readonly forget: () => void;
 };
 
 /** Where the player's Tallies go, and the screen a play was pressed on. */
 export type TransportTallies = { readonly track: (tally: Tally) => void; readonly screen: () => Screen };
 
 export type PlayerClock = { readonly position: number; readonly duration: number };
+
+/** Where a restored Release starts: its Track (null for one at rest) and the position in it. */
+type ResumeStart = { readonly release: PlayableRelease; readonly trackId: string | null; readonly at: number };
 
 const IDLE: TransportState = { release: null, status: 'idle', tracks: [], index: null, playing: false, expiresAt: 0, bandId: null };
 const ZERO: PlayerClock = { position: 0, duration: 0 };
@@ -118,6 +129,13 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   /** The position a seek is travelling to; status ticks report the old position until AVPlayer lands it. */
   const seekingTo = useRef<number | null>(null);
   const listening = useRef<Listening | null>(null);
+  /**
+   * A restored Release not started yet: the Track and position a press starts it at. It outlives a failed fresh read, so
+   * the retry starts there too, and only a start, another Release or another Track's press clears it.
+   */
+  const resumeStart = useRef<ResumeStart | null>(null);
+  /** A start's resume position still to be confirmed once its stream has loaded, as a seek before then can be dropped. */
+  const startSeek = useRef<number | null>(null);
 
   useEffect(() => {
     depsRef.current = deps;
@@ -146,19 +164,26 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     quietUntil.current = Date.now() + QUIET_AFTER_CONTROL_MS;
   }, []);
 
-  /** Starts the Track at `index` and answers whether its audio started; null when that index cannot start. */
+  /**
+   * Starts the Track at `index`, `at` seconds in, and answers whether its audio started; null when that index cannot
+   * start.
+   */
   const beginPlayback = useCallback(
-    (from: TransportState, index: number) => {
+    (from: TransportState, index: number, at = 0) => {
       const track = from.tracks[index];
       if (from.release === null || track === undefined || track.streamUrl === null) return null;
       quiet();
-      seekingTo.current = null;
+      resumeStart.current = null;
+      seekingTo.current = at > 0 ? at : null;
+      startSeek.current = null;
       // A refused start opens the listen too, and the paused state applied below settles it (task 0047 decision 5).
       listen({ kind: 'start', release: releaseKey(from.release) });
       // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
-      const start = startAt(SAMPLE_MODE ? null : audio, from, index, track.streamUrl);
+      const start = startAt(SAMPLE_MODE ? null : audio, from, index, track.streamUrl, at);
+      // AVPlayer can drop a seek sent before the stream loads; the first loaded status checks it landed.
+      if (at > 0 && !SAMPLE_MODE) startSeek.current = at;
       apply(start.next);
-      setClock({ position: 0, duration: durationOf(null, track) });
+      setClock({ position: at, duration: durationOf(null, track) });
       showOnLockScreen(audio, lockActive, from.release, track);
       return start.result;
     },
@@ -169,14 +194,19 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     async (release: PlayableRelease, wantedTrackId: string | null, force: boolean, pressedOn?: Screen) => {
       loadRef.current += 1;
       const token = loadRef.current;
-      wantedTrackRef.current = wantedTrackId;
       const before = stateRef.current;
+      const resume = resumeStart.current;
+      const resuming = resume !== null && isSameRelease(resume.release, release) && (wantedTrackId === null || wantedTrackId === resume.trackId);
+      if (!resuming) resumeStart.current = null;
+      wantedTrackRef.current = resuming && wantedTrackId === null ? resume.trackId : wantedTrackId;
       const same = before.release !== null && isSameRelease(before.release, release);
       const kept = force && same ? before.tracks : [];
       const startedAt = Date.now();
       const screen = pressedOn ?? depsRef.current.screen();
-      // A reload of the Release already in the transport, after an error or once its stream URLs expired, is a retry.
-      const started = (result: PlayResult) => depsRef.current.track(playbackStarted(result, Date.now() - startedAt, screen, same));
+      // A reload of the Release already in the transport, after an error or once its stream URLs expired, is a retry;
+      // the first press on a restored Release is not, expired or not (task 0071, Open 13).
+      const retried = same && !(before.status === 'ready' && resume !== null);
+      const started = (result: PlayResult) => depsRef.current.track(playbackStarted(result, Date.now() - startedAt, screen, retried));
       listen({ kind: 'load', release: releaseKey(release) });
       quiet();
       audio.pause();
@@ -211,7 +241,10 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
         apply({ ...loaded, status: 'unplayable' });
         started('unplayable');
       } else {
-        const result = beginPlayback(loaded, index);
+        // A restored Track starts where it was left; any other Track starts from its beginning.
+        const held = resumeStart.current;
+        const at = held !== null && held.trackId === tracklist.tracks[index]?.trackId ? held.at : 0;
+        const result = beginPlayback(loaded, index, at);
         if (result !== null) started(result);
       }
     },
@@ -220,11 +253,11 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
 
   /** Starts the Track at `index`, answering as `beginPlayback` does; null too when expired URLs send it to a reload. */
   const startTrack = useCallback(
-    (index: number) => {
+    (index: number, at = 0) => {
       const from = stateRef.current;
       const track = from.tracks[index];
       if (from.release === null || track === undefined || track.streamUrl === null) return null;
-      if (!expired(from)) return beginPlayback(from, index);
+      if (!expired(from)) return beginPlayback(from, index, at);
       void loadAndStart(from.release, track.trackId, true);
       return null;
     },
@@ -240,16 +273,18 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       apply({ ...from, playing: false });
       return;
     }
-    if (from.index !== null && !expired(from)) {
+    const restored = from.index === null ? null : (resumeStart.current?.at ?? null);
+    if (from.index !== null && restored === null && !expired(from)) {
       // A refused resume leaves the Track paused (task 0047 decision 3).
       if (startAudio(audio)) apply({ ...from, playing: true });
       return;
     }
     const index = from.index ?? firstStreamableIndex(from.tracks);
     if (index === null) return;
-    // A Release at rest after its last Track starts again from here and counts the start, a refused one as `refused`
-    // (task 0047 decision 4); an expired one reloads and counts itself, so `startTrack` answers null.
-    const result = startTrack(index);
+    // A Release at rest after its last Track, or restored at launch, starts from here and counts the start, a refused
+    // one as `refused` (task 0047 decision 4; task 0071, Open 13); an expired one reloads and counts itself, so
+    // `startTrack` answers null.
+    const result = startTrack(index, restored ?? 0);
     if (result !== null) depsRef.current.track(playbackStarted(result, 0, depsRef.current.screen(), false));
   }, [apply, audio, quiet, startTrack]);
 
@@ -303,6 +338,15 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   const seek = useCallback(
     (seconds: number) => {
       if (stateRef.current.index === null) return;
+      const resume = resumeStart.current;
+      if (resume !== null) {
+        // A restored Track has no stream on the player yet; the press that starts it starts here.
+        resumeStart.current = { ...resume, at: seconds };
+        setClock((at) => ({ ...at, position: seconds }));
+        return;
+      }
+      // This seek owns the position now, so the start's check on its first loaded status does not pull it back.
+      startSeek.current = null;
       seekingTo.current = seconds;
       setClock((at) => ({ ...at, position: seconds }));
       audio
@@ -318,7 +362,20 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
   useEffect(() => {
     const subscription = audio.addListener('playbackStatusUpdate', (status) => {
       const from = stateRef.current;
-      if (from.status !== 'ready' || from.index === null) return;
+      if (from.status !== 'ready' || from.index === null || resumeStart.current !== null) return;
+      const target = startSeek.current;
+      if (target !== null && status.isLoaded) {
+        startSeek.current = null;
+        if (Math.abs(status.currentTime - target) > 1) {
+          seekingTo.current = target;
+          audio
+            .seekTo(target)
+            .catch(() => undefined)
+            .finally(() => {
+              if (seekingTo.current === target) seekingTo.current = null;
+            });
+        } else if (seekingTo.current === target) seekingTo.current = null;
+      }
       if (status.didJustFinish) {
         const to = nextStreamableIndex(from.tracks, from.index);
         if (to !== null) {
@@ -349,6 +406,46 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
 
   const isPlaying = useCallback(() => stateRef.current.playing, []);
 
+  const restore = useCallback(
+    (resume: Resume) => {
+      if (stateRef.current.release !== null) return;
+      const expiresAt = Date.parse(resume.tracklist.expiresAt);
+      const track = resume.index === null ? undefined : resume.tracklist.tracks[resume.index];
+      resumeStart.current = { release: resume.release, trackId: track?.trackId ?? null, at: track === undefined ? 0 : resume.position };
+      apply({
+        release: resume.release,
+        status: 'ready',
+        tracks: resume.tracklist.tracks,
+        index: resume.index,
+        playing: false,
+        expiresAt: Number.isNaN(expiresAt) ? 0 : expiresAt,
+        bandId: resume.tracklist.bandId,
+      });
+      setClock(track === undefined ? ZERO : { position: resume.position, duration: durationOf(null, track) });
+    },
+    [apply],
+  );
+
+  const forget = useCallback(() => {
+    if (stateRef.current.release === null) return;
+    loadRef.current += 1;
+    resumeStart.current = null;
+    startSeek.current = null;
+    seekingTo.current = null;
+    quiet();
+    audio.pause();
+    if (lockActive.current) {
+      try {
+        audio.clearLockScreenControls();
+      } catch {
+        // Nothing on the lock screen to clear.
+      }
+      lockActive.current = false;
+    }
+    apply(IDLE);
+    setClock(ZERO);
+  }, [apply, audio, quiet]);
+
   const track = state.index === null ? null : (state.tracks[state.index] ?? null);
   const transport = useMemo<Transport>(
     () => ({
@@ -368,8 +465,10 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       seek,
       playAt,
       isPlaying,
+      restore,
+      forget,
     }),
-    [state, track, play, toggle, next, previous, seek, playAt, isPlaying],
+    [state, track, play, toggle, next, previous, seek, playAt, isPlaying, restore, forget],
   );
   return { transport, clock };
 }

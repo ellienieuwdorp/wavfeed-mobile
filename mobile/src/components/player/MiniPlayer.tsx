@@ -6,7 +6,9 @@
  * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
  * swaps glyphs and text. The whole bar opens the player to a touch; to VoiceOver, which reaches nothing inside an
  * element, the art and titles are the open button beside play, while TalkBack reaches into the bar's own
- * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4).
+ * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4). Before anything has
+ * played the iOS 26 accessory still stands, so the bar is full width from launch, holding "Nothing playing" as Apple
+ * Music does: a blank art square and a dimmed play glyph, one element that opens nothing (task 0071, Open 13).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { router } from 'expo-router';
@@ -15,6 +17,7 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
+import { copy } from '@/copy';
 import { playerCopy } from '@/player/copy';
 import { playerNote, playPress } from '@/player/transport';
 import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
@@ -132,10 +135,33 @@ function Contents({ release, inline = false }: { release: PlayableRelease; inlin
   );
 }
 
+/** Laid out as `Contents` lays out the accessory, so the restore or a first play swaps only what the slots hold. */
+function NothingPlaying({ inline }: { inline: boolean }) {
+  const { c } = useTokens();
+  const art = inline ? 26 : 34;
+  const box = inline ? 36 : 44;
+  return (
+    <View
+      accessible
+      accessibilityLabel={copy.player.nothingPlaying}
+      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: inline ? 6 : 10, paddingRight: 4 }}
+    >
+      <View style={{ width: art, height: art, borderRadius: inline ? 5 : 6, backgroundColor: c.track }} />
+      <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, fontSize: inline ? 13 : 15, lineHeight: inline ? 17 : 20, color: ON_GLASS?.sub ?? c.sub }}>
+        {copy.player.nothingPlaying}
+      </Text>
+      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
+        <Glyph name="play" size={inline ? 18 : 21} colour={c.ink} />
+      </View>
+    </View>
+  );
+}
+
 export function AccessoryPlayer() {
   const placement = NativeTabs.BottomAccessory.usePlacement();
   const current = usePlayerRelease();
-  return current ? <Contents release={current} inline={placement === 'inline'} /> : null;
+  const inline = placement === 'inline';
+  return current ? <Contents release={current} inline={inline} /> : <NothingPlaying inline={inline} />;
 }
 
 export function MiniPlayer() {
