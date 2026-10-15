@@ -14,6 +14,7 @@
  */
 import { Platform, View } from 'react-native';
 
+import { FilterEaseLine } from '@/components/filter/FilterEase';
 import { FilteredBy } from '@/components/filter/FilteredBy';
 import { catchUpHeader, countedHeader } from '@/copy';
 import { useGatherStatus } from '@/state/status';
@@ -42,13 +43,22 @@ function HeaderLines({ quiet, count, filteredBy }: Required<Lines>) {
   const line = status.catchUp;
   const header = quiet ? null : status.header;
   const android = Platform.OS === 'android';
-  const pill = filteredBy === null ? null : <FilteredBy text={filteredBy} />;
+  // A filter change swaps the line for the pill, or the pill's words, crossfaded with the rows (components/filter/FilterEase.tsx).
+  const pill = filteredBy === null ? null : (
+    <FilterEaseLine key={filteredBy}>
+      <FilteredBy text={filteredBy} />
+    </FilterEaseLine>
+  );
   if (line === null) {
     const note = count === null || header === null ? header : countedHeader(count, header);
     if (android) return pill === null ? <AppBarTitle subtitle={note} /> : <AppBarTitle subtitle={null} pill={pill} barSubtitle={filteredBy} />;
     if (pill !== null) return <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{pill}</View>;
     if (note === null) return quiet ? null : <View style={{ height: 8 }} />;
-    return <Type style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{note}</Type>;
+    return (
+      <FilterEaseLine key="note">
+        <Type style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{note}</Type>
+      </FilterEaseLine>
+    );
   }
   const note = header;
   const text = catchUpHeader(line.primary, line.secondary);

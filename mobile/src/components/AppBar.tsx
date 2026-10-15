@@ -10,6 +10,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { Animated, Platform, View, type NativeScrollEvent, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FilterEaseLine } from '@/components/filter/FilterEase';
 import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
@@ -78,10 +79,13 @@ export function AppBarTitle({
     <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null ? 16 : 12 }}>
       <Type scale="head" accessibilityRole="header" numberOfLines={1} style={{ fontSize: type.viewTitle, lineHeight: TITLE_LINE, color: c.ink }}>{frame.title}</Type>
       {subtitle === null ? null : (
-        <View {...a11y} style={{ gap: 8 }}>
-          <Type numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Type>
-          {below}
-        </View>
+        // New releases' subtitle gives way to its pill crossfaded with the rows (components/filter/FilterEase.tsx).
+        <FilterEaseLine key="subtitle">
+          <View {...a11y} style={{ gap: 8 }}>
+            <Type numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Type>
+            {below}
+          </View>
+        </FilterEaseLine>
       )}
       {pill === null ? null : <View style={{ marginTop: subtitle === null ? PILL_TOP : 12 }}>{pill}</View>}
     </View>

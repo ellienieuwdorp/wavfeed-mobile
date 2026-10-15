@@ -20,7 +20,7 @@ import { rowText, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
 
 import { AvatarStack } from './AvatarStack';
-import { FilterEaseCell } from './filter/FilterEase';
+import { FilterEaseCardCell } from './filter/FilterEase';
 import { ModuleHead } from './Curated';
 import { PlayArt } from './PlayArt';
 import { creditOf, type RowRelease } from './playable';
@@ -121,7 +121,7 @@ export function UpcomingShelf({ cards, more }: { cards: readonly ShelfCard[]; mo
         keyExtractor={keyOf}
         renderItem={renderCard}
         ItemSeparatorComponent={Gap}
-        CellRendererComponent={FilterEaseCell}
+        CellRendererComponent={FilterEaseCardCell}
         {...ROW_LIST}
         initialNumToRender={4}
         showsHorizontalScrollIndicator={false}

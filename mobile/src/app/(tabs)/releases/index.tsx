@@ -83,7 +83,7 @@ export default function NewReleases() {
   const { db } = useAppState();
   const { loaded, settings, update } = useReleaseFilter();
   // The Filters sheet takes a tap at once; this list follows a beat later, eased (components/filter/FilterEase.tsx).
-  const applied = useListFilter(settings);
+  const applied = useListFilter(settings, loaded);
   const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(applied))), [view, applied]);
   useEffect(() => {
     if (view !== null) publishView(db, view);

@@ -53,9 +53,9 @@ export default function UpcomingReleases() {
   const releaseDate = releaseDayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
 
-  const { settings } = useReleaseFilter();
+  const { loaded, settings } = useReleaseFilter();
   // The Filters sheet takes a tap at once; this list follows a beat later, eased, as New releases' does.
-  const applied = useListFilter(settings);
+  const applied = useListFilter(settings, loaded);
 
   const items = useMemo(() => {
     const list: Item[] = [];

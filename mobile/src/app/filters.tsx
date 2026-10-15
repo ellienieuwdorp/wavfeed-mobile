@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
 import { SearchField, SheetPress, Stepper, TAG_MARK, TagMark } from '@/components/filter/Controls';
+import { useArmWhileOpen } from '@/components/filter/FilterEase';
 import { copy } from '@/copy';
 import { clampMinimum, filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, shownTags, type TagCount } from '@/domain/releaseFilter';
 import { NOTHING_CHOSEN, toReleaseFilter, withTag } from '@/state/filterSettings';
@@ -35,6 +36,8 @@ export default function Filters() {
   const { c } = useTokens();
   const insets = useSafeAreaInsets();
   const { settings: saved, view, update: change } = useReleaseFilter();
+  // The lists behind ease what a tap changes; their cells are armed for it while the sheet is open.
+  useArmWhileOpen();
   // Counted here from the settings just tapped, so the counts move in the same frame as the control (decision 21).
   const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(saved))), [view, saved]);
   const [query, setQuery] = useState('');
