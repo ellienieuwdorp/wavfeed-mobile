@@ -1,8 +1,8 @@
 /**
  * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
- * scroll in Apple Music's shape: artwork, "N. Track title" linking out over the Page and Release with the heart for the
- * playing Track at their right, the label and release day ending in "Bandcamp ↗", the seek line with its m:ss times, the
- * transport, then the Release's tracklist. The facts line's link names where the title also goes (task 0043, decision
+ * scroll in Apple Music's shape: artwork with the Release's heart on its bottom-right corner, "N. Track title" linking
+ * out over the Page and Release, the label and release day ending in "Bandcamp ↗", the seek line with its m:ss times,
+ * the transport, then the Release's tracklist, a heart on each Track. The facts line's link names where the title also goes (task 0043, decision
  * 3), and the art gives up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
  * grabber and close chevron over a plain face, so the pull-down dismisses from the art and from the top of the scroll;
  * on Android a bottom sheet with 28dp corners at full height, Compose's Material 3 slider and the ripple on every
@@ -51,6 +51,9 @@ const FACTS = 18;
 const SEEK = 62;
 const MAIN = ios ? 72 : 80;
 const HEART = ios ? 44 : 48;
+/** The art heart's disc and its distance from the art's right and bottom edges. */
+const ART_HEART_DISC = ios ? 36 : 40;
+const ART_HEART_INSET = 12;
 const ART_RADIUS = ios ? 14 : 24;
 /** How far below the status bar iOS hangs a page sheet's top edge on an iPhone in portrait. */
 const PAGE_SHEET_DROP = 10;
@@ -284,20 +287,21 @@ function Transport() {
   );
 }
 
-/** The playing Track's heart, absent while the tracklist loads or nothing can play (DESIGN-UI section 10); its box stays. */
-function TrackHeart({ release }: { release: PlayableRelease }) {
-  const { track, status } = usePlayer();
-  if (track !== null && track.trackId !== null && status === 'ready') {
-    return <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} box={HEART} icon={26} surface="sheet" />;
-  }
-  return <View style={{ width: HEART, height: HEART }} />;
+/**
+ * The Release's heart on the art's bottom-right corner, its disc ART_HEART_INSET from both edges: the album, or the lone
+ * Track a one-Track Release is, never the Track playing in an album, which its tracklist row's heart is for (task 0071,
+ * the author's request of 2026-10-15). It does not wait for the tracklist, the Release being known.
+ */
+function ReleaseHeart({ release }: { release: PlayableRelease }) {
+  const inset = ART_HEART_INSET - (HEART - ART_HEART_DISC) / 2;
+  return (
+    <View style={{ position: 'absolute', right: inset, bottom: inset }}>
+      <Heart itemType={release.itemType} itemId={release.itemId} title={release.title} box={HEART} icon={ios ? 22 : 24} onArt={ART_HEART_DISC} surface="sheet" />
+    </View>
+  );
 }
 
-/**
- * The heart stands beside the title's link, never inside it, so a press on it never opens Bandcamp. Its box ends 12 from
- * the screen's edge as each Track row's does, which puts the sheet's hearts in one column. "Bandcamp ↗" never shrinks,
- * so a long label truncates before it, and its target reaches 44pt over the gaps above and below its 18pt line.
- */
+/** "Bandcamp ↗" never shrinks, so a long label truncates before it, and its target reaches 44pt over the gaps above and below its 18pt line. */
 function Titles({ release }: { release: PlayableRelease }) {
   const { c } = useTokens();
   const player = usePlayer();
@@ -307,15 +311,10 @@ function Titles({ release }: { release: PlayableRelease }) {
   const facts = factsLine(release);
   return (
     <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={label} android_ripple={ripple(c.track)} style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressedOpacity(pressed) })}>
-          <Type numberOfLines={1} style={{ minHeight: TITLE, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
-          <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
-        </Pressable>
-        <View style={{ marginRight: 12 - SIDE }}>
-          <TrackHeart release={release} />
-        </View>
-      </View>
+      <Pressable onPress={() => open(release, 'sheet_title')} accessibilityRole="link" accessibilityLabel={label} android_ripple={ripple(c.track)} style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}>
+        <Type numberOfLines={1} style={{ minHeight: TITLE, fontSize: ios ? 20 : 22, lineHeight: TITLE, fontWeight: ios ? '700' : '500', color: c.ink }}>{title}</Type>
+        <Type numberOfLines={1} style={{ minHeight: SUBTITLE, fontSize: 16, lineHeight: SUBTITLE, color: c.sub }}>{sheetSubtitle(release.artist, release.title, player.track?.title ?? null)}</Type>
+      </Pressable>
       <View style={{ minHeight: FACTS, marginTop: FACTS_GAP, flexDirection: 'row', alignItems: 'center' }}>
         {facts === '' ? null : (
           <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: 13, lineHeight: FACTS, color: c.faint }}>{facts + sep}</Type>
@@ -371,6 +370,7 @@ export default function PlayerSheet() {
       >
         <View style={{ alignSelf: 'center', width: art, height: art, borderRadius: ART_RADIUS, backgroundColor: c.surface, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
           <Artwork hue={current.hue} url={current.artUrl} size={art} radius={ART_RADIUS} />
+          <ReleaseHeart release={current} />
         </View>
         <Titles release={current} />
         {note === null ? <SeekLine key={player.track?.trackId ?? 'none'} /> : <Note text={note} />}

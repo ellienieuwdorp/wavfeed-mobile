@@ -5,9 +5,10 @@
  * VIS-3, VIS-M5). A press flips it at once and the exchange travels behind it (ADR-0016 amendment 2026-10-02); the
  * pressed heart alone pops, started from its own press so the item's other hearts only change, springing up on an add
  * and dipping on a remove on the UI thread, and not at all under reduce motion. A failure the Fan is told about puts
- * the heart back on the truth and raises one notice line. With `trackId` it acts on that Track of the Release, which
- * is how the player's heart works; its title then names the Track. On Android it is a 48dp icon button whose ripple is
- * the 40dp state layer.
+ * the heart back on the truth and raises one notice line. With `trackId` it acts on that Track of the Release, as the
+ * player sheet's tracklist rows do, and its title then names the Track (`heartTarget`). `onArt` draws it over a cover,
+ * the player sheet's: a dark disc under a white outline or the filled orange, legible on any art in either scheme, the
+ * box and the press unchanged. On Android it is a 48dp icon button whose ripple is the 40dp state layer.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -16,10 +17,11 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withT
 import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 import { useReduceMotion } from '@/player/motion';
 import type { PressSurface } from '@/tally/actions';
-import { storeItemType, type PlayableRelease } from '@/player/transport';
+import type { PlayableRelease } from '@/player/transport';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
-import { useMembership, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
+import { useMembership, useWishlistPress } from '@/wishlist/state';
+import { heartTarget } from '@/wishlist/target';
 
 const ios = Platform.OS === 'ios';
 
@@ -38,7 +40,13 @@ type HeartProps = {
   icon?: number;
   /** Where the heart sits, for `wishlist_action_finished` (task 0038). */
   surface: PressSurface;
+  /** Drawn over a cover (the player sheet's art) on a dark disc of this size. */
+  onArt?: number;
 };
+
+/** The disc under a heart on art, the art badge's dark backing a little lighter (PlayArt), and its off outline. */
+const ART_DISC = 'rgba(0,0,0,0.5)';
+const ART_OFF = '#ffffff';
 
 /** The pressed heart's scale and the call that pops it; under reduce motion the call does nothing. */
 function usePop() {
@@ -53,10 +61,9 @@ function usePop() {
   return { style, pop };
 }
 
-export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, surface }: HeartProps) {
+export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, surface, onArt }: HeartProps) {
   const { c } = useTokens();
-  const release = { itemType: storeItemType(itemType), itemId };
-  const target: WishlistTarget = trackId === undefined ? { ...release, release } : { itemType: 't', itemId: trackId, release };
+  const target = heartTarget(itemType, itemId, trackId);
   const membership = useMembership(target.itemType, target.itemId);
   const press = useWishlistPress(surface);
   const { style, pop } = usePop();
@@ -65,6 +72,8 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, su
 
   const on = membership.known && membership.on;
   const label = membership.known ? wishlistCopy.action(title, on) : wishlistCopy.unknown(title);
+  // On the page the filled heart takes the darker rim (VIS-3); on the art's dark disc the fill alone clears it.
+  const outline = onArt === undefined ? (on ? c.wishlistEdge : c.faint) : on ? c.wishlist : ART_OFF;
 
   return (
     <Pressable
@@ -79,13 +88,14 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, su
       accessibilityState={{ ...(membership.known ? { selected: on } : {}), disabled: !membership.known }}
       style={({ pressed }) => ({ width: Math.max(box, 44), height: Math.max(box, 44), alignItems: 'center', justifyContent: 'center', opacity: pressedOpacity(pressed && membership.known) })}
     >
+      {onArt === undefined ? null : <View style={{ position: 'absolute', width: onArt, height: onArt, borderRadius: onArt / 2, backgroundColor: ART_DISC }} />}
       <Animated.View style={style}>
         {on ? (
           <View style={StyleSheet.absoluteFill}>
             <Ionicons name="heart" size={size} color={c.wishlist} />
           </View>
         ) : null}
-        <Ionicons name="heart-outline" size={size} color={on ? c.wishlistEdge : c.faint} />
+        <Ionicons name="heart-outline" size={size} color={outline} />
       </Animated.View>
     </Pressable>
   );
