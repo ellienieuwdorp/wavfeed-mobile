@@ -118,6 +118,8 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
       useNavigation: () => ({ setParams: (params: { people?: string }) => { filter.params = { ...filter.params, ...params }; dirty = true; } }),
     },
     '@/components/filter/NothingMatches': {}, '@/domain/releaseFilter': releaseFilter, '@/state/filterSettings': filterSettings,
+    // The beat and the easing are timing, stood in as useDeferredValue is: the list applies the settings at once.
+    '@/components/filter/FilterEase': { FilterEaseCell: 'FilterEaseCell', useListFilter: (settings: FilterSettings | null) => settings },
     '@/state/releaseFilter': {
       useReleaseFilter: () => ({ loaded: true, settings: filter.settings, view: null, update: (next: FilterSettings) => { filter.updates.push(next); filter.settings = next; dirty = true; } }),
       publishView: () => {},

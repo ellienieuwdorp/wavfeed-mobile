@@ -4,11 +4,12 @@
  * the "1/4" on the art once a Track plays (task 0071, decisions 10 and 12). New releases' filter narrows it as it does the
  * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters".
  */
-import { useDeferredValue, useMemo } from 'react';
+import { useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
+import { FilterEaseCell, useListFilter } from '@/components/filter/FilterEase';
 import { NothingMatches } from '@/components/filter/NothingMatches';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
@@ -53,8 +54,8 @@ export default function UpcomingReleases() {
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
 
   const { settings } = useReleaseFilter();
-  // The Filters sheet takes a tap at once; this list follows as a deferred render, as New releases' does.
-  const applied = useDeferredValue(settings);
+  // The Filters sheet takes a tap at once; this list follows a beat later, eased, as New releases' does.
+  const applied = useListFilter(settings);
 
   const items = useMemo(() => {
     const list: Item[] = [];
@@ -87,6 +88,7 @@ export default function UpcomingReleases() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
+      CellRendererComponent={FilterEaseCell}
       {...ROW_LIST}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}

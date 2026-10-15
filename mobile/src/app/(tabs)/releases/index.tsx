@@ -10,11 +10,12 @@
  * `/releases?people=1` turns the people filter on at 1+ and keeps the tags (Open 8).
  */
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useDeferredValue, useEffect, useEffectEvent, useMemo } from 'react';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 
 import { useAppBar } from '@/components/AppBar';
 import { EmptyState } from '@/components/EmptyState';
+import { FilterEaseCell, useListFilter } from '@/components/filter/FilterEase';
 import { NothingMatches } from '@/components/filter/NothingMatches';
 import { GapRow } from '@/components/GapRow';
 import { useDockClearance } from '@/components/player/Dock';
@@ -81,8 +82,8 @@ export default function NewReleases() {
   const appBar = useAppBar();
   const { db } = useAppState();
   const { loaded, settings, update } = useReleaseFilter();
-  // The Filters sheet takes a tap at once; this list follows as a deferred render that a newer tap interrupts.
-  const applied = useDeferredValue(settings);
+  // The Filters sheet takes a tap at once; this list follows a beat later, eased (components/filter/FilterEase.tsx).
+  const applied = useListFilter(settings);
   const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(applied))), [view, applied]);
   useEffect(() => {
     if (view !== null) publishView(db, view);
@@ -158,6 +159,7 @@ export default function NewReleases() {
       data={items}
       keyExtractor={(i) => i.key}
       renderItem={render}
+      CellRendererComponent={FilterEaseCell}
       {...ROW_LIST}
       {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
