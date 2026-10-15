@@ -1,7 +1,8 @@
 /**
  * The app's shared motion (DESIGN-UI sections 10 and 11, task 0036): the system's reduce motion setting as a live value,
- * for every moving mark, and the press every playable surface answers with, a progress from 0 at rest to 1 held
- * that Reanimated runs on the UI thread, so the feedback costs the JS thread one assignment and no re-render.
+ * for every moving mark, the press every playable surface answers with, and the Filters sheet's pressed tone, each a
+ * progress from 0 at rest to 1 held that Reanimated runs on the UI thread, so the feedback costs the JS thread one
+ * assignment and no re-render.
  */
 import { useCallback } from 'react';
 import { AccessibilityInfo } from 'react-native';
@@ -39,4 +40,21 @@ export function usePressMotion(): PressMotion {
   const onPressIn = useCallback(() => progress.set(withTiming(1, PRESS_IN)), [progress]);
   const onPressOut = useCallback(() => progress.set(withSpring(0, PRESS_OUT)), [progress]);
   return { progress, onPressIn, onPressOut };
+}
+
+// Shown at once on finger down, as a grouped list's cell is, and faded from finger up.
+const TONE_OUT = { duration: 220, easing: Easing.out(Easing.quad) };
+
+export type PressTone = { tone: SharedValue<number>; onPressIn: () => void; release: () => void };
+
+/**
+ * The Filters sheet's pressed grey or dim (task 0071, the author's request of 2026-10-15). Call `release` from
+ * `onPress` as well as `onPressOut`: Pressable holds a short tap's press out for 130 ms on a timer, which waits behind
+ * the render of the list the tap changes, while `onPress` runs as the finger lifts.
+ */
+export function usePressTone(): PressTone {
+  const tone = useSharedValue(0);
+  const onPressIn = useCallback(() => tone.set(1), [tone]);
+  const release = useCallback(() => tone.set(withTiming(0, TONE_OUT)), [tone]);
+  return { tone, onPressIn, release };
 }

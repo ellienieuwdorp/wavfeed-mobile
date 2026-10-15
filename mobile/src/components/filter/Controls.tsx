@@ -3,15 +3,35 @@
  * kit has a stepper that holds its value between minus and plus, so this one is drawn, 32 high on the system's
  * tertiary fill with its value in the middle, minus refused at the low end and plus at the high; the tag search is
  * iOS's rounded search field or Material's outlined one; a tag's mark is a checkbox leading its row, empty or ticked
- * (the author, 2026-10-14): SF Symbols' square and checkmark.square.fill on iOS, Material's checkbox through @expo/ui's
- * Compose Checkbox on Android, hidden from TalkBack because the row it sits in is the checkbox.
+ * (the author, 2026-10-14): SF Symbols' square and checkmark.square.fill on iOS, crossfaded and scaled as a symbol's
+ * replace transition does, and Material's checkbox through @expo/ui's Compose Checkbox on Android, which animates its
+ * own tick and is hidden from TalkBack because the row it sits in is the checkbox. Every press here answers on the UI
+ * thread, released as the finger lifts and never held for the list behind (`SheetPress`, the author's request of
+ * 2026-10-15).
  */
 import { Host, Checkbox } from '@expo/ui/jetpack-compose';
-import { Platform, PlatformColor, Pressable, Text, TextInput, View, type ColorValue } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import {
+  Platform,
+  PlatformColor,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableNativeFeedback,
+  View,
+  type AccessibilityProps,
+  type ColorValue,
+  type Insets,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
-import { useTokens } from '@/theme/tokens';
+import { usePressTone, useReduceMotion } from '@/player/motion';
+import { PRESS_DIM, PRESS_FLASH, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 /** The iOS checkbox's square; the tag rows' hairline starts past it (app/filters.tsx). */
@@ -32,16 +52,17 @@ export function Stepper({ value, min, max, onStep, spoken }: { value: number; mi
   const { c, dark } = useTokens();
   const fill = useFill();
   const step = (by: 1 | -1, enabled: boolean, glyph: 'minus' | 'plus') => (
-    <Pressable
-      onPress={enabled ? () => onStep(by) : undefined}
+    <SheetPress
+      feedback="dim"
+      onPress={() => onStep(by)}
       disabled={!enabled}
       accessible={false}
       importantForAccessibility="no"
       hitSlop={{ top: 6, bottom: 6 }}
-      style={({ pressed }) => ({ width: 38, height: 32, alignItems: 'center', justifyContent: 'center', opacity: !enabled ? 0.45 : pressed ? 0.5 : 1 })}
+      style={{ width: 38, height: 32, alignItems: 'center', justifyContent: 'center', opacity: enabled ? 1 : 0.45 }}
     >
       <Glyph name={glyph} size={18} colour={enabled ? c.ink : c.faint} weight="medium" />
-    </Pressable>
+    </SheetPress>
   );
   const rule = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
   return (
@@ -106,10 +127,13 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
   );
 }
 
+/** How long a tag's mark takes to tick or untick: about a symbol replace's. */
+const TICK = { duration: 180, easing: Easing.out(Easing.cubic) };
+
 /** A tag's checkbox: on iOS the square, ticked and filled in the accent when chosen, else empty in the faint tone. */
 export function TagMark({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   const { c, dark } = useTokens();
-  if (ios) return <Glyph name={on ? 'boxOn' : 'boxOff'} size={TAG_MARK} colour={on ? c.accent : c.faint} weight="regular" />;
+  if (ios) return <TickedSquare on={on} />;
   return (
     // Claiming the responder keeps a tap on the box from also pressing the row around it.
     <View importantForAccessibility="no-hide-descendants" onStartShouldSetResponder={() => true}>
@@ -117,5 +141,87 @@ export function TagMark({ on, onChange }: { on: boolean; onChange: (on: boolean)
         <Checkbox value={on} onCheckedChange={onChange} colors={{ checkedColor: c.accentText, uncheckedColor: c.sub, checkmarkColor: c.onAccent }} />
       </Host>
     </View>
+  );
+}
+
+/**
+ * The two squares stacked, the ticked one fading and growing in over the empty one as it fades and shrinks out. A row
+ * mounts at rest; a change of `on` animates from the sheet's own render, which commits before the list behind starts.
+ */
+function TickedSquare({ on }: { on: boolean }) {
+  const { c } = useTokens();
+  const reduceMotion = useReduceMotion();
+  const ticked = useSharedValue(on ? 1 : 0);
+  useEffect(() => {
+    ticked.set(reduceMotion ? Number(on) : withTiming(Number(on), TICK));
+  }, [ticked, on, reduceMotion]);
+  const emptyStyle = useAnimatedStyle(() => ({ opacity: 1 - ticked.get(), transform: [{ scale: 1 - 0.25 * ticked.get() }] }));
+  const tickedStyle = useAnimatedStyle(() => ({ opacity: ticked.get(), transform: [{ scale: 0.6 + 0.4 * ticked.get() }] }));
+  return (
+    <View style={{ width: TAG_MARK, height: TAG_MARK }}>
+      <Animated.View style={[StyleSheet.absoluteFill, emptyStyle]}>
+        <Glyph name="boxOff" size={TAG_MARK} colour={c.faint} weight="regular" />
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, tickedStyle]}>
+        <Glyph name="boxOn" size={TAG_MARK} colour={c.accent} weight="regular" />
+      </Animated.View>
+    </View>
+  );
+}
+
+type SheetPressProps = {
+  onPress: () => void;
+  /** `grey`: iOS's grouped cell grey, Android's ripple. `dim`: what it holds dims, on both. */
+  feedback?: 'grey' | 'dim';
+  disabled?: boolean;
+  hitSlop?: Insets;
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+} & Pick<AccessibilityProps, 'accessible' | 'accessibilityRole' | 'accessibilityState' | 'accessibilityLabel' | 'importantForAccessibility'>;
+
+/**
+ * A press in the Filters sheet. Its feedback runs on the UI thread from the touch's own events: Android's ripple
+ * through TouchableNativeFeedback, which lets go at finger up where Pressable holds a short tap 130 ms on a timer that
+ * waits behind the list's render; iOS's grey or dim through usePressTone. The row, the stepper and the bar's buttons
+ * share it, so none of them waits for the list behind (the author's request of 2026-10-15).
+ */
+export function SheetPress({ feedback = 'grey', ...props }: SheetPressProps) {
+  if (feedback === 'grey' && !ios) return <Ripple {...props} />;
+  return <Toned feedback={feedback} {...props} />;
+}
+
+function Ripple({ onPress, disabled, style, children, ...rest }: Omit<SheetPressProps, 'feedback'>) {
+  const { c } = useTokens();
+  return (
+    <TouchableNativeFeedback onPress={onPress} disabled={disabled} background={TouchableNativeFeedback.Ripple(c.track, false)} useForeground {...rest}>
+      <View style={style}>{children}</View>
+    </TouchableNativeFeedback>
+  );
+}
+
+function Toned({ feedback, onPress, style, children, ...rest }: SheetPressProps) {
+  const { tone, onPressIn, release } = usePressTone();
+  const grey = feedback === 'grey';
+  const toneStyle = useAnimatedStyle(() => ({ opacity: grey ? tone.get() : 1 - PRESS_DIM * tone.get() }));
+  return (
+    <Pressable
+      onPressIn={onPressIn}
+      onPressOut={release}
+      onPress={() => {
+        release();
+        onPress();
+      }}
+      style={style}
+      {...rest}
+    >
+      {grey ? (
+        <>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: PRESS_FLASH }, toneStyle]} />
+          {children}
+        </>
+      ) : (
+        <Animated.View style={toneStyle}>{children}</Animated.View>
+      )}
+    </Pressable>
   );
 }

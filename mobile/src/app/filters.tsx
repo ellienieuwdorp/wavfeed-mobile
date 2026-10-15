@@ -11,24 +11,25 @@
  * 7 as amended 2026-10-14). Each tag leads with its checkbox (TagMark).
  */
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Platform, PlatformColor, Pressable, ScrollView, Text, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FlatList, Platform, PlatformColor, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph } from '@/components/Glyph';
 import { NativeSwitch } from '@/components/NativeSwitch';
-import { SearchField, Stepper, TAG_MARK, TagMark } from '@/components/filter/Controls';
+import { SearchField, SheetPress, Stepper, TAG_MARK, TagMark } from '@/components/filter/Controls';
 import { copy } from '@/copy';
-import { clampMinimum, filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, shownTags } from '@/domain/releaseFilter';
+import { clampMinimum, filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, shownTags, type TagCount } from '@/domain/releaseFilter';
 import { NOTHING_CHOSEN, toReleaseFilter, withTag } from '@/state/filterSettings';
 import { useReleaseFilter } from '@/state/releaseFilter';
-import { PRESS_FLASH, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 /** Tags shown before "Show all": what the full-height boards draw. */
 const FIRST_TAGS = ios ? 9 : 8;
 /** The counts' column, so the minimum's count and the tags' share one right edge (Open 4, option C). */
 const COUNT_WIDTH = 34;
+const NO_TAGS: readonly TagCount[] = [];
 
 export default function Filters() {
   const { c } = useTokens();
@@ -39,23 +40,34 @@ export default function Filters() {
   const [query, setQuery] = useState('');
   const [all, setAll] = useState(false);
   const settings = saved ?? NOTHING_CHOSEN;
+  // Each change applies to the settings held when it lands, so two taps inside one render both count: a tap on a tag
+  // flips what is held, not what the last render drew.
+  const toggleTag = useCallback((name: string) => change((held) => withTag(held, name, !held.tags.includes(name))), [change]);
   const min = settings.people.min;
-  const tags = filtered?.tags ?? [];
+  const tags = filtered?.tags ?? NO_TAGS;
   const byMinimum = filtered?.byMinimum.find((m) => m.min === min)?.count ?? 0;
-  const shown = shownTags(tags, settings.tags, query, all ? Infinity : FIRST_TAGS);
+  const shown = useMemo(() => shownTags(tags, settings.tags, query, all ? Infinity : FIRST_TAGS), [tags, settings.tags, query, all]);
+  const more = useMemo(() => {
+    if (all || query.trim() !== '') return false;
+    const listed = new Set(shown);
+    return tags.some((tag) => !listed.has(tag));
+  }, [all, query, shown, tags]);
+  // The rows the list draws, each knowing whether it is ticked and where it sits in the group; FlatList mounts the
+  // ones on screen, so "Show all" costs the rows it shows and not the hundreds a large store holds.
+  const rows = useMemo(
+    () => shown.map((tag, n): TagItem => ({ ...tag, on: settings.tags.includes(tag.normName), first: n === 0, last: n === shown.length - 1 && !more, onToggle: toggleTag })),
+    [shown, settings.tags, more, toggleTag],
+  );
   const count = copy.filter.count(filtered?.matching ?? 0);
 
   const cell = ios ? PlatformColor('secondarySystemGroupedBackground') : undefined;
   const group = ios ? { backgroundColor: cell, borderRadius: 12, borderCurve: 'continuous' as const, overflow: 'hidden' as const } : {};
   const rule = (inset: number) => (ios ? <View style={{ height: 0.5, marginLeft: inset, backgroundColor: c.border }} /> : null);
 
-  // Each change applies to the settings held when it lands, so two taps inside one render both count: a tap on a tag
-  // flips what is held, not what the last render drew.
-  const toggleTag = (name: string) => change((held) => withTag(held, name, !held.tags.includes(name)));
   const setPeople = (on: boolean) => change((held) => ({ people: { ...held.people, on }, tags: held.tags }));
 
-  // react-native-screens sizes an iOS sheet's ScrollView to the sheet less the one view above it, so the bar is that
-  // view, kept unflattened, and the sheet's ground is the screen's own (contentStyle in app/_layout.tsx).
+  // react-native-screens sizes an iOS sheet's ScrollView, here the FlatList's, to the sheet less the one view above it,
+  // so the bar is that view, kept unflattened, and the sheet's ground is the screen's own (contentStyle in app/_layout.tsx).
   return (
     <>
       {ios ? (
@@ -79,76 +91,73 @@ export default function Filters() {
           </View>
         </View>
       )}
-      <ScrollView
+      <FlatList
+        data={rows}
+        keyExtractor={keyOf}
+        renderItem={renderTag}
+        initialNumToRender={FIRST_TAGS + 4}
+        maxToRenderPerBatch={12}
+        windowSize={5}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: ios ? 6 : 12, paddingBottom: 24 + insets.bottom }}
-      >
-        <View style={group}>
-          <Row onPress={() => change((held) => ({ people: { ...held.people, on: !held.people.on }, tags: held.tags }))} role="switch" checked={settings.people.on} ownsFocus={ios}>
-            <Glyph name="people" size={24} colour={c.accent} weight="regular" />
-            <Text style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{copy.filter.people}</Text>
-            <NativeSwitch value={settings.people.on} onChange={setPeople} label={copy.filter.people} />
-          </Row>
-          {rule(16)}
-          <View
-            accessible={false}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: ios ? 16 : 8, opacity: settings.people.on ? 1 : 0.45 }}
-          >
-            <Text style={{ fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
-              {copy.filter.atLeast}
-            </Text>
-            <Stepper value={min} min={PEOPLE_MIN} max={PEOPLE_MAX} spoken={copy.filter.minimum} onStep={(by) => change((held) => ({ people: { on: true, min: clampMinimum(held.people.min + by) }, tags: held.tags }))} />
-            <Text style={{ flex: 1, fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
-              {copy.filter.peopleWord(min)}
-            </Text>
-            <Text style={{ minWidth: COUNT_WIDTH, textAlign: 'right', fontSize: ios ? 15 : 14, color: c.sub, fontVariant: ['tabular-nums'] }} accessibilityLabel={copy.filter.count(byMinimum)}>
-              {byMinimum}
-            </Text>
-          </View>
-        </View>
-        {ios ? null : <View style={{ height: 1, backgroundColor: c.border, margin: 8 }} />}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: ios ? 16 : 8, paddingTop: ios ? 22 : 12, paddingBottom: ios ? 7 : 8 }}>
-          <Text accessibilityRole="header" style={ios ? { fontSize: 13, color: c.sub, textTransform: 'uppercase' } : { fontSize: 14, fontWeight: '500', color: c.sub }}>
-            {copy.filter.tags}
-          </Text>
-          <Text style={{ fontSize: ios ? 13 : 14, color: c.sub }}>{copy.filter.anyOf}</Text>
-        </View>
-        <View style={{ marginBottom: 16, marginHorizontal: ios ? 0 : 8 }}>
-          <SearchField value={query} onChange={setQuery} placeholder={copy.filter.search(tags.length)} />
-        </View>
-        <View style={group}>
-          {shown.length === 0 && tags.length > 0 ? (
-            <Text style={{ fontSize: ios ? 15 : 16, color: c.sub, paddingHorizontal: ios ? 16 : 8, paddingVertical: 12 }}>{copy.filter.noTags}</Text>
-          ) : null}
-          {shown.map((tag, n) => {
-            const on = settings.tags.includes(tag.normName);
-            return (
-              <View key={tag.normName}>
-                {n > 0 ? rule(16 + TAG_MARK + 10) : null}
-                <Row onPress={() => toggleTag(tag.normName)} role="checkbox" checked={on} minHeight={ios ? 44 : 48} label={`${tag.name}, ${copy.filter.count(tag.count)}`}>
-                  <TagMark on={on} onChange={() => toggleTag(tag.normName)} />
-                  <Text numberOfLines={1} style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{tag.name}</Text>
-                  <Text style={{ minWidth: COUNT_WIDTH, textAlign: 'right', fontSize: ios ? 15 : 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{tag.count}</Text>
-                </Row>
+        ListHeaderComponent={
+          <>
+            <View style={group}>
+              <Row onPress={() => change((held) => ({ people: { ...held.people, on: !held.people.on }, tags: held.tags }))} role="switch" checked={settings.people.on} ownsFocus={ios}>
+                <Glyph name="people" size={24} colour={c.accent} weight="regular" />
+                <Text style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>{copy.filter.people}</Text>
+                <NativeSwitch value={settings.people.on} onChange={setPeople} label={copy.filter.people} />
+              </Row>
+              {rule(16)}
+              <View
+                accessible={false}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: ios ? 16 : 8, opacity: settings.people.on ? 1 : 0.45 }}
+              >
+                <Text style={{ fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
+                  {copy.filter.atLeast}
+                </Text>
+                <Stepper value={min} min={PEOPLE_MIN} max={PEOPLE_MAX} spoken={copy.filter.minimum} onStep={(by) => change((held) => ({ people: { on: true, min: clampMinimum(held.people.min + by) }, tags: held.tags }))} />
+                <Text style={{ flex: 1, fontSize: ios ? 15 : 16, lineHeight: 22, color: c.ink }} importantForAccessibility="no" accessibilityElementsHidden>
+                  {copy.filter.peopleWord(min)}
+                </Text>
+                <Text style={{ minWidth: COUNT_WIDTH, textAlign: 'right', fontSize: ios ? 15 : 14, color: c.sub, fontVariant: ['tabular-nums'] }} accessibilityLabel={copy.filter.count(byMinimum)}>
+                  {byMinimum}
+                </Text>
               </View>
-            );
-          })}
-          {!all && query.trim() === '' && tags.some((tag) => !shown.includes(tag)) ? (
-            <>
-              {ios ? rule(16) : null}
-              <Pressable
+            </View>
+            {ios ? null : <View style={{ height: 1, backgroundColor: c.border, margin: 8 }} />}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: ios ? 16 : 8, paddingTop: ios ? 22 : 12, paddingBottom: ios ? 7 : 8 }}>
+              <Text accessibilityRole="header" style={ios ? { fontSize: 13, color: c.sub, textTransform: 'uppercase' } : { fontSize: 14, fontWeight: '500', color: c.sub }}>
+                {copy.filter.tags}
+              </Text>
+              <Text style={{ fontSize: ios ? 13 : 14, color: c.sub }}>{copy.filter.anyOf}</Text>
+            </View>
+            <View style={{ marginBottom: 16, marginHorizontal: ios ? 0 : 8 }}>
+              <SearchField value={query} onChange={setQuery} placeholder={copy.filter.search(tags.length)} />
+            </View>
+            {shown.length === 0 && tags.length > 0 ? (
+              <View style={group}>
+                <Text style={{ fontSize: ios ? 15 : 16, color: c.sub, paddingHorizontal: ios ? 16 : 8, paddingVertical: 12 }}>{copy.filter.noTags}</Text>
+              </View>
+            ) : null}
+          </>
+        }
+        ListFooterComponent={
+          more ? (
+            <View style={ios ? { ...group, borderTopLeftRadius: 0, borderTopRightRadius: 0 } : undefined}>
+              {rule(16)}
+              <SheetPress
                 onPress={() => setAll(true)}
                 accessibilityRole="button"
-                android_ripple={ripple(c.track)}
-                style={({ pressed }) => ({ minHeight: ios ? 44 : 40, justifyContent: 'center', paddingHorizontal: ios ? 16 : 8, backgroundColor: ios && pressed ? PRESS_FLASH : undefined })}
+                style={{ minHeight: ios ? 44 : 40, justifyContent: 'center', paddingHorizontal: ios ? 16 : 8 }}
               >
                 <Text style={ios ? { fontSize: 15, color: c.accent } : { fontSize: 14, fontWeight: '500', color: c.accentText }}>{copy.filter.showAll(tags.length)}</Text>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      </ScrollView>
+              </SheetPress>
+            </View>
+          ) : null
+        }
+      />
     </>
   );
 }
@@ -156,9 +165,9 @@ export default function Filters() {
 function BarButton({ label, bold = false, onPress }: { label: string; bold?: boolean; onPress: () => void }) {
   const { c } = useTokens();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ opacity: pressedOpacity(pressed), paddingVertical: 6 })}>
+    <SheetPress feedback="dim" onPress={onPress} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ paddingVertical: 6 }}>
       <Text style={{ fontSize: 17, fontWeight: bold ? '600' : '400', color: c.accent }}>{label}</Text>
-    </Pressable>
+    </SheetPress>
   );
 }
 
@@ -167,12 +176,67 @@ function TextButton({ label, onPress }: { label: string; onPress: () => void }) 
   const { c } = useTokens();
   return (
     <View style={{ borderRadius: 24, overflow: 'hidden' }}>
-      <Pressable onPress={onPress} accessibilityRole="button" android_ripple={ripple(c.track)} style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' }}>
+      <SheetPress onPress={onPress} accessibilityRole="button" style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' }}>
         <Text style={{ fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: 0.1, color: c.accentText }}>{label}</Text>
-      </Pressable>
+      </SheetPress>
     </View>
   );
 }
+
+type TagItem = TagCount & { readonly on: boolean; readonly first: boolean; readonly last: boolean; readonly onToggle: (normName: string) => void };
+
+const keyOf = (tag: TagItem) => tag.normName;
+const renderTag = ({ item }: { item: TagItem }) => (
+  <TagRow name={item.name} normName={item.normName} count={item.count} on={item.on} first={item.first} last={item.last} onToggle={item.onToggle} />
+);
+
+/**
+ * A tag's row, memoised on what it draws, so a tap renders the row it ticks. On iOS each row is its slice of the
+ * grouped cell, rounded at the group's top and bottom.
+ */
+const TagRow = memo(function TagRow({
+  name,
+  normName,
+  count,
+  on,
+  first,
+  last,
+  onToggle,
+}: {
+  name: string;
+  normName: string;
+  count: number;
+  on: boolean;
+  first: boolean;
+  last: boolean;
+  onToggle: (normName: string) => void;
+}) {
+  const { c } = useTokens();
+  const toggle = () => onToggle(normName);
+  const slice = ios
+    ? {
+        backgroundColor: PlatformColor('secondarySystemGroupedBackground'),
+        borderCurve: 'continuous' as const,
+        overflow: 'hidden' as const,
+        borderTopLeftRadius: first ? 12 : 0,
+        borderTopRightRadius: first ? 12 : 0,
+        borderBottomLeftRadius: last ? 12 : 0,
+        borderBottomRightRadius: last ? 12 : 0,
+      }
+    : undefined;
+  return (
+    <View style={slice}>
+      {first || !ios ? null : <View style={{ height: 0.5, marginLeft: 16 + TAG_MARK + 10, backgroundColor: c.border }} />}
+      <Row onPress={toggle} role="checkbox" checked={on} minHeight={ios ? 44 : 48} label={`${name}, ${copy.filter.count(count)}`}>
+        <TagMark on={on} onChange={toggle} />
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: ios ? 15 : 16, color: c.ink }}>
+          {name}
+        </Text>
+        <Text style={{ minWidth: COUNT_WIDTH, textAlign: 'right', fontSize: ios ? 15 : 14, color: c.sub, fontVariant: ['tabular-nums'] }}>{count}</Text>
+      </Row>
+    </View>
+  );
+});
 
 /**
  * One row of the sheet: the whole row presses as its control does, so a tap on the words works too. On iOS a SwiftUI
@@ -195,18 +259,16 @@ function Row({
   minHeight?: number;
   label?: string;
 }) {
-  const { c } = useTokens();
   return (
-    <Pressable
+    <SheetPress
       onPress={onPress}
       accessible={!ownsFocus}
       accessibilityRole={ownsFocus ? undefined : role}
       accessibilityState={ownsFocus ? undefined : { checked }}
       accessibilityLabel={ownsFocus ? undefined : label}
-      android_ripple={ripple(c.track)}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: ios ? 10 : 16, minHeight, paddingHorizontal: ios ? 16 : 8, backgroundColor: ios && pressed ? PRESS_FLASH : undefined })}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: ios ? 10 : 16, minHeight, paddingHorizontal: ios ? 16 : 8 }}
     >
       {children}
-    </Pressable>
+    </SheetPress>
   );
 }

@@ -6,7 +6,7 @@
  * list behind follows as a deferred render (the author's request of 2026-10-14).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { NewReleasesView } from '@/domain/newReleases';
 import { reportCode } from '@/tally/errors';
@@ -67,17 +67,17 @@ export function useReleaseFilter(): ReleaseFilterState {
   useEffect(() => loadFor(db), [db]);
   const held = useSyncExternalStore(subscribe, () => snapshot);
   const current = held.db === db ? held : { db, loaded: false, settings: null, view: null };
-  return {
-    loaded: current.loaded,
-    settings: current.settings,
-    view: current.view,
-    update: (change) => {
+  // One function per store, so the sheet's memoised tag rows keep theirs across renders.
+  const update = useCallback<ReleaseFilterState['update']>(
+    (change) => {
       if (snapshot.db !== db) return;
       const next = typeof change === 'function' ? change(snapshot.settings ?? NOTHING_CHOSEN) : change;
       publish({ ...snapshot, settings: next });
       void writeFilterSettings(db, next);
     },
-  };
+    [db],
+  );
+  return { loaded: current.loaded, settings: current.settings, view: current.view, update };
 }
 
 /** The screen hands over each view it reads; the sheet filters it. */
