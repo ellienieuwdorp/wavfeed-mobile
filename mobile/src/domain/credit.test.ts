@@ -40,6 +40,7 @@ test('a Page and a credit that spell one act two ways name it once, then the lab
     ['"&" and "and"', { pageName: 'Kode9 and The Spaceape', artistCredit: 'Kode9 & The Spaceape', label: 'Hyperdub' }, 'Hyperdub'],
     ['non-breaking and zero-width spaces', { pageName: 'Nina\u00a0Kraviz', artistCredit: 'Nina\u200bKraviz', label: null }, null],
     ['a label credit spelled as the artist', { pageName: 'Tromac', artistCredit: 'Tromac', label: 'TROMAC.' }, null],
+    ['half-width and full-width kana', { pageName: 'ﾊﾞﾝﾄﾞ', artistCredit: 'バンド', label: null }, null],
   ] as const;
   for (const [shape, release, extra] of cases) {
     assert.deepEqual(creditLine(release), { artist: release.artistCredit, extra }, shape);
@@ -52,6 +53,8 @@ test('names that share their letters only in part stay apart', () => {
     ['a longer crew name', { pageName: 'TREKKIE TRAX', artistCredit: 'TREKKIE TRAX CREW', label: null }, 'TREKKIE TRAX'],
     ['"the" inside a name', { pageName: 'Source', artistCredit: 'The Source Experience', label: null }, 'Source'],
     ['names of symbols alone', { pageName: '★', artistCredit: '☆', label: null }, '★'],
+    ['kana apart by a voicing mark', { pageName: 'バンド', artistCredit: 'ハント', label: null }, 'バンド'],
+    ['Devanagari apart by a vowel sign', { pageName: 'कमल', artistCredit: 'कमला', label: null }, 'कमल'],
   ] as const;
   for (const [shape, release, extra] of cases) {
     assert.deepEqual(creditLine(release), { artist: release.artistCredit, extra }, shape);

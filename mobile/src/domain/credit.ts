@@ -20,10 +20,13 @@ export type CreditSource = {
   readonly label: string | null;
 };
 
-/** Accents on Latin, Greek and Cyrillic letters once decomposed, the only marks a spelling of a name drops. */
-const ACCENTS = /[̀-ͯ]/g;
-/** Everything but letters and digits: spacing of any width, punctuation, underscores, emoji, zero-width characters. */
-const NOT_LETTERS = /[^\p{L}\p{N}]+/gu;
+/**
+ * Accents on Latin, Greek and Cyrillic letters once decomposed, the only marks a spelling of a name drops. Other
+ * scripts' marks stay: kana voicing and Indic vowel signs make another word ("バンド" is not "ハント").
+ */
+const ACCENTS = /[\u0300-\u036f]/g;
+/** Everything but letters, their marks and digits: spacing of any width, punctuation, underscores, emoji, zero-width characters. */
+const NOT_LETTERS = /[^\p{L}\p{M}\p{N}]+/gu;
 
 /**
  * A name read past case, width, accents, punctuation and spacing, with "&" read as "and" and a leading "the" dropped
