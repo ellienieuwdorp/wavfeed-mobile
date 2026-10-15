@@ -15,6 +15,7 @@ import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
 import { notOutYet } from '@/domain/newReleases';
 import { captionTitle } from '@/theme/textSize';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { releaseHeart } from '@/wishlist/target';
 
 import { AvatarStack } from './AvatarStack';
 import { Heart } from './Heart';
@@ -71,7 +72,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
 
 /** The card's heart: the Release's key, its title for the label, and the surface it sits on. */
 function heartFor(release: ApiFeedItem) {
-  return { itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title, surface: 'row' as const };
+  return { item: releaseHeart({ itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title }), surface: 'row' as const };
 }
 
 /** The heart's drawn icon sits on the card's padding line; its 44pt or 48dp target reaches into the padding (DESIGN-UI section 12). */

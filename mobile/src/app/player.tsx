@@ -35,6 +35,7 @@ import { playerCopy } from '@/player/copy';
 import { playerNote } from '@/player/transport';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
+import { releaseHeart } from '@/wishlist/target';
 
 const ios = Platform.OS === 'ios';
 
@@ -296,7 +297,7 @@ function ReleaseHeart({ release }: { release: PlayableRelease }) {
   const inset = ART_HEART_INSET - (HEART - ART_HEART_DISC) / 2;
   return (
     <View style={{ position: 'absolute', right: inset, bottom: inset }}>
-      <Heart itemType={release.itemType} itemId={release.itemId} title={release.title} box={HEART} icon={ios ? 22 : 24} onArt={ART_HEART_DISC} surface="sheet" />
+      <Heart item={releaseHeart(release)} box={HEART} icon={ios ? 22 : 24} onArt={ART_HEART_DISC} surface="sheet" />
     </View>
   );
 }

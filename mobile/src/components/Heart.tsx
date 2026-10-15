@@ -5,8 +5,8 @@
  * VIS-3, VIS-M5). A press flips it at once and the exchange travels behind it (ADR-0016 amendment 2026-10-02); the
  * pressed heart alone pops, started from its own press so the item's other hearts only change, springing up on an add
  * and dipping on a remove on the UI thread, and not at all under reduce motion. A failure the Fan is told about puts
- * the heart back on the truth and raises one notice line. With `trackId` it acts on that Track of the Release, as the
- * player sheet's tracklist rows do, and its title then names the Track (`heartTarget`). `onArt` draws it over a cover,
+ * the heart back on the truth and raises one notice line. `item` is what it acts on and the name its label says
+ * (`releaseHeart`, `trackHeart`): the Release, or one Track of it as the player sheet's tracklist rows. `onArt` draws it over a cover,
  * the player sheet's: a dark disc under a white outline or the filled orange, legible on any art in either scheme, the
  * box and the press unchanged. On Android it is a 48dp icon button whose ripple is the 40dp state layer.
  */
@@ -17,11 +17,10 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withT
 import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 import { useReduceMotion } from '@/player/motion';
 import type { PressSurface } from '@/tally/actions';
-import type { PlayableRelease } from '@/player/transport';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 import { wishlistCopy } from '@/wishlist/copy';
 import { useMembership, useWishlistPress } from '@/wishlist/state';
-import { heartTarget } from '@/wishlist/target';
+import type { HeartItem } from '@/wishlist/target';
 
 const ios = Platform.OS === 'ios';
 
@@ -32,10 +31,7 @@ const POP = {
 } as const;
 
 type HeartProps = {
-  itemType: PlayableRelease['itemType'];
-  itemId: string;
-  title: string;
-  trackId?: string;
+  item: HeartItem;
   box?: number;
   icon?: number;
   /** Where the heart sits, for `wishlist_action_finished` (task 0038). */
@@ -61,9 +57,9 @@ function usePop() {
   return { style, pop };
 }
 
-export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, surface, onArt }: HeartProps) {
+export function Heart({ item, box: boxSize, icon, surface, onArt }: HeartProps) {
   const { c } = useTokens();
-  const target = heartTarget(itemType, itemId, trackId);
+  const { target, name } = item;
   const membership = useMembership(target.itemType, target.itemId);
   const press = useWishlistPress(surface);
   const { style, pop } = usePop();
@@ -71,7 +67,7 @@ export function Heart({ itemType, itemId, title, trackId, box: boxSize, icon, su
   const size = icon ?? (ios ? 20 : 22);
 
   const on = membership.known && membership.on;
-  const label = membership.known ? wishlistCopy.action(title, on) : wishlistCopy.unknown(title);
+  const label = membership.known ? wishlistCopy.action(name, on) : wishlistCopy.unknown(name);
   // On the page the filled heart takes the darker rim (VIS-3); on the art's dark disc the fill alone clears it.
   const outline = onArt === undefined ? (on ? c.wishlistEdge : c.faint) : on ? c.wishlist : ART_OFF;
 

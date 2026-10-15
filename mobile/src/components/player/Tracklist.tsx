@@ -17,6 +17,7 @@ import { playerCopy } from '@/player/copy';
 import { useReduceMotion } from '@/player/motion';
 import { isStreamable } from '@/player/transport';
 import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
+import { trackHeart } from '@/wishlist/target';
 
 import { clock, usePlayer, usePlayerActions, type PlayableRelease } from './playerState';
 
@@ -150,7 +151,7 @@ function TrackRow({ release, track, index, current, playing, ready, first, side 
         </View>
       )}
       {live && track.trackId !== null ? (
-        <Heart itemType={release.itemType} itemId={release.itemId} trackId={track.trackId} title={track.title} surface="tracklist" />
+        <Heart item={trackHeart(release, { trackId: track.trackId, title: track.title })} surface="tracklist" />
       ) : (
         <View style={{ width: ios ? 44 : 48 }} />
       )}

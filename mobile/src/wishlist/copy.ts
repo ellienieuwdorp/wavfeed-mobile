@@ -7,6 +7,8 @@ export const wishlistCopy = {
   action: (title: string, on: boolean) =>
     on ? `Remove ${title} from your Bandcamp wishlist` : `Add ${title} to your Bandcamp wishlist`,
   unknown: (title: string) => `Checking your wishlist for ${title}`,
+  /** An album's heart names it as one, so a title Track's row reads apart from it (task 0071, decision 4). */
+  album: (title: string) => `the album ${title}`,
   notice: {
     loggedOut: `Bandcamp no longer accepts the sign-in on ${thisDevice}, so that didn't reach your wishlist.`,
     notSignedIn: `Bandcamp isn't signed in on ${thisDevice}, so that didn't reach your wishlist.`,
