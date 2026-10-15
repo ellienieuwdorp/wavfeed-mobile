@@ -2,9 +2,11 @@
  * The faces of the Fans who bought it: discs in a ring, the Fan's Bandcamp image or one initial, overlapping, capped
  * with a faint "+N" after (DESIGN-UI section 3, task 0071 decisions 12 and 14). The Feed's card and an Upcoming card
  * draw 20pt discs in a 2pt ring overlapping by 6; a list row draws 24pt ones, three at most, its ring and overlap in
- * the same proportion (the author's request of 2026-10-15). With `opens` set the stack is a button opening the Bought
- * by sheet with these Fans (the canvas, sections 6 and 7). A disc does not grow with the text size, so its initial does
- * not either (review VIS-1).
+ * the same proportion (the author's request of 2026-10-15). `onArt` draws an Upcoming card's stack over its cover, on
+ * the art's mark backing with "+N" in a last disc of its own, white figures on black (task 0071, decision 14 as amended
+ * 2026-10-15). With `opens` set the stack is a button opening the Bought by sheet with these Fans (the canvas, sections
+ * 6 and 7). A disc does not grow with the text size, so its initial does not either, nor does the "+N" on art (review
+ * VIS-1).
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -13,7 +15,7 @@ import { PixelRatio, Pressable, Text, View, type Insets } from 'react-native';
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { fanAvatarInitials, fanAvatarUrl, sizedImageUrl } from '@/lib/format';
-import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
+import { ON_ART, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
 
@@ -26,6 +28,14 @@ const DISC = 20;
  * would spread past the slop.
  */
 const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
+/**
+ * The ring between discs on the art's backing, solid since a disc's ring hides the one it overlaps, and the fill of the
+ * "+N" disc that ends the stack there. A disc where the rows write "+N" holds the stack at three discs' width whatever
+ * N is, so it clears a "12/14" on a 112 card (task 0071, decision 14 as amended 2026-10-15).
+ */
+const ART_RING = '#1c1c1c';
+/** The backing's edge around the discs. */
+const ART_PAD = 1;
 
 /** A Fan's image at the size that covers `size` in this screen's pixels (finding VIS-M3). */
 function faceUrl(fan: ApiFanRef, size: number): string | null {
@@ -54,7 +64,7 @@ export function openBoughtBy(fans: readonly ApiFanRef[]) {
   router.push({ pathname: '/bought-by', params: { fans: JSON.stringify(fans) } });
 }
 
-export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, size = DISC, hitSlop = SLOP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; cap?: number; size?: number; hitSlop?: Insets }) {
+export function AvatarStack({ fans, ring, opens = false, onArt = false, cap = AVATAR_CAP, size = DISC, hitSlop = SLOP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; onArt?: boolean; cap?: number; size?: number; hitSlop?: Insets }) {
   const { c } = useTokens();
   const shown = fans.slice(0, cap);
   const more = fans.length - shown.length;
@@ -64,7 +74,7 @@ export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, size 
   const overlap = PixelRatio.roundToNearestPixel(size * 0.3);
   const face = size - 2 * edge;
   const stack = (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }} accessibilityLabel={opens ? undefined : names}>
+    <View style={[{ flexDirection: 'row', alignItems: 'center' }, onArt ? { padding: ART_PAD, borderRadius: size / 2 + ART_PAD, backgroundColor: ON_ART.ground } : null]} accessibilityLabel={opens ? undefined : names}>
       {shown.map((fan, n) => {
         const url = faceUrl(fan, face);
         return (
@@ -76,7 +86,7 @@ export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, size 
               borderRadius: size / 2,
               marginLeft: n === 0 ? 0 : -overlap,
               borderWidth: edge,
-              borderColor: ring ?? c.bg,
+              borderColor: onArt ? ART_RING : (ring ?? c.bg),
               backgroundColor: c.avatarBg,
               alignItems: 'center',
               justifyContent: 'center',
@@ -91,7 +101,15 @@ export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, size 
           </View>
         );
       })}
-      {more > 0 ? <Type style={{ marginLeft: 4, fontSize: size > DISC ? 12 : 11, color: c.faint }}>{copy.more(more)}</Type> : null}
+      {more === 0 ? null : onArt ? (
+        <View style={{ width: size, height: size, borderRadius: size / 2, marginLeft: -overlap, backgroundColor: ART_RING, alignItems: 'center', justifyContent: 'center' }}>
+          <Text allowFontScaling={false} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[ON_ART.small, { paddingHorizontal: 1, color: ON_ART.ink }]}>
+            {copy.more(more)}
+          </Text>
+        </View>
+      ) : (
+        <Type style={{ marginLeft: 4, fontSize: size > DISC ? 12 : 11, color: c.faint }}>{copy.more(more)}</Type>
+      )}
     </View>
   );
   if (!opens || fans.length === 0) return stack;
@@ -103,7 +121,7 @@ export function AvatarStack({ fans, ring, opens = false, cap = AVATAR_CAP, size 
       accessibilityHint={copy.boughtBy.hint}
       hitSlop={hitSlop}
       android_ripple={ripple(c.track)}
-      style={({ pressed }) => ({ opacity: pressedOpacity(pressed) })}
+      style={({ pressed }) => ({ opacity: pressedOpacity(pressed), borderRadius: onArt ? size / 2 + ART_PAD : undefined })}
     >
       {stack}
     </Pressable>

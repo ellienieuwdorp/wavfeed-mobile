@@ -10,7 +10,7 @@
  * tab host's native scheme set in that same commit (see the tabs layouts).
  */
 import { useSyncExternalStore } from 'react';
-import { Appearance, Platform, PlatformColor, type ColorValue } from 'react-native';
+import { Appearance, Platform, PlatformColor, type ColorValue, type TextStyle } from 'react-native';
 
 import { dark, light, type Palette } from './palette';
 
@@ -42,6 +42,15 @@ export const rowText = {
   cardTitle: { fontSize: 15, lineHeight: 20, fontWeight: ios ? '600' : '500' },
   credit: { fontSize: ios ? 13 : 14, lineHeight: ios ? 18 : 20 },
 } as const;
+
+/**
+ * Marks drawn over a cover, which is any colour in either theme: white figures on black at 66 percent, about 6:1 over a
+ * white cover, the figures carrying it alone over a black one. `text` is the type on art 80pt and up, `small` on a row's
+ * art and in an Upcoming card's "+N" disc, both fixed in size so a mark stays inside the art at every text size (task
+ * 0071, decisions 12 and 14).
+ */
+const ART_TEXT: TextStyle = { fontSize: 12, lineHeight: 16, fontWeight: '700', fontVariant: ['tabular-nums'], includeFontPadding: false };
+export const ON_ART = { ink: '#ffffff', ground: 'rgba(0,0,0,0.66)', text: ART_TEXT, small: { ...ART_TEXT, fontSize: 10, lineHeight: 13 } } as const;
 
 /** A Material state layer's ripple for a bounded surface, or for an icon button's 40dp circle when `radius` is given. */
 export function ripple(colour: string, radius?: number) {
