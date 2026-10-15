@@ -1,8 +1,10 @@
 /**
  * The credit line under a Release's title, "artist · X" (task 0071, decision 11): X is the Page's name when the Page
  * is not the artist credit, else the label credit, else nothing; a different Page wins over a label credit, and with
- * no artist credit held the Page's name stands alone (decision 18). The parts come back apart so a row can truncate
- * the artist credit last.
+ * no artist credit held the Page's name stands alone (decision 18). A Page's name and a Release's credit are often two
+ * spellings of one act ("sirspyro" and "Sir Spyro", "CPI" and "C.P.I.", "Onur Ozman" and "Onur Özman"), so names are
+ * compared by their letters and digits and the line never says one act twice (the author's request of 2026-10-15). The
+ * parts come back apart so a row can truncate the artist credit last.
  */
 
 export type CreditLine = {
@@ -18,11 +20,23 @@ export type CreditSource = {
   readonly label: string | null;
 };
 
+/** Accents on Latin, Greek and Cyrillic letters once decomposed, the only marks a spelling of a name drops. */
+const ACCENTS = /[̀-ͯ]/g;
+/** Everything but letters and digits: spacing of any width, punctuation, underscores, emoji, zero-width characters. */
+const NOT_LETTERS = /[^\p{L}\p{N}]+/gu;
+
+/**
+ * A name read past case, width, accents, punctuation and spacing, with "&" read as "and" and a leading "the" dropped
+ * ("DirtyDaveP" and "Dirty Dave P", "Godspeed You! Black Emperor" and "Godspeed You Black Emperor!", "Mountain People"
+ * and "The Mountain People"). A name of symbols alone keys on its trimmed, folded self.
+ */
 function nameKey(name: string): string {
-  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  const folded = name.normalize('NFKD').replace(ACCENTS, '').toLowerCase();
+  const words = folded.replace(/&/g, ' and ').trim().replace(/^the\s+/, '');
+  const letters = words.replace(NOT_LETTERS, '');
+  return letters === '' ? folded.trim().replace(/\s+/g, ' ') : letters;
 }
 
-/** Two names for the same act, read past case, width and spacing ("Tempa" and " TEMPA "). */
 function sameName(a: string, b: string): boolean {
   return nameKey(a) === nameKey(b);
 }
