@@ -19,10 +19,11 @@ import { captionTitle } from '@/theme/textSize';
 import { rowText, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
 
+import { AvatarStack } from './AvatarStack';
 import { ModuleHead } from './Curated';
 import { PlayArt } from './PlayArt';
 import { creditOf, type RowRelease } from './playable';
-import { Faces, ROW_LIST } from './ReleaseRow';
+import { ROW_LIST } from './ReleaseRow';
 import { heardParts } from './rowActions';
 import { RowMenu } from './RowMenu';
 import { Type } from './Type';
@@ -34,6 +35,23 @@ const GAP = 12;
 const CARD_FACES = 2;
 /** The faces' discs, centred on the day's first line, so a day held at two lines keeps them beside its words. */
 const FACE = 20;
+
+/**
+ * 8pt above the faces and 2pt below: they end the day line, so the press area reaches over the gap under the art and
+ * never down into the title (finding VIS-13, DESIGN-UI section 11).
+ * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; a stack the card's full width is the upgrade.
+ */
+const FACES_SLOP = { top: 8, bottom: 2, left: 8, right: 8 };
+
+/** The faces at the day line's right end, 2pt in from it as the canvas draws them, `top` setting them down from its top. */
+function Faces({ fans, top }: { fans: readonly ApiFanRef[]; top: number }) {
+  if (fans.length === 0) return null;
+  return (
+    <View style={{ marginLeft: 'auto', marginRight: 2, marginTop: top, flexShrink: 0 }}>
+      <AvatarStack fans={fans} cap={CARD_FACES} size={FACE} opens hitSlop={FACES_SLOP} />
+    </View>
+  );
+}
 
 export type ShelfCard = {
   readonly key: string;
@@ -71,7 +89,7 @@ const Card = memo(function Card({ card }: { card: ShelfCard }) {
             <View style={{ gap: 2, marginTop: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 1 }}>
                 <Type numberOfLines={day.numberOfLines} allowFontScaling={day.allowFontScaling} style={[rowText.eyebrow, { flexShrink: 1, marginVertical: Math.max(0, -lift), color: c.faint }, day.style]}>{card.day}</Type>
-                <Faces fans={card.buyers} cap={CARD_FACES} top={Math.max(0, lift)} />
+                <Faces fans={card.buyers} top={Math.max(0, lift)} />
               </View>
               <Type numberOfLines={title.numberOfLines} allowFontScaling={title.allowFontScaling} style={[rowText.cardTitle, { color: c.ink }, title.style]}>{card.release.title}</Type>
               <Type numberOfLines={1} style={[rowText.credit, { color: c.sub }]}>{creditText(credit)}</Type>

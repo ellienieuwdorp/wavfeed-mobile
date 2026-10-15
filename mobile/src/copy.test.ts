@@ -39,12 +39,11 @@ test('the count shows once a Track plays and the total is known, plural by the t
   for (const [out, total] of [[0, 4], [1, null], [null, 4], [3, 2]] as const) assert.deepEqual([tracksOutPhrase(out, total), tracksOutBadge(out, total)], [null, null]);
 });
 
-test('a Drop row and an Upcoming card draw the release day with its month and no weekday, which only the label says', () => {
+test('an Upcoming card draws the release day with its month and no weekday, which only the label says', () => {
   const now = new Date(2026, 9, 5, 12);
   const on = new Date(2026, 9, 13);
-  assert.deepEqual([outOnPhrase(on, now), onDayPhrase(on, now)], ['out 13 Oct', '13 Oct']);
-  assert.deepEqual([outOnPhrase(on, now, { weekday: true }), onDayPhrase(on, now, { weekday: true })], ['out Tue 13 Oct', 'Tue 13 Oct']);
-  assert.deepEqual([outOnPhrase(new Date(2026, 9, 5), now), onDayPhrase(new Date(2026, 9, 5), now)], ['out today', 'Today']);
+  assert.deepEqual([onDayPhrase(on, now), outOnPhrase(on, now)], ['13 Oct', 'out Tue 13 Oct']);
+  assert.deepEqual([onDayPhrase(new Date(2026, 9, 5), now), outOnPhrase(new Date(2026, 9, 5), now)], ['Today', 'out today']);
 });
 
 test('the player names the Release under the Track only when the title line does not (finding VIS-17)', () => {
@@ -57,8 +56,8 @@ test('the player names the Release under the Track only when the title line does
 test("a Drop out this month still names the month under the last month's week (finding VIS-6)", () => {
   // 1 Oct 2026: the Drop sits under "Last week · Mon 21 – Sun 27 Sep", and its Release is out on Tue 13 Oct.
   const now = new Date(2026, 9, 1, 12);
-  assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out 13 Oct');
-  assert.equal(outOnPhrase(new Date(2027, 0, 8), now), 'out 8 Jan 2027');
+  assert.equal(outOnPhrase(new Date(2026, 9, 13), now), 'out Tue 13 Oct');
+  assert.equal(outOnPhrase(new Date(2027, 0, 8), now), 'out Fri 8 Jan 2027');
 });
 
 test("New releases' header counts the view, and the filter's lines name only what is chosen (task 0071, decisions 6, 7 and 9)", () => {

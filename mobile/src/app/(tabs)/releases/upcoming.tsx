@@ -69,7 +69,7 @@ export default function UpcomingReleases() {
         // 10, amended by the author 2026-10-12 and 2026-10-14); the label says both, as an Upcoming card's does.
         const on = releaseDay(r.releaseDate);
         const day = onDayPhrase(on, at);
-        const heardDay = outOnPhrase(on, at, { weekday: true });
+        const heardDay = outOnPhrase(on, at);
         list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day, heardDay, tracksOut: r.numStreamableTracks, numTracks: r.numTracks, rule });
       });
     }

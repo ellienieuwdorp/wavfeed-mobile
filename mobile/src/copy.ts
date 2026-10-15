@@ -143,12 +143,13 @@ export function onDayPhrase(value: string | Date, now: Date, { weekday = false }
 }
 
 /**
- * "out 13 Oct" (task 0041, decision 10), "out today" on the day: the day a Drop's row draws (task 0071, decision 10,
- * amended 2026-10-14). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let out
- * in, often another month's (finding VIS-6). `weekday` gives "out Tue 13 Oct", as the row's label says it.
+ * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day: the day a Drop's row, an Upcoming card and an
+ * Upcoming list row say to a screen reader. No row draws it since the author's request of 2026-10-15 (task 0071,
+ * decision 10). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let out in,
+ * often another month's (finding VIS-6).
  */
-export function outOnPhrase(value: string | Date, now: Date, options: { weekday?: boolean } = {}): string {
-  return isSameDay(value, now) ? 'out today' : `out ${onDayPhrase(value, now, options)}`;
+export function outOnPhrase(value: string | Date, now: Date): string {
+  return isSameDay(value, now) ? 'out today' : `out ${onDayPhrase(value, now, { weekday: true })}`;
 }
 
 /**

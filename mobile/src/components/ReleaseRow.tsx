@@ -1,9 +1,9 @@
 /**
- * One Release as a list cell (task 0071, decisions 10 to 13 as amended by the author 2026-10-14): 56pt art, then for a
- * Drop or a Release not out yet the day in small caps, the title, and the credit line ("artist · Page or label",
- * creditText); a released row is the title and the credit line alone. The faces of who bought it end the title line at
- * the right edge, so the title truncates against them and the credit line runs the full width. A partial Release's
- * "1/4" sits on the art's corner (PlayArt). No heart: a swipe right wishlists (WishlistSwipe, decision 15), and the long
+ * One Release as a list cell (task 0071, decisions 10 to 13 as amended by the author 2026-10-14 and 2026-10-15): 56pt
+ * art, the title and the credit line ("artist · Page or label", creditText); only the full Upcoming list draws the day
+ * in small caps over them, and a Drop in the released weeks reads like a released row, the "1/4" on its art's corner
+ * (PlayArt) saying it is not all out. The faces of who bought it, 24pt and three at most, stand at the right edge
+ * centred on the title and the credit line, which both truncate against them. No heart: a swipe right wishlists (WishlistSwipe, decision 15), and the long
  * press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI
  * section 11); a press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and
  * drawing the ripple on Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one
@@ -35,8 +35,12 @@ import { useHiddenWhileSwiped, useTakenBySwipe, WishlistSwipe } from './Wishlist
 const ios = Platform.OS === 'ios';
 const ART = 56;
 const GAP = ios ? 12 : 16;
-const MIN_HEIGHT = ios ? 68 : 72;
+/** The 56 art with 4pt above and below it on iOS, 6dp on Android; a row with the day line or a larger text grows. */
+const MIN_HEIGHT = ios ? 64 : 68;
 const TRAILING = 16;
+/** A row's faces: 24pt discs, three then "+N" (the author's request of 2026-10-15). */
+const FACE = 24;
+const FACES_CAP = 3;
 /** The iOS hairline starts at the text column: the 20pt gutter, the art and the gap. */
 const RULE_LEFT = 20 + ART + GAP;
 
@@ -54,7 +58,7 @@ export const ROW_LIST = { strictMode: true, removeClippedSubviews: false, window
 
 type RowProps = {
   release: RowRelease;
-  /** The eyebrow: "out 13 Oct" from outOnPhrase for a Drop, "13 Oct" from onDayPhrase in the Upcoming list; null on a released row. */
+  /** The eyebrow, "13 Oct" from onDayPhrase, in the full Upcoming list only; null in the released weeks. */
   day: string | null;
   /** The day as the label says it: "Wed 7" from dayLabel, "out Tue 13 Oct" with its weekday. */
   heardDay: string;
@@ -70,23 +74,10 @@ type RowProps = {
 };
 
 /**
- * 8pt above the faces and 2pt below: on a row they end the title line, so the press area reaches up into the padding or
- * the short day line's empty end and never down into the credit line; on a card they end the day line, over the gap
- * under the art (finding VIS-13, DESIGN-UI section 11).
- * ceiling: that makes the target 30pt tall, short of 44pt or 48dp; a stack the full height of the row's right edge is
- * the upgrade.
+ * The faces' press area reaches 44pt tall on iOS and 48dp on Android, centred on the row's two lines, and out to the
+ * screen's edge on the right (finding VIS-13, DESIGN-UI section 11).
  */
-const FACES_SLOP = { top: 8, bottom: 2, left: 8, right: 8 };
-
-/** The faces at a line's right end, 2pt in from it as the canvas draws them; `top` sets them down from the line's top. */
-export function Faces({ fans, cap, top = 0 }: { fans: readonly ApiFanRef[]; cap?: number; top?: number }) {
-  if (fans.length === 0) return null;
-  return (
-    <View style={{ marginLeft: 'auto', marginRight: 2, marginTop: top, flexShrink: 0 }}>
-      <AvatarStack fans={fans} cap={cap} opens hitSlop={FACES_SLOP} />
-    </View>
-  );
-}
+const FACES_SLOP = { top: ios ? 10 : 12, bottom: ios ? 10 : 12, left: 8, right: TRAILING };
 
 /** The label the iOS row and the Android body say, kept current with the transport and the wishlist. */
 function useHeard(release: RowRelease, heard: HeardRow): { label: string; watch: ReactNode } {
@@ -161,7 +152,9 @@ function IosBody({ onPress, onLongPress, onPressIn, onPressOut, children }: { on
 /** The art's press area is the row's full height, the art centred in it, so no strip above or below it is dead. */
 const ART_COLUMN: ViewStyle = { alignSelf: 'stretch', justifyContent: 'center' };
 
-const BODY: ViewStyle = { flex: 1, alignSelf: 'stretch', justifyContent: 'center', gap: 1, paddingVertical: 9 };
+const BODY: ViewStyle = { flex: 1, alignSelf: 'stretch', justifyContent: 'center', gap: 1, paddingVertical: 6 };
+const TEXT_AND_FACES: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 8 };
+const TEXT: ViewStyle = { flex: 1, minWidth: 0, gap: 1 };
 
 /**
  * The row in the transport, lit in the track tone with no hairline under it; on iOS it also covers the hairline of the
@@ -207,15 +200,21 @@ export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tra
           {day}
         </Type>
       ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Type numberOfLines={1} style={[rowText.title, { flexShrink: 1, color: c.ink }]}>
-          {release.title}
-        </Type>
-        <Faces fans={buyers} />
+      <View style={TEXT_AND_FACES}>
+        <View style={TEXT}>
+          <Type numberOfLines={1} style={[rowText.title, { color: c.ink }]}>
+            {release.title}
+          </Type>
+          <Type numberOfLines={1} style={[rowText.credit, { color: c.sub }]}>
+            {creditText(credit)}
+          </Type>
+        </View>
+        {buyers.length > 0 ? (
+          <View style={{ marginRight: 2 }}>
+            <AvatarStack fans={buyers} cap={FACES_CAP} size={FACE} opens hitSlop={FACES_SLOP} />
+          </View>
+        ) : null}
       </View>
-      <Type numberOfLines={1} style={[rowText.credit, { color: c.sub }]}>
-        {creditText(credit)}
-      </Type>
     </>
   );
   const row: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: MIN_HEIGHT, paddingLeft: type.gutter, paddingRight: TRAILING, gap: GAP };

@@ -2,8 +2,8 @@
  * New releases on the store: the Upcoming shelf, then the released weeks and the quiet gaps between them, newest
  * first (DESIGN-UI section 3, task 0037). A released row is its title and credit line with the faces of who bought it,
  * its week head dating it (task 0071, decisions 10 to 12 as amended by the author 2026-10-14). A Drop is the same row
- * on its day with the day line "out 13 Oct" over the title and its count "1/4" on its art, and its art plays the
- * Release from the newest Track it let out (task 0041, decision 10). The filter (task 0071,
+ * on its day, with no day line, its count "1/4" on its art saying it is not all out (the author's request of
+ * 2026-10-15), and its art plays the Release from the newest Track it let out (task 0041, decision 10). The filter (task 0071,
  * decisions 6 to 9) narrows the shelf and the weeks; with nothing chosen the line under the title counts the view,
  * while a filter is active the "Filtered by" pill stands there, and a filter that keeps nothing says so with "Clear
  * filters". The filter button floats over the list (see Dock). A link to
@@ -45,7 +45,7 @@ type Item =
   | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
   | { key: string; kind: 'release'; release: Row; heardDay: string; rule: boolean }
-  | { key: string; kind: 'drop'; release: Row; day: string; heardDay: string; tracksOut: number; numTracks: number | null; from: string | null; rule: boolean }
+  | { key: string; kind: 'drop'; release: Row; heardDay: string; tracksOut: number; numTracks: number | null; from: string | null; rule: boolean }
   | { key: string; kind: 'gap'; text: string };
 
 function render({ item }: { item: Item }) {
@@ -65,7 +65,7 @@ function render({ item }: { item: Item }) {
     case 'release':
       return <ReleaseRow release={item.release} day={null} heardDay={item.heardDay} buyers={item.release.buyers} rule={item.rule} />;
     case 'drop':
-      return <ReleaseRow release={item.release} day={item.day} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} from={item.from} rule={item.rule} />;
+      return <ReleaseRow release={item.release} day={null} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} from={item.from} rule={item.rule} />;
   }
 }
 
@@ -119,7 +119,7 @@ export default function NewReleases() {
     if (shown.upcoming.length > 0) {
       const cards = shown.upcoming.map((r) => {
         const on = releaseDay(r.releaseDate);
-        return { key: `${r.itemType}:${r.itemId}`, release: r, day: onDayPhrase(on, at), out: outOnPhrase(on, at, { weekday: true }), tracksOut: r.numStreamableTracks, numTracks: r.numTracks, buyers: r.buyers };
+        return { key: `${r.itemType}:${r.itemId}`, release: r, day: onDayPhrase(on, at), out: outOnPhrase(on, at), tracksOut: r.numStreamableTracks, numTracks: r.numTracks, buyers: r.buyers };
       });
       list.push({ key: 'shelf', kind: 'shelf', cards });
     }
@@ -137,9 +137,9 @@ export default function NewReleases() {
         // A Drop's key names its day, so a Release's Drops and later its own row never share one (task 0041, decision 10).
         if (placed.kind === 'drop') {
           const { tracksOut, numTracks } = placed;
-          const day = outOnPhrase(placed.releaseDay, at);
-          const heardDay = outOnPhrase(placed.releaseDay, at, { weekday: true });
-          list.push({ key: placed.key, kind: 'drop', release: placed.release, day, heardDay, tracksOut, numTracks, from: placed.newestTrackId, rule });
+          // A Drop draws no day line either; its label says the day it is out (the author's request of 2026-10-15).
+          const heardDay = outOnPhrase(placed.releaseDay, at);
+          list.push({ key: placed.key, kind: 'drop', release: placed.release, heardDay, tracksOut, numTracks, from: placed.newestTrackId, rule });
         } else {
           // A released row draws no day, its week head dates it; the label still says it (amended by the author 2026-10-14).
           list.push({ key: placed.key, kind: 'release', release: placed.release, heardDay: dayLabel(placed.date, at), rule });
