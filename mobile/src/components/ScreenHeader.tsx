@@ -10,12 +10,14 @@
  * The store build banner follows the lines on every tab (task 0064), hideable everywhere but Settings. New releases
  * passes its count, which leads the line ("310 releases · updated 12 min ago"), and while its filter is active the
  * "Filtered by" pill in place of that line, 14 under the title on iOS and 16 on Android; during the first walk the
- * catch-up keeps its place and the pill follows it (task 0071, decision 6).
+ * catch-up keeps its place and the pill follows it (task 0071, decision 6). New releases (`filterable`) holds the pill's
+ * height for that line, under the catch-up too, so the pill coming or going moves nothing below (`FilterLineSlot`).
  */
 import { Platform, View } from 'react-native';
 
 import { FilterEaseLine } from '@/components/filter/FilterEase';
 import { FilteredBy } from '@/components/filter/FilteredBy';
+import { FilterLineSlot } from '@/components/filter/FilterLineSlot';
 import { catchUpHeader, countedHeader } from '@/copy';
 import { useGatherStatus } from '@/state/status';
 import { useTokens } from '@/theme/tokens';
@@ -25,19 +27,22 @@ import { CatchUpHairline, progressValue } from './CatchUp';
 import { Type } from './Type';
 import { UpdateBanner } from './UpdateBanner';
 
-/** `count` leads the quiet line; `filteredBy` is the pill's words, drawn instead of that line. */
-type Lines = { quiet?: boolean; count?: number | null; filteredBy?: string | null };
+/**
+ * `count` leads the quiet line; `filteredBy` is the pill's words, drawn instead of that line; `filterable` holds the
+ * pill's place on the view its filter narrows, New releases.
+ */
+type Lines = { quiet?: boolean; count?: number | null; filteredBy?: string | null; filterable?: boolean };
 
-export function ScreenHeader({ quiet = false, count = null, filteredBy = null }: Lines) {
+export function ScreenHeader({ quiet = false, count = null, filteredBy = null, filterable = false }: Lines) {
   return (
     <>
-      <HeaderLines quiet={quiet} count={count} filteredBy={filteredBy} />
+      <HeaderLines quiet={quiet} count={count} filteredBy={filteredBy} filterable={filterable} />
       <UpdateBanner hideable={!quiet} />
     </>
   );
 }
 
-function HeaderLines({ quiet, count, filteredBy }: Required<Lines>) {
+function HeaderLines({ quiet, count, filteredBy, filterable }: Required<Lines>) {
   const { c, type } = useTokens();
   const status = useGatherStatus();
   const line = status.catchUp;
@@ -51,14 +56,17 @@ function HeaderLines({ quiet, count, filteredBy }: Required<Lines>) {
   );
   if (line === null) {
     const note = count === null || header === null ? header : countedHeader(count, header);
-    if (android) return pill === null ? <AppBarTitle subtitle={note} /> : <AppBarTitle subtitle={null} pill={pill} barSubtitle={filteredBy} />;
-    if (pill !== null) return <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{pill}</View>;
-    if (note === null) return quiet ? null : <View style={{ height: 8 }} />;
-    return (
-      <FilterEaseLine key="note">
-        <Type style={{ fontSize: type.sub, color: c.sub, paddingHorizontal: type.gutter, paddingBottom: 12 }}>{note}</Type>
-      </FilterEaseLine>
-    );
+    if (android) return <AppBarTitle subtitle={note} pill={pill} filterable={filterable} barSubtitle={pill === null ? note : filteredBy} />;
+    const quietLine = note === null ? null : <Type style={{ fontSize: type.sub, color: c.sub }}>{note}</Type>;
+    if (filterable) {
+      return (
+        <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: 12 }}>
+          <FilterLineSlot strut={quietLine}>{pill ?? (quietLine === null ? null : <FilterEaseLine key="note">{quietLine}</FilterEaseLine>)}</FilterLineSlot>
+        </View>
+      );
+    }
+    if (quietLine === null) return quiet ? null : <View style={{ height: 8 }} />;
+    return <View style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>{quietLine}</View>;
   }
   const note = header;
   const text = catchUpHeader(line.primary, line.secondary);
@@ -69,14 +77,18 @@ function HeaderLines({ quiet, count, filteredBy }: Required<Lines>) {
       <CatchUpHairline line={line} />
     </>
   );
-  if (android) return <AppBarTitle subtitle={text} below={below} a11y={a11y} pill={pill} />;
+  if (android) return <AppBarTitle subtitle={text} below={below} a11y={a11y} pill={pill} filterable={filterable} />;
   return (
     <>
       <View {...a11y} style={{ gap: 6, paddingHorizontal: type.gutter, paddingBottom: 12 }}>
         <Type style={{ fontSize: type.sub, color: c.sub, fontVariant: ['tabular-nums'] }}>{text}</Type>
         {below}
       </View>
-      {pill === null ? null : <View style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>{pill}</View>}
+      {filterable ? (
+        <View style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>
+          <FilterLineSlot strut={null}>{pill}</FilterLineSlot>
+        </View>
+      ) : null}
     </>
   );
 }

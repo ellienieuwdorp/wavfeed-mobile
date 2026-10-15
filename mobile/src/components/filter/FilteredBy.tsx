@@ -1,7 +1,7 @@
 /**
  * "Filtered by 2+ you follow · ambient, dub" under New releases' title while a filter is active (task 0071, decision 6,
  * CSS3's `.fby`): the filter glyph at 16, the words and a chevron on the tint, 32 high and fully rounded, its left edge
- * on the title's. It scrolls away with the title, and a tap opens the Filters sheet.
+ * on the title's. It scrolls away with the title, and a tap opens the Filters sheet. Its place is `FilterLineSlot`.
  */
 import { router } from 'expo-router';
 import { Platform, Pressable } from 'react-native';
@@ -12,6 +12,7 @@ import { copy } from '@/copy';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { FILTERS_ROUTE } from './FilterButton';
+import { PILL_HEIGHT } from './FilterLineSlot';
 
 const ios = Platform.OS === 'ios';
 
@@ -27,7 +28,7 @@ export function FilteredBy({ text }: { text: string }) {
       style={({ pressed }) => ({
         alignSelf: 'flex-start',
         maxWidth: '100%',
-        minHeight: 32,
+        minHeight: PILL_HEIGHT,
         flexDirection: 'row',
         alignItems: 'center',
         gap: ios ? 6 : 7,
@@ -47,3 +48,4 @@ export function FilteredBy({ text }: { text: string }) {
     </Pressable>
   );
 }
+

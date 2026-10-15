@@ -52,7 +52,7 @@ type Item =
 function render({ item }: { item: Item }) {
   switch (item.kind) {
     case 'header':
-      return <ScreenHeader count={item.count} filteredBy={item.filteredBy} />;
+      return <ScreenHeader filterable count={item.count} filteredBy={item.filteredBy} />;
     case 'empty':
       return <EmptyState filling={copy.empty.fillingReleases} nothing={copy.empty.nothing} />;
     case 'nomatch':

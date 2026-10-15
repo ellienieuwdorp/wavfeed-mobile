@@ -11,6 +11,7 @@ import { Animated, Platform, View, type NativeScrollEvent, type NativeSyntheticE
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FilterEaseLine } from '@/components/filter/FilterEase';
+import { FilterLineSlot } from '@/components/filter/FilterLineSlot';
 import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
@@ -50,20 +51,24 @@ export function useAppBarAtRest(): void {
 
 /**
  * The expanded half, first in the list: the title and, when there is one, the subtitle line, with `below` under it
- * (the note to keep the app open and the catch-up's hairline, task 0040 decision 8) and `a11y` on the pair.
+ * (the note to keep the app open and the catch-up's hairline, task 0040 decision 8) and `a11y` on the pair. With
+ * `filterable`, New releases', the subtitle line and the "Filtered by" pill share one place held at the pill's height,
+ * 16 under the title's glyphs, and under the catch-up the pill's place is held empty (see FilterLineSlot).
  */
 export function AppBarTitle({
   subtitle,
   below = null,
   a11y = {},
   pill = null,
+  filterable = false,
   barSubtitle = subtitle,
 }: {
   subtitle: string | null;
   below?: ReactNode;
   a11y?: ViewProps;
-  /** New releases' "Filtered by" pill, 16 under what stands above it (task 0071, decision 6). */
+  /** New releases' "Filtered by" pill (task 0071, decision 6). */
   pill?: ReactNode;
+  filterable?: boolean;
   /** The collapsed bar's subtitle, when it is not the expanded one's. */
   barSubtitle?: string | null;
 }) {
@@ -75,19 +80,35 @@ export function AppBarTitle({
     setSubtitle?.(barSubtitle);
   }, [setSubtitle, barSubtitle]);
   if (frame === null) return null;
+  const line = subtitle === null ? null : <Type numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Type>;
+  // New releases' subtitle gives way to its pill crossfaded with the rows (components/filter/FilterEase.tsx).
+  const lines =
+    line === null ? null : (
+      <FilterEaseLine key="subtitle">
+        <View {...a11y} style={{ gap: 8 }}>
+          {line}
+          {below}
+        </View>
+      </FilterEaseLine>
+    );
+  const swapped = filterable && below === null;
   return (
-    <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null ? 16 : 12 }}>
+    <View style={{ paddingTop: insets.top + TITLE_TOP, paddingHorizontal: type.gutter, paddingBottom: subtitle === null || swapped ? 16 : 12 }}>
       <Type scale="head" accessibilityRole="header" numberOfLines={1} style={{ fontSize: type.viewTitle, lineHeight: TITLE_LINE, color: c.ink }}>{frame.title}</Type>
-      {subtitle === null ? null : (
-        // New releases' subtitle gives way to its pill crossfaded with the rows (components/filter/FilterEase.tsx).
-        <FilterEaseLine key="subtitle">
-          <View {...a11y} style={{ gap: 8 }}>
-            <Type numberOfLines={1} style={{ fontSize: type.sub, lineHeight: 20, color: c.sub }}>{subtitle}</Type>
-            {below}
-          </View>
-        </FilterEaseLine>
+      {swapped ? (
+        <View style={{ marginTop: PILL_TOP }}>
+          <FilterLineSlot strut={line}>{pill ?? lines}</FilterLineSlot>
+        </View>
+      ) : (
+        <>
+          {lines}
+          {filterable ? (
+            <View style={{ marginTop: 12 }}>
+              <FilterLineSlot strut={null}>{pill}</FilterLineSlot>
+            </View>
+          ) : null}
+        </>
       )}
-      {pill === null ? null : <View style={{ marginTop: subtitle === null ? PILL_TOP : 12 }}>{pill}</View>}
     </View>
   );
 }
