@@ -336,6 +336,18 @@ function toUpcomingRow(row: UpcomingRecord): UpcomingReleaseRow | null {
   };
 }
 
+/** A purchase Story whose Fan is held: the only kind the rules count as a buyer. */
+const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
+
+/**
+ * A named Fan bought the Release, or a Track of the album; an Upcoming album's Track is always bought before the album
+ * is out (task 0067, decision 3).
+ */
+const BOUGHT_BY_NAMED_FAN = `exists (select 1 from ${NAMED_PURCHASES}
+  and ((b.item_type = r.item_type and b.item_id = r.item_id)
+    or (r.item_type = 'a' and b.item_type = 't' and b.item_id in (
+      select t.item_id from releases t where t.item_type = 't' and t.album_id = r.item_id))))`;
+
 /** The shelf's reach: the Release's Page is followed, or a Story reaches the Release or one of its Tracks (ADR-0017, task 0067). */
 export const REACHED_BY_FOLLOW_OR_STORY = `(exists (select 1 from follows f where f.band_id = r.band_id)
   or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id)
@@ -351,6 +363,8 @@ export const TRACK_OF_HELD_ALBUM = `(r.item_type = 't' and r.album_id is not nul
  * Releases dated ahead of today's GMT day, or out within the handoff and held
  * before they came out, whose Page is followed or which a Story reaches (ADR-0017), less the Tracks of held albums.
  * Each half selects its own bounded Releases in one SQLite read, so handoff rows cannot spend Upcoming's capacity (task 0070).
+ * The Upcoming Releases a named Fan bought are selected apart too, so nearer ones cannot push them out of the people
+ * filter's reach (task 0071).
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
   const eligible = `select ${UPCOMING_COLUMNS}
@@ -370,10 +384,15 @@ export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promi
          and r.release_date >= ?
        order by r.release_date asc, r.item_type asc, r.item_id asc
        limit ?
+     ), bought as (
+       ${eligible}
+         and r.release_date >= ? and ${BOUGHT_BY_NAMED_FAN}
+       order by r.release_date asc, r.item_type asc, r.item_id asc
+       limit ?
      )
-     select * from just_out union all select * from upcoming
+     select * from just_out union select * from upcoming union select * from bought
      order by release_date asc, item_type asc, item_id asc`,
-    [handoffFloor(now).toISOString(), ahead, UPCOMING_MAX_RELEASES, ahead, UPCOMING_MAX_RELEASES],
+    [handoffFloor(now).toISOString(), ahead, UPCOMING_MAX_RELEASES, ahead, UPCOMING_MAX_RELEASES, ahead, UPCOMING_MAX_RELEASES],
   );
   return rows.flatMap((row) => {
     const release = toUpcomingRow(row);
@@ -459,9 +478,6 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
     storyCount: counts?.stories ?? 0,
   };
 }
-
-/** A purchase Story whose Fan is held: the only kind the rules count as a buyer. */
-const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.story_type = 'purchase'`;
 
 /**
  * Every Story of each Release New releases could draw: those a new-release Story names, the shelf's and the Drops'

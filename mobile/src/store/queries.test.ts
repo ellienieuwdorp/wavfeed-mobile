@@ -361,6 +361,39 @@ test('the just-out handoff and Upcoming each retain 500 Releases in date and key
   assert.deepEqual(view.weeks.flatMap((week) => week.releases.map((entry) => [entry.release.itemType, Number(entry.release.itemId)])), justOut);
 });
 
+test('an Upcoming Release a followed Fan bought stays on the shelf past 500 nearer ones (task 0071)', async (t) => {
+  const { db, close } = await openTestStore();
+  t.after(close);
+  const now = new Date('2026-10-12T23:59:59.999Z');
+  const item = (id: number, date: string) => discographyItem({ item_id: id, item_type: 'album', title: `Release ${id}`, release_date: date });
+  await insertRawDocument(db, {
+    endpoint: 'following_bands', payload: followingBandsFirstPage(), fetchedAt: '2026-09-20T00:00:00.000Z',
+  });
+  await insertRawDocument(db, {
+    endpoint: 'band_details', fetchedAt: '2026-09-20T01:00:00.000Z',
+    payload: bandDetailsPayload({ items: [
+      ...Array.from({ length: 500 }, (_, i) => item(20000 + i, '13 Oct 2026 00:00:00 GMT')),
+      item(50000, '30 Nov 2026 00:00:00 GMT'),
+      item(50001, '30 Nov 2026 00:00:00 GMT'),
+      item(50002, '30 Nov 2026 00:00:00 GMT'),
+    ] }),
+  });
+  // 50000 bought whole, 50001 through one of its Tracks; 50002 nobody bought.
+  await insertRawDocument(db, {
+    endpoint: 'fan_dash_feed_updates', fetchedAt: '2026-10-01T00:00:00.000Z',
+    payload: feedPayload({ entries: [
+      fpEntry({ item_id: 50000, album_id: 50000, item_title: 'Release 50000', item_url: 'https://nightgraft.bandcamp.com/album/r50000' }),
+      fpEntry({ item_type: 't', item_id: 77002, album_id: 50001, item_title: 'Early', item_url: 'https://nightgraft.bandcamp.com/track/early' }),
+    ] }),
+  });
+  await fold(db);
+  const view = await readNewReleases(db, { now });
+  const ids = (releases: readonly { readonly itemId: string | number }[]) => releases.map((release) => Number(release.itemId));
+  assert.equal(view.upcoming.length, 502);
+  assert.deepEqual(ids(view.upcoming).slice(-2), [50000, 50001]);
+  assert.deepEqual(ids(filterNewReleases(view, { people: { on: true, min: PEOPLE_MIN }, tags: [] }).view.upcoming), [50000, 50001]);
+});
+
 test('both Upcoming query halves preserve the GMT window, prior holding and follow-or-Story reach', async (t) => {
   const { db, close } = await openTestStore();
   t.after(close);
