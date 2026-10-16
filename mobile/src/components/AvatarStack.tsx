@@ -5,7 +5,7 @@
  * the same proportion (the author's request of 2026-10-15). `onArt` draws an Upcoming card's stack over its cover, on
  * the art's mark backing with "+N" in a last disc of its own, white figures on black (task 0071, decision 14 as amended
  * 2026-10-15). With `opens` set the stack is a button opening the Bought by sheet with these Fans (the canvas, sections
- * 6 and 7). A disc does not grow with the text size, so its initial does not either, nor does the "+N" on art (review
+ * 6 and 7), unless a row's swipe took the touch (useTakenBySwipe). A disc does not grow with the text size, so its initial does not either, nor does the "+N" on art (review
  * VIS-1).
  */
 import { Image } from 'expo-image';
@@ -18,6 +18,7 @@ import { fanAvatarInitials, fanAvatarUrl, sizedImageUrl } from '@/lib/format';
 import { ON_ART, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
+import { useTakenBySwipe } from './WishlistSwipe';
 
 export const AVATAR_CAP = 5;
 const DISC = 20;
@@ -66,6 +67,7 @@ export function openBoughtBy(fans: readonly ApiFanRef[]) {
 
 export function AvatarStack({ fans, ring, opens = false, onArt = false, cap = AVATAR_CAP, size = DISC, hitSlop = SLOP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; onArt?: boolean; cap?: number; size?: number; hitSlop?: Insets }) {
   const { c } = useTokens();
+  const taken = useTakenBySwipe();
   const shown = fans.slice(0, cap);
   const more = fans.length - shown.length;
   const names = fans.map((fan) => fan.username).join(', ');
@@ -115,7 +117,9 @@ export function AvatarStack({ fans, ring, opens = false, onArt = false, cap = AV
   if (!opens || fans.length === 0) return stack;
   return (
     <Pressable
-      onPress={() => openBoughtBy(fans)}
+      onPress={() => {
+        if (!taken()) openBoughtBy(fans);
+      }}
       accessibilityRole="button"
       accessibilityLabel={copy.boughtBy.stack(names)}
       accessibilityHint={copy.boughtBy.hint}
