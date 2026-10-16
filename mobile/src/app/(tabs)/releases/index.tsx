@@ -120,7 +120,7 @@ export default function NewReleases() {
     if (shown.upcoming.length > 0) {
       const cards = shown.upcoming.map((r) => {
         const on = releaseDay(r.releaseDate);
-        return { key: `${r.itemType}:${r.itemId}`, release: r, day: onDayPhrase(on, at), out: outOnPhrase(on, at), tracksOut: r.numStreamableTracks, numTracks: r.numTracks, buyers: r.buyers };
+        return { key: `${r.itemType}:${r.itemId}`, release: r, day: onDayPhrase(on, at, { year: false }), out: outOnPhrase(on, at), tracksOut: r.numStreamableTracks, numTracks: r.numTracks, buyers: r.buyers };
       });
       list.push({ key: 'shelf', kind: 'shelf', cards });
     }

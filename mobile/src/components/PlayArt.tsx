@@ -6,9 +6,8 @@
  * 0071): only the art of the Release in the transport draws its state, a scrim with pause while it plays or loads
  * (showsPause), play otherwise, a dead Release included, since a press on it asks again. A partial Release's "1/4"
  * (`badge`) sits on the art's bottom-left corner on a dark backing, white figures fixed in size so it stays inside the
- * art at every text size; an Upcoming card's day (`day`) takes the same mark mirrored to the top-right corner, and its
- * faces (`faces`) the bottom-right one, a button of their own over the art (task 0071, decision 14 as amended
- * 2026-10-15). The label says the count, the day and the buyers with the other facts. Only the art in the transport
+ * art at every text size; an Upcoming card's day (`day`) takes the same mark on the top-left corner, and its faces
+ * (`faces`) the top-right one, a button of their own over the art (task 0071, decision 14 as amended 2026-10-16). The label says the count, the day and the buyers with the other facts. Only the art in the transport
  * reads usePlayer (useArtState); every other one reads the Release alone, whose identity changes only when another
  * Release plays.
  * Inside a row's swipe a press plays nothing for a touch the swipe took (useTakenBySwipe). Nothing above it may be a
@@ -57,9 +56,9 @@ type Props = {
   spoken?: string;
   /** "1/4" from tracksOutBadge: a partial Release's count on the bottom-left corner (task 0071, decision 12 as amended 2026-10-14). */
   badge?: string | null;
-  /** "13 Oct" from onDayPhrase: an Upcoming card's day, in capitals on the top-right corner (task 0071, decision 14). */
+  /** "13 Oct" from onDayPhrase: an Upcoming card's day, in capitals on the top-left corner (task 0071, decision 14). */
   day?: string | null;
-  /** An Upcoming card's faces on the bottom-right corner, pressed apart from the art (task 0071, decision 14). */
+  /** An Upcoming card's faces on the top-right corner, pressed apart from the art (task 0071, decision 14). */
   faces?: ReactNode;
   hitSlop?: Insets | number;
   style?: StyleProp<ViewStyle>;
@@ -71,13 +70,13 @@ function isCurrent(current: PlayableRelease | null, release: RowRelease): boolea
 }
 
 /**
- * A mark on the art's bottom-left corner, or mirrored to its top-right one; the day reads in capitals as on a row. On
+ * A mark on the art's bottom-left corner, or its top-left one; the day reads in capitals as on a row. On
  * large art it stands as tall as the faces' backing, its figures centred (ON_ART.mark).
  */
-function Badge({ text, size, corner }: { text: string; size: number; corner: 'bottomLeft' | 'topRight' }) {
+function Badge({ text, size, corner }: { text: string; size: number; corner: 'bottomLeft' | 'topLeft' }) {
   const large = size >= LARGE_ART;
   const inset = artInset(size);
-  const at = corner === 'bottomLeft' ? { left: inset, bottom: inset } : { right: inset, top: inset };
+  const at = corner === 'bottomLeft' ? { left: inset, bottom: inset } : { left: inset, top: inset };
   return (
     <View pointerEvents="none" style={{ position: 'absolute', ...at, borderRadius: large ? 6 : 4, borderCurve: 'continuous', paddingHorizontal: large ? 5 : 3, height: large ? ON_ART.mark : undefined, justifyContent: 'center', backgroundColor: ON_ART.ground }}>
       <Text allowFontScaling={false} style={[large ? ON_ART.text : ON_ART.small, { color: ON_ART.ink, textTransform: 'uppercase' }]}>
@@ -149,8 +148,8 @@ export function PlayArt({ release, size, radius, onLongPress, from, named, spoke
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: SHADE }, shade]} />
         {live ? <Scrim size={size} radius={radius} glyph={glyph} /> : null}
         {badge === null ? null : <Badge text={badge} size={size} corner="bottomLeft" />}
-        {day === null ? null : <Badge text={day} size={size} corner="topRight" />}
-        {faces === null ? null : <View style={{ position: 'absolute', right: artInset(size), bottom: artInset(size) }}>{faces}</View>}
+        {day === null ? null : <Badge text={day} size={size} corner="topLeft" />}
+        {faces === null ? null : <View style={{ position: 'absolute', right: artInset(size), top: artInset(size) }}>{faces}</View>}
       </Animated.View>
       {children}
     </Pressable>

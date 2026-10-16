@@ -134,12 +134,14 @@ export function tracksOutBadge(out: number | null, total: number | null): string
 /**
  * "13 Oct", "Today" on the day: the day an Upcoming card or an Upcoming list row draws (task 0071, decision 14, amended
  * by the author 2026-10-14: no weekday on a day not out yet). The month always shows, unlike in dayLabel, as it does in
- * outOnPhrase. `weekday` puts the day's name back, "Tue 13 Oct", for what a screen reader hears.
+ * outOnPhrase. `weekday` puts the day's name back, "Tue 13 Oct", for what a screen reader hears. A day in another year
+ * names it, "13 Jan 2027", save on a card's art (`year: false`), where it would run under the faces; the label still
+ * says it (task 0071, decision 14 as amended 2026-10-16).
  */
-export function onDayPhrase(value: string | Date, now: Date, { weekday = false }: { weekday?: boolean } = {}): string {
+export function onDayPhrase(value: string | Date, now: Date, { weekday = false, year = true }: { weekday?: boolean; year?: boolean } = {}): string {
   if (isSameDay(value, now)) return 'Today';
   const date = toDate(value);
-  return formatDatePart(date, { weekday, year: date.getFullYear() !== now.getFullYear() });
+  return formatDatePart(date, { weekday, year: year && date.getFullYear() !== now.getFullYear() });
 }
 
 /**

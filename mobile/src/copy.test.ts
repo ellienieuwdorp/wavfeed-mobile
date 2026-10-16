@@ -39,11 +39,13 @@ test('the count shows once a Track plays and the total is known, plural by the t
   for (const [out, total] of [[0, 4], [1, null], [null, 4], [3, 2]] as const) assert.deepEqual([tracksOutPhrase(out, total), tracksOutBadge(out, total)], [null, null]);
 });
 
-test('an Upcoming card draws the release day with its month and no weekday, which only the label says', () => {
+test('an Upcoming card draws the release day with its month and no weekday or year, which only the label says', () => {
   const now = new Date(2026, 9, 5, 12);
   const on = new Date(2026, 9, 13);
   assert.deepEqual([onDayPhrase(on, now), outOnPhrase(on, now)], ['13 Oct', 'out Tue 13 Oct']);
   assert.deepEqual([onDayPhrase(new Date(2026, 9, 5), now), outOnPhrase(new Date(2026, 9, 5), now)], ['Today', 'out today']);
+  const nextYear = new Date(2027, 0, 13);
+  assert.deepEqual([onDayPhrase(nextYear, now, { year: false }), onDayPhrase(nextYear, now), outOnPhrase(nextYear, now)], ['13 Jan', '13 Jan 2027', 'out Wed 13 Jan 2027']);
 });
 
 test('the player names the Release under the Track only when the title line does not (finding VIS-17)', () => {
