@@ -48,4 +48,3 @@ export function FilteredBy({ text }: { text: string }) {
     </Pressable>
   );
 }
-
