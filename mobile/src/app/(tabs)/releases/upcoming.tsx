@@ -2,9 +2,10 @@
  * Every Upcoming Release from New releases, the shelf's "View more" (DESIGN-UI section 3, task 0037): the weeks read
  * forwards, nearest first, with no quiet gaps, and the rows are the released weeks' own, their day "13 Oct" and
  * the "1/4" on the art once a Track plays (task 0071, decisions 10 and 12). New releases' filter narrows it as it does the
- * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters".
+ * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters". It hands the Filters sheet
+ * its view as New releases does, so the sheet counts even when a link opens this list alone.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 
 import { useAppBarAtRest } from '@/components/AppBar';
@@ -20,9 +21,9 @@ import { filterNewReleases } from '@/domain/releaseFilter';
 import { releaseDay } from '@/lib/dates';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildUpcomingWeekSections } from '@/lib/weekSections';
-import { useLiveQuery } from '@/state/appState';
+import { useAppState, useLiveQuery } from '@/state/appState';
 import { isActive, namedFilter, toReleaseFilter } from '@/state/filterSettings';
-import { useReleaseFilter } from '@/state/releaseFilter';
+import { publishView, useReleaseFilter } from '@/state/releaseFilter';
 import { readNewReleases } from '@/store';
 
 type Item =
@@ -52,6 +53,10 @@ export default function UpcomingReleases() {
   // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017, task 0070).
   const releaseDate = releaseDayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
+  const { db } = useAppState();
+  useEffect(() => {
+    if (view !== null) publishView(db, view);
+  }, [db, view]);
 
   const { loaded, settings } = useReleaseFilter();
   // The Filters sheet takes a tap at once; this list follows a beat later, eased, as New releases' does.
