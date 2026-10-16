@@ -9,15 +9,15 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
-import { deleteKv, readKv, writeKv } from '@/store/kv';
+import { readKv, writeKv } from '@/store/kv';
 import { readTracklist } from '@/store/queries';
 
 import { firstStreamableIndex, isStreamable, storeItemType, type PlayableRelease } from './transport';
 
 export const RESUME_KEY = 'player_resume';
-export const RESUME_VERSION = 1;
+const RESUME_VERSION = 1;
 /** A position this close to a Track's end starts that Track over, since resuming there would end it at once. */
-export const RESUME_END_MARGIN_S = 2;
+const RESUME_END_MARGIN_S = 2;
 
 export type SavedPlayback = {
   readonly v: number;
@@ -37,7 +37,7 @@ export type Resume = {
 };
 
 /** Whole tenths of a second from 0, and 0 within `RESUME_END_MARGIN_S` of a known end or past it. */
-export function clampPosition(position: number, duration: number | null): number {
+function clampPosition(position: number, duration: number | null): number {
   if (!Number.isFinite(position) || position <= 0) return 0;
   if (duration !== null && duration > 0 && position >= duration - RESUME_END_MARGIN_S) return 0;
   return Math.round(position * 10) / 10;
@@ -49,10 +49,6 @@ export function savedPlayback(fanId: number, release: PlayableRelease, trackId: 
 
 export async function savePlayback(db: SQLiteDatabase, saved: SavedPlayback): Promise<void> {
   await writeKv(db, RESUME_KEY, saved);
-}
-
-export async function forgetPlayback(db: SQLiteDatabase): Promise<void> {
-  await deleteKv(db, RESUME_KEY);
 }
 
 function isText(value: unknown): value is string {
@@ -79,7 +75,7 @@ function readRelease(value: unknown): PlayableRelease | null {
 }
 
 /** The save as written, or null for none, another version or a shape this build does not know. */
-export async function readSavedPlayback(db: SQLiteDatabase): Promise<SavedPlayback | null> {
+async function readSavedPlayback(db: SQLiteDatabase): Promise<SavedPlayback | null> {
   let value: unknown;
   try {
     value = await readKv<unknown>(db, RESUME_KEY);

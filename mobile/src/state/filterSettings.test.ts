@@ -16,7 +16,6 @@ import {
   isActive,
   namedFilter,
   NOTHING_CHOSEN,
-  parseSettings,
   readFilterSettings,
   toReleaseFilter,
   withPeopleLink,
@@ -51,9 +50,11 @@ test('a stored minimum outside the stepper is read inside it, and a value this c
   t.after(close);
   await writeKv(db, FILTER_KEY, { people: { on: true, min: 40 }, tags: ['dub', 'dub', 7, ''] });
   assert.deepEqual(await readFilterSettings(db), { people: { on: true, min: 6 }, tags: ['dub'] });
-  assert.equal(parseSettings({ ...SAVED, people: { on: true, min: 0 } })?.people.min, 1);
+  await writeKv(db, FILTER_KEY, { ...SAVED, people: { on: true, min: 0 } });
+  assert.equal((await readFilterSettings(db))?.people.min, 1);
   for (const value of [null, 'on', { on: 'yes', people: { on: true, min: 2 }, tags: [] }, { people: null, tags: [] }, { people: { on: true, min: 2 } }]) {
-    assert.equal(parseSettings(value), null, JSON.stringify(value));
+    await writeKv(db, FILTER_KEY, value);
+    assert.equal(await readFilterSettings(db), null, JSON.stringify(value));
   }
 });
 

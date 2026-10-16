@@ -37,7 +37,7 @@ import {
 import { DAY, enterHistory, type History, makeHistory, oracleRows } from '../../test/history';
 import { openTestStore } from '../../test/nodeDb';
 import { buildCurated } from '../domain/curate';
-import { buildNewReleases, type NewReleasesView, newReleasesOf } from '../domain/newReleases';
+import { type NewReleasesView, newReleasesOf } from '../domain/newReleases';
 import { filterNewReleases, PEOPLE_MAX, PEOPLE_MIN, type ReleaseFilter } from '../domain/releaseFilter';
 import type { FeedStoryRow } from '../domain/rows';
 import { fold, rebuild } from './projection';
@@ -88,7 +88,7 @@ function signalByRules(rows: readonly FeedStoryRow[], now: Date) {
 test('an empty store answers every view as the rules answer no Stories', async () => {
   const { db, close } = await openTestStore();
   assert.deepEqual(await readCurated(db), buildCurated([]));
-  assert.deepEqual(await readNewReleases(db, { now: NOW }), buildNewReleases([], [], NOW));
+  assert.deepEqual(await readNewReleases(db, { now: NOW }), { upcoming: [], weeks: [] });
   close();
 });
 

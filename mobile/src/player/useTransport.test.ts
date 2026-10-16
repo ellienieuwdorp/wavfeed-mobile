@@ -426,6 +426,7 @@ test('a retry after a failed fresh read starts the restored Track where it was l
   at.controls.toggle();
   await settle();
   assert.equal(at.read().status, 'error');
+  assert.deepEqual(at.calls.filter((call) => call.startsWith('replace')), []);
   const refreshed = `${NEW_URI}?token=renewed`;
   at.fetchWith(async () => ({ kind: 'ok', value: { kind: 'page', document: page(1, new Date().toISOString(), true, [OLD_URI, refreshed]) } }));
   // The mini player's "Try again" press, which names no Track in the error state.
@@ -444,19 +445,6 @@ test('a seek before a restored stream loads is not pulled back to the saved posi
   at.controls.seek(70);
   at.emit({ currentTime: 70 });
   assert.deepEqual(at.calls, [`replace ${NEW_URI}`, 'seek 30', 'play', 'seek 70']);
-});
-
-test("a restored Release whose page cannot be read afresh after expiry says it can't play", async (t) => {
-  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
-  const at = await rig(t);
-  await restored(at);
-  t.mock.timers.tick(25 * 60 * 60_000);
-  at.fetchWith(async () => { throw new Error('offline'); });
-  at.controls.toggle();
-  await settle();
-  assert.equal(at.read().status, 'error');
-  assert.equal(transport.playerNote(at.read()), "Can't play this right now");
-  assert.deepEqual(at.calls.filter((call) => call.startsWith('replace')), []);
 });
 
 test('forgetting empties the transport and stops what plays', async (t) => {

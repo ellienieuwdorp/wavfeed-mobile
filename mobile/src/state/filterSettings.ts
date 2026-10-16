@@ -58,7 +58,7 @@ export function namedFilter(settings: FilterSettings, tags: readonly TagCount[])
 }
 
 /** Saved settings as this code wrote them, else null; a minimum out of the stepper's range is brought inside it. */
-export function parseSettings(value: unknown): FilterSettings | null {
+function parseSettings(value: unknown): FilterSettings | null {
   if (typeof value !== 'object' || value === null) return null;
   const held: { [key: string]: unknown } = { ...value };
   const people: unknown = held.people;

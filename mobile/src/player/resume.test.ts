@@ -12,7 +12,7 @@ import { insertRawDocument } from '@/store/rawDocuments';
 
 import { FAN_ID, ITEM_ID, OTHER_FAN_ID, releasePagePayload } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
-import { clampPosition, loadResume, RESUME_KEY, savedPlayback, savePlayback } from './resume';
+import { loadResume, RESUME_KEY, savedPlayback, savePlayback } from './resume';
 import type { PlayableRelease } from './transport';
 
 const RELEASE: PlayableRelease = {
@@ -92,11 +92,13 @@ test('a saved Track that no longer streams resumes the first that does, from its
 });
 
 test('a position before the start, unreadable, or within two seconds of the end starts the Track over', async (t) => {
-  assert.deepEqual(
-    [clampPosition(-3, 100), clampPosition(Number.NaN, 100), clampPosition(98.1, 100), clampPosition(130, 100), clampPosition(97.94, 100), clampPosition(500, null)],
-    [0, 0, 0, 0, 97.9, 500],
-  );
+  const saved = [-3, Number.NaN, 97.94, 500].map((position) => savedPlayback(FAN_ID, RELEASE, SECOND, position).position);
+  assert.deepEqual(saved, [0, 0, 97.9, 500]);
   const db = await store(t);
-  await savePlayback(db, savedPlayback(FAN_ID, RELEASE, SECOND, 401));
-  assert.equal((await loadResume(db, FAN_ID))?.position, 0);
+  const restored: number[] = [];
+  for (const position of [400, 400.2, 401, 430]) {
+    await savePlayback(db, savedPlayback(FAN_ID, RELEASE, SECOND, position));
+    restored.push((await loadResume(db, FAN_ID))?.position ?? Number.NaN);
+  }
+  assert.deepEqual(restored, [400, 0, 0, 0]);
 });

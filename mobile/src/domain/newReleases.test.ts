@@ -8,20 +8,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { newReleaseRow, storyRow } from '../../test/rows';
-import { assembleFeed } from './assemble';
-import { buildNewReleases, type Drop, newReleasesOf } from './newReleases';
-import type { FeedStoryRow } from './rows';
-import { buildUpcoming } from './upcoming';
+import { newReleasesOf } from './newReleases';
+import type { DropRow, FeedStoryRow } from './rows';
 
 test("a Drop on the day of the Release's own row is left to that row, and an earlier one keeps its place", () => {
   const out = new Date('2026-10-13T00:00:00.000Z');
   const story = newReleaseRow({ itemId: 5001, releaseDate: out, storyDate: new Date('2026-09-29T09:12:40.000Z') });
-  const { elements } = assembleFeed([story], { types: ['new_release'], sort: 'anchor' });
-  const [release] = buildUpcoming([{ ...story, releaseDate: out, isPreorder: true }], []);
-  assert.ok(release !== undefined);
-  const drop = (day: string): Drop => ({ release, day, tracksOut: 2, numTracks: 4, newestTrackId: null });
+  const release = { ...story, releaseDate: out, isPreorder: true };
+  const drop = (day: string): DropRow => ({ release, day, tracksOut: 2, numTracks: 4, newestTrackId: null });
 
-  const view = buildNewReleases(elements, [], new Date('2026-10-14T12:00:00.000Z'), [drop('2026-10-13'), drop('2026-10-03')]);
+  const view = newReleasesOf({ stories: [story], upcoming: [], drops: [drop('2026-10-13'), drop('2026-10-03')], now: new Date('2026-10-14T12:00:00.000Z') });
 
   assert.deepEqual(
     view.weeks.flatMap((week) => week.releases.map((placed) => [placed.kind, placed.key])),

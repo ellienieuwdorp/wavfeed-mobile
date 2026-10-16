@@ -2,8 +2,8 @@
 /**
  * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
  * Upcoming card and a Drop row state, as words and as the badge (task 0041, decision 9; task 0071, decision 12), the
- * release day a Drop row and a card name (task 0041, decision 10; task 0071, decision 14), the line under the
- * player sheet's title, and the iOS accessory's words before anything has played (task 0071, Open 13).
+ * release day a Drop row and a card name (task 0041, decision 10; task 0071, decision 14), and the line under the
+ * player sheet's title.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -78,8 +78,4 @@ test("New releases' header counts the view, and the filter's lines name only wha
   assert.equal(f.nothingNamed(5, ['idm', 'piano']), 'Nothing tagged idm or piano that 5 people you follow bought.');
   assert.equal(f.nothingNamed(1, []), 'Nothing that someone you follow bought.');
   assert.equal(f.nothingNamed(null, ['ambient', 'dub', 'idm']), 'Nothing tagged ambient, dub or idm.');
-});
-
-test('the iOS accessory before anything has played says so in the words the author chose (task 0071, Open 13)', () => {
-  assert.equal(copy.player.nothingPlaying, 'Nothing playing');
 });

@@ -17,7 +17,7 @@ export type DatedRelease = {
 };
 
 /** A Drop as the store reads it: its Release, how many of its Tracks play of how many, and its GMT day (task 0041, decision 6). */
-export type Drop = {
+type Drop = {
   readonly release: ApiUpcomingRelease;
   /** `2026-10-06`. */
   readonly day: string;
@@ -111,12 +111,12 @@ function placedOn(element: ApiFeedItem): Date {
  * on its release day as a just-out one does; a bought Release with no release day stays out (task 0071, decision 20 and
  * Open 9). A Drop sits on its own day beside them, unless the Release's own row is on that day.
  */
-export function buildNewReleases(
+function buildNewReleases(
   elements: readonly ApiFeedElement[],
   releases: readonly ApiUpcomingRelease[],
   now: Date,
-  drops: readonly Drop[] = [],
-  bought: readonly ApiFeedItem[] = [],
+  drops: readonly Drop[],
+  bought: readonly ApiFeedItem[],
 ): NewReleasesView {
   const upcoming = releases.filter((release) => !isOutYet(release.releaseDate, now));
   const justOut = releases.filter((release) => isOutYet(release.releaseDate, now));
