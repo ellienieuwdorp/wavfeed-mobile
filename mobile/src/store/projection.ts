@@ -306,6 +306,10 @@ type Enrichment = {
  * release page and the Sweep's item with no link both come through here, each naming itself as the date's source. A
  * page's artist credit fills only a row no feed entry credited, and a feed entry's replaces it, so the feed's wins in
  * any fold order (task 0071, decision 18 and Open 2).
+ *
+ * ceiling: the row cannot tell a page's credit from a feed entry's, so the first page to credit an uncredited row
+ * keeps it and a later page's corrected `tralbum.artist` never lands; a column naming each credit's source is the
+ * upgrade.
  */
 async function enrichReleaseFromPage(
   run: Run,
