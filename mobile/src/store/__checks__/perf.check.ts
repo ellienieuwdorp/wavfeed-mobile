@@ -4,7 +4,7 @@
  * and 400 Pages folded over `node:sqlite`, New releases' filter on a view read afresh and a tap's on one already
  * filtered, the domain rules alone, then a small fold, and the launch replay a PROJECTION_VERSION bump
  * starts, with how many times it reported progress. The store is a file, so each fold stretch opens its own connection as on the phone (test/nodeDb.ts). That each read
- * answers what the rules answer is src/store/queries.test.ts. Run: `npm run perf`.
+ * answers what the rules answer is src/store/queriesHistory.test.ts. Run: `npm run perf`.
  */
 import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
