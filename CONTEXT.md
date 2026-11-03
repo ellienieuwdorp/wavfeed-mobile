@@ -52,29 +52,15 @@ _Avoid_: token, API key, credentials
 ### Ingestion concepts
 
 **Fetcher**:
-Anything that makes authenticated requests to Bandcamp on a user's behalf and lands
-the responses as Raw Documents. The Poller and the Extension are Fetchers that post
-them to the ingest API; the phone app is a Fetcher that keeps them in its own
-store and posts nothing (ADR-0020).
+Anything that makes authenticated requests to Bandcamp on a Fan's behalf and lands
+the responses as Raw Documents. The phone app is the one Fetcher: it keeps them in
+its own store and posts nothing (ADR-0020).
 _Avoid_: scraper, crawler
-
-**Poller**:
-The v1 server-side Fetcher: a worker that polls each user's feed on a schedule
-using their stored Identity Cookie. It stopped at the switch (ADR-0022).
-_Avoid_: cron job, scheduler (those are mechanisms, not the component)
-
-**Extension**:
-The browser-extension Fetcher (ADR-0018) that runs on the user's own machine and
-fetches with the browser's own session, so the server never sees that user's
-Identity Cookie. Built for Chrome and Firefox. Its only destination, `/ingest`,
-went at the switch (ADR-0022), and its store listings wait on `docs/V2-PLAN.md`
-section 8 open decision 3.
 
 **Sweep**:
 The band details sweep: reads each followed Page's whole discography from a
 public endpoint, keyed on band (ADR-0017). It runs on each device for the Pages
-its Fan follows (ADR-0020); the v1 box runs one shared queue for everyone until
-the switch (ADR-0022). It owns catalog truth in `releases` where the feed owns
+its Fan follows (ADR-0020). It owns catalog truth in `releases` where the feed owns
 social truth in `stories`, which is how wavfeed knows about a release nobody has
 bought yet. Not a Fetcher: it carries no Identity Cookie and makes no
 authenticated request.
@@ -92,10 +78,9 @@ app queries. Re-runnable from scratch at any time.
 _Avoid_: ETL, sync
 
 **Sync Run**:
-The tracked record of one user's initial catch-up: the deep feed walk plus
-release-date enrichment the Poller runs after signup, with live counters the app
-reads for progress. One open Sync Run per user at most; `sync_runs` in the schema.
-On the phone it is the first walk, a chain of gathers, with no `sync_runs` table.
+A Fan's initial catch-up: the first walk of the feed, a chain of gathers, with
+the progress the app shows while it runs. One open Sync Run per store at most;
+no table names it.
 On screen it is never named: the UI says things like "gathering your history".
 _Avoid_: onboarding job, backfill task, import
 
@@ -129,8 +114,7 @@ pre-orderable, not out. Found by the band details sweep (catalog truth,
 ADR-0017), through a pre-order purchase in the feed, or through a pre-order's
 `new_release` entry once its release page dates it (task 0041); being Upcoming
 needs no Story and has no actor. On screen it is the Upcoming shelf on the phone
-(task 0037) and the Upcoming band at the top of New releases on the paused web
-app, and a Release stops being Upcoming the day its release date arrives, and not before:
+(task 0037), and a Release stops being Upcoming the day its release date arrives, and not before:
 Tracks that play earlier are Drops, and the Release stays on the shelf.
 That day is a GMT day, because Bandcamp writes every release date at midnight
 GMT and that is when the record becomes buyable (ADR-0017, amended 2026-08-29);
@@ -151,14 +135,8 @@ says one happened. On the phone it is a row in the released weeks of New
 releases on its day (task 0041).
 _Avoid_: pre-release, single, teaser, early access, leak
 
-**Group**:
-A user-curated, named set of Pages ("minimal house labels") used as a feed filter.
-Manual membership in v1. (The sidebar block that named them is hidden since
-2026-08-21 behind a feature switch; nothing behind it is built yet.)
-_Avoid_: playlist, folder, tag (tags are Bandcamp's genre labels)
-
 **Curated Feed**:
-The curated view ("Feed", the phone's first tab and the web sidebar's):
+The curated view ("Feed", the phone's first tab):
 editorial modules built from accumulated Stories (multi-buyer Releases, fresh
 Page releases, review quotes).
 Where a new signal gets tried out before it earns a view of its own.
@@ -178,22 +156,6 @@ _Avoid_: social proof, trending
 
 ### Item state
 
-**Seen / Unseen**:
-A v1 per-user, per-Feed-Item flag, gone in v2 (`docs/V2-PLAN.md` section 8);
-the phone never had it. The web app's views show everything and mark Unseen
-with the accent dot; marking Seen is the core triage gesture (proven in bcfeed). An
-unseen-only filter is already wired up but unused, waiting on the filter bar.
-(Paused on screen since 2026-08-21 behind a feature switch, DESIGN-UI
-section 12; the state and routes stay.)
-_Avoid_: read/unread
-
-**Starred**:
-A v1 per-user, per-Feed-Item bookmark for releases worth returning to, gone in
-v2 (`docs/V2-PLAN.md` section 8); the phone never had it. (Hidden in the web
-UI since 2026-08-21 behind a feature switch; the state and routes stay.)
-Local to wavfeed; never leaves our database.
-_Avoid_: favorite, like, save, wishlist
-
 **Wishlist**:
 Bandcamp's own save-for-later list on a Fan's account. The one thing wavfeed
 writes to Bandcamp (ADR-0016): a press on the heart, or on the phone a swipe
@@ -211,9 +173,7 @@ One exchange with Bandcamp that adds an item to the wishlist or removes it
 session and, on success, writes the item into or out of `wishlist_items` (task
 0036). Presses on an item while one travels fold into the next, last tap wins
 (ADR-0016, amended 2026-10-02), so one Wishlist Action may carry the last of
-several presses. Code and docs also call it an exchange. On the v1
-box it is a row in `wishlist_actions` the API queues and the worker carries
-out, one per press, holding the outcome it came back with. It is the exchange,
+several presses. Code and docs also call it an exchange. It is the exchange,
 not the item.
 _Avoid_: job, task, queue entry, mutation
 
