@@ -6,7 +6,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { WishlistFailure, WishlistWire, WishlistWriteKind } from '@/bandcamp/wishlist';
 import { isDemoFan } from '@/demo/fan';
-import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
+import type { ReleaseTracks } from '@/domain/views';
 import type { ItemType } from '@/domain/types';
 import type { AppState } from '@/state/appState';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from '@/store/kv';
@@ -35,7 +35,7 @@ export type Sent = {
   readonly url?: string;
 };
 
-type Band = { id: string; from: BandSource; tracklist: ApiReleaseTracksResponse | null; url: string };
+type Band = { id: string; from: BandSource; tracklist: ReleaseTracks | null; url: string };
 
 /**
  * The server's order (api wishlist.ts): the stored page's `current.band_id`, a fresh page when none is held, the row.

@@ -33,7 +33,7 @@ import { useTakenBySwipe } from './WishlistSwipe';
 
 /**
  * Art from this size up takes the card's badge; the 56 rows take the small one. The Feed's quotes carry no badge: a
- * quote holds no Track counts or release day (ApiCuratedQuote).
+ * quote holds no Track counts or release day (CuratedQuote).
  */
 const LARGE_ART = 80;
 /** How far a mark sits in from the art's edges: 6 on the card's art and up, 3 on a row's. */

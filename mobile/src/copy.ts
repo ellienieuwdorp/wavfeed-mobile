@@ -4,7 +4,7 @@
  */
 import { Platform } from 'react-native';
 
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import type { CreditLine } from '@/domain/credit';
 import type { GatherPhase } from '@/fetcher/sink';
 import {
@@ -171,44 +171,13 @@ export function spokenFacts(parts: readonly (string | null | undefined)[]): stri
 
 // Signal sentences (web lib/format.ts and browseCopy.ts).
 
-const WEEKS_AGO_LIMIT = 3;
-
-export function formatAge(value: string | Date, now: Date): string {
-  const ms = elapsedMs(value, now);
-  if (ms < MINUTE_MS) return 'now';
-  if (ms < HOUR_MS) return `${Math.floor(ms / MINUTE_MS)}m`;
-  if (ms < DAY_MS) return `${Math.floor(ms / HOUR_MS)}h`;
-  const days = Math.floor(ms / DAY_MS);
-  if (days < 7) return `${days}d`;
-  if (days < 365) return `${Math.floor(days / 7)}w`;
-  return `${Math.floor(days / 365)}y`;
-}
-
-export function formatDayLabel(value: string | Date, now: Date): string {
-  const days = calendarDaysBetween(value, now);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  const then = toDate(value);
-  if (days < 7) return LONG_WEEKDAYS[then.getDay()] ?? '';
-  const weeks = weeksBetween(startOfWeek(then), startOfWeek(now));
-  if (weeks === 1) return 'last week';
-  if (weeks <= WEEKS_AGO_LIMIT) return `${weeks} weeks ago`;
-  if ((now.getFullYear() - then.getFullYear()) * 12 + (now.getMonth() - then.getMonth()) === 1) return 'last month';
-  const year = then.getFullYear() === now.getFullYear() ? '' : ` ${then.getFullYear()}`;
-  return `${then.getDate()} ${SHORT_MONTHS[then.getMonth()] ?? ''}${year}`;
-}
-
-export function releasedPhrase(value: string | Date, now: Date): string {
-  return `released ${formatDayLabel(value, now)}`;
-}
-
 export const NAMED_FANS_LIMIT = 2;
 
-export function fanName(fan: ApiFanRef): string {
+export function fanName(fan: FanRef): string {
   return fan.username;
 }
 
-export function describeFans(fans: readonly ApiFanRef[]): string | null {
+export function describeFans(fans: readonly FanRef[]): string | null {
   const first = fans[0];
   if (first === undefined) return null;
   if (fans.length > NAMED_FANS_LIMIT) return `${fans.length} you follow`;
@@ -217,27 +186,8 @@ export function describeFans(fans: readonly ApiFanRef[]): string | null {
   return `${fanName(first)} and ${others} ${others === 1 ? 'other' : 'others'}`;
 }
 
-export type SignalSource = {
-  readonly hasNewRelease: boolean;
-  readonly releaseDate: string | null;
-  readonly latestStoryDate: string;
-  readonly buyers: readonly ApiFanRef[];
-  readonly wishlisters: readonly ApiFanRef[];
-};
-
-/** "bought by dj_okonkwo and 1 other", "released Wednesday · 3 you follow bought it". */
-export function signalSentence(item: SignalSource, now: Date): string {
-  const parts: string[] = [];
-  if (item.hasNewRelease) parts.push(releasedPhrase(item.releaseDate ?? item.latestStoryDate, now));
-  const buyers = describeFans(item.buyers);
-  if (buyers !== null) parts.push(parts.length === 0 ? `bought by ${buyers}` : `${buyers} bought it`);
-  const wishlisters = describeFans(item.wishlisters);
-  if (wishlisters !== null) parts.push(parts.length === 0 ? `wishlisted by ${wishlisters}` : `${wishlisters} wishlisted it`);
-  return joinMiddot(parts);
-}
-
 /** "bought by dj_okonkwo and 1 other": what a row's or a card's faces say to a screen reader. */
-export function boughtByPhrase(fans: readonly ApiFanRef[]): string | null {
+export function boughtByPhrase(fans: readonly FanRef[]): string | null {
   const buyers = describeFans(fans);
   return buyers === null ? null : `bought by ${buyers}`;
 }
@@ -260,7 +210,7 @@ export function followedBuyersPhrase(count: number): string {
   return `${count} ${count === 1 ? 'person' : 'people'} you follow`;
 }
 
-export function buyersPhrase(fans: readonly ApiFanRef[]): string {
+export function buyersPhrase(fans: readonly FanRef[]): string {
   if (fans.length > NAMED_FANS_LIMIT) return followedBuyersPhrase(fans.length);
   const [first, second] = fans;
   if (first === undefined) return followedBuyersPhrase(0);

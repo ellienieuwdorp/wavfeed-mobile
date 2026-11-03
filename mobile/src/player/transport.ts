@@ -10,7 +10,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { BandcampSession } from '@/bandcamp/session';
 import type { BandcampDocument } from '@/bandcamp/wire';
-import type { ApiReleaseTrack, ApiReleaseTracksResponse } from '@/domain/apiTypes';
+import type { Track, ReleaseTracks } from '@/domain/views';
 import type { ItemType } from '@/domain/types';
 import { readTracklist } from '@/store/queries';
 
@@ -67,16 +67,16 @@ export function isSameRelease(a: PlayableRelease, b: PlayableRelease): boolean {
   return a.itemType === b.itemType && a.itemId === b.itemId;
 }
 
-export function isStreamable(track: ApiReleaseTrack): boolean {
+export function isStreamable(track: Track): boolean {
   return track.streamUrl !== null;
 }
 
-export function firstStreamableIndex(tracks: readonly ApiReleaseTrack[]): number | null {
+export function firstStreamableIndex(tracks: readonly Track[]): number | null {
   const index = tracks.findIndex(isStreamable);
   return index === -1 ? null : index;
 }
 
-export function nextStreamableIndex(tracks: readonly ApiReleaseTrack[], from: number): number | null {
+export function nextStreamableIndex(tracks: readonly Track[], from: number): number | null {
   for (let index = from + 1; index < tracks.length; index += 1) {
     const track = tracks[index];
     if (track !== undefined && isStreamable(track)) return index;
@@ -84,7 +84,7 @@ export function nextStreamableIndex(tracks: readonly ApiReleaseTrack[], from: nu
   return null;
 }
 
-export function previousStreamableIndex(tracks: readonly ApiReleaseTrack[], from: number): number | null {
+export function previousStreamableIndex(tracks: readonly Track[], from: number): number | null {
   for (let index = Math.min(from, tracks.length) - 1; index >= 0; index -= 1) {
     const track = tracks[index];
     if (track !== undefined && isStreamable(track)) return index;
@@ -92,7 +92,7 @@ export function previousStreamableIndex(tracks: readonly ApiReleaseTrack[], from
   return null;
 }
 
-function youngerThan(tracklist: ApiReleaseTracksResponse, ms: number): boolean {
+function youngerThan(tracklist: ReleaseTracks, ms: number): boolean {
   return Date.now() - Date.parse(tracklist.fetchedAt) < ms;
 }
 
@@ -101,7 +101,7 @@ export async function loadTracklist(
   deps: TransportDeps,
   release: PlayableRelease,
   force: boolean,
-): Promise<ApiReleaseTracksResponse | null> {
+): Promise<ReleaseTracks | null> {
   const itemType = storeItemType(release.itemType);
   const itemId = Number(release.itemId);
   if (!Number.isSafeInteger(itemId)) return null;
@@ -117,7 +117,7 @@ export async function loadTracklist(
   return held !== null && Date.now() < Date.parse(held.expiresAt) ? held : null;
 }
 
-export function lockScreenMetadata(release: PlayableRelease, track: ApiReleaseTrack): AudioMetadata {
+export function lockScreenMetadata(release: PlayableRelease, track: Track): AudioMetadata {
   return {
     title: track.title,
     artist: release.artist,

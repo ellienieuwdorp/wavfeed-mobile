@@ -5,13 +5,11 @@
  */
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 import type {
-  ApiCuratedResponse,
-  ApiItemType,
-  ApiReleaseTracksResponse,
-  ApiTag,
-  ApiUser,
-  ApiWishlistResponse,
-} from '../domain/apiTypes';
+  CuratedFeed,
+  ReleaseTracks,
+  FeedTag,
+  WishlistState,
+} from '../domain/views';
 import { onBandcampHost } from '../bandcamp/wire';
 import {
   buildCurated,
@@ -30,7 +28,6 @@ import type { ItemType, StoryType } from '../domain/types';
 import { aheadFrom, handoffFloor, UPCOMING_MAX_RELEASES } from '../domain/upcoming';
 import { DAY_MS } from '../lib/time';
 import { trackIds } from './drops';
-import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
 /** The diagnostic raw Story listing's default bound; selected-Release view reads keep every Story. */
@@ -144,7 +141,7 @@ function releaseKey(itemType: ItemType, itemId: number): number {
 }
 
 /** The stored feed tags as rows carry them: places left out, each norm name once. */
-function rowTags(json: string): readonly ApiTag[] {
+function rowTags(json: string): readonly FeedTag[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -153,7 +150,7 @@ function rowTags(json: string): readonly ApiTag[] {
   }
   if (!Array.isArray(parsed)) return [];
   const seen = new Set<string>();
-  const tags: ApiTag[] = [];
+  const tags: FeedTag[] = [];
   for (const tag of parsed) {
     if (typeof tag !== 'object' || tag === null) continue;
     const { name, normName, isLoc } = tag as Record<string, unknown>;
@@ -445,8 +442,6 @@ export async function listDrops(db: SQLiteDatabase): Promise<readonly DropRow[]>
 }
 
 export type OverviewView = {
-  /** Null until the Fetcher's probe has answered as a Fan. */
-  readonly user: ApiUser | null;
   readonly updatedAt: string | null;
   /** The Pages this Fan's own Stories reach, the server's "All pages" number. */
   readonly pageCount: number;
@@ -456,7 +451,6 @@ export type OverviewView = {
 };
 
 export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
-  const identity = await readKv<StoredIdentity>(db, IDENTITY_KEY);
   const counts = await db.getFirstAsync<{ pages: number; follows: number; releases: number; stories: number }>(
     `select
        (select count(distinct r.band_id) from stories s
@@ -466,10 +460,6 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
        (select count(*) from stories) as stories`,
   );
   return {
-    user:
-      identity === null
-        ? null
-        : { username: identity.username, displayName: identity.name, avatarUrl: identity.avatarUrl },
     updatedAt: await lastFetchedAt(db),
     pageCount: counts?.pages ?? 0,
     followCount: counts?.follows ?? 0,
@@ -547,18 +537,18 @@ async function curatedCandidates(db: SQLiteDatabase): Promise<readonly ItemPair[
 }
 
 /** The Curated rules keep their own clock, the newest Story held, so `now` is accepted and not read. */
-export async function readCurated(db: SQLiteDatabase, _options: { readonly now?: Date } = {}): Promise<ApiCuratedResponse> {
+export async function readCurated(db: SQLiteDatabase, _options: { readonly now?: Date } = {}): Promise<CuratedFeed> {
   const candidates = await curatedCandidates(db);
   return buildCurated(candidates === null ? [] : await loadStoryRows(db, storiesOfItems(candidates)));
 }
 
-export type WishlistKey = { readonly itemType: ApiItemType; readonly itemId: string };
+export type WishlistKey = { readonly itemType: ItemType; readonly itemId: string };
 
 /**
  * Membership as Bandcamp's own wishlist last said. With keys, one answer per
  * key; without, every item held. `pending` is the wishlist exchange's to fill.
  */
-export async function readWishlistState(db: SQLiteDatabase, keys?: readonly WishlistKey[]): Promise<ApiWishlistResponse> {
+export async function readWishlistState(db: SQLiteDatabase, keys?: readonly WishlistKey[]): Promise<WishlistState> {
   const rows = await db.getAllAsync<{ item_type: string; item_id: number }>(
     'select item_type, item_id from wishlist_items order by item_type, item_id',
   );
@@ -603,7 +593,7 @@ export async function readNewestBandcampReleaseUrl(db: SQLiteDatabase): Promise<
  * The player's tracklist off the newest stored release page, or null when none
  * is held; the caller refetches once `expiresAt` has passed (ADR-0015).
  */
-export async function readTracklist(db: SQLiteDatabase, itemType: ItemType, itemId: number): Promise<ApiReleaseTracksResponse | null> {
+export async function readTracklist(db: SQLiteDatabase, itemType: ItemType, itemId: number): Promise<ReleaseTracks | null> {
   const doc = await latestReleasePageDocument(db, itemType, itemId);
   if (doc === null) return null;
   let bandId = storedBandId(doc.payload);

@@ -18,7 +18,7 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewSt
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { creditText, spokenFacts, tracksOutPhrase, tracksOutBadge } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { usePressMotion } from '@/player/motion';
 import { ripple, rowText, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
@@ -65,7 +65,7 @@ type RowProps = {
   tracksOut?: number | null;
   numTracks?: number | null;
   /** The people you follow who bought it, as the faces. */
-  buyers: readonly ApiFanRef[];
+  buyers: readonly FanRef[];
   /** The Track a press starts at; the first that streams when absent. */
   from?: string | null;
   /** The iOS hairline under the row; false above a week head or anything else that is not a row. */

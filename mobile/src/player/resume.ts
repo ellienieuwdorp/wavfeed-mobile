@@ -8,7 +8,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
+import type { ReleaseTracks } from '@/domain/views';
 import { readKv, writeKv } from '@/store/kv';
 import { readTracklist } from '@/store/queries';
 
@@ -30,7 +30,7 @@ export type SavedPlayback = {
 
 export type Resume = {
   readonly release: PlayableRelease;
-  readonly tracklist: ApiReleaseTracksResponse;
+  readonly tracklist: ReleaseTracks;
   /** The Track to resume, null for a Release at rest, which a press starts from its first Track. */
   readonly index: number | null;
   readonly position: number;

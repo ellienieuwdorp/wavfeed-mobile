@@ -14,7 +14,7 @@ import { setAudioModeAsync, useAudioPlayer, type AudioPlayer, type AudioStatus }
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SAMPLE_MODE } from '@/dev/sampleMode';
-import type { ApiReleaseTrack } from '@/domain/apiTypes';
+import type { Track } from '@/domain/views';
 import { listenStep, playbackStarted, type Listening, type PlayerChange, type PlayResult } from '@/tally/actions';
 import type { Screen, Tally } from '@/tally/catalogue';
 
@@ -36,7 +36,7 @@ import {
 type TransportState = {
   readonly release: PlayableRelease | null;
   readonly status: PlayerStatus;
-  readonly tracks: readonly ApiReleaseTrack[];
+  readonly tracks: readonly Track[];
   readonly index: number | null;
   readonly playing: boolean;
   readonly expiresAt: number;
@@ -47,9 +47,9 @@ export type Transport = {
   readonly release: PlayableRelease | null;
   readonly status: PlayerStatus;
   /** The Track in the transport; null while loading, when nothing can play, and at rest after the last one. */
-  readonly track: ApiReleaseTrack | null;
+  readonly track: Track | null;
   /** The Release's tracklist, empty while it first loads and when it failed; kept through a reload of the same Release. */
-  readonly tracks: readonly ApiReleaseTrack[];
+  readonly tracks: readonly Track[];
   readonly index: number | null;
   readonly playing: boolean;
   /** The Page the playing Release belongs to, which a wishlist write for its Track has to name (ADR-0016). */
@@ -93,7 +93,7 @@ function expired(from: TransportState): boolean {
   return from.expiresAt !== 0 && Date.now() >= from.expiresAt;
 }
 
-function durationOf(status: AudioStatus | null, track: ApiReleaseTrack | undefined): number {
+function durationOf(status: AudioStatus | null, track: Track | undefined): number {
   if (status !== null && status.duration > 0) return status.duration;
   return track?.duration ?? 0;
 }
@@ -102,7 +102,7 @@ function releaseKey(release: PlayableRelease): string {
   return `${release.itemType}:${release.itemId}`;
 }
 
-function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, release: PlayableRelease, track: ApiReleaseTrack) {
+function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, release: PlayableRelease, track: Track) {
   const metadata = lockScreenMetadata(release, track);
   try {
     if (active.current) audio.updateLockScreenMetadata(metadata);

@@ -11,7 +11,7 @@ import { router, type Href } from 'expo-router';
 import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { boughtOnPhrase, boughtThisPhrase, buyersPhrase, copy, fanName, releasedOnPhrase, sep, tracksOutPhrase, tracksOutBadge } from '@/copy';
-import type { ApiCuratedQuote, ApiFeedItem } from '@/domain/apiTypes';
+import type { CuratedQuote, FeedItem } from '@/domain/views';
 import { notOutYet } from '@/domain/newReleases';
 import { captionTitle } from '@/theme/textSize';
 import { pressedOpacity, ripple, useTokens } from '@/theme/tokens';
@@ -45,12 +45,12 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
 /**
  * A Release not out yet with some Tracks out carries its "1/4" on the art, and its label says "1 of 4 tracks"; a released one's count says nothing new.
  */
-function partial(item: ApiFeedItem, now: Date): { badge: string | null; spoken: string | undefined } {
+function partial(item: FeedItem, now: Date): { badge: string | null; spoken: string | undefined } {
   if (!notOutYet(item, now)) return { badge: null, spoken: undefined };
   return { badge: tracksOutBadge(item.numStreamableTracks, item.numTracks), spoken: tracksOutPhrase(item.numStreamableTracks, item.numTracks) ?? undefined };
 }
 
-export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
+export function CoverTile({ item, now }: { item: FeedItem; now: Date }) {
   const { c } = useTokens();
   const { fontScale } = useWindowDimensions();
   const title = captionTitle(fontScale);
@@ -70,14 +70,14 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
 }
 
 /** The card's heart: the Release's key, its title for the label, and the surface it sits on. */
-function heartFor(release: ApiFeedItem) {
+function heartFor(release: FeedItem) {
   return { item: releaseHeart({ itemType: playableItemType(release.itemType), itemId: release.itemId, title: release.title }), surface: 'row' as const };
 }
 
 /** The heart's drawn icon sits on the card's padding line; its 44pt or 48dp target reaches into the padding (DESIGN-UI section 12). */
 const HEART_REACH = ios ? -12 : -13;
 
-export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
+export function OverlapPanel({ item, now }: { item: FeedItem; now: Date }) {
   const { c } = useTokens();
   return (
     <RowMenu release={item}>
@@ -106,7 +106,7 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
   );
 }
 
-export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date }) {
+export function QuoteLine({ quote, now }: { quote: CuratedQuote; now: Date }) {
   const { c, type } = useTokens();
   return (
     <RowMenu release={quote.item}>

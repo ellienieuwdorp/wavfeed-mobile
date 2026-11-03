@@ -24,7 +24,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
 import { WeekHead } from '@/components/WeekHead';
 import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
 import { releaseDay } from '@/domain/newReleases';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
@@ -36,7 +36,7 @@ import { useRefresh } from '@/state/refresh';
 import { readNewReleases } from '@/store/queries';
 import { useTokens } from '@/theme/tokens';
 
-type Row = RowRelease & { readonly buyers: readonly ApiFanRef[] };
+type Row = RowRelease & { readonly buyers: readonly FanRef[] };
 
 type Item =
   | { key: string; kind: 'header'; count: number | null; filteredBy: string | null }

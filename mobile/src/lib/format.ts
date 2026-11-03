@@ -3,7 +3,7 @@
  * Bandcamp's size id after the underscore; `sizedImageUrl` swaps it for the smallest size that covers what the screen
  * draws (findings VIS-7, VIS-M3).
  */
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 
 type Size = readonly [id: number, edge: number];
 
@@ -41,7 +41,7 @@ export function fanInitials(name: string): string {
   return letters === '' ? '?' : letters.toLowerCase();
 }
 
-export function fanAvatarInitials(fan: Pick<ApiFanRef, 'name' | 'username'>): string {
+export function fanAvatarInitials(fan: Pick<FanRef, 'name' | 'username'>): string {
   const name = fan.name === null ? '' : fan.name.trim();
   const initials = name === '' ? '?' : fanInitials(name);
   return initials === '?' ? fanInitials(fan.username) : initials;
@@ -55,7 +55,7 @@ export function hueFor(itemId: string): number {
 }
 
 /** A Fan's page on Bandcamp, their username as the path, as the web's lib/format.ts builds it (ADR-0009). */
-export function fanPageUrl(fan: Pick<ApiFanRef, 'username'>): string {
+export function fanPageUrl(fan: Pick<FanRef, 'username'>): string {
   return `https://bandcamp.com/${encodeURIComponent(fan.username)}`;
 }
 

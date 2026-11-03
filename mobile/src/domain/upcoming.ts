@@ -2,7 +2,7 @@
  * The Upcoming band's rules: Releases around now, nearest first, each carrying only the signal its Stories give; release days are GMT days (ADR-0017).
  */
 import { DAY_MS } from '../lib/time';
-import type { ApiUpcomingRelease } from './apiTypes';
+import type { UpcomingRelease } from './views';
 import { buildSignal, itemKey } from './assemble';
 import type { FeedStoryRow, UpcomingReleaseRow } from './rows';
 
@@ -49,7 +49,7 @@ function byReleaseDateAsc(a: UpcomingReleaseRow, b: UpcomingReleaseRow): number 
 export function buildUpcoming(
   releases: readonly UpcomingReleaseRow[],
   stories: readonly FeedStoryRow[],
-): readonly ApiUpcomingRelease[] {
+): readonly UpcomingRelease[] {
   const byItem = groupStoriesByItem(stories);
   return [...releases].sort(byReleaseDateAsc).map((release) => {
     const signal = buildSignal(byItem.get(itemKey(release)) ?? []);

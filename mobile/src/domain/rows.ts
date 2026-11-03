@@ -2,7 +2,7 @@
  * The flat rows the feed rules read: a Story with its Release, Page and Fan, an Upcoming Release with its Page, and a
  * Drop with its Release; no seen or starred on the phone.
  */
-import type { ApiTag } from './apiTypes';
+import type { FeedTag } from './views';
 import type { ItemType, StoryType } from './types';
 
 export type FeedStoryRow = {
@@ -39,7 +39,7 @@ export type FeedStoryRow = {
   /** Who the Release is by; null when no feed entry or release page credited anyone. */
   readonly artistCredit: string | null;
   /** The feed's tags, places left out. */
-  readonly tags: readonly ApiTag[];
+  readonly tags: readonly FeedTag[];
 };
 
 export type UpcomingReleaseRow = {
@@ -61,7 +61,7 @@ export type UpcomingReleaseRow = {
   /** As `FeedStoryRow.pageName`, `artistCredit` and `tags`. */
   readonly pageName: string;
   readonly artistCredit: string | null;
-  readonly tags: readonly ApiTag[];
+  readonly tags: readonly FeedTag[];
 };
 
 /** A Drop with its Release as the Upcoming rows carry it; the counts are the Drop's own. */

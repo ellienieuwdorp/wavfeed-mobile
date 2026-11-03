@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { newReleaseRow, storyRow } from '../../test/rows';
-import type { ApiTag } from '../domain/apiTypes';
+import type { FeedTag } from '../domain/views';
 import { newReleasesOf, type NewReleasesView } from '../domain/newReleases';
 import { filterNewReleases, type ReleaseFilter } from '../domain/releaseFilter';
 import type { FeedStoryRow } from '../domain/rows';
@@ -16,7 +16,7 @@ import { buildSectionsFromWeeks, narrowSections } from './weekSections';
 const NOW = new Date('2026-10-14T12:00:00.000Z');
 
 function released(itemId: number, day: string, tag: string, buyers: number): FeedStoryRow[] {
-  const tags: ApiTag[] = [{ name: tag, normName: tag }];
+  const tags: FeedTag[] = [{ name: tag, normName: tag }];
   const release = { itemId, releaseDate: new Date(`${day}T00:00:00.000Z`), tags };
   return [
     newReleaseRow({ ...release, storyDate: new Date(`${day}T09:00:00.000Z`) }),

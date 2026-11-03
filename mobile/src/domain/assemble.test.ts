@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { BASE_DATE, chain, minutesAfter, newReleaseRow, storyRow } from '../../test/rows';
-import type { ApiBurst, ApiFeedElement, ApiFeedItem } from './apiTypes';
+import type { Burst, FeedElement, FeedItem } from './views';
 import { ALL_STORY_TYPES, assembleFeed, BURST_MAX_GAP_MINUTES, BURST_MIN_STORIES } from './assemble';
 import type { FeedStoryRow } from './rows';
 
@@ -17,15 +17,15 @@ function assemble(rows: readonly FeedStoryRow[], overrides: Partial<Parameters<t
   return assembleFeed(rows, { types: ALL_STORY_TYPES, sort: 'activity', ...overrides });
 }
 
-function items(elements: readonly ApiFeedElement[]): ApiFeedItem[] {
-  return elements.filter((element): element is ApiFeedItem => element.kind === 'item');
+function items(elements: readonly FeedElement[]): FeedItem[] {
+  return elements.filter((element): element is FeedItem => element.kind === 'item');
 }
 
-function bursts(elements: readonly ApiFeedElement[]): ApiBurst[] {
-  return elements.filter((element): element is ApiBurst => element.kind === 'burst');
+function bursts(elements: readonly FeedElement[]): Burst[] {
+  return elements.filter((element): element is Burst => element.kind === 'burst');
 }
 
-function ids(elements: readonly ApiFeedElement[]): string[] {
+function ids(elements: readonly FeedElement[]): string[] {
   return items(elements).map((item) => item.itemId);
 }
 

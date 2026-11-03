@@ -6,7 +6,6 @@ import { asRecord } from '../domain/wire';
 
 export const DEFAULT_BANDCAMP_BASE_URL = 'https://bandcamp.com';
 
-export const COLLECTION_SUMMARY_ENDPOINT = 'collection_summary';
 export const COLLECT_ITEM_ENDPOINT = 'collect_item_cb';
 export const UNCOLLECT_ITEM_ENDPOINT = 'uncollect_item_cb';
 /**

@@ -1,0 +1,9 @@
+// What knip reads as mobile's entry points beyond expo-router's, from dev/check.sh.
+{
+  "$schema": "../dev/lint/node_modules/knip/schema.json",
+  "entry": ["dev/*.ts", "scripts/*.mjs", "plugins/*.js", "fingerprint.config.js", "src/**/*.test.ts", "src/**/__checks__/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  // The sample rig's exports are read off a require() behind a literal __DEV__ (src/dev/rig.ts, session.ts), which
+  // knip cannot follow.
+  "ignoreIssues": { "src/dev/useSampleData.ts": ["exports"], "src/dev/sampleWishlist.ts": ["exports"] }
+}

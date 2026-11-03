@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { PixelRatio, Pressable, Text, View, type Insets } from 'react-native';
 
 import { copy } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { fanAvatarInitials, fanAvatarUrl, sizedImageUrl } from '@/lib/format';
 import { ON_ART, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
@@ -38,13 +38,13 @@ const ART_RING = '#1c1c1c';
 const ART_PAD = ON_ART.edge;
 
 /** A Fan's image at the size that covers `size` in this screen's pixels (finding VIS-M3). */
-function faceUrl(fan: ApiFanRef, size: number): string | null {
+function faceUrl(fan: FanRef, size: number): string | null {
   const url = fanAvatarUrl(fan.imageId);
   return url === null ? null : sizedImageUrl(url, PixelRatio.getPixelSizeForLayoutSize(size));
 }
 
 /** One Fan's face at `size`, the image or the initials on the avatar tone. */
-export function FanFace({ fan, size }: { fan: ApiFanRef; size: number }) {
+export function FanFace({ fan, size }: { fan: FanRef; size: number }) {
   const { c } = useTokens();
   const url = faceUrl(fan, size);
   return (
@@ -60,11 +60,11 @@ export function FanFace({ fan, size }: { fan: ApiFanRef; size: number }) {
 
 // ceiling: the Fans ride in the route param as JSON, growing with the count and fixed at the press, because the store
 // has no Fans-by-Release read; a readBoughtBy(db, itemType, itemId) query in store/queries.ts is the upgrade.
-export function openBoughtBy(fans: readonly ApiFanRef[]) {
+export function openBoughtBy(fans: readonly FanRef[]) {
   router.push({ pathname: '/bought-by', params: { fans: JSON.stringify(fans) } });
 }
 
-export function AvatarStack({ fans, ring, opens = false, onArt = false, cap = AVATAR_CAP, size = DISC, hitSlop = SLOP }: { fans: readonly ApiFanRef[]; ring?: string; opens?: boolean; onArt?: boolean; cap?: number; size?: number; hitSlop?: Insets }) {
+export function AvatarStack({ fans, ring, opens = false, onArt = false, cap = AVATAR_CAP, size = DISC, hitSlop = SLOP }: { fans: readonly FanRef[]; ring?: string; opens?: boolean; onArt?: boolean; cap?: number; size?: number; hitSlop?: Insets }) {
   const { c } = useTokens();
   const taken = useTakenBySwipe();
   const shown = fans.slice(0, cap);

@@ -12,7 +12,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'r
 
 import { Heart } from '@/components/Heart';
 import { sep } from '@/copy';
-import type { ApiReleaseTrack } from '@/domain/apiTypes';
+import type { Track } from '@/domain/views';
 import { playerCopy } from '@/player/copy';
 import { useReduceMotion } from '@/player/motion';
 import { isStreamable, type PlayableRelease } from '@/player/transport';
@@ -73,7 +73,7 @@ function LiveMark({ playing, colour }: { playing: boolean; colour: string }) {
 
 type RowProps = {
   release: PlayableRelease;
-  track: ApiReleaseTrack;
+  track: Track;
   index: number;
   current: boolean;
   playing: boolean;
@@ -82,7 +82,7 @@ type RowProps = {
   side: number;
 };
 
-function rowLabel(track: ApiReleaseTrack, current: boolean, playing: boolean): string {
+function rowLabel(track: Track, current: boolean, playing: boolean): string {
   if (!track.out) return playerCopy.trackNotOut(track.trackNum, track.title);
   if (!isStreamable(track)) return playerCopy.silentTrack(track.trackNum, track.title);
   if (current && playing) return playerCopy.pauseTrack(track.trackNum, track.title);
@@ -90,7 +90,7 @@ function rowLabel(track: ApiReleaseTrack, current: boolean, playing: boolean): s
 }
 
 /** The trailing slot: the time, "no preview" for a Track of a Release that is out, nothing for a Track not out yet. */
-function trailing(track: ApiReleaseTrack, live: boolean): string {
+function trailing(track: Track, live: boolean): string {
   if (!track.out) return '';
   if (!live) return playerCopy.noPreview;
   return track.duration === null ? '' : clock(track.duration);

@@ -4,12 +4,12 @@
  */
 import { usePlayerActions } from '@/components/player/playerState';
 import type { PlayableRelease } from '@/player/transport';
-import type { ApiItemType } from '@/domain/apiTypes';
+import type { ItemType } from '@/domain/types';
 import { creditLine, type CreditLine } from '@/domain/credit';
 import { hueFor, releaseArtUrl } from '@/lib/format';
 
 export type RowRelease = {
-  readonly itemType: ApiItemType;
+  readonly itemType: ItemType;
   readonly itemId: string;
   readonly title: string;
   /** The Page's name, which for a label's Page is not the artist. */
@@ -23,7 +23,7 @@ export type RowRelease = {
   readonly releaseDate?: string | null | undefined;
 };
 
-export function playableItemType(itemType: ApiItemType): PlayableRelease['itemType'] {
+export function playableItemType(itemType: ItemType): PlayableRelease['itemType'] {
   return itemType === 'a' ? 'album' : 'track';
 }
 

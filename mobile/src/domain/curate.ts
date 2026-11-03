@@ -2,7 +2,7 @@
  * The Curated Feed's three modules over the same Stories, with no Burst collapse; the window is measured from the newest Story held, not the clock.
  */
 import { DAY_MS } from '../lib/time';
-import type { ApiCuratedQuote, ApiCuratedResponse, ApiFanRef, ApiFeedItem } from './apiTypes';
+import type { CuratedQuote, CuratedFeed, FanRef, FeedItem } from './views';
 import { buildFeedItem, byStoryDateDesc, fanRef, groupByItem, itemKey } from './assemble';
 import type { FeedStoryRow } from './rows';
 
@@ -19,16 +19,16 @@ function newestStoryTime(rows: readonly FeedStoryRow[]): number {
 }
 
 type BoughtCandidate = {
-  readonly item: ApiFeedItem;
+  readonly item: FeedItem;
   readonly buyerCount: number;
   readonly latestPurchase: number;
 };
 
-function windowedBuyers(itemRows: readonly FeedStoryRow[], since: number): readonly ApiFanRef[] {
+function windowedBuyers(itemRows: readonly FeedStoryRow[], since: number): readonly FanRef[] {
   const windowed = itemRows
     .filter((row) => row.storyType === 'purchase' && row.fanId !== null && row.storyDate.getTime() >= since)
     .sort(byStoryDateDesc);
-  const buyers: ApiFanRef[] = [];
+  const buyers: FanRef[] = [];
   const named = new Set<string>();
   for (const row of windowed) {
     const fan = fanRef(row);
@@ -49,7 +49,7 @@ function latestWindowedPurchase(itemRows: readonly FeedStoryRow[], since: number
 }
 
 /** The count, avatars and time phrase are narrowed to the window the module's sentence claims. */
-function boughtByFollowed(rows: readonly FeedStoryRow[]): readonly ApiFeedItem[] {
+function boughtByFollowed(rows: readonly FeedStoryRow[]): readonly FeedItem[] {
   const since = newestStoryTime(rows) - CURATED_WINDOW_DAYS * DAY_MS;
   const candidates: BoughtCandidate[] = [];
   for (const itemRows of groupByItem(rows).values()) {
@@ -57,7 +57,7 @@ function boughtByFollowed(rows: readonly FeedStoryRow[]): readonly ApiFeedItem[]
     if (buyers.length < CURATED_MIN_BUYERS) continue;
     const latest = latestWindowedPurchase(itemRows, since);
     if (latest === null) continue;
-    const item: ApiFeedItem = { ...buildFeedItem(itemRows), buyers, latestStoryDate: latest.toISOString() };
+    const item: FeedItem = { ...buildFeedItem(itemRows), buyers, latestStoryDate: latest.toISOString() };
     candidates.push({ item, buyerCount: buyers.length, latestPurchase: latest.getTime() });
   }
   return candidates
@@ -71,8 +71,8 @@ function boughtByFollowed(rows: readonly FeedStoryRow[]): readonly ApiFeedItem[]
 }
 
 /** Ranked by the announcement's own date, never the release date, so pre-orders cannot hold every cover. */
-function newFromPages(rows: readonly FeedStoryRow[]): readonly ApiFeedItem[] {
-  const candidates: { item: ApiFeedItem; at: number }[] = [];
+function newFromPages(rows: readonly FeedStoryRow[]): readonly FeedItem[] {
+  const candidates: { item: FeedItem; at: number }[] = [];
   for (const itemRows of groupByItem(rows).values()) {
     let at = 0;
     let announced = false;
@@ -89,8 +89,8 @@ function newFromPages(rows: readonly FeedStoryRow[]): readonly ApiFeedItem[] {
     .map((candidate) => candidate.item);
 }
 
-function inTheirOwnWords(rows: readonly FeedStoryRow[]): readonly ApiCuratedQuote[] {
-  const quotes: ApiCuratedQuote[] = [];
+function inTheirOwnWords(rows: readonly FeedStoryRow[]): readonly CuratedQuote[] {
+  const quotes: CuratedQuote[] = [];
   const said = new Set<string>();
   for (const row of [...rows].sort(byStoryDateDesc)) {
     if (quotes.length >= CURATED_QUOTES_MAX) break;
@@ -118,7 +118,7 @@ function inTheirOwnWords(rows: readonly FeedStoryRow[]): readonly ApiCuratedQuot
   return quotes;
 }
 
-export function buildCurated(rows: readonly FeedStoryRow[]): ApiCuratedResponse {
+export function buildCurated(rows: readonly FeedStoryRow[]): CuratedFeed {
   return {
     boughtByFollowed: boughtByFollowed(rows),
     newFromPages: newFromPages(rows),

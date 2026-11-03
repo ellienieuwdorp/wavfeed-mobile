@@ -8,19 +8,19 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { newReleaseRow, storyRow } from '../../test/rows';
-import type { ApiTag } from './apiTypes';
+import type { FeedTag } from './views';
 import { newReleasesOf } from './newReleases';
 import { clampMinimum, filterNewReleases, shownTags, type ReleaseFilter } from './releaseFilter';
 import type { FeedStoryRow } from './rows';
 
 const NOW = new Date('2026-10-14T12:00:00.000Z');
 
-function tags(...names: string[]): ApiTag[] {
+function tags(...names: string[]): FeedTag[] {
   return names.map((name) => ({ name: name.toUpperCase(), normName: name }));
 }
 
 /** A released Release with its new-release Story, bought by `buyers` Fans. */
-function released(itemId: number, day: string, tagged: readonly ApiTag[], buyers: number): FeedStoryRow[] {
+function released(itemId: number, day: string, tagged: readonly FeedTag[], buyers: number): FeedStoryRow[] {
   const release = { itemId, releaseDate: new Date(`${day}T00:00:00.000Z`), tags: [...tagged] };
   return [
     newReleaseRow({ ...release, storyDate: new Date(`${day}T09:00:00.000Z`) }),

@@ -2,7 +2,7 @@
  * The New releases view's two halves: the Upcoming band (not out yet) and the released weeks, which add a just-out Release no Story reached,
  * the Releases followed Fans bought, and the Drops of Upcoming Releases on their days.
  */
-import type { ApiFeedElement, ApiFeedItem, ApiUpcomingRelease } from './apiTypes';
+import type { FeedElement, FeedItem, UpcomingRelease } from './views';
 import { assembleFeed, buildFeedItem, buildSignal, groupByItem, hasFan, itemKey } from './assemble';
 import type { DropRow, FeedStoryRow, UpcomingReleaseRow } from './rows';
 import { buildUpcoming } from './upcoming';
@@ -12,12 +12,12 @@ export type DatedRelease = {
   readonly kind: 'release';
   readonly key: string;
   readonly date: Date;
-  readonly release: ApiFeedItem | ApiUpcomingRelease;
+  readonly release: FeedItem | UpcomingRelease;
 };
 
 /** A Drop as the store reads it: its Release, how many of its Tracks play of how many, and its GMT day. */
 type Drop = {
-  readonly release: ApiUpcomingRelease;
+  readonly release: UpcomingRelease;
   /** `2026-10-06`. */
   readonly day: string;
   readonly tracksOut: number;
@@ -32,7 +32,7 @@ export type DatedDrop = {
   /** One per Release and day: `drop:a:<itemId>:<day>`. */
   readonly key: string;
   readonly date: Date;
-  readonly release: ApiUpcomingRelease;
+  readonly release: UpcomingRelease;
   readonly tracksOut: number;
   readonly numTracks: number | null;
   readonly releaseDay: Date;
@@ -66,7 +66,7 @@ export type NewReleaseWeek = {
 
 export type NewReleasesView = {
   /** Not out yet, nearest release date first. */
-  readonly upcoming: readonly ApiUpcomingRelease[];
+  readonly upcoming: readonly UpcomingRelease[];
   /** Newest week first; weeks with no entries are absent. */
   readonly weeks: readonly NewReleaseWeek[];
 };
@@ -86,7 +86,7 @@ export function isOutYet(releaseDate: string, now: Date): boolean {
 }
 
 /** A Feed Item not out yet: dated after today, or a pre-order no page has dated. */
-export function notOutYet(item: Pick<ApiFeedItem, 'releaseDate' | 'isPreorder'>, now: Date): boolean {
+export function notOutYet(item: Pick<FeedItem, 'releaseDate' | 'isPreorder'>, now: Date): boolean {
   return item.releaseDate === null ? item.isPreorder : !isOutYet(item.releaseDate, now);
 }
 
@@ -100,7 +100,7 @@ export function startOfWeek(value: Date): Date {
  * before it, else on its anchor. A reissue whose page states a day years before its Story
  * keeps the Story's place.
  */
-function placedOn(element: ApiFeedItem): Date {
+function placedOn(element: FeedItem): Date {
   return element.releaseDate !== null && element.onReleaseDay ? releaseDay(element.releaseDate) : new Date(element.anchorDate);
 }
 
@@ -109,11 +109,11 @@ function placedOn(element: ApiFeedItem): Date {
  * on its release day as a just-out one does; a bought Release with no release day stays out. A Drop sits on its own day beside them, unless the Release's own row is on that day.
  */
 function buildNewReleases(
-  elements: readonly ApiFeedElement[],
-  releases: readonly ApiUpcomingRelease[],
+  elements: readonly FeedElement[],
+  releases: readonly UpcomingRelease[],
   now: Date,
   drops: readonly Drop[],
-  bought: readonly ApiFeedItem[],
+  bought: readonly FeedItem[],
 ): NewReleasesView {
   const upcoming = releases.filter((release) => !isOutYet(release.releaseDate, now));
   const justOut = releases.filter((release) => isOutYet(release.releaseDate, now));
@@ -178,15 +178,15 @@ function buildNewReleases(
 }
 
 /** A Feed Item with the buyers, wishlisters and reviews all its Stories give, its anchor and placement kept. */
-function withSignal(element: ApiFeedElement, stories: ReadonlyMap<string, readonly FeedStoryRow[]>): ApiFeedElement {
+function withSignal(element: FeedElement, stories: ReadonlyMap<string, readonly FeedStoryRow[]>): FeedElement {
   if (element.kind !== 'item') return element;
   const signal = buildSignal(stories.get(`${element.itemType}:${element.itemId}`) ?? []);
   return { ...element, buyers: signal.buyers, wishlisters: signal.wishlisters, reviews: signal.reviews };
 }
 
 /** Each Release a named Fan bought, as its Feed Item from all its Stories, in the order its first Story arrived. */
-function boughtItems(byItem: ReadonlyMap<string, readonly FeedStoryRow[]>): readonly ApiFeedItem[] {
-  const items: ApiFeedItem[] = [];
+function boughtItems(byItem: ReadonlyMap<string, readonly FeedStoryRow[]>): readonly FeedItem[] {
+  const items: FeedItem[] = [];
   for (const rows of byItem.values()) {
     if (rows.some((row) => row.storyType === 'purchase' && hasFan(row))) items.push(buildFeedItem(rows));
   }

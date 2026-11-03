@@ -1,15 +1,12 @@
 /**
- * The view response shapes the phone's screens render.
+ * The shapes the phone's screens render, read from the Projection (src/store/queries.ts) in CONTEXT.md's terms.
  */
+import type { WishlistWriteKind } from '@/bandcamp/wishlist';
 
-/** What happened, in CONTEXT.md vocabulary. Wire codes never reach clients. */
-export type ApiStoryType = 'purchase' | 'new_release' | 'wishlist';
-
-/** Bandcamp's tralbum kinds: `a` for an album, `t` for a standalone track. */
-export type ApiItemType = 'a' | 't';
+import type { ItemType, StoryType } from './types';
 
 /** A Fan referenced from a signal: enough to name them and draw an avatar. */
-export type ApiFanRef = {
+export type FanRef = {
   readonly fanId: string;
   readonly username: string;
   readonly name: string | null;
@@ -18,20 +15,20 @@ export type ApiFanRef = {
 };
 
 /** A feed tag on a Release: `normName` matches, `name` is shown. Places are never one. */
-export type ApiTag = {
+export type FeedTag = {
   readonly name: string;
   readonly normName: string;
 };
 
 /** Review text a Fan wrote alongside a purchase (the wire's `why` field). */
-export type ApiReview = {
-  readonly fan: ApiFanRef;
+export type Review = {
+  readonly fan: FanRef;
   readonly text: string;
 };
 
-export type ApiFeedItem = {
+export type FeedItem = {
   readonly kind: 'item';
-  readonly itemType: ApiItemType;
+  readonly itemType: ItemType;
   readonly itemId: string;
   readonly title: string;
   /** The name of the Release's Page, which is a label's as often as the artist's. */
@@ -40,7 +37,7 @@ export type ApiFeedItem = {
   readonly artistCredit: string | null;
   readonly bandId: string;
   readonly label: string | null;
-  readonly tags: readonly ApiTag[];
+  readonly tags: readonly FeedTag[];
   /** Bandcamp art id for `f4.bcbits.com/img/a<artId>_<size>.jpg`; null means placeholder. */
   readonly artId: string | null;
   readonly itemUrl: string;
@@ -48,10 +45,10 @@ export type ApiFeedItem = {
   readonly releaseDate: string | null;
   readonly latestStoryDate: string;
   readonly anchorDate: string;
-  readonly buyers: readonly ApiFanRef[];
-  readonly wishlisters: readonly ApiFanRef[];
+  readonly buyers: readonly FanRef[];
+  readonly wishlisters: readonly FanRef[];
   readonly hasNewRelease: boolean;
-  readonly reviews: readonly ApiReview[];
+  readonly reviews: readonly Review[];
   readonly featuredTrackId: string | null;
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
@@ -65,8 +62,8 @@ export type ApiFeedItem = {
 };
 
 /** One member of a Burst, enough for the expanded mini rows. */
-export type ApiBurstItem = {
-  readonly itemType: ApiItemType;
+export type BurstMember = {
+  readonly itemType: ItemType;
   readonly itemId: string;
   readonly title: string;
   readonly pageName: string;
@@ -76,34 +73,27 @@ export type ApiBurstItem = {
   readonly storyDate: string;
 };
 
-export type ApiBurst = {
+export type Burst = {
   readonly kind: 'burst';
-  readonly fan: ApiFanRef;
+  readonly fan: FanRef;
   readonly storyCount: number;
-  readonly storyType: ApiStoryType | 'mixed';
+  readonly storyType: StoryType | 'mixed';
   readonly latestStoryDate: string;
   readonly anchorDate: string;
-  readonly items: readonly ApiBurstItem[];
+  readonly items: readonly BurstMember[];
 };
 
-export type ApiFeedElement = ApiFeedItem | ApiBurst;
+export type FeedElement = FeedItem | Burst;
 
-export type ApiFeedSort = 'activity' | 'anchor';
-
-/** Our own account, as the client sees it. Never carries credential material. */
-export type ApiUser = {
-  readonly username: string;
-  readonly displayName: string | null;
-  readonly avatarUrl: string | null;
-};
+export type FeedSort = 'activity' | 'anchor';
 
 /** A quote for the Curated Feed's 'In their own words' module. */
-export type ApiCuratedQuote = {
-  readonly fan: ApiFanRef;
+export type CuratedQuote = {
+  readonly fan: FanRef;
   readonly text: string;
   readonly date: string;
   readonly item: {
-    readonly itemType: ApiItemType;
+    readonly itemType: ItemType;
     readonly itemId: string;
     readonly title: string;
     readonly pageName: string;
@@ -113,22 +103,22 @@ export type ApiCuratedQuote = {
   };
 };
 
-export type ApiCuratedResponse = {
-  readonly boughtByFollowed: readonly ApiFeedItem[];
-  readonly newFromPages: readonly ApiFeedItem[];
-  readonly inTheirOwnWords: readonly ApiCuratedQuote[];
+export type CuratedFeed = {
+  readonly boughtByFollowed: readonly FeedItem[];
+  readonly newFromPages: readonly FeedItem[];
+  readonly inTheirOwnWords: readonly CuratedQuote[];
 };
 
-export type ApiUpcomingRelease = {
-  readonly itemType: ApiItemType;
+export type UpcomingRelease = {
+  readonly itemType: ItemType;
   readonly itemId: string;
   readonly title: string;
-  /** As `ApiFeedItem.pageName` and `artistCredit`. */
+  /** As `FeedItem.pageName` and `artistCredit`. */
   readonly pageName: string;
   readonly artistCredit: string | null;
   readonly bandId: string;
   readonly label: string | null;
-  readonly tags: readonly ApiTag[];
+  readonly tags: readonly FeedTag[];
   readonly artId: string | null;
   readonly itemUrl: string;
   readonly releaseDate: string;
@@ -136,10 +126,10 @@ export type ApiUpcomingRelease = {
   readonly isPreorder: boolean;
   /** Null when no Story of this user's has ever reached this Release. */
   readonly latestStoryDate: string | null;
-  readonly buyers: readonly ApiFanRef[];
-  readonly wishlisters: readonly ApiFanRef[];
+  readonly buyers: readonly FanRef[];
+  readonly wishlisters: readonly FanRef[];
   readonly hasNewRelease: boolean;
-  readonly reviews: readonly ApiReview[];
+  readonly reviews: readonly Review[];
   readonly featuredTrackId: string | null;
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
@@ -148,12 +138,8 @@ export type ApiUpcomingRelease = {
   readonly numTracks: number | null;
 };
 
-export type ApiUpcomingResponse = {
-  readonly releases: readonly ApiUpcomingRelease[];
-};
-
 /** One Track of a Release, as the player needs it (ADR-0015). */
-export type ApiReleaseTrack = {
+export type Track = {
   /** Null only on a Track not out, which a phone's page names without an id. */
   readonly trackId: string | null;
   /** 1-based position on the Release. */
@@ -168,8 +154,8 @@ export type ApiReleaseTrack = {
   readonly out: boolean;
 };
 
-export type ApiReleaseTracksResponse = {
-  readonly itemType: ApiItemType;
+export type ReleaseTracks = {
+  readonly itemType: ItemType;
   readonly itemId: string;
   /** The Page this Release belongs to. A wishlist write has to name it. */
   readonly bandId: string;
@@ -177,40 +163,16 @@ export type ApiReleaseTracksResponse = {
   readonly fetchedAt: string;
   /** `fetchedAt` plus 24 hours: the moment the stream URLs die. */
   readonly expiresAt: string;
-  readonly tracks: readonly ApiReleaseTrack[];
+  readonly tracks: readonly Track[];
 };
 
-/** Adding to the Bandcamp wishlist, or taking it back off (ADR-0016). */
-export type ApiWishlistActionKind = 'add' | 'remove';
-
-export type ApiWishlistActionStatus = 'pending' | 'running' | 'done' | 'failed';
-
-/** Why a press did not reach Bandcamp. The UI turns each into one sentence. */
-export type ApiWishlistFailure =
-  | 'cookie_dead'
-  | 'bandcamp_rejected'
-  | 'bandcamp_unreachable'
-  | 'seal_key_unavailable';
-
-export type ApiWishlistAction = {
-  readonly id: string;
-  readonly itemType: ApiItemType;
-  readonly itemId: string;
-  readonly action: ApiWishlistActionKind;
-  readonly status: ApiWishlistActionStatus;
-  /** Set only when `status` is `failed`. */
-  readonly failure: ApiWishlistFailure | null;
-  readonly createdAt: string;
-  readonly finishedAt: string | null;
-};
-
-export type ApiWishlistItem = {
-  readonly itemType: ApiItemType;
+export type WishlistMembership = {
+  readonly itemType: ItemType;
   readonly itemId: string;
   readonly wishlisted: boolean;
-  readonly pending: ApiWishlistActionKind | null;
+  readonly pending: WishlistWriteKind | null;
 };
 
-export type ApiWishlistResponse = {
-  readonly items: readonly ApiWishlistItem[];
+export type WishlistState = {
+  readonly items: readonly WishlistMembership[];
 };

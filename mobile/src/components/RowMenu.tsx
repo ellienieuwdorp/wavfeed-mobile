@@ -15,7 +15,7 @@ import { createContext, useContext, useState, type ReactElement, type ReactNode 
 import { ActionSheetIOS, Platform, Pressable, Share, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { copy } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { webUrl } from '@/lib/format';
 import { useSharing } from '@/tally/Sharing';
 import { useTokens } from '@/theme/tokens';
@@ -138,7 +138,7 @@ export function useSpokenActions(): SpokenActions | undefined {
 type RowMenuProps = {
   release: RowRelease;
   /** The Fans the row's faces name, which a screen reader reaches as the Bought by action. */
-  boughtBy?: readonly ApiFanRef[];
+  boughtBy?: readonly FanRef[];
   /** Draws the row, handing `open` to its own Pressable's `onLongPress` and `spoken` to its screen reader element. */
   children: (open: OpenMenu, spoken: SpokenActions) => ReactElement;
 };

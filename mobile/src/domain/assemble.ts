@@ -2,34 +2,34 @@
  * The de-noise rules: flat Stories in, ordered Feed Items and Bursts out; type filter, then Bursts, then aggregation, then the sort (ADR-0005).
  */
 import type {
-  ApiBurst,
-  ApiBurstItem,
-  ApiFanRef,
-  ApiFeedElement,
-  ApiFeedItem,
-  ApiFeedSort,
-  ApiReview,
-  ApiStoryType,
-} from './apiTypes';
+  Burst,
+  BurstMember,
+  FanRef,
+  FeedElement,
+  FeedItem,
+  FeedSort,
+  Review,
+} from './views';
 import type { FeedStoryRow } from './rows';
+import type { StoryType } from './types';
 
 export const BURST_MAX_GAP_MINUTES = 60;
 export const BURST_MIN_STORIES = 5;
 
 const BURST_MAX_GAP_MS = BURST_MAX_GAP_MINUTES * 60_000;
 
-export const ALL_STORY_TYPES: readonly ApiStoryType[] = ['new_release', 'purchase', 'wishlist'];
+export const ALL_STORY_TYPES: readonly StoryType[] = ['new_release', 'purchase', 'wishlist'];
 
-const FAN_ACTED_TYPES: readonly ApiStoryType[] = ['purchase', 'wishlist'];
+const FAN_ACTED_TYPES: readonly StoryType[] = ['purchase', 'wishlist'];
 
 export type AssembleOptions = {
-  readonly types: readonly ApiStoryType[];
-  readonly sort: ApiFeedSort;
+  readonly types: readonly StoryType[];
+  readonly sort: FeedSort;
 };
 
 export type AssembledFeed = {
-  readonly elements: readonly ApiFeedElement[];
-  readonly typeCounts: Readonly<Record<ApiStoryType, number>>;
+  readonly elements: readonly FeedElement[];
+  readonly typeCounts: Readonly<Record<StoryType, number>>;
 };
 
 export function itemKey(row: { readonly itemType: string; readonly itemId: number }): string {
@@ -57,7 +57,7 @@ export function hasFan(row: FeedStoryRow): row is FeedStoryRow & { readonly fanI
   return row.fanId !== null && row.fanUsername !== null;
 }
 
-export function fanRef(row: FeedStoryRow): ApiFanRef | null {
+export function fanRef(row: FeedStoryRow): FanRef | null {
   if (!hasFan(row)) return null;
   return {
     fanId: String(row.fanId),
@@ -67,8 +67,8 @@ export function fanRef(row: FeedStoryRow): ApiFanRef | null {
   };
 }
 
-function distinctFans(sorted: readonly FeedStoryRow[], type: ApiStoryType): ApiFanRef[] {
-  const fans: ApiFanRef[] = [];
+function distinctFans(sorted: readonly FeedStoryRow[], type: StoryType): FanRef[] {
+  const fans: FanRef[] = [];
   const seen = new Set<string>();
   for (const row of sorted) {
     if (row.storyType !== type) continue;
@@ -80,8 +80,8 @@ function distinctFans(sorted: readonly FeedStoryRow[], type: ApiStoryType): ApiF
   return fans;
 }
 
-function reviewsOf(sorted: readonly FeedStoryRow[]): ApiReview[] {
-  const reviews: ApiReview[] = [];
+function reviewsOf(sorted: readonly FeedStoryRow[]): Review[] {
+  const reviews: Review[] = [];
   for (const row of sorted) {
     if (row.reviewText === null) continue;
     const fan = fanRef(row);
@@ -92,9 +92,9 @@ function reviewsOf(sorted: readonly FeedStoryRow[]): ApiReview[] {
 }
 
 export type StorySignal = {
-  readonly buyers: readonly ApiFanRef[];
-  readonly wishlisters: readonly ApiFanRef[];
-  readonly reviews: readonly ApiReview[];
+  readonly buyers: readonly FanRef[];
+  readonly wishlisters: readonly FanRef[];
+  readonly reviews: readonly Review[];
   readonly hasNewRelease: boolean;
   readonly latestStoryDate: string | null;
 };
@@ -116,7 +116,7 @@ function signalOfSorted(sorted: readonly FeedStoryRow[]): StorySignal {
 }
 
 /** A lone Story anchors at its action date, an aggregate at the release date, else its oldest Story (ADR-0011). */
-export function buildFeedItem(rows: readonly FeedStoryRow[]): ApiFeedItem {
+export function buildFeedItem(rows: readonly FeedStoryRow[]): FeedItem {
   const sorted = [...rows].sort(byStoryDateDesc);
   const [newest] = sorted;
   if (newest === undefined) throw new Error('a Feed Item needs at least one Story');
@@ -153,20 +153,20 @@ export function buildFeedItem(rows: readonly FeedStoryRow[]): ApiFeedItem {
   };
 }
 
-function burstStoryType(rows: readonly FeedStoryRow[]): ApiStoryType | 'mixed' {
+function burstStoryType(rows: readonly FeedStoryRow[]): StoryType | 'mixed' {
   const types = new Set(rows.map((row) => row.storyType));
   const [only] = [...types];
   return types.size === 1 && only !== undefined ? only : 'mixed';
 }
 
-function buildBurst(chain: readonly FeedStoryRow[]): ApiBurst {
+function buildBurst(chain: readonly FeedStoryRow[]): Burst {
   const newestFirst = [...chain].sort(byStoryDateDesc);
   const [newest] = newestFirst;
   if (newest === undefined) throw new Error('a Burst needs at least one Story');
   const fan = fanRef(newest);
   if (fan === null) throw new Error('a Burst needs the Fan who acted');
 
-  const items: ApiBurstItem[] = [];
+  const items: BurstMember[] = [];
   const seenItems = new Set<string>();
   for (const row of newestFirst) {
     const key = itemKey(row);
@@ -197,7 +197,7 @@ function buildBurst(chain: readonly FeedStoryRow[]): ApiBurst {
 }
 
 export type DetectedBursts = {
-  readonly bursts: readonly ApiBurst[];
+  readonly bursts: readonly Burst[];
   readonly memberStoryIds: ReadonlySet<number>;
 };
 
@@ -211,7 +211,7 @@ export function detectBursts(rows: readonly FeedStoryRow[]): DetectedBursts {
     else existing.push(row);
   }
 
-  const bursts: ApiBurst[] = [];
+  const bursts: Burst[] = [];
   const memberStoryIds = new Set<number>();
   for (const fanRows of byFan.values()) {
     const oldestFirst = [...fanRows].sort((a, b) => -byStoryDateDesc(a, b));
@@ -235,8 +235,8 @@ export function detectBursts(rows: readonly FeedStoryRow[]): DetectedBursts {
 }
 
 /** Blind to the type filter and to Burst collapse: the chips count Releases in the collection. */
-export function countTypes(rows: readonly FeedStoryRow[]): Readonly<Record<ApiStoryType, number>> {
-  const counts: Record<ApiStoryType, number> = { purchase: 0, new_release: 0, wishlist: 0 };
+export function countTypes(rows: readonly FeedStoryRow[]): Readonly<Record<StoryType, number>> {
+  const counts: Record<StoryType, number> = { purchase: 0, new_release: 0, wishlist: 0 };
   for (const itemRows of groupByItem(rows).values()) {
     for (const type of ALL_STORY_TYPES) {
       if (itemRows.some((row) => row.storyType === type)) counts[type] += 1;
@@ -250,7 +250,7 @@ export type ElementSortKey = {
   readonly tiebreak: string;
 };
 
-export function elementSortKey(element: ApiFeedElement, sort: ApiFeedSort): ElementSortKey {
+export function elementSortKey(element: FeedElement, sort: FeedSort): ElementSortKey {
   return {
     sortDate: sort === 'activity' ? element.latestStoryDate : element.anchorDate,
     tiebreak:
@@ -271,7 +271,7 @@ export function assembleFeed(rows: readonly FeedStoryRow[], options: AssembleOpt
   const kept = rows.filter((row) => options.types.includes(row.storyType));
   const { bursts, memberStoryIds } = detectBursts(kept);
 
-  const items: ApiFeedElement[] = [];
+  const items: FeedElement[] = [];
   for (const itemRows of groupByItem(kept).values()) {
     const outsideBursts = itemRows.filter((row) => !memberStoryIds.has(row.storyId));
     if (outsideBursts.length > 0) items.push(buildFeedItem(outsideBursts));

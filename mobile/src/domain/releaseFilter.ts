@@ -7,7 +7,7 @@
  * the whole view. What does not hang on the filter is worked out once per view, and the last few answers are held, so
  * the sheet and the list behind it share one pass per tap.
  */
-import type { ApiFanRef, ApiTag } from './apiTypes';
+import type { FanRef, FeedTag } from './views';
 import type { NewReleasesView } from './newReleases';
 
 export const PEOPLE_MIN = 1;
@@ -42,7 +42,7 @@ export type FilteredNewReleases = {
   readonly tags: readonly TagCount[];
 };
 
-type Judged = { readonly key: string; readonly bought: number; readonly tags: readonly ApiTag[] };
+type Judged = { readonly key: string; readonly bought: number; readonly tags: readonly FeedTag[] };
 
 /**
  * What a view's filters share, worked out once per view: each Release once by its key with its buyer count and tags,
@@ -73,7 +73,7 @@ function indexOf(view: NewReleasesView): ViewIndex {
   const held = indexes.get(view);
   if (held !== undefined) return held;
   const seen = new Map<string, Judged>();
-  const add = (release: { readonly itemType: string; readonly itemId: string; readonly buyers: readonly ApiFanRef[]; readonly tags: readonly ApiTag[] }) => {
+  const add = (release: { readonly itemType: string; readonly itemId: string; readonly buyers: readonly FanRef[]; readonly tags: readonly FeedTag[] }) => {
     const key = keyOf(release);
     if (!seen.has(key)) seen.set(key, { key, bought: release.buyers.length, tags: release.tags });
   };

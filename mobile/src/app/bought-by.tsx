@@ -14,14 +14,14 @@ import { FanFace } from '@/components/AvatarStack';
 import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
 import { isDemoFan } from '@/demo/fan';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { fanPageUrl } from '@/lib/format';
 import { useAppState } from '@/state/appState';
 import { PRESS_FLASH, ripple, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 
-function isFanRef(value: unknown): value is ApiFanRef {
+function isFanRef(value: unknown): value is FanRef {
   if (typeof value !== 'object' || value === null) return false;
   const fan: { [key: string]: unknown } = { ...value };
   return (
@@ -33,7 +33,7 @@ function isFanRef(value: unknown): value is ApiFanRef {
   );
 }
 
-function readFans(raw: string | string[] | undefined): readonly ApiFanRef[] {
+function readFans(raw: string | string[] | undefined): readonly FanRef[] {
   if (typeof raw !== 'string') return [];
   try {
     const value: unknown = JSON.parse(raw);
@@ -43,7 +43,7 @@ function readFans(raw: string | string[] | undefined): readonly ApiFanRef[] {
   }
 }
 
-function FanRow({ fan, linked }: { fan: ApiFanRef; linked: boolean }) {
+function FanRow({ fan, linked }: { fan: FanRef; linked: boolean }) {
   const { c, type } = useTokens();
   const name = fan.name?.trim() ?? '';
   return (

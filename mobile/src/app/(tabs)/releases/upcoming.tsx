@@ -16,7 +16,7 @@ import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { WeekHead } from '@/components/WeekHead';
 import { copy, onDayPhrase, outOnPhrase } from '@/copy';
-import type { ApiUpcomingRelease } from '@/domain/apiTypes';
+import type { UpcomingRelease } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
 import { releaseDay } from '@/domain/newReleases';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
@@ -30,7 +30,7 @@ type Item =
   | { key: string; kind: 'empty' }
   | { key: string; kind: 'nomatch'; named: string }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: ApiUpcomingRelease; day: string; heardDay: string; tracksOut: number | null; numTracks: number | null; rule: boolean };
+  | { key: string; kind: 'release'; release: UpcomingRelease; day: string; heardDay: string; tracksOut: number | null; numTracks: number | null; rule: boolean };
 
 function render({ item }: { item: Item }) {
   switch (item.kind) {

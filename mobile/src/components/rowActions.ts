@@ -7,7 +7,7 @@
  * state rows and cards no longer draw.
  */
 import { boughtByPhrase, copy, spokenFacts } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import type { CreditLine } from '@/domain/credit';
 import type { Membership } from '@/wishlist/state';
 
@@ -43,7 +43,7 @@ export type HeardRow = {
   readonly day: string | null;
   /** "1 of 4 tracks" from tracksOutPhrase, where the row's art draws the badge. */
   readonly count: string | null;
-  readonly buyers: readonly ApiFanRef[];
+  readonly buyers: readonly FanRef[];
 };
 
 /** A Release as a row or an Upcoming card says it: "Title by Artist", then "Page, Wed 7, 1 of 4 tracks, bought by ana". */

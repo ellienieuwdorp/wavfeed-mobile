@@ -13,7 +13,7 @@ import { memo } from 'react';
 import { FlatList, Platform, useWindowDimensions, View } from 'react-native';
 
 import { copy, creditText, tracksOutPhrase, tracksOutBadge } from '@/copy';
-import type { ApiFanRef } from '@/domain/apiTypes';
+import type { FanRef } from '@/domain/views';
 import { captionTitle } from '@/theme/textSize';
 import { ON_ART, rowText, useTokens } from '@/theme/tokens';
 import { useMembership } from '@/wishlist/state';
@@ -55,7 +55,7 @@ export type ShelfCard = {
   readonly tracksOut: number | null;
   readonly numTracks: number | null;
   /** The people you follow who bought it. */
-  readonly buyers: readonly ApiFanRef[];
+  readonly buyers: readonly FanRef[];
 };
 
 /**
