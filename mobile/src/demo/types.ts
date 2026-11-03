@@ -1,4 +1,4 @@
-/** The shape `dev/curate-demo.ts` writes into `releases.ts` (task 0043, decision 4). */
+/** The shape `dev/curate-demo.ts` writes into `releases.ts`. */
 export type DemoReleases = {
   readonly readAt: string;
   readonly sources: readonly string[];

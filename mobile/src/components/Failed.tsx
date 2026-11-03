@@ -1,5 +1,5 @@
 /**
- * What shows in place of something that failed (task 0038 decisions 10 and 11): a tab's screen that threw while
+ * What shows in place of something that failed: a tab's screen that threw while
  * drawing, under the tab's title or a pushed screen's header with the tab bar still there; the whole app when the root
  * threw; and the store that would not open. The two boundary fallbacks write their Error Report from an effect, since
  * expo-router's `Try` has no `componentDidCatch`; the store's mail is the only report it has, and nothing leaves until
@@ -90,7 +90,7 @@ type StoreFailedProps = {
 
 /**
  * The store that would not open (review REL-4): "Try again" for a passing cause, the mail with the cause scrubbed as an
- * Error Report's would be (task 0038 decision 11 sends nothing by itself), and "Start over" after a confirm for a cause
+ * Error Report's would be (nothing is sent by itself), and "Start over" after a confirm for a cause
  * that fails the same way on every open.
  */
 export function StoreFailed({ error, onRetry, onStartOver }: StoreFailedProps) {

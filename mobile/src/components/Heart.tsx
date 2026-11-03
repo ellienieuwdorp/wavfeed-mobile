@@ -1,5 +1,5 @@
 /**
- * The wishlist heart, one control everywhere (DESIGN-UI section 12, ADR-0016, task 0036): a 44pt target drawing each
+ * The wishlist heart, one control everywhere (DESIGN-UI section 12, ADR-0016): a 44pt target drawing each
  * state the section names. Not asked yet is the off outline taking no press; off is the faint outline; on is filled in
  * Bandcamp's orange under a rim in the edge colour, which clears 3:1 on a light page where the orange does not (review
  * VIS-3, VIS-M5). A press flips it at once and the exchange travels behind it (ADR-0016 amendment 2026-10-02); the
@@ -34,7 +34,7 @@ type HeartProps = {
   item: HeartItem;
   box?: number;
   icon?: number;
-  /** Where the heart sits, for `wishlist_action_finished` (task 0038). */
+  /** Where the heart sits, for `wishlist_action_finished`. */
   surface: PressSurface;
   /** Drawn over a cover (the player sheet's art) on a dark disc of this size. */
   onArt?: number;

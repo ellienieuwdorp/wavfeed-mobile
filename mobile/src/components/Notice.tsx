@@ -3,7 +3,7 @@
  * raised surface under a rule; on Android Material's snackbar, the platform's one transient line: 4dp corners on the
  * inverse surface at elevation 3, 16dp from the edges, the action in the inverse primary. TalkBack reads the snackbar
  * as a live region; iOS has none, so NoticeProvider announces each line to VoiceOver (VIS-2). A swipe's confirmation
- * (task 0071, decision 15) is the snackbar with its Undo and no dismiss, as the R5 swipe canvas draws it; its action
+ * is the snackbar with its Undo and no dismiss, as the R5 swipe canvas draws it; its action
  * dismisses it, and a screen reader, which keeps it up, gets the dismiss back.
  */
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';

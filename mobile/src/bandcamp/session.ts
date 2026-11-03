@@ -1,5 +1,5 @@
 /**
- * Every request the phone makes to Bandcamp (task 0036, decisions 1 and 4). A credentialed call is a plain `fetch` with `credentials: 'include'` and no
+ * Every request the phone makes to Bandcamp. A credentialed call is a plain `fetch` with `credentials: 'include'` and no
  * `Cookie` header, so the jar the sign-in WebView shares attaches the session and nothing here can read it
  * (ADR-0018); public calls pass `credentials: 'omit'`. One request at a time, 500 to 1000 ms apart (ADR-0001).
  * Nothing throws or logs: a failure leaves as an answer kind and a status (ADR-0003).
@@ -80,7 +80,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * The browser identity the sign-in WebView already gave this session, so every
- * request looks like it came from the same browser (task 0036, decision 1).
+ * request looks like it came from the same browser.
  * React Native's own User-Agent names CFNetwork or okhttp, and Bandcamp
  * answered the wishlist write from it with a bare error and no reason.
  */
@@ -92,7 +92,7 @@ const USER_AGENT = Platform.select({
 
 /**
  * Release pages alone are asked for as desktop Safari on both platforms: Bandcamp serves a phone a page with no
- * `release_date` or `mod_date` in `current` and no id on a Track that is not out (task 0041, decision 11). The request
+ * `release_date` or `mod_date` in `current` and no id on a Track that is not out. The request
  * carries no cookie, so no signed-in session is ever seen under this identity.
  */
 const RELEASE_PAGE_USER_AGENT =
@@ -250,7 +250,7 @@ export class BandcampSession {
         method: spec.method ?? 'GET',
         headers: { ...spec.headers, 'User-Agent': spec.userAgent ?? USER_AGENT },
         body: spec.body,
-        // The whole custody design in one option (task 0036, decision 1).
+        // The whole custody design in one option.
         credentials: spec.credentials,
         signal: controller.signal,
       });
@@ -305,7 +305,7 @@ export class BandcampSession {
     });
     if (wire === null) return { kind: 'unreachable' };
     if (!wire.ok) return { kind: 'error', status: wire.status };
-    // Not JSON reads as signed out, as a dead session's 400 reads as an error; the turn asks the probe (task 0066).
+    // Not JSON reads as signed out, as a dead session's 400 reads as an error; the turn asks the probe.
     if (!wire.contentType.includes('json')) return { kind: 'logged_out' };
 
     const payload = parseJson(wire.text);
@@ -457,7 +457,7 @@ export class BandcampSession {
 
   /**
    * Stored as the page's two Bandcamp-authored blobs, keyed by the Release it was fetched for. Public, and asked for as
-   * a desktop browser (task 0041, decision 11); a Track page comes through here too.
+   * a desktop browser; a Track page comes through here too.
    */
   async fetchReleasePage(itemUrl: string, key: ReleaseKey): Promise<BandcampAnswer<ReleasePage>> {
     if (!isFetchableTarget(itemUrl, this.baseOrigin)) return { kind: 'ok', value: { kind: 'refused' } };

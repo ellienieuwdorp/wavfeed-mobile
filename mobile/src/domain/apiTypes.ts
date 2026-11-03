@@ -1,5 +1,5 @@
 /**
- * The view response shapes the phone's screens render (task 0036).
+ * The view response shapes the phone's screens render.
  */
 
 /** What happened, in CONTEXT.md vocabulary. Wire codes never reach clients. */
@@ -17,7 +17,7 @@ export type ApiFanRef = {
   readonly imageId: string | null;
 };
 
-/** A feed tag on a Release: `normName` matches, `name` is shown. Places are never one (task 0071, decision 7). */
+/** A feed tag on a Release: `normName` matches, `name` is shown. Places are never one. */
 export type ApiTag = {
   readonly name: string;
   readonly normName: string;
@@ -34,7 +34,7 @@ export type ApiFeedItem = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  /** The name of the Release's Page, which is a label's as often as the artist's (task 0071, decision 18). */
+  /** The name of the Release's Page, which is a label's as often as the artist's. */
   readonly pageName: string;
   /** Who the Release is by; null when nothing credited anyone. `creditLine` (credit.ts) puts the two together. */
   readonly artistCredit: string | null;
@@ -56,11 +56,11 @@ export type ApiFeedItem = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
-  /** How many Tracks the release page names, out or not; null until a page is read (task 0041, decision 4). */
+  /** How many Tracks the release page names, out or not; null until a page is read. */
   readonly numTracks: number | null;
-  /** New releases leaves an undated pre-order to its page (task 0041, decision 1). */
+  /** New releases leaves an undated pre-order to its page. */
   readonly isPreorder: boolean;
-  /** New releases places it on its release day, not its anchor (task 0041, decision 3; `FeedStoryRow.onReleaseDay`). */
+  /** New releases places it on its release day, not its anchor (`FeedStoryRow.onReleaseDay`). */
   readonly onReleaseDay: boolean;
 };
 
@@ -123,7 +123,7 @@ export type ApiUpcomingRelease = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  /** As `ApiFeedItem.pageName` and `artistCredit` (task 0071, decision 18). */
+  /** As `ApiFeedItem.pageName` and `artistCredit`. */
   readonly pageName: string;
   readonly artistCredit: string | null;
   readonly bandId: string;
@@ -144,7 +144,7 @@ export type ApiUpcomingRelease = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
-  /** How many Tracks the release page names, out or not; null until a page is read (task 0041, decision 4). */
+  /** How many Tracks the release page names, out or not; null until a page is read. */
   readonly numTracks: number | null;
 };
 
@@ -154,7 +154,7 @@ export type ApiUpcomingResponse = {
 
 /** One Track of a Release, as the player needs it (ADR-0015). */
 export type ApiReleaseTrack = {
-  /** Null only on a Track not out, which a phone's page names without an id (task 0041, decision 5). */
+  /** Null only on a Track not out, which a phone's page names without an id. */
   readonly trackId: string | null;
   /** 1-based position on the Release. */
   readonly trackNum: number;
@@ -164,7 +164,7 @@ export type ApiReleaseTrack = {
   readonly streamUrl: string | null;
   /** Bandcamp caps some previews short; the audio ends where the stream does. */
   readonly capped: boolean;
-  /** False for a Track the page names that the label has not let out yet; it never has a stream (task 0041, decision 5). */
+  /** False for a Track the page names that the label has not let out yet; it never has a stream. */
   readonly out: boolean;
 };
 

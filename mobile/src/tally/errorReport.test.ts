@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Error Reports (task 0038, ADR-0021): the scrubber the phone and the Worker both run, Hermes stacks parsed to
+ * Error Reports (ADR-0021): the scrubber the phone and the Worker both run, Hermes stacks parsed to
  * basename frames, and a fingerprint source that ignores what changes with every build.
  */
 import assert from 'node:assert/strict';

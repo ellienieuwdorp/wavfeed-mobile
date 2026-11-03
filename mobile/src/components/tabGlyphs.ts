@@ -1,5 +1,5 @@
 /**
- * The Feed and New releases tab glyphs (task 0071, decision 2): the three crests and the calendar, a separate image for
+ * The Feed and New releases tab glyphs: the three crests and the calendar, a separate image for
  * the selected state, rendered by `scripts/tab-glyphs.mjs` and drawn as templates so each bar tints them. Settings keeps
  * the system gear.
  */

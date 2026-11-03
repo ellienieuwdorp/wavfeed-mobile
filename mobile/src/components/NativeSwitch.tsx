@@ -1,5 +1,5 @@
 /**
- * The platform's on and off switch (task 0036 decision 5): SwiftUI's Toggle on iOS through @expo/ui, sized by the
+ * The platform's on and off switch: SwiftUI's Toggle on iOS through @expo/ui, sized by the
  * control itself so iOS 26's wider switch centres in its row as React Native's fixed 51 by 31 frame did not, and the
  * Material 3 switch on Android through @expo/ui's Compose Switch, tinted with the accent, its off state in the canvas's
  * border track, faint outline and faint thumb. The seed keeps the palette ours, never the wallpaper's (the v2 client

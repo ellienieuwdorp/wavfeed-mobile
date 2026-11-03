@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The never-send list against the wire (task 0038, ADR-0021): one sample of every Tally goes through the outbox and
+ * The never-send list against the wire (ADR-0021): one sample of every Tally goes through the outbox and
  * out as a batch body, and nothing in it can name a Fan, a Release, a URL, a cookie or an id.
  */
 import assert from 'node:assert/strict';

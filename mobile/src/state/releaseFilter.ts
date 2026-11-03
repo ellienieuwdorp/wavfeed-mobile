@@ -1,7 +1,6 @@
 /**
- * The New releases filter as one store the screen, its button and the Filters sheet share (task 0071, decisions 5 to
- * 9): the settings read once per store from `kv` and written back on every change, and the view the screen last read,
- * so the sheet counts the list's own Releases (decision 21) without reading the store a second time. The sheet is its
+ * The New releases filter as one store the screen, its button and the Filters sheet share: the settings read once per store from `kv` and written back on every change, and the view the screen last read,
+ * so the sheet counts the list's own Releases without reading the store a second time. The sheet is its
  * own route, so the screen publishes its view and the sheet filters it in the same render as the tapped control; the
  * list behind follows as a deferred render (the author's request of 2026-10-14).
  */

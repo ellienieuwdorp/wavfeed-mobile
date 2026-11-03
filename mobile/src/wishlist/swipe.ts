@@ -1,5 +1,5 @@
 /**
- * The row swipe's rules (task 0071, decision 15), kept apart from the gesture in `WishlistSwipe` so they run under
+ * The row swipe's rules, kept apart from the gesture in `WishlistSwipe` so they run under
  * `node --test`: the press a swipe makes on what the heart shows, where a drag puts the row and whether lifting there
  * commits, and the press its Android snackbar's Undo makes.
  */

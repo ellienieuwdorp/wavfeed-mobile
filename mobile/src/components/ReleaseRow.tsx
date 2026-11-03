@@ -1,9 +1,9 @@
 /**
- * One Release as a list cell (task 0071, decisions 10 to 13 as amended by the author 2026-10-14 and 2026-10-15): 56pt
+ * One Release as a list cell: 56pt
  * art, the title and the credit line ("artist · Page or label", creditText); only the full Upcoming list draws the day
  * in small caps over them, and a Drop in the released weeks reads like a released row, the "1/4" on its art's corner
  * (PlayArt) saying it is not all out. The faces of who bought it, 24pt and three at most, stand at the right edge
- * centred on the title and the credit line, which both truncate against them. No heart: a swipe right wishlists (WishlistSwipe, decision 15), and the long
+ * centred on the title and the credit line, which both truncate against them. No heart: a swipe right wishlists (WishlistSwipe), and the long
  * press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI
  * section 11); a press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and
  * drawing the ripple on Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one
@@ -11,8 +11,7 @@
  * with the weekday whether the row draws a day or not, and carry the row menu's items as their actions (VIS-9). The art
  * and the body sit side by side, neither inside the other's Pressable. The iOS hairline runs from the text column to
  * the screen's edge, left out where `rule` is false (above a week head) and around the row in the transport. A long
- * press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track `from` names (task
- * 0041, decision 10).
+ * press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track `from` names.
  */
 import { memo, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';

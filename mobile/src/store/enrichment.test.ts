@@ -2,9 +2,9 @@
 /**
  * The release-date worklist (ADR-0011): undated Releases a Story reaches, newest Story first; a page that answered
  * without a date waits a day, and a week once it has failed three times running. A pre-order the feed announces joins
- * it, and the date its page gives outlasts every later read of the same feed entry (task 0041, decision 1). An Upcoming
- * Release's page is due again when a day old or when the feed names more Tracks playing than it did (decision 8).
- * Pre-orders are asked before the rest (task 0067, decision 5).
+ * it, and the date its page gives outlasts every later read of the same feed entry. An Upcoming
+ * Release's page is due again when a day old or when the feed names more Tracks playing than it did.
+ * Pre-orders are asked before the rest.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

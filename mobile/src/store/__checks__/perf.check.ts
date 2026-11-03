@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * Times the store's view reads on a long history (task 0036): 10,000 synthetic Stories over 3,000 Releases, 500 Fans
+ * Times the store's view reads on a long history: 10,000 synthetic Stories over 3,000 Releases, 500 Fans
  * and 400 Pages folded over `node:sqlite`, New releases' filter on a view read afresh and a tap's on one already
- * filtered (task 0071), the domain rules alone, then a small fold, and the launch replay a PROJECTION_VERSION bump
+ * filtered, the domain rules alone, then a small fold, and the launch replay a PROJECTION_VERSION bump
  * starts, with how many times it reported progress. The store is a file, so each fold stretch opens its own connection as on the phone (test/nodeDb.ts). That each read
  * answers what the rules answer is src/store/queries.test.ts. Run: `npm run perf`.
  */

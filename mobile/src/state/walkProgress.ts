@@ -1,5 +1,5 @@
 /**
- * How far the first walk has come, read from the stored walk and the count so far (task 0040, decisions 2 and 5). Once
+ * How far the first walk has come, read from the stored walk and the count so far. Once
  * a page has landed the walk's cursor is the oldest Story date it holds. The fill is a share of Stories: the Stories
  * still to come are the rate of Stories integrated from the cursor down to the depth probe's floor, the rate at any
  * moment interpolated on a logarithmic scale between the probe's answers and the walk's own last pages at the cursor,
@@ -88,7 +88,7 @@ export function walkProgress(walk: WalkState | null, storiesSoFar: number): Walk
 
 let held: { readonly startedAt: number; readonly fraction: number } | null = null;
 
-/** The fill for the walk started at `startedAt`, never below the last one while the app runs (decision 5). */
+/** The fill for the walk started at `startedAt`, never below the last one while the app runs. */
 export function forwardOnly(startedAt: number, fraction: number): number {
   const at = held !== null && held.startedAt === startedAt ? Math.max(held.fraction, fraction) : fraction;
   held = { startedAt, fraction: at };

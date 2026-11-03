@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Holds the tree's runtime fingerprint to the builds testers have (task 0051, decision 2; task 0065, decision 1). The
+ * Holds the tree's runtime fingerprint to the builds testers have. The
  * newest build of each distribution and the fingerprint it carries come from the release tags (`scripts/ledger.mjs`);
  * an EAS Update reaches a build only when it names that fingerprint. `current` computes this tree's per platform with
  * `expo-updates`, the code EAS Build and EAS Update resolve the runtime version with. `check` prints which

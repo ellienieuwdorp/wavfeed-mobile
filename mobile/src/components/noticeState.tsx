@@ -3,7 +3,7 @@
  * (a failed wishlist press) replaces the last and leaves by itself after eight seconds, or stays until dismissed while a
  * screen reader is on. Under it, derived from the gather state, Bandcamp signing this phone out: "Sign in again" opens
  * Connect, it stays until acted on, and its dismiss lasts the session. Each line raised, and the signed-out line once per
- * sign-out, is a `notice_shown` by its code (task 0038). The provider is also where the app speaks without moving a
+ * sign-out, is a `notice_shown` by its code. The provider is also where the app speaks without moving a
  * screen reader's focus (VIS-2): each line as it appears, which Android's live region already reads (Notice.tsx), the
  * first walk ending or pausing (state/spoken.ts), and the player's note when nothing can play.
  */
@@ -23,7 +23,7 @@ import { useSharing } from '@/tally/Sharing';
 import { usePlayer } from './player/playerState';
 
 /**
- * A null `code` is a confirmation of the Fan's own swipe (Android's snackbar, task 0071 decision 15): its press already
+ * A null `code` is a confirmation of the Fan's own swipe (Android's snackbar): its press already
  * makes its Tally, so the line makes none, it leaves after four seconds and its action dismisses it.
  */
 export type NoticeLine = { code: TallyProps<'notice_shown'>['code'] | null; text: string; action?: { label: string; onPress: () => void } };

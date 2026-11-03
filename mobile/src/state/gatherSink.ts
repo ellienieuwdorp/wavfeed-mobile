@@ -1,9 +1,9 @@
 /**
- * The gather turn's sink over the phone's store (task 0036, decisions 2 and 4): responses go verbatim into raw_documents
+ * The gather turn's sink over the phone's store: responses go verbatim into raw_documents
  * (ADR-0004), the walk and the gather state live in the kv table, and every change to the gather state is published to
  * the screen. The store books the band details sweep by tier from the discography it was handed (ADR-0017): the sink
  * keeps the last band details payload per Page from `putRaw` and hands it to the store's `markSwept`. A failed fold
- * is a coded Error Report (task 0038 decision 10). The launch's replay runs here too, since it changes what the gather
+ * is a coded Error Report. The launch's replay runs here too, since it changes what the gather
  * state should fetch next (review finding ARCH-3).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -50,7 +50,7 @@ export type SinkDeps = {
   readonly db: SQLiteDatabase;
   readonly setGather: (state: GatherState) => void;
   readonly invalidate: () => void;
-  /** Hears each fold's skipped counts, for `projection_skipped` (task 0038). */
+  /** Hears each fold's skipped counts, for `projection_skipped`. */
   readonly onFold?: (skipped: SkippedCounts) => void;
 };
 
@@ -84,7 +84,7 @@ export function patchGather({ db, setGather }: SinkDeps, patch: Partial<GatherSt
 }
 
 /**
- * The launch drains pending observations or replays after a parser change (ADR-0004, task 0070). A replay, or one that failed partway, leaves `wishlist_items`
+ * The launch drains pending observations or replays after a parser change (ADR-0004). A replay, or one that failed partway, leaves `wishlist_items`
  * without the heart presses `wishlist/state.ts` writes straight into it, so the wishlist is due on the next turn
  * (ARCH-3). A failed replay is a coded Error Report and resumes at the next launch; this never throws. Answers
  * whether it replayed.
@@ -94,12 +94,12 @@ export async function replayAtLaunch(deps: SinkDeps, onProgress?: ReplayProgress
   try {
     replayed = await ensureProjectionVersion(deps.db, onProgress);
   } catch (error) {
-    // Only the durable rebuild marker means wishlist rows were emptied; a failed drain keeps them (task 0070).
+    // Only the durable rebuild marker means wishlist rows were emptied; a failed drain keeps them.
     replayed = (await readKv<number>(deps.db, PROJECTION_REBUILDING_KEY).catch(() => PROJECTION_VERSION)) !== null;
     console.warn('launch projection failed:', error instanceof Error ? error.message : String(error));
     reportCode('projection_replay_failed', error);
   }
-  // A rebuild erased local confirmations, so its next automatic read must bypass the attempt gate too (task 0070).
+  // A rebuild erased local confirmations, so its next automatic read must bypass the attempt gate too.
   if (replayed) await patchGather(deps, { wishlistFetchedAt: null, wishlistAskedAt: null }).catch(() => undefined);
   return replayed;
 }
@@ -126,7 +126,7 @@ export async function writeIdentity(db: SQLiteDatabase, identity: Identity, nowM
   if ((await readKv<number>(db, DEVICE_ADDED_KEY)) === null) await writeKv(db, DEVICE_ADDED_KEY, nowMs);
 }
 
-/** The stored walk; one stored before task 0040 lacks the depth probe's fields and reads as not probed, with no floor. */
+/** The stored walk; one stored before the depth probe lacks its fields and reads as not probed, with no floor. */
 export async function readStoredWalk(db: SQLiteDatabase): Promise<WalkState | null> {
   const stored = await readKv<Partial<WalkState>>(db, WALK_KEY);
   return stored === null ? null : ({ probed: false, floor: null, probeOldest: [], ...stored } as WalkState);
@@ -158,7 +158,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
     async patchGatherState(patch) {
       if (patch.identity) {
         const held = await readStoredIdentity(db);
-        // This store's feed belongs to the first Fan it held (task 0036, the refusal line); another Fan gathers nothing here.
+        // This store's feed belongs to the first Fan it held (the refusal line); another Fan gathers nothing here.
         if (held !== null && held.fanId !== patch.identity.fanId) {
           await patchGather(deps, { pausedReason: 'logged_out' });
           throw new ForeignFanError();

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The outbox (task 0038, ADR-0021) on the real migrations over `node:sqlite`: nothing queued without a yes, the yes
+ * The outbox (ADR-0021) on the real migrations over `node:sqlite`: nothing queued without a yes, the yes
  * and the Install id gone with opt-out and with "Remove everything gathered", the caps and their drop counts, and a
  * send cycle against a fake ingest Worker that stores each batch id once.
  */
@@ -361,7 +361,7 @@ describe('verdicts and backoff', () => {
 });
 
 describe('the Demo', () => {
-  test('queues nothing while the store holds the Demo Fan, even with a yes held (task 0044 decision 1)', async () => {
+  test('queues nothing while the store holds the Demo Fan, even with a yes held', async () => {
     await turnSharingOn(db, INSTALL, NOW);
     await writeKv(db, IDENTITY_KEY, { fanId: DEMO_FAN_ID, username: '', name: null, avatarUrl: null });
     assert.equal(await enqueueTally(db, OPENED, at(NOW)), false);

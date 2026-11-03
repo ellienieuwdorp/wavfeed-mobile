@@ -1,5 +1,5 @@
 /**
- * The last-played Release kept across launches (task 0071, decision 3 as amended 2026-10-15, Open 13): the Release,
+ * The last-played Release kept across launches: the Release,
  * the Track and the position within it, in the `kv` table under the Fan who played it, versioned so a change of shape
  * reads as nothing saved. A launch restores it paused, its tracklist read back off the stored release page, so the
  * iOS bar's accessory is there from the first frame; nothing is fetched and no audio is touched until the Fan presses

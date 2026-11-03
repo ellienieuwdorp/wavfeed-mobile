@@ -1,5 +1,5 @@
 /**
- * The usage ask (task 0044 decision 3, task 0038 decision 1, ADR-0021): Ellie asking in her own voice, what a yes sends
+ * The usage ask (ADR-0021): Ellie asking in her own voice, what a yes sends
  * and that nothing goes before it, what is never sent, a link to the privacy page for the rest, then "Yes, happy to help"
  * and "No thanks" as two buttons of one kind and size, so neither answer leans on the other. Anything but the yes, a swipe
  * down or back included, leaves sharing off. A form sheet sized to its content on both platforms, capped on Android

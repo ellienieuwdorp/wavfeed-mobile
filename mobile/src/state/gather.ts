@@ -1,13 +1,13 @@
 /**
- * The gather runner the app state calls (task 0036, decision 4): one chain of turns at a time over the store's sink, a
+ * The gather runner the app state calls: one chain of turns at a time over the store's sink, a
  * minute's budget when the app opens or the timer fires and two when the person pulls to refresh, and the schedule's
  * answer to whether a turn is due: always while the first walk is pending or a cursor is held, else once the last turn
  * is fifteen minutes old. While the first walk is pending, turns chain back to back with no count cap for as long as
- * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was (task 0040).
+ * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was.
  * A phone signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot
  * turn the person's own sign-out into Bandcamp's. Each chain that ran a turn ends in its gather Tallies, and each fold
- * that skipped something in `projection_skipped` (task 0038). A store holding the Demo runs no
- * turn either (task 0043, decision 7).
+ * that skipped something in `projection_skipped`. A store holding the Demo runs no
+ * turn either.
  */
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';
@@ -44,7 +44,7 @@ export const STALL_TURNS = 3;
 /**
  * A walk turn that failed unanswered or on the store retries twice, in case the first request after a wake fails
  * (unconfirmed). One that Bandcamp failed with a status does not: a 403, 429 or 5xx asks for fewer requests (ADR-0017).
- * A turn that moves the walk gives the retries back (task 0040).
+ * A turn that moves the walk gives the retries back.
  */
 export const FAILED_RETRIES = 2;
 export const RETRY_AFTER_MS = 10_000;
@@ -82,7 +82,7 @@ async function runChain(reason: GatherReason, app: RunnerDeps): Promise<void> {
   const openingsAtStart = bandDetailsBreaker.openings;
   const run = await runTurns(reason, app, sink);
   if (run === null) return;
-  // One `gather_finished` per chain, after `sync_run_finished` when this chain ended the first walk (task 0038).
+  // One `gather_finished` per chain, after `sync_run_finished` when this chain ended the first walk.
   const endedAt = Date.now();
   const after = await sink.readGatherState();
   const counts = await readChainCounts(app.db, new Date(startedAt));
@@ -109,14 +109,14 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
   let stalled = 0;
   const ran = (): ChainRun | null => (last === null ? null : { last, turns, retries: retriesUsed });
   for (let turn = 0; ; turn += 1) {
-    // iOS freezes JS in the background and Android gathers in the foreground only (task 0036, decision 4), so a chain
-    // ends when the app leaves the foreground and the schedule's 'open' wake resumes it (task 0040). A sign-out from
+    // iOS freezes JS in the background and Android gathers in the foreground only, so a chain
+    // ends when the app leaves the foreground and the schedule's 'open' wake resumes it. A sign-out from
     // Settings mid-chain ends it too, before the next probe can turn it into Bandcamp's.
     if (turn > 0 && (NativeAppState.currentState !== 'active' || (await holdsNoTurn(app)))) return ran();
     const before = await walkSpot(app.db);
     running = runGatherTurn(app.session, sink, {
       now: Date.now, reason, budgetMs: BUDGET_MS[reason],
-      // A manual pull retries due lists once; continuing its feed walk retains the attempt gate (task 0070).
+      // A manual pull retries due lists once; continuing its feed walk retains the attempt gate.
       bypassListAttemptGate: reason === 'refresh' && turn === 0,
     }).finally(() => {
       running = null;
@@ -127,7 +127,7 @@ async function runTurns(reason: GatherReason, app: RunnerDeps, sink: GatherSink)
     if (__DEV__) devLog('gather turn:', summary.reason, summary.outcome, 'status', summary.status, 'walk pending', summary.walkPending);
     app.invalidate();
     // A chain with no count cap ends once turns stop moving the walk; a turn that moved it resets the stall run and
-    // gives the retries back (task 0040).
+    // gives the retries back.
     if ((await walkSpot(app.db)) === before) stalled += 1;
     else {
       stalled = 0;

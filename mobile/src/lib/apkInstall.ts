@@ -1,9 +1,9 @@
 /**
- * The website APK installs the next one (task 0065, decision 6): it downloads the APK into the cache with
+ * The website APK installs the next one: it downloads the APK into the cache with
  * expo-file-system, checks its MD5 against store-builds.json, and hands a content URI to Android's package installer
  * through expo-intent-launcher, which asks the tester to confirm and, the first time, to allow wavfeed to install apps.
  * The permission comes from `modules/apk-install-permission` in APK builds only. Its native bridge reads the installed
- * manifest (task 0069); a binary without that declaration, the bridge or the intent launcher opens the browser.
+ * manifest; a binary without that declaration, the bridge or the intent launcher opens the browser.
  */
 import { requireOptionalNativeModule } from 'expo';
 import { cacheDirectory, createDownloadResumable, deleteAsync, getContentUriAsync, getInfoAsync } from 'expo-file-system/legacy';

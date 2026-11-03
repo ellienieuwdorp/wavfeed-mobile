@@ -1,5 +1,5 @@
 /**
- * When the sign-in sheet asks who is signed in (task 0036 decision 1, finding FLOW-5): once for each top-level page of
+ * When the sign-in sheet asks who is signed in (finding FLOW-5): once for each top-level page of
  * Bandcamp's that settles anywhere but /login and then holds still for `PROBE_SETTLE_MS`, so a redirect chain asks once
  * at its end. A page between the form and the signed-in landing, such as a password reset or a check by email, asks
  * and so does the landing after it; a second settle of the same page with no load between, as a title change sends, does not.

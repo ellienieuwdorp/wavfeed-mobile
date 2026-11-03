@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** The row swipe's rules (task 0071, decision 15): which press it makes, where the row goes, and what Undo sends. */
+/** The row swipe's rules: which press it makes, where the row goes, and what Undo sends. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 

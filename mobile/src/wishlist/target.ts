@@ -3,7 +3,7 @@
  * the Release itself, `a` and the album's id or `t` and a lone Track's id, and takes no Track, so the player sheet's art
  * heart never wishlists the Track playing in an album; `trackHeart` is one Track of a Release, `t` and that Track's id,
  * its write still naming the Release's Page, as each tracklist row's heart is. An album's heart names "the album", so a
- * title Track's row and the art read apart (task 0071, decision 4 as amended 2026-10-15).
+ * title Track's row and the art read apart.
  */
 import { storeItemType, type PlayableRelease } from '@/player/transport';
 

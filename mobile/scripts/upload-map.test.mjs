@@ -1,5 +1,5 @@
 /**
- * The map upload (task 0038 decision 16): the key the board reads, a SigV4 signature checked by a second
+ * The map upload: the key the board reads, a SigV4 signature checked by a second
  * implementation over node:crypto with a fixed clock, and the EAS hook finding each platform's map and build number.
  */
 import assert from 'node:assert/strict';

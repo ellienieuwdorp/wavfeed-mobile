@@ -1,9 +1,9 @@
 /**
- * The New releases filter over the view the screen draws (task 0071, decisions 8 and 21): tags combine as any of them,
+ * The New releases filter over the view the screen draws: tags combine as any of them,
  * and the tags and the people minimum combine as both; a Release passes the people filter when at least that many
  * Fans held in `fans` bought it, its `buyers`. Each Release is judged once by its key, so the shelf, a Drop and its own
  * row agree, and a week left empty goes, so no week head stands over nothing. The counts are of Releases, not rows:
- * tag counts after the people filter (Open 3), what each people minimum alone keeps, everything chosen together, and
+ * tag counts after the people filter, what each people minimum alone keeps, everything chosen together, and
  * the whole view. What does not hang on the filter is worked out once per view, and the last few answers are held, so
  * the sheet and the list behind it share one pass per tap.
  */
@@ -97,7 +97,7 @@ function indexOf(view: NewReleasesView): ViewIndex {
   return index;
 }
 
-/** Every tag in the view, counted over the Releases the people setting keeps (Open 3), highest count first. */
+/** Every tag in the view, counted over the Releases the people setting keeps, highest count first. */
 function tagCounts(index: ViewIndex, people: (release: Judged) => boolean, key: string): readonly TagCount[] {
   const held = index.tagsByPeople.get(key);
   if (held !== undefined) return held;
@@ -152,7 +152,7 @@ export function filterNewReleases(view: NewReleasesView, filter: ReleaseFilter):
 }
 
 /**
- * The tags the Filters sheet lists (decision 7): every tag whose name holds the search, else the first `first` by
+ * The tags the Filters sheet lists: every tag whose name holds the search, else the first `first` by
  * count with any chosen tag kept in view, so a chosen tag can always be taken off; a chosen tag the view no longer
  * holds follows at 0.
  */

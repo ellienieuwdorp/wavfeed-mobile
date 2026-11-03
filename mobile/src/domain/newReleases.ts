@@ -1,6 +1,6 @@
 /**
  * The New releases view's two halves: the Upcoming band (not out yet) and the released weeks, which add a just-out Release no Story reached,
- * the Releases followed Fans bought (task 0071, decision 20), and the Drops of Upcoming Releases on their days (task 0041, decision 10).
+ * the Releases followed Fans bought, and the Drops of Upcoming Releases on their days.
  */
 import type { ApiFeedElement, ApiFeedItem, ApiUpcomingRelease } from './apiTypes';
 import { assembleFeed, buildFeedItem, buildSignal, groupByItem, hasFan, itemKey } from './assemble';
@@ -15,14 +15,14 @@ export type DatedRelease = {
   readonly release: ApiFeedItem | ApiUpcomingRelease;
 };
 
-/** A Drop as the store reads it: its Release, how many of its Tracks play of how many, and its GMT day (task 0041, decision 6). */
+/** A Drop as the store reads it: its Release, how many of its Tracks play of how many, and its GMT day. */
 type Drop = {
   readonly release: ApiUpcomingRelease;
   /** `2026-10-06`. */
   readonly day: string;
   readonly tracksOut: number;
   readonly numTracks: number | null;
-  /** The last Track it let out, which its row plays from (decision 10); null until a release page names its Tracks. */
+  /** The last Track it let out, which its row plays from; null until a release page names its Tracks. */
   readonly newestTrackId: string | null;
 };
 
@@ -85,7 +85,7 @@ export function isOutYet(releaseDate: string, now: Date): boolean {
   return day <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 }
 
-/** A Feed Item not out yet: dated after today, or a pre-order no page has dated (task 0041, decision 1). */
+/** A Feed Item not out yet: dated after today, or a pre-order no page has dated. */
 export function notOutYet(item: Pick<ApiFeedItem, 'releaseDate' | 'isPreorder'>, now: Date): boolean {
   return item.releaseDate === null ? item.isPreorder : !isOutYet(item.releaseDate, now);
 }
@@ -97,7 +97,7 @@ export function startOfWeek(value: Date): Date {
 
 /**
  * Where a Feed Item sits in the released weeks: on its release day when the feed stated it or the Release was held
- * before it, else on its anchor (task 0041, decision 3). A reissue whose page states a day years before its Story
+ * before it, else on its anchor. A reissue whose page states a day years before its Story
  * keeps the Story's place.
  */
 function placedOn(element: ApiFeedItem): Date {
@@ -105,10 +105,8 @@ function placedOn(element: ApiFeedItem): Date {
 }
 
 /**
- * A Feed Item dated ahead of its release day belongs to the band only, and so does a pre-order no page has dated yet
- * (task 0041, decision 1). A just-out Release the feed already holds is not drawn twice, nor is a bought one, which sits
- * on its release day as a just-out one does; a bought Release with no release day stays out (task 0071, decision 20 and
- * Open 9). A Drop sits on its own day beside them, unless the Release's own row is on that day.
+ * A Feed Item dated ahead of its release day belongs to the band only, and so does a pre-order no page has dated yet. A just-out Release the feed already holds is not drawn twice, nor is a bought one, which sits
+ * on its release day as a just-out one does; a bought Release with no release day stays out. A Drop sits on its own day beside them, unless the Release's own row is on that day.
  */
 function buildNewReleases(
   elements: readonly ApiFeedElement[],
@@ -148,7 +146,7 @@ function buildNewReleases(
     const release = drop.release;
     const key = `${release.itemType}:${release.itemId}`;
     const date = releaseDay(drop.day);
-    // On its release day the Release's own row stands for it; earlier Drops stay where they happened (decision 10).
+    // On its release day the Release's own row stands for it; earlier Drops stay where they happened.
     if (drawn.get(key) === date.getTime()) continue;
     dated.push({
       kind: 'drop',
@@ -179,7 +177,7 @@ function buildNewReleases(
   return { upcoming, weeks };
 }
 
-/** A Feed Item with the buyers, wishlisters and reviews all its Stories give, its anchor and placement kept (task 0071, decision 19). */
+/** A Feed Item with the buyers, wishlisters and reviews all its Stories give, its anchor and placement kept. */
 function withSignal(element: ApiFeedElement, stories: ReadonlyMap<string, readonly FeedStoryRow[]>): ApiFeedElement {
   if (element.kind !== 'item') return element;
   const signal = buildSignal(stories.get(`${element.itemType}:${element.itemId}`) ?? []);
@@ -196,7 +194,7 @@ function boughtItems(byItem: ReadonlyMap<string, readonly FeedStoryRow[]>): read
 }
 
 export type NewReleasesInput = {
-  /** Every Story of each Release the view could draw, early Track Stories already on their albums (task 0067, decision 3). */
+  /** Every Story of each Release the view could draw, early Track Stories already on their albums. */
   readonly stories: readonly FeedStoryRow[];
   readonly upcoming: readonly UpcomingReleaseRow[];
   readonly drops: readonly DropRow[];
@@ -205,8 +203,8 @@ export type NewReleasesInput = {
 
 /**
  * The whole view from flat rows: the new-release Feed Items are assembled and placed by their new-release Stories
- * alone, then carry the signal of every Story of theirs (task 0071, decision 19); each Release a named Fan bought joins
- * the weeks (decision 20).
+ * alone, then carry the signal of every Story of theirs; each Release a named Fan bought joins
+ * the weeks.
  */
 export function newReleasesOf(input: NewReleasesInput): NewReleasesView {
   const { elements } = assembleFeed(input.stories, { types: ['new_release'], sort: 'anchor' });

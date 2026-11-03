@@ -1,8 +1,8 @@
 /**
  * The parser for a `release_page` Raw Document: the `data-tralbum` blob in, the release date, pre-order state, and how
- * many Tracks play of how many there are out (task 0041, decision 4); with the page's publish and edit moments and, on
- * a Track page, its album, which date a Drop (decision 7) and open an Upcoming album (task 0067, decision 1); and
- * `tralbum.artist`, the credit a Release no feed entry credited takes (task 0071, decision 18).
+ * many Tracks play of how many there are out; with the page's publish and edit moments and, on
+ * a Track page, its album, which date a Drop and open an Upcoming album; and
+ * `tralbum.artist`, the credit a Release no feed entry credited takes.
  */
 import { readTralbumTracks } from './tralbumTracks';
 import type { ItemType, ParsedReleasePage, ParsedTrackAlbum } from './types';
@@ -22,7 +22,7 @@ function readIdentity(
   return itemType === undefined || itemId === undefined ? undefined : { itemType, itemId };
 }
 
-/** A Track plays when the page hands over a file for it; `streaming` says 1 on Tracks not out yet (task 0041, decision 4). */
+/** A Track plays when the page hands over a file for it; `streaming` says 1 on Tracks not out yet. */
 function readTrackCounts(tralbum: Record<string, unknown>): { readonly streamable: number; readonly total: number } | undefined {
   if (!Array.isArray(tralbum.trackinfo)) return undefined;
   const tracks = readTralbumTracks(tralbum);

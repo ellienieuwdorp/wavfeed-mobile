@@ -1,5 +1,5 @@
 /**
- * Keeps the last-played Release for the next launch (task 0071, decision 3 and Open 13, answered 2026-10-15): restores
+ * Keeps the last-played Release for the next launch (answered 2026-10-15): restores
  * it into the transport before the chrome first draws, saves it on a start, a pause and a Track change, every 10 s
  * while playing and on leaving the foreground, and empties the transport when the store's Fan changes under it, as a
  * sign-in does after the Demo. Saves are kept under the Fan, so neither the Demo nor an account restores the other's.

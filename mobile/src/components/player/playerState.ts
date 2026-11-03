@@ -1,9 +1,9 @@
 /**
- * The player as the chrome reads it (DESIGN-UI section 10, ADR-0015, task 0036), split so a reader re-renders only on
+ * The player as the chrome reads it (DESIGN-UI section 10, ADR-0015), split so a reader re-renders only on
  * what it draws: stable controls, the Release in the transport, the Track and its state, and the position ticks. The
- * transport's Tallies go to the sharing provider's `track`, naming the screen a play was pressed on (task 0038). The
+ * transport's Tallies go to the sharing provider's `track`, naming the screen a play was pressed on. The
  * tree under it draws once the last-played Release is restored, so the iOS bar's accessory holds it from the first
- * frame (task 0071, Open 13; `useResume`).
+ * frame (`useResume`).
  */
 import { usePathname } from 'expo-router';
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';

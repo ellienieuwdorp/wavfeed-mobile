@@ -20,7 +20,7 @@ export function readId(source: Record<string, unknown>, key: string): number | u
   return asId(source[key]);
 }
 
-/** A collection count can certify completion only as a nonnegative whole number (task 0068). */
+/** A collection count can certify completion only as a nonnegative whole number. */
 export function asCount(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }

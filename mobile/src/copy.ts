@@ -1,6 +1,6 @@
 /**
  * Every user-visible string in the phone app. DESIGN-UI section 8 governs them: middots between facts, no em dashes,
- * "pages you follow", and no machine nouns; gather is the verb (task 0036, decision 3).
+ * "pages you follow", and no machine nouns; gather is the verb.
  */
 import { Platform } from 'react-native';
 
@@ -115,8 +115,7 @@ export function dayLabel(value: string | Date, now: Date): string {
 }
 
 /**
- * "1 of 4 tracks": the Tracks of an Upcoming Release that play, once one does and the total is known (task 0041,
- * decision 9); a total under the count is not a known one. Counted by the total, so "1 of 1 track". A screen reader
+ * "1 of 4 tracks": the Tracks of an Upcoming Release that play, once one does and the total is known; a total under the count is not a known one. Counted by the total, so "1 of 1 track". A screen reader
  * hears it where a row, a card or the Feed's art draws tracksOutBadge.
  */
 export function tracksOutPhrase(out: number | null, total: number | null): string | null {
@@ -124,17 +123,17 @@ export function tracksOutPhrase(out: number | null, total: number | null): strin
   return `${out} of ${total} ${total === 1 ? 'track' : 'tracks'}`;
 }
 
-/** "1/4", the same count as the badge on the art's bottom-left corner (PlayArt `badge`; task 0071, decision 12 as amended 2026-10-14). */
+/** "1/4", the same count as the badge on the art's bottom-left corner (PlayArt `badge`). */
 export function tracksOutBadge(out: number | null, total: number | null): string | null {
   return tracksOutPhrase(out, total) === null ? null : `${out}/${total}`;
 }
 
 /**
- * "13 Oct", "Today" on the day: the day an Upcoming card or an Upcoming list row draws (task 0071, decision 14, amended
+ * "13 Oct", "Today" on the day: the day an Upcoming card or an Upcoming list row draws (amended
  * by the author 2026-10-14: no weekday on a day not out yet). The month always shows, unlike in dayLabel, as it does in
  * outOnPhrase. `weekday` puts the day's name back, "Tue 13 Oct", for what a screen reader hears. A day in another year
  * names it, "13 Jan 2027", save on a card's art (`year: false`), where it would run under the faces; the label still
- * says it (task 0071, decision 14 as amended 2026-10-16).
+ * says it.
  */
 export function onDayPhrase(value: string | Date, now: Date, { weekday = false, year = true }: { weekday?: boolean; year?: boolean } = {}): string {
   if (isSameDay(value, now)) return 'Today';
@@ -143,9 +142,8 @@ export function onDayPhrase(value: string | Date, now: Date, { weekday = false, 
 }
 
 /**
- * "out Tue 13 Oct" (task 0041, decision 10), "out today" on the day: the day a Drop's row, an Upcoming card and an
- * Upcoming list row say to a screen reader. No row draws it since the author's request of 2026-10-15 (task 0071,
- * decision 10). The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let out in,
+ * "out Tue 13 Oct", "out today" on the day: the day a Drop's row, an Upcoming card and an
+ * Upcoming list row say to a screen reader. No row draws it since the author's request of 2026-10-15. The month always shows, unlike in dayLabel, since a Drop row sits under the week it was let out in,
  * often another month's (finding VIS-6).
  */
 export function outOnPhrase(value: string | Date, now: Date): string {
@@ -161,7 +159,7 @@ export function sheetSubtitle(artist: string, releaseTitle: string, trackTitle: 
   return same ? artist : artist + sep + releaseTitle;
 }
 
-/** "Jay Mitta · Nyege Nyege Tapes" (task 0071, decision 11): one line, so the name after the separator truncates first. */
+/** "Jay Mitta · Nyege Nyege Tapes": one line, so the name after the separator truncates first. */
 export function creditText(line: CreditLine): string {
   return line.extra === null ? line.artist : line.artist + sep + line.extra;
 }
@@ -238,7 +236,7 @@ export function signalSentence(item: SignalSource, now: Date): string {
   return joinMiddot(parts);
 }
 
-/** "bought by dj_okonkwo and 1 other": what a row's or a card's faces say to a screen reader (task 0071, decision 12). */
+/** "bought by dj_okonkwo and 1 other": what a row's or a card's faces say to a screen reader. */
 export function boughtByPhrase(fans: readonly ApiFanRef[]): string | null {
   const buyers = describeFans(fans);
   return buyers === null ? null : `bought by ${buyers}`;
@@ -321,15 +319,14 @@ export function soFar(count: number): string {
   return `${new Intl.NumberFormat().format(count)} so far`;
 }
 
-/** "back to March 2021": how far the first walk has reached, a unix-seconds Story date in local time as ADR-0011 reads dates (task 0040). */
+/** "back to March 2021": how far the first walk has reached, a unix-seconds Story date in local time as ADR-0011 reads dates. */
 export function backTo(unixSeconds: number): string {
   const date = new Date(unixSeconds * 1000);
   return `back to ${LONG_MONTHS[date.getMonth()] ?? ''} ${date.getFullYear()}`;
 }
 
 /**
- * "2,960 so far, back to June 2026": the catch-up as the one line under each large title while something plays (task
- * 0040, decision 6), its first letter raised as that line's other forms start.
+ * "2,960 so far, back to June 2026": the catch-up as the one line under each large title while something plays, its first letter raised as that line's other forms start.
  */
 export function catchUpHeader(primary: string, secondary: string | null): string {
   const line = secondary === null ? primary : `${primary}, ${secondary}`;
@@ -344,14 +341,14 @@ const PHASES: Readonly<Record<Exclude<GatherPhase, 'idle'>, string>> = {
   dating: 'adding release dates',
 };
 
-// New releases' filter (task 0071, decisions 6 and 9).
+// New releases' filter.
 
 /** "310 releases", "1 release": a count of Releases, in the header and the sheet's title. */
 export function releasesCount(n: number): string {
   return `${new Intl.NumberFormat('en-GB').format(n)} ${n === 1 ? 'release' : 'releases'}`;
 }
 
-/** "310 releases · updated 12 min ago": New releases' line under its title with nothing chosen (decision 6). */
+/** "310 releases · updated 12 min ago": New releases' line under its title with nothing chosen. */
 export function countedHeader(n: number, note: string | null): string {
   return joinMiddot([releasesCount(n), note === null ? null : note.charAt(0).toLowerCase() + note.slice(1)]);
 }
@@ -362,12 +359,12 @@ function orList(names: readonly string[]): string {
   return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
 }
 
-/** "Filtered by 2+ you follow · ambient, dub" (decision 6); `min` is null with the people switch off. */
+/** "Filtered by 2+ you follow · ambient, dub"; `min` is null with the people switch off. */
 function filteredBy(min: number | null, tags: readonly string[]): string {
   return `Filtered by ${joinMiddot([min === null ? null : `${min}+ you follow`, tags.length === 0 ? null : tags.join(', ')])}`;
 }
 
-/** "Nothing tagged idm or piano that 5 people you follow bought." (decision 9), naming only what is chosen. */
+/** "Nothing tagged idm or piano that 5 people you follow bought.", naming only what is chosen. */
 function nothingNamed(min: number | null, tags: readonly string[]): string {
   const who = min === null ? null : min === 1 ? 'that someone you follow bought' : `that ${min} people you follow bought`;
   const tagged = tags.length === 0 ? null : `tagged ${orList(tags)}`;
@@ -377,7 +374,7 @@ function nothingNamed(min: number | null, tags: readonly string[]): string {
 /** One address for feedback and erasure requests, the privacy page's; `hello@wavfeed.com` replaces it once that exists. */
 export const FEEDBACK_ADDRESS = 'ellie@nieuwdorp.me';
 export const PRIVACY_URL = 'https://wavfeed.com/privacy.html';
-/** The privacy page's section on counts, where the ask's link lands: what is sent and what is never sent (task 0044 decision 3). */
+/** The privacy page's section on counts, where the ask's link lands: what is sent and what is never sent. */
 export const PRIVACY_COUNTS_URL = `${PRIVACY_URL}#counts`;
 
 /** What a feedback mail carries under the tester's words: the build, the OS and, while sharing is on, the code. */
@@ -395,7 +392,7 @@ export const copy = {
     settingUp: 'getting set up',
     gathering: 'gathering your history',
     label: 'Catching up on your Bandcamp history',
-    /** Under each large title while the first walk runs, in the slot "Updated 12 min ago" takes after it (task 0040). */
+    /** Under each large title while the first walk runs, in the slot "Updated 12 min ago" takes after it. */
     keepOpen: 'Keep wavfeed open while it catches up',
     /** Spoken to a screen reader once, when the first walk ends or a sign-out stops it (VIS-2). */
     finished: 'Caught up on your Bandcamp history',
@@ -416,11 +413,11 @@ export const copy = {
     quoteOn: ' on ',
     quoted: quotedReview,
   },
-  /** The Upcoming shelf's head and the title of its full list (DESIGN-UI section 3, task 0037). */
+  /** The Upcoming shelf's head and the title of its full list (DESIGN-UI section 3). */
   upcoming: {
     title: UPCOMING_HEAD,
   },
-  /** `facts` from spokenFacts, as an Upcoming card or a Drop row adds its count and release day (task 0041). */
+  /** `facts` from spokenFacts, as an Upcoming card or a Drop row adds its count and release day. */
   play: (title: string, facts = '') => (facts === '' ? `Play ${title}` : `Play ${title}, ${facts}`),
   pause: (title: string, facts = '') => (facts === '' ? `Pause ${title}` : `Pause ${title}, ${facts}`),
   /** A row's title as VoiceOver hears the iOS row, before its facts (VIS-9). */
@@ -441,7 +438,7 @@ export const copy = {
     share: 'Share',
     cancel: 'Cancel',
   },
-  /** The row's wishlist swipe (task 0071, decision 15): the panel's word past the commit point, and Android's snackbar. */
+  /** The row's wishlist swipe: the panel's word past the commit point, and Android's snackbar. */
   swipe: {
     add: 'Wishlist',
     remove: 'Remove',
@@ -450,7 +447,7 @@ export const copy = {
     undo: 'Undo',
   },
   /**
-   * New releases' filter (task 0071, decisions 5 to 9 as amended 2026-10-14, and Open 4): the floating button, the
+   * New releases' filter: the floating button, the
    * "Filtered by" pill, the sheet, nothing matching.
    */
   filter: {
@@ -518,10 +515,10 @@ export const copy = {
     cancel: 'Cancel',
     usageHead: 'Usage',
     share: 'Help improve wavfeed',
-    /** Two sentences at most under the switch (task 0044 decision 5); where it goes and for how long is on the privacy page. */
+    /** Two sentences at most under the switch; where it goes and for how long is on the privacy page. */
     usageFoot:
       'Sends me basic analytics of what you use in the app and a short report when something breaks. It never sends your Bandcamp sign-in, name or what you listen to.',
-    /** After the foot while sharing is on, split around the code, which draws bold beside its copy button (task 0044 decision 5). */
+    /** After the foot while sharing is on, split around the code, which draws bold beside its copy button. */
     yourCode: ['Your code is ', ', please add it if you write to me.'] as const,
     /** In place of `yourCode` just after an off, until Settings is left, so the tester can ask for erasure. */
     turnedOff: ['Turned off. Your code was ', "; send it to me and I'll delete what was sent."] as const,
@@ -536,7 +533,7 @@ export const copy = {
       `\n\n${joinMiddot([versionLine(facts.version, facts.build), facts.os, facts.code === null ? null : `code ${facts.code}`])}`,
     version: versionLine,
   },
-  /** The one-time ask after a sign-in, in Ellie's own voice (task 0044 decisions 2 and 3); nothing is sent before its yes, and the no is never sent. */
+  /** The one-time ask after a sign-in, in Ellie's own voice; nothing is sent before its yes, and the no is never sent. */
   usageAsk: {
     title: 'Will you help me make wavfeed better?',
     body: [
@@ -548,7 +545,7 @@ export const copy = {
     yes: 'Yes, happy to help',
     no: 'No thanks',
   },
-  /** The first screen, the whole app until a sign-in or the Demo (task 0044 decision 4). */
+  /** The first screen, the whole app until a sign-in or the Demo. */
   welcome: {
     mark: 'wavfeed',
     title: 'Your Bandcamp feed, as a list of releases',
@@ -569,7 +566,7 @@ export const copy = {
     pageFailed: "Bandcamp's sign-in did not load.",
     tryAgain: 'Try again',
   },
-  /** The Demo's own lines (task 0043): under each large title, and Settings' status and foot while the store holds it. */
+  /** The Demo's own lines: under each large title, and Settings' status and foot while the store holds it. */
   demo: {
     header: 'A sample feed of real releases',
     status: 'Looking at a sample',
@@ -581,7 +578,7 @@ export const copy = {
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
   },
-  /** The store build banner (task 0064, docs/design/2026-10-08-update-banner): build numbers, never "version". */
+  /** The store build banner (docs/design/2026-10-08-update-banner): build numbers, never "version". */
   update: {
     title: `A newer wavfeed is on ${store}`,
     line: (mine: number, newest: number) => `${ThisDevice} has build ${mine}. Build ${newest} only arrives through ${store}.`,
@@ -589,7 +586,7 @@ export const copy = {
     openHint: `Opens ${store}`,
     openFailed: `${store} did not open. Find wavfeed in the ${ios ? 'TestFlight' : 'Play Store'} app to update.`,
     hide: 'Hide until the next build',
-    /** The website APK's banner, which installs the next APK itself (task 0065, decision 6). */
+    /** The website APK's banner, which installs the next APK itself. */
     apkTitle: 'A newer wavfeed is ready to install',
     apkLine: (mine: number, newest: number) => `This phone has build ${mine}. Build ${newest} downloads from wavfeed.com and installs over this one, keeping everything gathered.`,
     install: (newest: number) => `Install build ${newest}`,
@@ -608,8 +605,8 @@ export const copy = {
     done: (percent: number) => `${percent}% done`,
   },
   /**
-   * What shows in place of what failed (task 0038 decision 10): a tab's screen that could not draw, the whole app when
-   * the root could not, and the store that would not open, which sends nothing by itself (decision 11). Its body and
+   * What shows in place of what failed: a tab's screen that could not draw, the whole app when
+   * the root could not, and the store that would not open, which sends nothing by itself. Its body and
    * the start-over lines are proposed copy (review REL-4, DESIGN-UI section 8).
    */
   failed: {
@@ -659,7 +656,7 @@ export const copy = {
     next: 'Next track',
     trackTitle: (n: number, title: string) => `${n}. ${title}`,
     openOnBandcamp: (title: string) => `Open ${title} on Bandcamp`,
-    /** The iOS bar's accessory before anything has played (task 0071, Open 13), Apple Music's "Not Playing". */
+    /** The iOS bar's accessory before anything has played, Apple Music's "Not Playing". */
     nothingPlaying: 'Nothing playing',
   },
 } as const;

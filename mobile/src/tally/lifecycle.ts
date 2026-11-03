@@ -1,5 +1,5 @@
 /**
- * `app_opened` and the foreground marker behind `app_ended_unexpectedly` (task 0038, the plan's catalogue). `lifeStep`
+ * `app_opened` and the foreground marker behind `app_ended_unexpectedly` (the plan's catalogue). `lifeStep`
  * folds each AppState phase into a process-wide `Life`: the first `active` an Install sees while sharing is on is its
  * `cold` open, a return from `background` is `warm`, and `inactive` opens nothing. The marker is set at `active` and
  * cleared at `inactive` and `background`, because a swipe away in the iOS app switcher passes through `inactive` and may

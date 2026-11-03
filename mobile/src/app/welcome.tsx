@@ -1,7 +1,7 @@
 /**
- * The first screen (task 0044 decision 4): the whole screen while the store holds no Fan, since the root stack guards
+ * The first screen: the whole screen while the store holds no Fan, since the root stack guards
  * every other route behind one (see `_layout.tsx`). The mark, one line on what wavfeed is, Sign in to Bandcamp, which
- * opens Bandcamp's own page as the Connect sheet, "Look around first", which loads the Demo (task 0043 decision 2), and
+ * opens Bandcamp's own page as the Connect sheet, "Look around first", which loads the Demo, and
  * the one line that the sign-in stays on this phone, with a line over it when the Demo did not load. There is no way
  * past it but those two: either one writes a Fan, the guard lets the tabs in, and this screen goes.
  */

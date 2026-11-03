@@ -3,7 +3,7 @@
  * The de-noise rules the feed is judged by (ADR-0005), with anchor dates (ADR-0011): Stories fold into one Feed Item
  * per Release, a Fan's run of Stories collapses into a Burst, the type filter runs before both, and the chips count the
  * collection. The cases that matter are the boundaries: a chain exactly long enough, a gap exactly wide enough, a
- * Release that a spree touched but does not own (task 0036).
+ * Release that a spree touched but does not own.
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';

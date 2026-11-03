@@ -6,7 +6,7 @@
  * its exchange travels (ADR-0016 amendment 2026-10-02): every heart and row menu for that item draws the intent over
  * the set, so a press shows everywhere at once. Each heart selects its own key's answer, so a change re-renders only
  * the hearts it moves. Each database owns a lifetime, retired before its contents are removed; late reads and presses
- * cannot publish into a replacement lifetime, including a Demo conversion that keeps the database handle (task 0068).
+ * cannot publish into a replacement lifetime, including a Demo conversion that keeps the database handle.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -15,10 +15,10 @@ import { readWishlistState } from '@/store/queries';
 
 type Held = { readonly version: number; readonly keys: ReadonlySet<string> };
 
-/** Captured by an exchange before it awaits, so a replacement on the same database cannot revive it (task 0068). */
+/** Captured by an exchange before it awaits, so a replacement on the same database cannot revive it. */
 export type WishlistLifetime = {
   readonly active: () => boolean;
-  /** Admits local persistence while active, tracks its drain, and returns false if retired before settlement (task 0068). */
+  /** Admits local persistence while active, tracks its drain, and returns false if retired before settlement. */
   readonly runLocal: (work: () => Promise<unknown>) => Promise<boolean>;
 };
 
@@ -75,7 +75,7 @@ export function wishlistLifetime(db: SQLiteDatabase): WishlistLifetime {
   return storeOf(db).lifetime;
 }
 
-/** Retires immediately and drains admitted local persistence before close or erasure; network work is not awaited (task 0068). */
+/** Retires immediately and drains admitted local persistence before close or erasure; network work is not awaited. */
 export async function retireWishlist(db: SQLiteDatabase): Promise<void> {
   const store = storeOf(db);
   store.retired = true;
@@ -86,7 +86,7 @@ export async function retireWishlist(db: SQLiteDatabase): Promise<void> {
   await Promise.allSettled(store.local);
 }
 
-/** The Demo conversion opens a fresh lifetime only after emptying the same database (task 0068). */
+/** The Demo conversion opens a fresh lifetime only after emptying the same database. */
 export function beginWishlist(db: SQLiteDatabase): void {
   const old = storeOf(db);
   if (!old.retired) return;

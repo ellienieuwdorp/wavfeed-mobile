@@ -1,11 +1,11 @@
 /**
- * A full store of made-up data for the simulator rig (task 0036): about 1,500 Stories over the twelve weeks before a
+ * A full store of made-up data for the simulator rig: about 1,500 Stories over the twelve weeks before a
  * fixed Thu 24 Sep 2026, 40 Fans, 60 Pages and 300 Releases from a seeded generator, shaped like the wire as
  * `test/fixtures.ts` records it and entering as Raw Documents through insertRawDocument before the fold reads them
  * (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
  * is set, so nothing drawn from the sample reaches Bandcamp. Payloads carry no real clock, so a second run dedupes.
  * The generated pre-orders have no Track out; two more Upcoming Releases let Tracks out early, read at fixed moments
- * so their Drops land on the same days every run (task 0041), and a Fan buys one so a shelf card shows a count and a
+ * so their Drops land on the same days every run, and a Fan buys one so a shelf card shows a count and a
  * face. The rig loads the sample into an empty store only: a simulator that holds an older sample keeps it until
  * Expo Go is uninstalled from it (`xcrun simctl uninstall <udid> host.exp.Exponent`), which the next `dev/sim.sh serve`
  * reinstalls.
@@ -261,7 +261,7 @@ function makeStories(rng: Rng, fans: readonly Fan[], releases: readonly Release[
 }
 
 /**
- * The Upcoming Releases that let Tracks out early (task 0041), each on a followed Page with no Story, so the Sweep dates
+ * The Upcoming Releases that let Tracks out early, each on a followed Page with no Story, so the Sweep dates
  * it and its release page reads write its Drops. Every read is a moment fixed against ANCHOR, never the clock, and
  * `reads` lists the Tracks playing on each read in order, `trackPage` a Track page whose `mod_date` dates the later
  * Drop, `purchase` a Fan's purchase Story after the last read that puts a face on its shelf card.
@@ -375,7 +375,7 @@ function entryOf(story: Story, buyers: ReadonlyMap<number, number>, index: numbe
     featured_track_title: track?.title ?? null,
     featured_track_number: track === undefined ? null : release.tracks.indexOf(track) + 1,
     featured_track_duration: track?.duration ?? null,
-    // A pre-order counts only the Tracks it let out early (task 0041).
+    // A pre-order counts only the Tracks it let out early.
     num_streamable_tracks: release.preorder ? release.outEarly : release.tracks.filter((t) => t.playable).length,
     also_collected_count: buyers.get(release.itemId) ?? 0,
     is_preorder: release.preorder,
@@ -671,7 +671,7 @@ export async function loadSampleData(db: SQLiteDatabase): Promise<void> {
   await writeKv(db, GATHER_KEY, gather);
 }
 
-/** The author's first walk from task 0040's amendment, at 2,960 Stories and back to 15 June 2026. */
+/** The author's first walk, at 2,960 Stories and back to 15 June 2026. */
 const WALK_STARTED_AT = 1790701174376;
 const WALK_CURSOR = Date.UTC(2026, 5, 15) / 1000;
 const WALK_FLOOR = 1281827215;

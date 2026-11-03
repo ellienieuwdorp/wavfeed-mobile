@@ -38,13 +38,12 @@ export type ParsedRelease = {
   readonly albumId: number | null;
   readonly albumTitle: string | null;
   readonly artId: number | null;
-  /** Only a new-release Story of a Release that is not a pre-order carries one (ADR-0011, task 0041 decision 1). */
+  /** Only a new-release Story of a Release that is not a pre-order carries one (ADR-0011). */
   readonly releaseDate: Date | null;
   readonly label: string | null;
   readonly labelId: number | null;
   /**
-   * The feed entry's `band_name`: who the Release is by, which on a label's Page is not the Page's name (task 0071,
-   * decision 18). Null when the entry names nobody.
+   * The feed entry's `band_name`: who the Release is by, which on a label's Page is not the Page's name. Null when the entry names nobody.
    */
   readonly artistCredit: string | null;
   readonly price: number | null;
@@ -74,20 +73,20 @@ export type ParsedReleasePage = {
   readonly releaseDate: Date | null;
   /** Only album pages state this. */
   readonly isPreorder: boolean | null;
-  /** Tracks the page hands a file for; null with the total when the page carries no track list (task 0041, decision 4). */
+  /** Tracks the page hands a file for; null with the total when the page carries no track list. */
   readonly numStreamableTracks: number | null;
   readonly numTracks: number | null;
-  /** `current.publish_date`: on an album page when it went public; a Track page states its album's (task 0041, decision 7). */
+  /** `current.publish_date`: on an album page when it went public; a Track page states its album's. */
   readonly publishedAt: Date | null;
   /** `current.mod_date`: moves when a Track comes out and on any later edit. */
   readonly modifiedAt: Date | null;
   /** A Track page's album; null on an album page or a Track with no album. */
   readonly album: ParsedTrackAlbum | null;
-  /** `tralbum.artist`, which fills a credit no feed entry gave (task 0071, decision 18 and Open 2). */
+  /** `tralbum.artist`, which fills a credit no feed entry gave. */
   readonly artistCredit: string | null;
 };
 
-/** What a Track page states about its album, `current.album_id` and the `album_*` fields (task 0067, decision 1). */
+/** What a Track page states about its album, `current.album_id` and the `album_*` fields. */
 export type ParsedTrackAlbum = {
   readonly itemId: number;
   /** `album_url` on the Track page's host; null when the page names none. */

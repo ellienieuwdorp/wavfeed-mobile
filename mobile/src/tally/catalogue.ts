@@ -1,5 +1,5 @@
 /**
- * The closed Tally catalogue and the Error Report's closed lists (task 0038, ADR-0021): each Tally name with its
+ * The closed Tally catalogue and the Error Report's closed lists (ADR-0021): each Tally name with its
  * append-only integer code and every property's allowed values, plus the ingest envelope's limits. The phone derives
  * its types from these objects and the ingest Worker imports this file by relative path to validate against the same
  * objects, so it imports nothing.
@@ -7,7 +7,7 @@
 
 /**
  * Bumped when a code or a value changes meaning, or the `ctx` gains a field; the Worker refuses a schema it does not
- * know. Schema 2 adds `ctx.channel` (task 0065 decision 7).
+ * know. Schema 2 adds `ctx.channel`.
  */
 export const SCHEMA = 2;
 
@@ -19,7 +19,7 @@ export const SCREENS = [
   'feed',
   'releases',
   'releases_upcoming',
-  // Retired with Bought's tab (task 0071, decision 22): older bundles still send them, and no screen takes them again.
+  // Retired with Bought's tab: older bundles still send them, and no screen takes them again.
   'bought',
   'bought_upcoming',
   'settings',
@@ -93,14 +93,14 @@ export const CATALOGUE = {
       took: DURATION,
       release_pages_failed: COUNT,
       sweep_breaker_opened: FLAG,
-      // Task 0066, decision 1: which request failed the turn, its status, and whether the feed's one retry ran.
+      // Which request failed the turn, its status, and whether the feed's one retry ran.
       failed_step: ['probe', 'feed_poke', 'feed_page', 'depth_probe', 'none'],
       status_code: ['2xx', '400', '401', '403', '404', '429', 'other_4xx', '5xx', 'none'],
       feed_retried: FLAG,
     },
   },
   projection_skipped: { code: 7, props: { unparsable: COUNT, unknown_story_type: COUNT, missing_fan_info: COUNT } },
-  // `bought` is retired with its tab (task 0071, decision 22).
+  // `bought` is retired with its tab.
   feed_refreshed: { code: 8, props: { from: ['feed', 'releases', 'bought', 'gather_now'], hit_ceiling: FLAG } },
   playback_started: {
     code: 9,
@@ -116,7 +116,7 @@ export const CATALOGUE = {
       failure: [...PRESS_FAILURES, 'other', 'none'],
       end: [...WISHLIST_ENDS, 'none'],
       target: ['release', 'track'],
-      // Append only (task 0071, decision 22): `row` and `mini_player` lost their hearts and stay for older bundles;
+      // Append only: `row` and `mini_player` lost their hearts and stay for older bundles;
       // `swipe` is the row's wishlist swipe and its snackbar's Undo.
       surface: ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist', 'swipe'],
       crumb_replays: ['0', '1', '2+'],
@@ -183,7 +183,7 @@ export const WIRE = {
   osMin: 10,
   osMax: 99,
   buildPattern: /^[0-9A-Za-z.]{1,20}$/,
-  /** An EAS channel name as `ctx.channel` carries it from schema 2 (task 0065 decision 7). */
+  /** An EAS channel name as `ctx.channel` carries it from schema 2. */
   channelPattern: /^[a-z0-9-]{0,32}$/,
   errorNamePattern: /^[A-Za-z0-9_$.]{1,60}$/,
   uuidPattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,

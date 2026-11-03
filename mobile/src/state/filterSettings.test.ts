@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The filter's settings on the install (task 0071, decisions 5, 8 and 9 as amended 2026-10-14, and Open 8):
+ * The filter's settings on the install:
  * they survive a round trip through the `kv` table, a value saved while the filter had its own switch reads as nothing
  * chosen when that switch was off, a stored minimum comes back inside the stepper's range, the filter is active exactly
  * when something is chosen, Feed's link turns the people filter on at its minimum while the tags stay, and taps on tags

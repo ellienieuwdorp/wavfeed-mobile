@@ -1,6 +1,6 @@
 /**
  * What the Demo and the simulator rig's sample share when they write documents the way the wire does: Bandcamp's date
- * format and a seeded generator, so the same load writes the same documents (tasks 0036 and 0043).
+ * format and a seeded generator, so the same load writes the same documents.
  */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;

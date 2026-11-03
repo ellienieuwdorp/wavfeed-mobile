@@ -1,9 +1,9 @@
 /**
  * What every view says about gathering (DESIGN-UI section 9, in the phone's places): the line under the large title,
- * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open (task 0040); the catch-up
+ * "Updated 12 min ago" or, while the first walk runs unpaused, the note to keep the app open; the catch-up
  * pair with how far back the walk has reached and the fill `walkProgress` estimates, never moving back while the app
  * runs, which the header carries over that note (see ScreenHeader); and which empty state a view with no rows draws. The first walk counts as running between turns
- * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep. The Demo says it is a sample in the header line instead (task 0043).
+ * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep. The Demo says it is a sample in the header line instead.
  */
 import { backTo, soFar, updatedAgo, copy } from '@/copy';
 import { isDemoFan } from '@/demo/demo';
@@ -55,7 +55,7 @@ export function useGatherStatus(): GatherStatus {
             fraction,
           };
   }
-  // A walk paused on a sign-out moves again only after one, so the note to keep the app open waits for it (task 0040).
+  // A walk paused on a sign-out moves again only after one, so the note to keep the app open waits for it.
   let header: string | null = null;
   if (isDemoFan(gather.identity?.fanId)) header = copy.demo.header;
   else if (catchingUp) header = gather.pausedReason === null ? copy.catchUp.keepOpen : null;

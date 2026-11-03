@@ -1,6 +1,6 @@
 /**
  * The flat rows the feed rules read: a Story with its Release, Page and Fan, an Upcoming Release with its Page, and a
- * Drop with its Release (task 0041); no seen or starred on the phone.
+ * Drop with its Release; no seen or starred on the phone.
  */
 import type { ApiTag } from './apiTypes';
 import type { ItemType, StoryType } from './types';
@@ -26,20 +26,19 @@ export type FeedStoryRow = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
-  /** Every Track the newest release page named; null until one is read (task 0041, decision 4). */
+  /** Every Track the newest release page named; null until one is read. */
   readonly numTracks: number | null;
-  /** A pre-order as the newest source stated it; an undated one waits for its page (task 0041, decision 1). */
+  /** A pre-order as the newest source stated it; an undated one waits for its page. */
   readonly isPreorder: boolean;
   /**
-   * New releases may place it on `releaseDate`: the feed stated that day, or the Release was held before it came out
-   * (task 0041, decision 3). A day a page or the Sweep states for a Release first seen after it, a reissue's, is not.
+   * New releases may place it on `releaseDate`: the feed stated that day, or the Release was held before it came out. A day a page or the Sweep states for a Release first seen after it, a reissue's, is not.
    */
   readonly onReleaseDay: boolean;
-  /** The name of the Page that holds the Release, a label's as often as the artist's (task 0071, decision 18). */
+  /** The name of the Page that holds the Release, a label's as often as the artist's. */
   readonly pageName: string;
   /** Who the Release is by; null when no feed entry or release page credited anyone. */
   readonly artistCredit: string | null;
-  /** The feed's tags, places left out (decision 7). */
+  /** The feed's tags, places left out. */
   readonly tags: readonly ApiTag[];
 };
 
@@ -57,15 +56,15 @@ export type UpcomingReleaseRow = {
   readonly featuredTrackTitle: string | null;
   readonly featuredTrackDuration: number | null;
   readonly numStreamableTracks: number | null;
-  /** Every Track the newest release page named; null until one is read (task 0041, decision 4). */
+  /** Every Track the newest release page named; null until one is read. */
   readonly numTracks: number | null;
-  /** As `FeedStoryRow.pageName`, `artistCredit` and `tags` (task 0071, decision 18). */
+  /** As `FeedStoryRow.pageName`, `artistCredit` and `tags`. */
   readonly pageName: string;
   readonly artistCredit: string | null;
   readonly tags: readonly ApiTag[];
 };
 
-/** A Drop with its Release as the Upcoming rows carry it; the counts are the Drop's own (task 0041, decision 6). */
+/** A Drop with its Release as the Upcoming rows carry it; the counts are the Drop's own. */
 export type DropRow = {
   readonly release: UpcomingReleaseRow;
   /** The GMT day, `2026-10-06`. */

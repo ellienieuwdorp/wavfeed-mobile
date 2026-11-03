@@ -1,5 +1,5 @@
 /**
- * Membership snapshots remove old rows only after every page projects readably in order (task 0068, ADR-0017). The
+ * Membership snapshots remove old rows only after every page projects readably in order (ADR-0017). The
  * proof is derived and replayable; unreadable pages and repeated cursors poison it until a rebuild retries it.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -26,7 +26,7 @@ function token(value: unknown): value is string | null {
   return value === null || (typeof value === 'string' && value !== '');
 }
 
-/** Legacy wishlist pages already hold request cursors; following pages hold source-written ordinals (task 0068). */
+/** Legacy wishlist pages already hold request cursors; following pages hold source-written ordinals. */
 function pageOf(doc: RawDocument, context: Context, held: Proof, terminal: boolean) {
   const { root } = context;
   const wishlist = doc.endpoint === WISHLIST_ITEMS_ENDPOINT;

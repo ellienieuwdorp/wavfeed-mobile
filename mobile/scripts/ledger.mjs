@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The release record (ADR-0026, task 0065 decision 1): annotated tags `ios/build-<n>`, `android/build-<n>`,
+ * The release record (ADR-0026): annotated tags `ios/build-<n>`, `android/build-<n>`,
  * `apk/build-<n>` and `ota/<channel>/<platforms>/<date>-<group>`, each message ending in `Key: value` trailers. `read`
  * lists them from git with the commit each one names, `newest` picks a distribution's newest build, and `tagMessage`
  * writes the message the release scripts tag with, so writing and reading share one shape. `node scripts/ledger.mjs`
@@ -37,7 +37,7 @@ export function entryOf(tag, commit, message, date) {
   if (build) {
     const distribution = Object.keys(PREFIX).find((d) => PREFIX[d] === build[1]);
     const entry = { kind: 'build', tag, commit, date, distribution, platform: DISTRIBUTIONS[distribution], build: Number(build[2]), runtime: t.runtime ?? null, channel: t.channel ?? 'production' };
-    // An APK's tag carries where it downloads from and its digests (task 0065, decision 5).
+    // An APK's tag carries where it downloads from and its digests.
     return t.url ? { ...entry, url: t.url, md5: t.md5 ?? null, sha256: t.sha256 ?? null } : entry;
   }
   const ota = /^ota\/([a-z0-9-]+)\/([a-z+]+)\/(\d{4}-\d{2}-\d{2})-([0-9a-f]{8})$/.exec(tag);
@@ -75,7 +75,7 @@ export function tagMessage(summary, fields) {
   return `${summary}\n\n${lines.join('\n')}\n`;
 }
 
-// Publication confirms the annotated object on origin; retry never retags or republishes a build/update (task 0069).
+// Publication confirms the annotated object on origin; retry never retags or republishes a build/update.
 function publishTag(name, cwd) {
   if (!RELEASE_TAG.test(name)) throw new Error(`${name} is no release tag`);
   const ref = `refs/tags/${name}`;
@@ -108,7 +108,7 @@ function publishTag(name, cwd) {
   }
 }
 
-/** Tags HEAD once; unconfirmed publication throws while keeping that annotated release record (task 0069). */
+/** Tags HEAD once; unconfirmed publication throws while keeping that annotated release record. */
 export function tag(name, summary, fields, cwd = process.cwd()) {
   if (!RELEASE_TAG.test(name)) throw new Error(`${name} is no release tag`);
   execFileSync('git', ['tag', '-a', name, 'HEAD', '-F', '-'], { cwd, input: tagMessage(summary, fields) });

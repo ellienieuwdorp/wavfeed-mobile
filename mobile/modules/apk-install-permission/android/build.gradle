@@ -1,4 +1,4 @@
-// The website APK's install permission (task 0065, decision 6). EAS's `apk` profile sets WAVFEED_DISTRIBUTION=apk for
+// The website APK's install permission. EAS's `apk` profile sets WAVFEED_DISTRIBUTION=apk for
 // the build, and only then does this library's manifest, merged into the app's, ask for REQUEST_INSTALL_PACKAGES. The
 // files are the same for every build, so the APK and the Play build share one runtime fingerprint, and the module is
 // Android only, so iOS's fingerprint never sees it.

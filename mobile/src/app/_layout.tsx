@@ -2,17 +2,17 @@
  * Root layout: the navigation theme built from our tokens (DESIGN-UI section 6), light and dark following the system
  * or Settings > Appearance (see `setAppearance`), the status bar styled from the same tokens because expo-status-bar's
  * `auto` reads React Native's scheme, which learns of a pick a native round trip later, the app state with its gather
- * runner and schedule (task 0036 decision 4), the player and notice state, and a stack holding the tabs, the player
- * sheet, the Bought by sheet and the Connect Bandcamp modal (task 0036 decision 5). While the store holds no Fan the
+ * runner and schedule, the player and notice state, and a stack holding the tabs, the player
+ * sheet, the Bought by sheet and the Connect Bandcamp modal. While the store holds no Fan the
  * stack guards everything but the first screen and Connect, so the first screen is the whole app until a sign-in or
- * the Demo writes one, and the usage ask follows a sign-in once (task 0044); the sharing provider under the app
+ * the Demo writes one, and the usage ask follows a sign-in once; the sharing provider under the app
  * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
  * fills the store and gathers nothing (src/dev/useSampleData.ts). On
  * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
  * a white edge in dark. Everything sits under react-native-gesture-handler's root view, which the row's wishlist swipe
- * needs (task 0071, decision 15 and slice 0). On iOS 26 a cover in the page colour hides a launch until the tab bar's
- * accessory has drawn (task 0071, Open 13; `launchCover.tsx`). Error capture is installed as this module loads, and
- * its `ErrorBoundary` catches what a tab's screen boundary does not (task 0038 decision 10).
+ * needs. On iOS 26 a cover in the page colour hides a launch until the tab bar's
+ * accessory has drawn (`launchCover.tsx`). Error capture is installed as this module loads, and
+ * its `ErrorBoundary` catches what a tab's screen boundary does not.
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -49,7 +49,7 @@ const UNCOUNTED = new Set(['/usage', '/filters']);
 
 /**
  * One `screen_viewed` per pathname change while sharing is on; the ask itself is never counted, it shows only before a
- * yes, and nor is New releases' Filters sheet (task 0071, Open 5). An Error Report names the same screen.
+ * yes, and nor is New releases' Filters sheet. An Error Report names the same screen.
  */
 function ScreenTally() {
   const pathname = usePathname();
@@ -62,7 +62,7 @@ function ScreenTally() {
       last.current = null;
       return;
     }
-    // The ask and the Filters sheet are never counted (task 0044; task 0071, Open 5).
+    // The ask and the Filters sheet are never counted.
     if (pathname === last.current || UNCOUNTED.has(pathname)) return;
     last.current = pathname;
     track({ name: 'screen_viewed', props: { screen: screenFor(pathname) } });
@@ -112,7 +112,7 @@ export default function RootLayout() {
   );
 }
 
-/** The routes a phone with no Fan may not reach sit behind `hasFan`; the first screen only before one (task 0044). */
+/** The routes a phone with no Fan may not reach sit behind `hasFan`; the first screen only before one. */
 function GuardedStack() {
   const { c, dark } = useTokens();
   const hasFan = useAppState().gather.identity !== null;
@@ -142,7 +142,7 @@ function GuardedStack() {
           }}
         />
         {/*
-          The Filters sheet (task 0071, decision 7): on iOS non-modal at the medium detent, the list behind undimmed and
+          The Filters sheet: on iOS non-modal at the medium detent, the list behind undimmed and
           live, dragged to full height; on Android a modal sheet at half the height over the scrim, expanding to full.
         */}
         <Stack.Screen

@@ -1,6 +1,6 @@
 /**
- * What this copy of the app is (task 0038): its version, native build, the EAS Update it runs, the platform and the EAS
- * channel it was built for (task 0065 decision 7), read once at launch. The sharing provider builds each batch's `ctx` from it, and a feedback or failure mail names it.
+ * What this copy of the app is: its version, native build, the EAS Update it runs, the platform and the EAS
+ * channel it was built for, read once at launch. The sharing provider builds each batch's `ctx` from it, and a feedback or failure mail names it.
  */
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';

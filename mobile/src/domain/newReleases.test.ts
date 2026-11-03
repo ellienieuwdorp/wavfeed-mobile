@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * Where New releases places a Drop (task 0041, decision 10): on its own day beside the Releases, except on the day the
+ * Where New releases places a Drop: on its own day beside the Releases, except on the day the
  * Release's own row sits, which stands for it; the Drops before stay where they happened. Released rows carry their
- * buyers (task 0071, decision 19), and the Releases followed Fans bought join the weeks (decision 20, Open 9).
+ * buyers, and the Releases followed Fans bought join the weeks.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

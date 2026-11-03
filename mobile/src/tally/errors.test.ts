@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Error capture (task 0038 decision 10) over the real outbox on `node:sqlite`, with stand-ins for RN's `ErrorUtils`
+ * Error capture over the real outbox on `node:sqlite`, with stand-ins for RN's `ErrorUtils`
  * and `HermesInternal`: the report is on disk before the previous handler runs, echoes of a fatal are not written,
  * the rejection tracker is release-only, and reports wait for the store, and for a fold's write lock, and are kept
  * only where the store holds the yes.

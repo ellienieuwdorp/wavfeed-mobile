@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * New releases' weeks under its filter (task 0071, decision 8): a week the filter empties drops out without turning
+ * New releases' weeks under its filter: a week the filter empties drops out without turning
  * into a quiet run, the quiet runs the whole view holds stay, and a gap still stands only between two weeks.
  */
 import assert from 'node:assert/strict';

@@ -1,5 +1,5 @@
 /**
- * The Filters sheet's own controls (task 0071, decision 7, CSS4's `.stp`, `.isearch` and `.mfield`): neither platform's
+ * The Filters sheet's own controls (CSS4's `.stp`, `.isearch` and `.mfield`): neither platform's
  * kit has a stepper that holds its value between minus and plus, so this one is drawn, 32 high on the system's
  * tertiary fill with its value in the middle, minus refused at the low end and plus at the high; the tag search is
  * iOS's rounded search field or Material's outlined one; a tag's mark is a checkbox leading its row, empty or ticked

@@ -1,8 +1,7 @@
 /// <reference types="node" />
 /**
- * The simulator rig's sample through the store (task 0036): New releases' shelf carries a Release with Tracks out early
- * that a Fan bought, so the rig shows a card with its count and the faces (task 0041, decision 10; task 0071, decision
- * 14), and the rig's first walk shows the catch-up mid-way with a fill (task 0040).
+ * The simulator rig's sample through the store: New releases' shelf carries a Release with Tracks out early
+ * that a Fan bought, so the rig shows a card with its count and the faces, and the rig's first walk shows the catch-up mid-way with a fill.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

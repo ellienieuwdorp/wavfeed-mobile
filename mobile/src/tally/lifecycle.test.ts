@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * `app_opened` and the foreground marker (task 0038): which AppState phases open the app, and when a marker left set
+ * `app_opened` and the foreground marker: which AppState phases open the app, and when a marker left set
  * means the last process died in the foreground.
  */
 import assert from 'node:assert/strict';

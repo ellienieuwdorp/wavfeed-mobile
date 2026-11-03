@@ -43,8 +43,7 @@ export function ModuleHead({ title, more }: { title: string; more?: Href }) {
 }
 
 /**
- * A Release not out yet with some Tracks out carries its "1/4" on the art, and its label says "1 of 4 tracks" (task
- * 0071, decision 12 as amended by the author 2026-10-14); a released one's count says nothing new.
+ * A Release not out yet with some Tracks out carries its "1/4" on the art, and its label says "1 of 4 tracks"; a released one's count says nothing new.
  */
 function partial(item: ApiFeedItem, now: Date): { badge: string | null; spoken: string | undefined } {
   if (!notOutYet(item, now)) return { badge: null, spoken: undefined };

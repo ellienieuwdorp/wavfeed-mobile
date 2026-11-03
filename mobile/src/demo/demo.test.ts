@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The Demo through the store (task 0043): a feed of real Releases with art and previews, pre-orders on the Upcoming
+ * The Demo through the store: a feed of real Releases with art and previews, pre-orders on the Upcoming
  * shelf, a Burst, and Fans with no face; the store's Fan is the Demo Fan with its first walk done.
  */
 import assert from 'node:assert/strict';

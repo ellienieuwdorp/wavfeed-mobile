@@ -1,16 +1,16 @@
 /**
- * Whether only a new build can bring this install up to date (task 0064, decision 1; task 0065, decisions 4 to 6).
+ * Whether only a new build can bring this install up to date.
  * dl.wavfeed.com serves `store-builds.json`, written by the release jobs from the release tags: per distribution the
  * newest build testers can install and its native fingerprint, and for the website APK its address and MD5 too. A
  * newer build whose fingerprint is not this binary's runtime version is one no EAS Update can deliver. Which entry an
  * install reads follows its EAS channel, fixed in the binary: iOS reads `ios`, an Android Play build `android`, and an
  * Android build on channel `apk` or `preview` (the website APKs) `apk`. Imports nothing native, so the same file runs
- * on the patched old builds (task 0064, decision 4). The answer and the install's facts are arguments.
+ * on the patched old builds. The answer and the install's facts are arguments.
  */
 export const STORE_BUILDS_URL = 'https://dl.wavfeed.com/store-builds.json';
 export const CHECK_TIMEOUT_MS = 10_000;
 /**
- * Where a tester installs a store build, tried in order (task 0064, decision 3): the TestFlight app on wavfeed's page
+ * Where a tester installs a store build, tried in order: the TestFlight app on wavfeed's page
  * (`itms-beta`, with the App Store Connect app id from eas.json), then the public link when TestFlight is missing; the
  * Play Store app on the listing, then its web page. The APK's address comes with its entry.
  */

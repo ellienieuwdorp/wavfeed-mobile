@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * The copy rules DESIGN-UI section 8, task 0038 decision 4 and task 0044 decision 5 make testable: no em dash anywhere
+ * The copy rules DESIGN-UI section 8 and the sharing copy's rules make testable: no em dash anywhere
  * in the phone's copy, the sharing strings never use the machine words (the author chose "analytics" for the Settings
- * line, task 0044 decision 5) and name no Bandcamp identity, and every line under a Settings group or on the first
+ * line) and name no Bandcamp identity, and every line under a Settings group or on the first
  * screen is two sentences at most.
  */
 import assert from 'node:assert/strict';

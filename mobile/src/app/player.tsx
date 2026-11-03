@@ -1,9 +1,8 @@
 /**
- * The player sheet (DESIGN-UI section 10, ADR-0015, task 0036 decision 5, the v2 client canvas's player sheets), one
+ * The player sheet (DESIGN-UI section 10, ADR-0015, the v2 client canvas's player sheets), one
  * scroll in Apple Music's shape: artwork with the Release's heart on its bottom-right corner, "N. Track title" linking
  * out over the Page and Release, the label and release day ending in "Bandcamp ↗", the seek line with its m:ss times,
- * the transport, then the Release's tracklist, a heart on each Track. The facts line's link names where the title also goes (task 0043, decision
- * 3), and the art gives up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
+ * the transport, then the Release's tracklist, a heart on each Track. The facts line's link names where the title also goes, and the art gives up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
  * grabber and close chevron over a plain face, so the pull-down dismisses from the art and from the top of the scroll;
  * on Android a bottom sheet with 28dp corners at full height, Compose's Material 3 slider and the ripple on every
  * control. Every block above the tracklist keeps one height for a given text size, its text one line and its height at
@@ -74,7 +73,7 @@ const ABOVE_FIRST_ROW: AboveFirstRow = {
 /** Where the sheet's two ways to the Release page sit: the title and its link on the facts line. */
 type OpenSurface = 'sheet_title' | 'sheet_buy';
 
-/** Opens the Release on Bandcamp and counts the hand-off (task 0038). */
+/** Opens the Release on Bandcamp and counts the hand-off. */
 function useOpen(): (release: PlayableRelease, surface: OpenSurface) => void {
   const { track } = useSharing();
   const { isPlaying } = usePlayerActions();
@@ -290,8 +289,7 @@ function Transport() {
 
 /**
  * The Release's heart on the art's bottom-right corner, its disc ART_HEART_INSET from both edges: the album, or the lone
- * Track a one-Track Release is, never the Track playing in an album, which its tracklist row's heart is for (task 0071,
- * the author's request of 2026-10-15). It does not wait for the tracklist, the Release being known.
+ * Track a one-Track Release is, never the Track playing in an album, which its tracklist row's heart is for (the author's request of 2026-10-15). It does not wait for the tracklist, the Release being known.
  */
 function ReleaseHeart({ release }: { release: PlayableRelease }) {
   const inset = ART_HEART_INSET - (HEART - ART_HEART_DISC) / 2;

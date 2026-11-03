@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
  * The row menu as a screen reader's actions, the heart's state the iOS row says (VIS-9, FLOW-13), and the whole row as
- * its label says it once the heart and the actor sentence left the drawn row (task 0071, decisions 12, 13 and 16).
+ * its label says it once the heart and the actor sentence left the drawn row.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

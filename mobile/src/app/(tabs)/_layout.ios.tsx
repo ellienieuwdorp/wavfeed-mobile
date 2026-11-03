@@ -1,13 +1,12 @@
 /**
- * The three tabs on iOS as native tabs (task 0036 decision 5, task 0071 decision 1): UITabBarController, so iOS 26
+ * The three tabs on iOS as native tabs: UITabBarController, so iOS 26
  * draws the floating Liquid Glass bar with labels and shrinks it while scrolling down. Feed's crests and New releases'
- * calendar are template images with a selected state of their own, the gear the SF Symbol (decision 2), tinted with
+ * calendar are template images with a selected state of their own, the gear the SF Symbol, tinted with
  * the accent. The bar's bottom accessory is mounted from launch, so iOS 26 runs the bar full width from the first
  * frame: it carries the restored or playing Release, else "Nothing playing", and a cover hides the launch until it
- * has drawn them (task 0071, decision 3 and Open 13; `launchCover.tsx`). The catch-up lives in the header (task 0040,
- * decision 8). The bar minimises on scroll down except on New releases, where the filter button
+ * has drawn them (`launchCover.tsx`). The catch-up lives in the header. The bar minimises on scroll down except on New releases, where the filter button
  * floats above it (see Dock): the bar expands again only once a list is back at its top, so a button kept in step with
- * it would be gone for most of the list (task 0071, decision 5 as amended 2026-10-14). The tab host takes the token
+ * it would be gone for most of the list. The tab host takes the token
  * scheme as its own
  * `overrideUserInterfaceStyle`, set during the same Fabric mount as the token colours, so the glass, the headers'
  * scroll edge, the accessory, the SwiftUI controls and every PlatformColor inside the tabs flip in the frame the
@@ -23,7 +22,7 @@ import { TAB_GLYPHS } from '@/components/tabGlyphs';
 import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
-/** A screen that throws while drawing shows its fallback under the tab bar (task 0038 decision 10). */
+/** A screen that throws while drawing shows its fallback under the tab bar. */
 export const unstable_settings = { initialRouteName: '(feed)', screenErrorBoundary: ScreenFailed };
 
 export default function TabsLayout() {

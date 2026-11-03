@@ -1,17 +1,17 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), the usage switch with its sharing code (task 0038, hidden in a build that can never send and in the
+ * sign out), the usage switch with its sharing code (hidden in a build that can never send and in the
  * Demo), connected devices (held back until a server knows the others), appearance, removing everything gathered here
  * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
- * mail naming the build beside the privacy page, which every build shows (task 0044 decision 5, guideline 5.1.1(i));
+ * mail naming the build beside the privacy page, which every build shows (guideline 5.1.1(i));
  * the canvas's one notification switch waits for notifications to exist. Every foot is two sentences at most; while
  * sharing is on the code's sentence follows the Usage foot as a paragraph of its own, and just after an off the
  * turned-off line takes the foot's place, each with the code in bold and a copy button beside it (CodeFoot.tsx).
  * Android draws the status as one list item and its actions as Material buttons under the custody line, as the
  * canvas's Settings board does. A development build adds the store's facts under the custody line. The catch-up of a
- * first walk sits under the large title as on every tab (task 0040, decision 8). The wavfeed account rows (email,
- * password, log out, delete) wait for the account this slice does not have (task 0036). The Demo shows as a sample
- * with Sign in and no account card or Sign out (task 0043, decision 7).
+ * first walk sits under the large title as on every tab. The wavfeed account rows (email,
+ * password, log out, delete) wait for the account this slice does not have. The Demo shows as a sample
+ * with Sign in and no account card or Sign out.
  */
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
@@ -46,7 +46,7 @@ import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const s = copy.settings;
-/** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices (task 0036). */
+/** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices. */
 const SHOW_DEVICES = false;
 // ceiling: nothing here schedules or receives a notification (no expo-notifications), so the canvas's Notifications
 // group with its one switch is left out. The upgrade is a local notification from a gather on the phone, which needs no
@@ -79,7 +79,7 @@ function Avatar({ url, initials }: { url: string | null; initials: string }) {
 
 type Held = { documents: number; stories: number; releases: number; follows: number };
 
-/** What the store holds, for the author's dev build only (task 0036); a release build draws nothing here. */
+/** What the store holds, for the author's dev build only; a release build draws nothing here. */
 function heldLine(held: Held | null, lastError: string | null): string {
   if (!__DEV__ || held === null) return '';
   return copy.dev.held(held, lastError);

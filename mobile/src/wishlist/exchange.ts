@@ -1,5 +1,5 @@
 /**
- * The wishlist exchange and its local confirmation (ADR-0016, task 0068): read its owning Page, send the Fan's requested
+ * The wishlist exchange and its local confirmation (ADR-0016): read its owning Page, send the Fan's requested
  * write, store every response, then update membership. A retired store ends local work; a session operation already
  * entered can finish its requested network exchanges.
  */
@@ -115,7 +115,7 @@ export async function exchange(app: ExchangeApp, target: WishlistTarget, action:
     standInUrl,
   };
   const outcome = action === 'add' ? await app.session.collectItem(item) : await app.session.uncollectItem(item);
-  // Retiring the captured lifetime ends local work after a sent write; queued follow-ups are retired in press.ts (task 0068).
+  // Retiring the captured lifetime ends local work after a sent write; queued follow-ups are retired in press.ts.
   if (!lifetime.active()) return null;
   for (const document of outcome.documents) {
     if (!(await lifetime.runLocal(() => app.putRaw(document)))) return null;

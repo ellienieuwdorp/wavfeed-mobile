@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** Catalog observations preserve reversions and replay without duplicating immutable bodies (task 0068, decision 1). */
+/** Catalog observations preserve reversions and replay without duplicating immutable bodies. */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

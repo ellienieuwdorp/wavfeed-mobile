@@ -1,6 +1,5 @@
 /**
- * The store's numbered migrations and the runner that applies each once, recorded in `schema_migrations` (task 0036,
- * ADR-0004). Kept apart from `openStore` so a Node check can build the same store over `node:sqlite`. Migrations ship
+ * The store's numbered migrations and the runner that applies each once, recorded in `schema_migrations` (ADR-0004). Kept apart from `openStore` so a Node check can build the same store over `node:sqlite`. Migrations ship
  * over the air with the JavaScript, and expo-updates can roll a phone back to an older bundle that runs on the newer
  * schema, so every migration is additive only: new tables and new columns with defaults, never a rename, a drop or a
  * changed meaning. A store newer than the code is reported and opened as it is (review finding ARCH-13).
@@ -154,7 +153,7 @@ const MIGRATIONS: readonly Migration[] = [
   },
   {
     // The Tally outbox: built, scrubbed Tallies and Error Reports waiting to be sent after the Fan's yes, device state
-    // a rebuild leaves alone and "Remove everything gathered" takes with the file (task 0038, ADR-0021).
+    // a rebuild leaves alone and "Remove everything gathered" takes with the file (ADR-0021).
     version: 4,
     sql: `
       create table tally_outbox (
@@ -168,8 +167,7 @@ const MIGRATIONS: readonly Migration[] = [
     `,
   },
   {
-    // Where each release date came from and when it was read, and how many Tracks a release page names (task 0041,
-    // decisions 1 and 4). The rows held already fill in when PROJECTION_VERSION 3 replays the Raw Documents (decision 2).
+    // Where each release date came from and when it was read, and how many Tracks a release page names. The rows held already fill in when PROJECTION_VERSION 3 replays the Raw Documents.
     version: 5,
     sql: `
       alter table releases add column release_date_source text;
@@ -179,7 +177,7 @@ const MIGRATIONS: readonly Migration[] = [
   },
   {
     // Drops, and on each Upcoming Release the newest count of Tracks that play the feed and a release page stated and
-    // when, which date a Drop and make its page due (task 0041, decisions 6 to 8). A Drop's `day` is a GMT day;
+    // when, which date a Drop and make its page due. A Drop's `day` is a GMT day;
     // `after_read_at` and `read_at` are the reads that showed fewer and more, `track_at` the Track page moment that
     // dated it, `track_ids` the Tracks it let out in track order. PROJECTION_VERSION 4 replays them in (ADR-0004).
     version: 6,
@@ -205,7 +203,7 @@ const MIGRATIONS: readonly Migration[] = [
     `,
   },
   {
-    // Release pages are asked for as a desktop browser from here on (task 0041, decision 11). Each booking held already
+    // Release pages are asked for as a desktop browser from here on. Each booking held already
     // is the phone's, so `asked_as_phone` marks it, the next booking clears it, and a page so marked is due once more
     // (enrichment.ts).
     version: 7,
@@ -227,7 +225,7 @@ const MIGRATIONS: readonly Migration[] = [
     `,
   },
   {
-    // The Tracks of an album, which reach it and count on it before its release day (task 0067, decisions 3 and 4).
+    // The Tracks of an album, which reach it and count on it before its release day.
     version: 9,
     sql: `
       create index releases_album_id on releases (item_type, album_id, item_id);
@@ -235,7 +233,7 @@ const MIGRATIONS: readonly Migration[] = [
   },
   {
     // Immutable bodies are observed in their own order, including a catalog's return to an old body. The trigger
-    // also admits new bodies written by a rolled-back bundle; legacy cursors keep physical raw ids (task 0068).
+    // also admits new bodies written by a rolled-back bundle; legacy cursors keep physical raw ids.
     version: 10,
     sql: `
       create table raw_document_observations (
@@ -273,7 +271,7 @@ const MIGRATIONS: readonly Migration[] = [
   },
   {
     // Who a Release is by, apart from the Page that holds it: the feed entry's `band_name`, else a release page's
-    // `tralbum.artist` (task 0071, decision 18). PROJECTION_VERSION 8 replays the held Raw Documents to fill it.
+    // `tralbum.artist`. PROJECTION_VERSION 8 replays the held Raw Documents to fill it.
     version: 11,
     sql: `
       alter table releases add column artist_credit text;

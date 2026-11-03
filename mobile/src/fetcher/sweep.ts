@@ -1,6 +1,6 @@
 /**
  * The band details sweep's per-turn quota and the endpoint's breaker (ADR-0017); the store books each Page's tier and
- * next visit (store/queries.ts `markSwept`) (task 0036, decision 4).
+ * next visit (store/queries.ts `markSwept`).
  */
 import { REFUSAL_STATUSES } from '../bandcamp/wire';
 import { HOUR_MS, MINUTE_MS } from '../lib/time';
@@ -23,7 +23,7 @@ export class SweepBreaker {
   private successesSinceOpen = 0;
   private openedEver = 0;
 
-  /** Every opening since the process started, which a recovery never resets: a gather chain compares it before and after (task 0038). */
+  /** Every opening since the process started, which a recovery never resets: a gather chain compares it before and after. */
   get openings(): number {
     return this.openedEver;
   }

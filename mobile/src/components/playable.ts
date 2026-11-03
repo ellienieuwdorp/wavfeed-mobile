@@ -11,9 +11,9 @@ export type RowRelease = {
   readonly itemType: ApiItemType;
   readonly itemId: string;
   readonly title: string;
-  /** The Page's name, which for a label's Page is not the artist (task 0071, decision 18). */
+  /** The Page's name, which for a label's Page is not the artist. */
   readonly pageName: string;
-  /** The feed's band_name, else the release page's tralbum.artist; null when neither credited anyone (decision 18). */
+  /** The feed's band_name, else the release page's tralbum.artist; null when neither credited anyone. */
   readonly artistCredit: string | null;
   readonly itemUrl: string;
   readonly artId: string | null;
@@ -26,12 +26,12 @@ export function playableItemType(itemType: ApiItemType): PlayableRelease['itemTy
   return itemType === 'a' ? 'album' : 'track';
 }
 
-/** The credit line's two names for a Release (task 0071, decision 11). */
+/** The credit line's two names for a Release. */
 export function creditOf(item: RowRelease): CreditLine {
   return creditLine({ pageName: item.pageName, artistCredit: item.artistCredit, label: item.label ?? null });
 }
 
-/** The name a row, the spoken row and the player call the artist: the credit, else the Page's name (decisions 11, 18). */
+/** The name a row, the spoken row and the player call the artist: the credit, else the Page's name. */
 export function artistOf(item: RowRelease): string {
   return creditOf(item).artist;
 }
@@ -50,7 +50,7 @@ export function toPlayable(item: RowRelease): PlayableRelease {
   };
 }
 
-/** `from` is the Track to start at, a Drop's newest (task 0041, decision 10); the transport falls back to the first that streams. */
+/** `from` is the Track to start at, a Drop's newest; the transport falls back to the first that streams. */
 export function usePlay(): (item: RowRelease, from?: string | null) => void {
   const { play } = usePlayerActions();
   return (item, from) => play(toPlayable(item), from);

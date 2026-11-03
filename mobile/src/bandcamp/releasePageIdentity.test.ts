@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * Which browser the session says it is, against a Bandcamp standing in for the global `fetch` (task 0041, decision 11):
+ * Which browser the session says it is, against a Bandcamp standing in for the global `fetch`:
  * a release page is asked for as desktop Safari with no cookie, and every other request, the heart's signed-in read of
- * the same page included, goes as the phone the sign-in WebView named (task 0036, decision 1).
+ * the same page included, goes as the phone the sign-in WebView named.
  */
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';

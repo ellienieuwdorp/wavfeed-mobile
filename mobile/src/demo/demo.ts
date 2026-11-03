@@ -1,10 +1,10 @@
 /**
- * The Demo (task 0043): real Releases read once from public label pages (`releases.ts`), bought and wishlisted by
+ * The Demo: real Releases read once from public label pages (`releases.ts`), bought and wishlisted by
  * made-up Fans, loaded into an empty store as Raw Documents (ADR-0004). The feed pages and the following list are
  * written the way the wire writes them, with Story dates in the eight weeks before `now` and release days as Bandcamp
  * gave them; the release pages go in as they were read, after the feed, since the fold reads in insertion order. The
  * made-up Fans carry no face, and the store's Fan is `DEMO_FAN_ID`, which the gather runner, the heart, Settings and
- * the Bought by sheet each read as the Demo (decisions 5 and 7).
+ * the Bought by sheet each read as the Demo.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -27,7 +27,7 @@ const WINDOW = 56 * DAY;
 const NEW_RELEASE_WINDOW = 84 * DAY;
 const FEED_PAGE_SIZE = 50;
 
-/** Invented handles, a few with a name; none is a face or a link (decision 5). */
+/** Invented handles, a few with a name; none is a face or a link. */
 const FANS: readonly { readonly username: string; readonly name: string | null }[] = [
   { username: 'night_ferry', name: 'Noor' },
   { username: 'okra.tapes', name: null },

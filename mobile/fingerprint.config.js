@@ -1,5 +1,5 @@
 /**
- * What the runtime fingerprint leaves out (task 0051, decision 1): the sources that cannot change what the installed
+ * What the runtime fingerprint leaves out: the sources that cannot change what the installed
  * binary offers JavaScript, so an update reaches every store build with the same native code. `ios/` and `android/` are
  * generated from the config the fingerprint already hashes, and a build's copy of the project may not see them as
  * gitignored (iOS build 4's fingerprint held its `ios/`), so they are ignored by path; `.gitignore` only matters to a

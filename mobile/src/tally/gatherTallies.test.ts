@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The gather diff (task 0038) over real gather turns: the phone's own sink and store on `node:sqlite`, a Bandcamp
+ * The gather diff over real gather turns: the phone's own sink and store on `node:sqlite`, a Bandcamp
  * that serves a purchase feed five Stories a page, and a clock that moves a second per request.
  */
 import assert from 'node:assert/strict';
@@ -84,7 +84,7 @@ beforeEach(async () => {
 describe('the gather diff', () => {
   test('the chain that finishes the first walk sends one sync_run_finished, and later chains none', async () => {
     const first = await chain(600_000);
-    assert.equal(pagesAsked, 14, "the depth probe's eight (task 0040), five full pages and the empty one that ends the walk");
+    assert.equal(pagesAsked, 14, "the depth probe's eight, five full pages and the empty one that ends the walk");
     assert.deepEqual(first, [
       { name: 'sync_run_finished', props: { pages: '6 to 20', stories: '21 to 100', took: '10 to 60s' } },
       {
@@ -107,7 +107,7 @@ describe('the gather diff', () => {
     clock += 20 * 60_000;
     pagesAsked = 0;
     const [sync, gather] = await chain(600_000);
-    // The cut came mid-probe (task 0040): the probe searches on between its kept bounds, then the walk's two pages.
+    // The cut came mid-probe: the probe searches on between its kept bounds, then the walk's two pages.
     assert.equal(pagesAsked, 10);
     assert.equal(sync?.name === 'sync_run_finished' && sync.props.took, '10m+');
     assert.equal(gather?.name === 'gather_finished' && gather.props.took, '10 to 60s');

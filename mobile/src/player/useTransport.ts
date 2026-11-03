@@ -1,12 +1,12 @@
 /**
- * The transport (DESIGN-UI section 10, ADR-0015, task 0036), following the web's PlayerContext.tsx: one expo-audio
+ * The transport (DESIGN-UI section 10, ADR-0015), following the web's PlayerContext.tsx: one expo-audio
  * player for the app's life, a play fetching the tracklist and starting the first streamable Track, the same Release
- * pressed again toggling pause unless a Drop names another Track (task 0070), previous and next inside the Release,
+ * pressed again toggling pause unless a Drop names another Track, previous and next inside the Release,
  * a Track ending advancing and the last one stopping at rest. The lock screen and Control Centre get the Track
  * through `setActiveForLockScreen`; expo-audio 57 gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
  * so the tab bar does not re-render four times a second. A play's start, a stream that dies mid-Track and the listening
- * a Release got go to `track` as Tallies (task 0038, `src/tally/actions.ts`). A launch can `restore` the last-played
- * Release paused (task 0071, Open 13): its Track sits at its index with no stream on the audio player, no audio session
+ * a Release got go to `track` as Tallies (`src/tally/actions.ts`). A launch can `restore` the last-played
+ * Release paused: its Track sits at its index with no stream on the audio player, no audio session
  * taken and nothing on the lock screen, until a press starts that Track at the saved position, reading the page afresh
  * first when its stream URLs have expired (`resume.ts`).
  */
@@ -57,7 +57,7 @@ export type Transport = {
   readonly canPrevious: boolean;
   readonly canNext: boolean;
   /**
-   * Starts at the Track `from` names when it streams, else the first that does (a Drop's row, task 0041 decision 10).
+   * Starts at the Track `from` names when it streams, else the first that does (a Drop's row).
    * `screen` names where the play began when the pathname cannot yet, as in an effect on a screen that just mounted.
    */
   readonly play: (release: PlayableRelease, from?: string | null, screen?: Screen) => void;
@@ -69,7 +69,7 @@ export type Transport = {
   readonly playAt: (index: number) => void;
   /** Whether audio plays now, read at a press without re-rendering on every change. */
   readonly isPlaying: () => boolean;
-  /** Puts a saved Release in the transport, paused, while nothing else is in it; touches no audio (task 0071, Open 13). */
+  /** Puts a saved Release in the transport, paused, while nothing else is in it; touches no audio. */
   readonly restore: (resume: Resume) => void;
   /** Empties the transport, as when the store's Fan changes under it. */
   readonly forget: () => void;
@@ -116,7 +116,7 @@ function showOnLockScreen(audio: AudioPlayer, active: { current: boolean }, rele
 export function useTransport(deps: TransportDeps & TransportTallies): { transport: Transport; clock: PlayerClock } {
   // expo-audio deactivates the iOS audio session 100 ms after a pause or a Track's end unless something is playing,
   // and the next Track is still buffering then; in the background an inactive session gets the app suspended before
-  // it starts. Keeping the session active is what lets a Release play on with the screen locked (task 0036).
+  // it starts. Keeping the session active is what lets a Release play on with the screen locked.
   const audio = useAudioPlayer(null, { updateInterval: UPDATE_INTERVAL_MS, keepAudioSessionActive: true });
   const [state, setState] = useState<TransportState>(IDLE);
   const [clock, setClock] = useState<PlayerClock>(ZERO);
@@ -176,9 +176,9 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       resumeStart.current = null;
       seekingTo.current = at > 0 ? at : null;
       startSeek.current = null;
-      // A refused start opens the listen too, and the paused state applied below settles it (task 0047 decision 5).
+      // A refused start opens the listen too, and the paused state applied below settles it.
       listen({ kind: 'start', release: releaseKey(from.release) });
-      // The rig's streams are made up, so sample mode plays the state and never the audio (task 0036).
+      // The rig's streams are made up, so sample mode plays the state and never the audio.
       const start = startAt(SAMPLE_MODE ? null : audio, from, index, track.streamUrl, at);
       // AVPlayer can drop a seek sent before the stream loads; the first loaded status checks it landed.
       if (at > 0 && !SAMPLE_MODE) startSeek.current = at;
@@ -204,7 +204,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       const startedAt = Date.now();
       const screen = pressedOn ?? depsRef.current.screen();
       // A reload of the Release already in the transport, after an error or once its stream URLs expired, is a retry;
-      // the first press on a restored Release is not, expired or not (task 0071, Open 13).
+      // the first press on a restored Release is not, expired or not.
       const retried = same && !(before.status === 'ready' && resume !== null);
       const started = (result: PlayResult) => depsRef.current.track(playbackStarted(result, Date.now() - startedAt, screen, retried));
       listen({ kind: 'load', release: releaseKey(release) });
@@ -216,7 +216,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       if (loadRef.current !== token) return;
       if (tracklist !== null && !force && wantedTrackRef.current !== null &&
         !tracklist.tracks.some((track) => track.trackId === wantedTrackRef.current && isStreamable(track))) {
-        // A pending Drop target can outgrow the first page; read fresh once under this load's token (task 0070).
+        // A pending Drop target can outgrow the first page; read fresh once under this load's token.
         tracklist = await loadTracklist(depsRef.current, release, true).catch(() => null);
         if (loadRef.current !== token) return;
       }
@@ -275,14 +275,14 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
     }
     const restored = from.index === null ? null : (resumeStart.current?.at ?? null);
     if (from.index !== null && restored === null && !expired(from)) {
-      // A refused resume leaves the Track paused (task 0047 decision 3).
+      // A refused resume leaves the Track paused.
       if (startAudio(audio)) apply({ ...from, playing: true });
       return;
     }
     const index = from.index ?? firstStreamableIndex(from.tracks);
     if (index === null) return;
     // A Release at rest after its last Track, or restored at launch, starts from here and counts the start, a refused
-    // one as `refused` (task 0047 decision 4; task 0071, Open 13); an expired one reloads and counts itself, so
+    // one as `refused`; an expired one reloads and counts itself, so
     // `startTrack` answers null.
     const result = startTrack(index, restored ?? 0);
     if (result !== null) depsRef.current.track(playbackStarted(result, 0, depsRef.current.screen(), false));
@@ -293,7 +293,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
       const from = stateRef.current;
       if (from.release !== null && isSameRelease(from.release, release)) {
         if (from.status === 'loading') {
-          // The active load starts the latest explicit Drop target; an ordinary art press keeps it (task 0070).
+          // The active load starts the latest explicit Drop target; an ordinary art press keeps it.
           if (wantedTrackId !== null) wantedTrackRef.current = wantedTrackId;
           return;
         }
@@ -301,7 +301,7 @@ export function useTransport(deps: TransportDeps & TransportTallies): { transpor
           if (wantedTrackId === null || (from.index !== null && from.tracks[from.index]?.trackId === wantedTrackId)) toggle();
           else {
             const index = from.tracks.findIndex((track) => track.trackId === wantedTrackId && isStreamable(track));
-            // A newer Drop can name a Track the held page does not yet stream (task 0070).
+            // A newer Drop can name a Track the held page does not yet stream.
             if (index === -1) void loadAndStart(release, wantedTrackId, true, screen);
             else startTrack(index);
           }

@@ -1,6 +1,6 @@
 /**
  * Content hashes for Raw Document dedupe: SHA-256 in pure TypeScript over the UTF-8 bytes, hex out, so it runs on Hermes with no native module.
- * SHA-256 over FNV-1a because a collision would drop a feed page the fetcher never sees again (task 0036, ADR-0004).
+ * SHA-256 over FNV-1a because a collision would drop a feed page the fetcher never sees again (ADR-0004).
  */
 
 const K = new Uint32Array([

@@ -1,7 +1,7 @@
 /**
  * The catch-up's hairline while the first walk runs (DESIGN-UI section 9), under the header's line of the count and the
- * month (see ScreenHeader, task 0040 decision 8). It fills with the share of Stories `walkProgress` estimates, and
- * sweeps indeterminate while there is none (task 0040). Under reduce motion nothing slides: the fill lands at once and
+ * month (see ScreenHeader). It fills with the share of Stories `walkProgress` estimates, and
+ * sweeps indeterminate while there is none. Under reduce motion nothing slides: the fill lands at once and
  * the sweep becomes the whole track pulsing slowly in opacity (VIS-14). Android moves Compose's Material 3 linear
  * indicator, which follows the system's animation scale.
  */
@@ -22,7 +22,7 @@ const FILL_MS = 600;
 const SEGMENT = 0.3;
 const ios = Platform.OS === 'ios';
 
-/** What a screen reader hears while the hairline fills (task 0040); none while it sweeps. */
+/** What a screen reader hears while the hairline fills; none while it sweeps. */
 export function progressValue(fraction: number | null) {
   return fraction === null ? undefined : { min: 0, max: 100, now: Math.round(fraction * 100) };
 }
@@ -89,7 +89,7 @@ function MaterialSweep({ moving, fraction }: { moving: boolean; fraction: number
   );
 }
 
-/** The hairline under the header's line (task 0040, decision 8). */
+/** The hairline under the header's line. */
 export function CatchUpHairline({ line }: { line: Pick<CatchUpLine, 'moving' | 'fraction'> }) {
   return ios ? <Sweep moving={line.moving} fraction={line.fraction} /> : <MaterialSweep moving={line.moving} fraction={line.fraction} />;
 }

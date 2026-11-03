@@ -1,5 +1,5 @@
 /**
- * The Tally outbox over the phone's store (task 0038, ADR-0021): the sharing row in `kv` that holds the yes and the
+ * The Tally outbox over the phone's store (ADR-0021): the sharing row in `kv` that holds the yes and the
  * Install id together, the `tally_outbox` table of migration 4, and the send cycle's store side. Every write checks
  * the sharing row in the same statement, so nothing is queued while sharing is off, not even a drop count. Rows go out
  * oldest first in batches stamped with an id that a retry reuses, and the caps drop rows into a counter that
@@ -32,7 +32,7 @@ export const MAX_ERRORS_PER_LAUNCH = 10;
 export const BATCH_BYTES = 60_000;
 
 /**
- * A SQL condition true only while the yes is held and the store's Fan is not the Demo (task 0044 decision 1), so a
+ * A SQL condition true only while the yes is held and the store's Fan is not the Demo, so a
  * write that carries it does nothing after an off or while someone is looking around.
  */
 export const SHARING_ON = `exists (select 1 from kv where key = '${SHARING_KEY}' and json_extract(value, '$.on') = 1)

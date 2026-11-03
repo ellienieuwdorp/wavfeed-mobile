@@ -3,7 +3,7 @@
  * A release page's `data-tralbum` blob, where a Release reached only through purchases gets its date (ADR-0011). The
  * dates are the risk: Bandcamp puts one in two places depending on whether the page is an album or a track inside
  * one, leaves it null often, and writes packed numbers like 20260805 that are not dates the parser may read. Ported
- * from the server's suite (task 0036).
+ * from the server's suite.
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
@@ -55,7 +55,7 @@ describe('parseReleasePage', () => {
     });
   });
 
-  test('counts a Track as playing only when the page hands over its file (task 0041)', () => {
+  test('counts a Track as playing only when the page hands over its file', () => {
     // Every Track of the pre-order says `streaming: 1`; one has a file.
     const parsed = parseReleasePage(releasePagePayload({ itemId: PREORDER_ITEM_ID, tralbum: preorderTralbumBlob() }));
 
@@ -73,7 +73,7 @@ describe('parseReleasePage', () => {
     });
   });
 
-  test("reads a Track page's album, its edit moment, and its album's day and address (tasks 0041 and 0067)", () => {
+  test("reads a Track page's album, its edit moment, and its album's day and address", () => {
     const trackId = preorderTrackId(3);
     const parsed = parseReleasePage(
       releasePagePayload({ itemType: 't', itemId: trackId, tralbum: preorderTrackPageBlob(3, '06 Oct 2026 17:02:11 GMT') }),

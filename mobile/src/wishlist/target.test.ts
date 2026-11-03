@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** What each heart in the player sheet wishlists and names (task 0071, decision 4 as amended 2026-10-15). */
+/** What each heart in the player sheet wishlists and names. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 

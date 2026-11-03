@@ -1,10 +1,9 @@
 /**
  * The faces of the Fans who bought it: discs in a ring, the Fan's Bandcamp image or one initial, overlapping, capped
- * with a faint "+N" after (DESIGN-UI section 3, task 0071 decisions 12 and 14). The Feed's card and an Upcoming card
+ * with a faint "+N" after (DESIGN-UI section 3). The Feed's card and an Upcoming card
  * draw 20pt discs in a 2pt ring overlapping by 6; a list row draws 24pt ones, three at most, its ring and overlap in
  * the same proportion (the author's request of 2026-10-15). `onArt` draws an Upcoming card's stack over its cover, on
- * the art's mark backing with "+N" in a last disc of its own, white figures on black (task 0071, decision 14 as amended
- * 2026-10-15). With `opens` set the stack is a button opening the Bought by sheet with these Fans (the canvas, sections
+ * the art's mark backing with "+N" in a last disc of its own, white figures on black. With `opens` set the stack is a button opening the Bought by sheet with these Fans (the canvas, sections
  * 6 and 7), unless a row's swipe took the touch (useTakenBySwipe). A disc does not grow with the text size, so its initial does not either, nor does the "+N" on art (review
  * VIS-1).
  */
@@ -32,7 +31,7 @@ const SLOP = { top: 2, bottom: 8, left: 8, right: 8 };
 /**
  * The ring between discs on the art's backing, solid since a disc's ring hides the one it overlaps, and the fill of the
  * "+N" disc that ends the stack there. A disc where the rows write "+N" holds the stack at three discs' width whatever
- * N is, so it clears a "12/14" on a card (task 0071, decision 14 as amended 2026-10-15).
+ * N is, so it clears a "12/14" on a card.
  */
 const ART_RING = '#1c1c1c';
 /** The backing's edge around the discs, which with them sets the art marks' height (ON_ART.mark). */

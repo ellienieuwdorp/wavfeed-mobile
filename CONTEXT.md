@@ -21,13 +21,13 @@ _Avoid_: band, artist account, label account, artist (for a Page's name)
 
 **Artist credit**:
 Who a Release is by, as Bandcamp credits it: the feed entry's `band_name`,
-else a release page's `tralbum.artist`, else none (task 0071, decision 18).
+else a release page's `tralbum.artist`, else none.
 Often not the Page's name: a label's Page holds Releases by many artists, and
 a compilation's credit is "Various Artists". Stored as
 `releases.artist_credit` and carried as `artistCredit` beside `pageName`; with
 none held a row names the Page alone. On the phone it leads the credit line
 under a title, "artist · X", where X is the Page when it differs, else the
-label credit (task 0071, decision 11).
+label credit.
 _Avoid_: band name (outside parser code; `band_name` is the wire field), byline,
 Page name
 
@@ -112,15 +112,16 @@ _Avoid_: spam, flood
 A Release wavfeed holds whose release date is still ahead: announced, usually
 pre-orderable, not out. Found by the band details sweep (catalog truth,
 ADR-0017), through a pre-order purchase in the feed, or through a pre-order's
-`new_release` entry once its release page dates it (task 0041); being Upcoming
-needs no Story and has no actor. On screen it is the Upcoming shelf on the phone
-(task 0037), and a Release stops being Upcoming the day its release date arrives, and not before:
+`new_release` entry once its release page dates it; being Upcoming
+needs no Story and has no actor. On screen it is the Upcoming shelf on the
+phone, and a Release stops being Upcoming the day its release date arrives, and
+not before:
 Tracks that play earlier are Drops, and the Release stays on the shelf.
 That day is a GMT day, because Bandcamp writes every release date at midnight
 GMT and that is when the record becomes buyable (ADR-0017, amended 2026-08-29);
 it is the day the row and its week header name too. A Track of an album is
 Upcoming only through its album, and a Story of it before that day counts on
-the album (task 0067).
+the album.
 _Avoid_: pre-release, coming soon, future release, announcement, preorder as a
 synonym (`is_preorder` is Bandcamp's buyable state, which an Upcoming Release
 usually but not always has)
@@ -132,7 +133,7 @@ from Raw Documents, one per Release per GMT day, holding how many Tracks play
 and how many there are (ADR-0017, amended 2026-09-29). Not a Story: it has no
 actor, and Bandcamp's feed rewrites its `new_release` entry in place and never
 says one happened. On the phone it is a row in the released weeks of New
-releases on its day (task 0041).
+releases on its day.
 _Avoid_: pre-release, single, teaser, early access, leak
 
 **Curated Feed**:
@@ -170,8 +171,8 @@ _Avoid_: starred, favorite, like, save, collect (Bandcamp's wire verb)
 **Wishlist Action**:
 One exchange with Bandcamp that adds an item to the wishlist or removes it
 (ADR-0016). The phone carries it out itself: it writes to Bandcamp through the
-session and, on success, writes the item into or out of `wishlist_items` (task
-0036). Presses on an item while one travels fold into the next, last tap wins
+session and, on success, writes the item into or out of `wishlist_items`.
+Presses on an item while one travels fold into the next, last tap wins
 (ADR-0016, amended 2026-10-02), so one Wishlist Action may carry the last of
 several presses. Code and docs also call it an exchange. It is the exchange,
 not the item.
@@ -206,8 +207,8 @@ _Avoid_: crash report or native error report (meaning a Store Crash), crash log
 The feed a phone with no Fan yet opens from the first screen's "Look around
 first": real Releases read once from public label pages, bought and wishlisted
 by made-up Fans, held in the store under its own Fan id until a sign-in
-replaces it (task 0043). Nothing is asked, queued or sent while it is held
-(task 0044). In the UI it is "a sample".
+replaces it. Nothing is asked, queued or sent while it is held. In the UI it is
+"a sample".
 _Avoid_: demo account (the v1 box's, which went with the API at the switch,
 ADR-0022), sample (the simulator rig's made-up data in `src/dev/sample.ts`),
 guest mode
@@ -221,14 +222,14 @@ _Avoid_: user, visitor, client, device id
 **Install label**:
 The author's own name for one Install on the Tally board, 1 to 32 characters
 that never read as a sharing code, with a flag marking her own Installs as
-mine (task 0050). The board shows it beside the sharing code and filters by
+mine. The board shows it beside the sharing code and filters by
 it; the daily digest names Installs by it and never by code (ADR-0024). It is
 erased with its Install.
 _Avoid_: name, tag ("label" alone stays a record label)
 
 **Resolution**:
 The author's "seen, done" on a check or an Error Report group the board says
-needs a look, written for one environment or for all of them (task 0050).
+needs a look, written for one environment or for all of them.
 From then on the item's rules count only what happened after it, so the item
 stays hidden until it happens again and then reads as reopened; an undo takes
 it back at once.

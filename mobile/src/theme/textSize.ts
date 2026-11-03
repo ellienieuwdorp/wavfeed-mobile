@@ -26,7 +26,7 @@ export type Caption = {
 };
 
 /**
- * The title of a cover or card caption, with its own `text` on an Upcoming card (task 0071, decision 14): one line at
+ * The title of a cover or card caption, with its own `text` on an Upcoming card: one line at
  * the default size, and above it two lines whose height is held whether the text wraps or not, so the lines under it
  * sit level across a shelf (review VIS-1). Android 14's nonlinear font scaling grows a line height past the row cap (a
  * 16sp line draws 28dp at a 2.0 font scale where the cap allows 25.6), so a wrapped caption would outgrow the held

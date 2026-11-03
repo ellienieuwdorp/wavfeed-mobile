@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The production transport's controls against stored release pages and recorded native commands (task 0070).
+ * The production transport's controls against stored release pages and recorded native commands.
  * Only React hook plumbing and the native player are stood in; tracklist loading, selection, starts and Tallies
  * run their production owners. This does not render a screen or exercise native audio/event scheduling.
  */
@@ -363,7 +363,7 @@ test('a newer Release retires a pending targeted load before its native start', 
   assert.equal(at.read().playing, true);
 });
 
-/** A launch's restore of `RELEASE` at its second Track, 30 seconds in, off the page stored in the rig (task 0071, Open 13). */
+/** A launch's restore of `RELEASE` at its second Track, 30 seconds in, off the page stored in the rig. */
 async function restored(at: Awaited<ReturnType<typeof rig>>) {
   const tracklist = await readTracklist(at.db, 'a', 1);
   assert.ok(tracklist);

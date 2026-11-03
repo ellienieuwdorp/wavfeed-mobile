@@ -1,5 +1,5 @@
 /**
- * The pure rules behind every Tally (task 0038, ADR-0021): the count and duration buckets that keep exact numbers off
+ * The pure rules behind every Tally (ADR-0021): the count and duration buckets that keep exact numbers off
  * the wire, the closed screen list, the per-batch context built from injected build facts, the sharing gate, the
  * gather diff that turns a chain's before and after `GatherState` into `sync_run_finished` and `gather_finished`, and
  * a fold's skipped counts as `projection_skipped`. Nothing here reads a clock, a random source or the platform itself.
@@ -60,7 +60,7 @@ const SCREEN_PATHS: Readonly<Record<string, Screen>> = {
   '/bought-by': 'bought_by',
   // The ask shows only while sharing is off and holds the same switch as the Settings group, so it counts as settings.
   '/usage': 'settings',
-  // New releases' Filters sheet belongs to New releases (task 0071) and is not counted.
+  // New releases' Filters sheet belongs to New releases and is not counted.
   '/filters': 'releases',
 };
 
@@ -150,8 +150,7 @@ export type AskState = {
 };
 
 /**
- * The ask is due once the store holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open
- * (task 0044 decision 2): after the sign-in that closes Connect, never on the first screen or while looking around.
+ * The ask is due once the store holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open: after the sign-in that closes Connect, never on the first screen or while looking around.
  */
 export function usageAskDue(state: AskState): boolean {
   if (!state.canSend || !state.loaded || state.sharing !== null) return false;
@@ -214,7 +213,7 @@ function statusClass(status: number | null): '4xx' | '5xx' | 'none' {
   return 'none';
 }
 
-/** The status itself where it names a cause; 0, no HTTP status, is `none` (task 0066, decision 1). */
+/** The status itself where it names a cause; 0, no HTTP status, is `none`. */
 function statusCode(status: number | null): TallyProps<'gather_finished'>['status_code'] {
   if (status === null || status === 0) return 'none';
   if (status >= 200 && status < 300) return '2xx';

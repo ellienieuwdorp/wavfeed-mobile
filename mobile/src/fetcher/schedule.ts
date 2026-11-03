@@ -1,5 +1,5 @@
 /**
- * When a gather turn runs in the foreground (task 0036, decision 4): on mount, on every return to active and every
+ * When a gather turn runs in the foreground: on mount, on every return to active and every
  * fifteen minutes while active, the stored state is asked whether a turn is due. A pending first walk always is, cursor
  * or not, so it resumes on every open and after a turn that failed before writing one; a caught-up feed waits fifteen
  * minutes. iOS freezes JS in the background without

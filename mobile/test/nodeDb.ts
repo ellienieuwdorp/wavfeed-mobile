@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
  * The store's code over `node:sqlite`: the handful of `expo-sqlite` calls the store makes, answered by the same SQLite,
- * so tests and the timing check run the real migrations, Projection and queries off the phone (task 0036). A store on
+ * so tests and the timing check run the real migrations, Projection and queries off the phone. A store on
  * a file opens a second connection for each exclusive transaction and begins it deferred, as expo-sqlite does; one in
  * memory has no second connection to open, so its exclusive transactions run on the one it has (review finding ARCH-8).
  */

@@ -1,5 +1,5 @@
 /**
- * A foot line that carries the sharing code (task 0044 decision 5): the words flow as one Text per word in a wrapping
+ * A foot line that carries the sharing code: the words flow as one Text per word in a wrapping
  * row, with the bold code, its copy icon and the punctuation after it as one pressable in that row, so the icon aligns
  * the same on iOS and Android and the punctuation never starts a line. Padding offset by a negative margin makes the
  * pressable's own box 44pt tall, since a touch never reaches past its parent's bounds on Android, and its ripple is a

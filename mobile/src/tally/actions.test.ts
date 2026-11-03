@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The action Tallies' pure rules (task 0038): the doors into Connect, one ending per Connect visit, a Wishlist Action's
+ * The action Tallies' pure rules: the doors into Connect, one ending per Connect visit, a Wishlist Action's
  * codes, a Release's listening from its first Track to its end or its replacement, and every catalogue row reached
  * from the app's own source.
  */

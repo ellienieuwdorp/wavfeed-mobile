@@ -1,13 +1,12 @@
 /**
  * The one context every screen reads: the open store, the Bandcamp session, the
  * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
- * screen re-reads its query (task 0036). `putRaw` is the only way a response
- * enters the phone: verbatim into raw_documents, then folded (ADR-0004); preview page facts refresh mounted views (task 0072).
+ * screen re-reads its query. `putRaw` is the only way a response
+ * enters the phone: verbatim into raw_documents, then folded (ADR-0004); preview page facts refresh mounted views.
  * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
- * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally` (task 0038). A store that
+ * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally`. A store that
  * will not open shows the failure screen, whose "Try again" opens it once more and "Start over" deletes it first (review
- * REL-4); the open store is where Error Reports are written, and a failed replay is a coded one (task 0038 decisions
- * 10 and 11). A replay after a parser change that outlasts its first stretch shows its progress in place of the app
+ * REL-4); the open store is where Error Reports are written, and a failed replay is a coded one. A replay after a parser change that outlasts its first stretch shows its progress in place of the app
  * (review finding ARCH-1). A screen's query that throws is reported and thrown again while the screen draws, for the
  * tab's boundary to offer Try again (ARCH-2).
  */
@@ -115,7 +114,7 @@ export function AppStateProvider({ children, runner }: { children: ReactNode; ru
       const result = await insertRawDocument(db, doc);
       if (!result.deduped) {
         await fold(db);
-        // Preview pages change visible facts; the shared throttle coalesces their reads. Crumb extracts project no facts (task 0072).
+        // Preview pages change visible facts; the shared throttle coalesces their reads. Crumb extracts project no facts.
         if (doc.endpoint !== CRUMBS_PAGE_ENDPOINT) invalidate();
       }
       return { deduped: result.deduped };

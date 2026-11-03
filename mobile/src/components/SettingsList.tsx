@@ -1,5 +1,5 @@
 /**
- * The pieces of the Settings list (task 0036 decision 5, the v2 client canvas, sections 6 and 7): on iOS the inset
+ * The pieces of the Settings list (the v2 client canvas, sections 6 and 7): on iOS the inset
  * grouped list, cards at the system corner radius with 17pt rows of at least 44pt, separators starting at the text
  * edge, the grey press flash and a chevron on rows that open something; on Android a flat Material list with accent
  * section heads and the ripple, and Material's small round buttons (filled, tonal, outlined) where the canvas draws

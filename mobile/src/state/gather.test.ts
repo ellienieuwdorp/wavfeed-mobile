@@ -1,11 +1,11 @@
 /// <reference types="node" />
 /**
- * The runner's chain of turns (task 0040) through the real turn, sink and store, against a Bandcamp whose feed pages
+ * The runner's chain of turns through the real turn, sink and store, against a Bandcamp whose feed pages
  * each cost the clock ten seconds, so a minute's turn walks a handful of pages. An unreachable page costs a minute and
  * fails the turn with no status, so it takes the retry, whose wait the mocked clock jumps; a status fails the turn
  * with no retry (ADR-0017). The app state's hooks module is stood in here, since Node cannot load its TSX; keep awake and the
  * foreground state come from test/register.mjs, and the foreground state is the one `react-native` export these tests move.
- * Each chain's Tallies (task 0038) are collected from the runner's `track`.
+ * Each chain's Tallies are collected from the runner's `track`.
  */
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -133,7 +133,7 @@ test('a first walk longer than a dozen turns runs to its end in one sitting whil
   assert.equal(await walk(), null);
 });
 
-test('partial lists wait between automatic attempts and manual-chain continuations, but a new pull retries them (task 0070)', async (t) => {
+test('partial lists wait between automatic attempts and manual-chain continuations, but a new pull retries them', async (t) => {
   feed = feed.slice(0, 40 * PAGE_SIZE);
   const wishlistAsks: number[] = [];
   const followsAsks: number[] = [];

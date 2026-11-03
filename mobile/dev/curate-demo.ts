@@ -1,6 +1,6 @@
 /**
  * `node --import ./test/register.mjs dev/curate-demo.ts`: reads the Demo's Releases from public Bandcamp pages and
- * writes `src/demo/releases.ts` (task 0043, decision 4). Each label's /music grid names its newest Releases, and each
+ * writes `src/demo/releases.ts`. Each label's /music grid names its newest Releases, and each
  * Release's page is read through the app's own session with no cookie, a second and a half apart (ADR-0001). A page
  * keeps its `tralbum` and `band` blobs as Bandcamp wrote them, less each Track's lyrics and the merch packages.
  */
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     console.log(`${label}: ${kept} releases`);
   }
   const body = { readAt: new Date().toISOString(), sources: LABELS.map((label) => `https://${label}.bandcamp.com/music`), pages };
-  const header = `/** Written by dev/curate-demo.ts (task 0043, decision 4); re-run it rather than editing this. */\nimport type { DemoReleases } from './types';\n\n`;
+  const header = `/** Written by dev/curate-demo.ts; re-run it rather than editing this. */\nimport type { DemoReleases } from './types';\n\n`;
   await writeFile(OUT, `${header}export const demoReleases: DemoReleases = ${JSON.stringify(body)};\n`);
   console.log(`${pages.length} release pages to ${OUT}`);
 }

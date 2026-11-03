@@ -1,11 +1,11 @@
 /**
- * The long press on anything that draws a Release (task 0036, Later, and the v2 client canvas, sections 6 and 7): Play,
+ * The long press on anything that draws a Release (Later, and the v2 client canvas, sections 6 and 7): Play,
  * Add to or Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is the action sheet while
  * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
  * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
  * wishlist item runs the heart's own press (ADR-0016), is named for the press the heart's drawn state would take, a
  * travelling press included, and is greyed while membership is not asked yet. Only an https address from the wire is
- * opened or shared, and an open is counted as a hand-off (task 0038). The same items,
+ * opened or shared, and an open is counted as a hand-off. The same items,
  * with Bought by where the row draws who bought it, are the screen reader's actions on the row and on its art
  * (rowActions.ts, VIS-9 and FLOW-13): the render prop's second argument, and `useSpokenActions` under it.
  */
@@ -31,7 +31,7 @@ import { usePlayerActions } from './player/playerState';
 import { PLAY_ACTION, spokenActions, type RowAction, type SpokenActions } from './rowActions';
 
 const ios = Platform.OS === 'ios';
-// ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9 (task 0036). Its native
+// ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9. Its native
 // RNHostView predates @expo/ui 57.0.14 (expo/expo#48969), so every touch on a hosted row reaches JS twice, in host and in
 // page coordinates, and a hosted Pressable drops its press on any finger movement. False falls back to ActionSheetIOS;
 // true again once the app runs on a native side carrying that fix, a dev build or a later Expo Go.
@@ -154,7 +154,7 @@ function AnchoredMenu({ actions, children }: { actions: readonly Action[]; child
  * The surface of a row that holds buttons of its own (a card, a quote), taking the long press between them and leaving
  * the screen reader its buttons. Where SwiftUI's menu owns the long press it is a plain View, since a Pressable above the
  * pressed one would take the responder on the second touch start of the doubled stream IOS_CONTEXT_MENU names and end
- * that press without its onPress (task 0036). Its buttons pass `open` to their own `onLongPress`.
+ * that press without its onPress. Its buttons pass `open` to their own `onLongPress`.
  */
 export function RowSurface({ open, style, children }: { open: OpenMenu; style: StyleProp<ViewStyle>; children: ReactNode }) {
   if (open === keepHeld) return <View style={style}>{children}</View>;

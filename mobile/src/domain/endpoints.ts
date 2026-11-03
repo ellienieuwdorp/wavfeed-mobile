@@ -61,7 +61,7 @@ export type WishlistItemsEnvelope = {
   readonly snapshotPage?: SnapshotPage;
 };
 
-/** The source page and request/answer cursors that prove a contiguous membership snapshot (task 0067). */
+/** The source page and request/answer cursors that prove a contiguous membership snapshot. */
 export type SnapshotPage = {
   readonly number: number;
   readonly inputToken: string | null;

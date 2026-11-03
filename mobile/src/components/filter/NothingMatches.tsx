@@ -1,7 +1,6 @@
 /**
- * New releases when the filter keeps nothing (task 0071, decision 9, the round-two empty board): "Nothing matches", the
- * filter named, and "Clear filters", which chooses nothing again: the people switch off at 2 and no tags (task 0071,
- * decision 9 as amended 2026-10-14), as the sheet's Clear does.
+ * New releases when the filter keeps nothing (the round-two empty board): "Nothing matches", the
+ * filter named, and "Clear filters", which chooses nothing again: the people switch off at 2 and no tags, as the sheet's Clear does.
  */
 import { Platform, Pressable, View } from 'react-native';
 

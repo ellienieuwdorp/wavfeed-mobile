@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
- * The catch-up's words for how far back the first walk has reached and its one-line form (task 0040), the count an
- * Upcoming card and a Drop row state, as words and as the badge (task 0041, decision 9; task 0071, decision 12), the
- * release day a Drop row and a card name (task 0041, decision 10; task 0071, decision 14), and the line under the
+ * The catch-up's words for how far back the first walk has reached and its one-line form, the count an
+ * Upcoming card and a Drop row state, as words and as the badge, the
+ * release day a Drop row and a card name, and the line under the
  * player sheet's title.
  */
 import assert from 'node:assert/strict';
@@ -28,7 +28,7 @@ test('the reach names the month and year the phone is in, as ADR-0011 reads date
   }
 });
 
-test('while something plays, the catch-up reads as one line under the large title (task 0040, decision 6)', () => {
+test('while something plays, the catch-up reads as one line under the large title', () => {
   assert.equal(catchUpHeader(soFar(2960), 'back to June 2026'), '2,960 so far, back to June 2026');
   assert.equal(catchUpHeader('getting set up', null), 'Getting set up');
 });
@@ -62,7 +62,7 @@ test("a Drop out this month still names the month under the last month's week (f
   assert.equal(outOnPhrase(new Date(2027, 0, 8), now), 'out Fri 8 Jan 2027');
 });
 
-test("New releases' header counts the view, and the filter's lines name only what is chosen (task 0071, decisions 6, 7 and 9)", () => {
+test("New releases' header counts the view, and the filter's lines name only what is chosen", () => {
   assert.equal(countedHeader(310, 'Updated 12 min ago'), '310 releases · updated 12 min ago');
   assert.equal(countedHeader(1, null), '1 release');
   assert.equal(countedHeader(1204, 'Updated just now'), '1,204 releases · updated just now');

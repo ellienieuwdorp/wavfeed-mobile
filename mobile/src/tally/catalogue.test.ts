@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The catalogue as a contract (task 0038, ADR-0021): names in the house pattern, codes frozen so the Worker's stored
+ * The catalogue as a contract (ADR-0021): names in the house pattern, codes frozen so the Worker's stored
  * integers never change meaning, closed value sets, and a union that refuses free text at compile time.
  */
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ test('codes are unique and never move: a retired code stays retired, a new row t
 });
 
 test('the Worker still takes every value an older bundle sends', () => {
-  // Task 0071, decision 22: rows and the mini player no longer carry a heart and Bought's tab is gone, yet phones on
+  // Rows and the mini player no longer carry a heart and Bought's tab is gone, yet phones on
   // older bundles still send `row`, `mini_player`, the `bought` screens and a refresh from `bought`.
   const sent: readonly (readonly [readonly string[], readonly string[]])[] = [
     [CATALOGUE.wishlist_action_finished.props.surface, ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist']],

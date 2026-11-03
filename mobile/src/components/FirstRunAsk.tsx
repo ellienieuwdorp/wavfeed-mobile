@@ -1,5 +1,5 @@
 /**
- * Presents the usage ask once, after a sign-in (task 0044 decision 2, amending task 0038 decision 3): when the store
+ * Presents the usage ask once, after a sign-in: when the store
  * holds a signed-in Fan that is not the Demo, no answer is held and Connect is not open (`usageAskDue`). So it follows
  * the sign-in that closes Connect on a first run or replaces the Demo, and on an install that predates the sender it
  * comes on the first launch after the update; the first screen and looking around never see it. The `usageAsked` flag in kv

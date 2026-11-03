@@ -2,12 +2,11 @@
  * A Release's artwork as its play control, the one way to play a Release wherever one is drawn (DESIGN-UI section 11,
  * the art plays): a press plays it or toggles it when it is already in the transport, a long press opens the row menu,
  * and the art answers a press by shrinking to PRESS_SCALE under a light shade on the UI thread (src/player/motion.ts),
- * after the scrolling lists' short press delay. The art carries no play mark at rest (the author, 2026-10-14, task
- * 0071): only the art of the Release in the transport draws its state, a scrim with pause while it plays or loads
+ * after the scrolling lists' short press delay. The art carries no play mark at rest (the author, 2026-10-14): only the art of the Release in the transport draws its state, a scrim with pause while it plays or loads
  * (showsPause), play otherwise, a dead Release included, since a press on it asks again. A partial Release's "1/4"
  * (`badge`) sits on the art's bottom-left corner on a dark backing, white figures fixed in size so it stays inside the
  * art at every text size; an Upcoming card's day (`day`) takes the same mark on the top-left corner, and its faces
- * (`faces`) the top-right one, a button of their own over the art (task 0071, decision 14 as amended 2026-10-16). The label says the count, the day and the buyers with the other facts. Only the art in the transport
+ * (`faces`) the top-right one, a button of their own over the art. The label says the count, the day and the buyers with the other facts. Only the art in the transport
  * reads usePlayer (useArtState); every other one reads the Release alone, whose identity changes only when another
  * Release plays.
  * Inside a row's swipe a press plays nothing for a touch the swipe took (useTakenBySwipe). Nothing above it may be a
@@ -48,17 +47,17 @@ type Props = {
   size: number;
   radius: number;
   onLongPress: OpenMenu;
-  /** The Track a press starts at, a Drop's newest (task 0041, decision 10); the first that streams when absent. */
+  /** The Track a press starts at, a Drop's newest; the first that streams when absent. */
   from?: string | null;
   /** What the label names before its facts: "Title by Artist" on an Upcoming card (heardParts); the title when absent. */
   named?: string;
-  /** Facts the label speaks after the name, from spokenFacts: a card's credit, day, count and buyers (task 0071). */
+  /** Facts the label speaks after the name, from spokenFacts: a card's credit, day, count and buyers. */
   spoken?: string;
-  /** "1/4" from tracksOutBadge: a partial Release's count on the bottom-left corner (task 0071, decision 12 as amended 2026-10-14). */
+  /** "1/4" from tracksOutBadge: a partial Release's count on the bottom-left corner. */
   badge?: string | null;
-  /** "13 Oct" from onDayPhrase: an Upcoming card's day, in capitals on the top-left corner (task 0071, decision 14). */
+  /** "13 Oct" from onDayPhrase: an Upcoming card's day, in capitals on the top-left corner. */
   day?: string | null;
-  /** An Upcoming card's faces on the top-right corner, pressed apart from the art (task 0071, decision 14). */
+  /** An Upcoming card's faces on the top-right corner, pressed apart from the art. */
   faces?: ReactNode;
   hitSlop?: Insets | number;
   style?: StyleProp<ViewStyle>;

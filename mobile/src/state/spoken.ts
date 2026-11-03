@@ -7,7 +7,7 @@ import { copy } from '@/copy';
 import type { GatherState } from '@/fetcher/sink';
 
 export const NOTICE_LIFETIME_MS = 8000;
-/** A confirmation of the Fan's own swipe, Material's short snackbar (task 0071, decision 15). */
+/** A confirmation of the Fan's own swipe, Material's short snackbar. */
 export const CONFIRMATION_LIFETIME_MS = 4000;
 
 /** Null keeps the line until it is dismissed: a line heard late in its seconds would leave before its action is reached. */

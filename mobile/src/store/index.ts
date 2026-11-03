@@ -1,5 +1,5 @@
 /**
- * The phone's store: open it once, pass its `db` to every function here (task 0036).
+ * The phone's store: open it once, pass its `db` to every function here.
  */
 export { BUSY_TIMEOUT_MS, deleteStoreFile, emptyStore, openStore, STORE_FILE, type Store } from './schema';
 export {

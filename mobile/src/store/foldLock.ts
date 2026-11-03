@@ -1,5 +1,5 @@
 /**
- * The fold's transactions, counted (task 0038 decision 10). A fold writes on its own connection and holds
+ * The fold's transactions, counted. A fold writes on its own connection and holds
  * the write lock across awaits that need the JavaScript thread, so a `runSync` write on the main connection in that
  * window blocks the thread for the whole busy timeout and then fails. An Error Report waits in memory while one is
  * open and is written when the last closes (src/tally/errors.ts). The launch replay, which runs before any screen can

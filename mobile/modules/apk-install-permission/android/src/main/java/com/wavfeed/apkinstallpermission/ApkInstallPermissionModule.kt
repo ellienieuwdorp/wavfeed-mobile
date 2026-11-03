@@ -6,7 +6,7 @@ import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
-// The installed manifest declares the capability (task 0069), before Android asks the tester to allow this source.
+// The installed manifest declares the capability, before Android asks the tester to allow this source.
 class ApkInstallPermissionModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoApkInstallPermission")

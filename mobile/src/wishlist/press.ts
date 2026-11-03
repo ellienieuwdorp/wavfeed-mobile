@@ -43,7 +43,7 @@ async function carry(lifetime: WishlistLifetime, latest: Map<string, Travel>, ke
   const travel = latest.get(key);
   if (travel === undefined) return;
   const tell = await travel.send(sent);
-  // A sent remote write cannot be recalled; its old owner publishes nothing and sends no follow-up (task 0068).
+  // A sent remote write cannot be recalled; its old owner publishes nothing and sends no follow-up.
   if (!lifetime.active()) return;
   const intent = intentOf(travel.db, key) ?? sent;
   if (tell === null) {

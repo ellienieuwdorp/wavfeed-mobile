@@ -24,7 +24,7 @@ const STORY_TYPES: Readonly<Record<string, StoryType>> = {
 /**
  * Codes Bandcamp's own feed renders that name no Release a followed Fan or Page acted on: `np` a stranger "also
  * bought", `df` a Discover pick, `bp` a full discography, `nf`, `fs`, `st` and `sm` follows, subscriptions and
- * messages. Dropped without counting, so `unknownStoryType` counts only codes nobody has read yet (task 0045).
+ * messages. Dropped without counting, so `unknownStoryType` counts only codes nobody has read yet.
  */
 const IGNORED_STORY_TYPES: ReadonlySet<string> = new Set(['np', 'df', 'bp', 'nf', 'fs', 'st', 'sm']);
 
@@ -219,8 +219,7 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
   }
 
   const actionDate = storyType === 'purchase' ? (readDate(entry, 'purchased') ?? storyDate) : storyDate;
-  // A pre-order's story date is the day its page went public, weeks before it is out, so its release page dates it
-  // (task 0041, decision 1).
+  // A pre-order's story date is the day its page went public, weeks before it is out, so its release page dates it.
   const isPreorder = entry.is_preorder === true;
   const releaseDate = storyType === 'new_release' && !isPreorder ? (readDate(entry, 'new_date') ?? storyDate) : null;
 
@@ -245,7 +244,7 @@ function readEntry(rawEntry: unknown, context: EntryContext): ParsedEntry | unde
       releaseDate,
       label: readTextOrNull(entry, 'label'),
       labelId: readIdOrNull(entry, 'label_id'),
-      // `band_name` is the Release's artist credit; `band_info` names the Page (task 0071, decision 18).
+      // `band_name` is the Release's artist credit; `band_info` names the Page.
       artistCredit: readTextOrNull(entry, 'band_name'),
       price: readDecimalOrNull(entry, 'price'),
       currency: readTextOrNull(entry, 'currency'),

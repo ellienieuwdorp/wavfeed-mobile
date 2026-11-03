@@ -1,5 +1,5 @@
 /**
- * A two- or three-way mode picker (task 0036 decision 5): on iOS the system segmented control, SwiftUI's segmented
+ * A two- or three-way mode picker: on iOS the system segmented control, SwiftUI's segmented
  * Picker through @expo/ui; on Android a Material 3 Expressive connected button group drawn with our tokens as the
  * canvas's `.and-btngroup` draws it (raised segments in a border outline, 6dp inner corners, the chosen one round on
  * the accent), because @expo/ui's Compose layer has only the older segmented button. It fills its parent's width;

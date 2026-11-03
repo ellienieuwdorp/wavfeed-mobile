@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Both production New releases screens, their clock, provider and live-query hook over a real SQLite store (tasks 0070 and 0072).
+ * Both production New releases screens, their clock, provider and live-query hook over a real SQLite store.
  * React hook scheduling and native elements are stood in; classification, query invalidation and displayed list
  * data run their production owners. This does not render native rows or exercise background timer delivery.
  */
@@ -47,7 +47,7 @@ function load(file: string, imports: Record<string, unknown>) {
   return module.exports;
 }
 
-/** The filter's store and the route's params, as New releases reads them (task 0071, decisions 5 to 9 and Open 8). */
+/** The filter's store and the route's params, as New releases reads them. */
 type FilterRig = { settings: FilterSettings | null; params: { people?: string }; updates: FilterSettings[] };
 
 function mount(file: string, db: SQLiteDatabase, provider = false, filter: FilterRig = { settings: null, params: {}, updates: [] }) {
@@ -166,7 +166,7 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
   };
 }
 
-/** A five-Track public pre-order page, with inert URLs authored for this boundary (task 0072). */
+/** A five-Track public pre-order page, with inert URLs authored for this boundary. */
 function previewPage(playing: number): BandcampDocument {
   return {
     endpoint: 'release_page', fetchedAt: new Date().toISOString(),
@@ -275,8 +275,7 @@ for (const file of ['../app/(tabs)/releases/index.tsx', '../app/(tabs)/releases/
     const at = mount(file, db);
     t.after(at.unmount);
     const label = (items: readonly Item[]) => file.endsWith('/index.tsx') ? items.find((item) => item.kind === 'shelf')?.cards?.[0]?.day : items.find((item) => item.key === `a:${PREORDER_ITEM_ID}`)?.day;
-    // A card's day and an Upcoming row's day both carry the month, with no "out" and no weekday (task 0071, decisions 10
-    // and 14, amended by the author 2026-10-14).
+    // A card's day and an Upcoming row's day both carry the month, with no "out" and no weekday (amended by the author 2026-10-14).
     const [before, onTheDay] = ['13 Oct', 'Today'];
     const first = await at.read();
     assert.equal(label(first), before);

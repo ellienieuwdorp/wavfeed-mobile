@@ -1,5 +1,5 @@
 /**
- * Adopts the UIScene life cycle (task 0052, decision 1): an app built with the iOS 27 SDK that does not is stopped by
+ * Adopts the UIScene life cycle: an app built with the iOS 27 SDK that does not is stopped by
  * UIKit at launch (`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`, iOS build 6). Expo 57 ships the
  * scene delegate, `EXExpoAppSceneDelegate`, but its template still starts React Native from the app delegate, so this
  * names the delegate in Info.plist and moves the start to it: the app delegate keeps creating the factory and offers
@@ -15,7 +15,7 @@ const START = /\n#if os\(iOS\) \|\| os\(tvOS\)\n {4}window = UIWindow\(frame: UI
 function adoptScenes(contents) {
   if (contents.includes('ExpoReactNativeFactoryProvider')) return contents;
   if (!contents.includes(CLASS) || !START.test(contents)) {
-    throw new Error('withSceneLifecycle: AppDelegate.swift is not the template this plugin edits (task 0052)');
+    throw new Error('withSceneLifecycle: AppDelegate.swift is not the template this plugin edits');
   }
   return contents.replace(CLASS, 'class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {').replace(START, '');
 }
@@ -33,7 +33,7 @@ module.exports = function withSceneLifecycle(config) {
     return mod;
   });
   return withAppDelegate(config, (mod) => {
-    if (mod.modResults.language !== 'swift') throw new Error('withSceneLifecycle: AppDelegate is not Swift (task 0052)');
+    if (mod.modResults.language !== 'swift') throw new Error('withSceneLifecycle: AppDelegate is not Swift');
     mod.modResults.contents = adoptScenes(mod.modResults.contents);
     return mod;
   });

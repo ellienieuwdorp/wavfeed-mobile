@@ -1,9 +1,8 @@
 /**
- * Release-date enrichment's worklist on the device (ADR-0011, DESIGN.md section 3, task 0036): the Releases a Story or
+ * Release-date enrichment's worklist on the device (ADR-0011, DESIGN.md section 3): the Releases a Story or
  * a wishlist item reaches whose public page has not yet given the Projection a `release_date`, and the attempts made
  * at each page, kept in `release_page_attempts` so a page that answered badly waits a day, or a week after three.
- * Upcoming Releases and the Track pages a Drop still owes share the turn's allowance fairly (task 0041, decision 8;
- * task 0072).
+ * Upcoming Releases and the Track pages a Drop still owes share the turn's allowance fairly.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -43,7 +42,7 @@ function asItemType(value: string): ItemType | null {
 }
 
 /**
- * Pre-orders first (task 0067, decision 5), then Tracks whose known album is absent (task 0072); within each, newest
+ * Pre-orders first, then Tracks whose known album is absent; within each, newest
  * Story first, then wishlist-only Releases by when they were wished for.
  */
 export async function readUndatedReleases(
@@ -79,12 +78,12 @@ export async function readUndatedReleases(
 }
 
 /**
- * Upcoming Releases whose page is due (task 0041, decision 8): none read while it was Upcoming or the newest a day old,
+ * Upcoming Releases whose page is due: none read while it was Upcoming or the newest a day old,
  * once the attempt book allows; or the feed read since the last attempt names more Tracks playing than the newest page
  * did, which skips the day's wait after a read that went well and never a failure's wait. Those the feed is ahead on
  * first, then the longest unread. A page last read as a phone, and not asked since, is due once more whatever its age,
- * unless a failure's wait is running (decision 11): migration 7 marked its booking and the next one clears the mark.
- * A Track whose album is held is never due; the album's page is (task 0067, decision 2).
+ * unless a failure's wait is running: migration 7 marked its booking and the next one clears the mark.
+ * A Track whose album is held is never due; the album's page is.
  */
 export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date(), only?: ReleaseKey): Promise<readonly DueRelease[]> {
   if (limit <= 0) return [];
@@ -122,11 +121,11 @@ export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Da
 export type OwedTrackPage = ReleaseKey & { readonly releaseUrl: string; readonly path: string };
 
 /**
- * The Track pages a later Drop of a reached Upcoming Release still owes (task 0041, decisions 7 and 8): a Track it let
+ * The Track pages a later Drop of a reached Upcoming Release still owes: a Track it let
  * out whose page no read since the Drop's has asked, or whose failure's wait is over. A pass that ran out of quota or
  * was refused before them leaves them here for the next. The path is the newest album page's `title_link`. A Drop
  * still dated by its read owes once more a Track page that came back when pages were asked for as a phone, which has
- * no `mod_date` (decision 11).
+ * no `mod_date`.
  */
 export async function readOwedTrackPages(
   db: SQLiteDatabase,

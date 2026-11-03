@@ -1,5 +1,5 @@
 /**
- * A filter change eased in the lists it narrows (task 0071, decision 7, the author's request of 2026-10-15): rows that
+ * A filter change eased in the lists it narrows (the author's request of 2026-10-15): rows that
  * leave fade out, rows that arrive fade in and the rest slide to their places, about 260 ms on a gentle ease. A cell
  * carries Reanimated layout animations only while it is armed, React state the cells read, raised while the Filters
  * sheet is open and while a list draws a filter change, and lowered once that change's animations have run; at rest a

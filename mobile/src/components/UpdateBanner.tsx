@@ -1,11 +1,11 @@
 /**
- * The store build banner (task 0064, docs/design/2026-10-08-update-banner): a card under each view's header when only
+ * The store build banner (docs/design/2026-10-08-update-banner): a card under each view's header when only
  * TestFlight or Google Play can bring this install up to date. It draws from the last `store-builds.json` answer kept
  * in `kv`, recomputed with `verdictOf` at mount, so it arrives with the rows; a fresh answer that differs waits for the
  * next launch or return to the app, except an install's first, which animates in at once. One read per launch and per
  * return after six hours, shared by every banner through a module store. It hides on the collection tabs until a newer
  * build is named; Settings keeps it. A store build's card opens TestFlight or Play; a website APK's downloads and
- * installs the next APK (task 0065, decision 6), or opens the download where the binary cannot install. Only builds
+ * installs the next APK, or opens the download where the binary cannot install. Only builds
  * with updates enabled and a channel `distributionOf` knows check; a development bundle has neither.
  */
 import * as Application from 'expo-application';

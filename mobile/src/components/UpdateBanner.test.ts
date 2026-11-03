@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** The banner press uses the installed binary's capability, including old builds without its bridge (task 0069). */
+/** The banner press uses the installed binary's capability, including old builds without its bridge. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';

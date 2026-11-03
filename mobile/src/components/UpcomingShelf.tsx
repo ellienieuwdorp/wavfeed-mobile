@@ -1,11 +1,11 @@
 /**
- * The Upcoming shelf (DESIGN-UI section 3, task 0037): what is not out yet runs sideways, nearest release day first,
+ * The Upcoming shelf (DESIGN-UI section 3): what is not out yet runs sideways, nearest release day first,
  * at one fixed height above the released weeks, which run down. A card is its art, the play control, with three marks
- * on it (task 0071, decision 14 as amended by the author 2026-10-16): the day, "13 OCT" or "TODAY", top left, the faces
+ * on it: the day, "13 OCT" or "TODAY", top left, the faces
  * of who bought it top right, two at most, a button opening the Bought by sheet, and a partial Release's "1/4" bottom
  * left. Under the art in the same control come the title and the credit line, each the card's full width. At a larger
  * text size the title holds two lines, so the credit lines sit level across the shelf (review VIS-1), while the marks
- * keep their size. No heart (task 0037, decision 2); a long press opens the row menu, where the wishlist item is. "View
+ * keep their size. No heart; a long press opens the row menu, where the wishlist item is. "View
  * more" pushes the full list.
  */
 import type { Href } from 'expo-router';
@@ -31,12 +31,11 @@ import { Type } from './Type';
 const ios = Platform.OS === 'ios';
 /**
  * The art and the card's width: 112 grown a fifth (the author, 2026-10-15), set to 136, a whole number of pixels at
- * 2x, 3x and Android's 2.625 (420dpi) and on the 4dp grid, while the text and the marks keep their sizes (task 0071,
- * decision 14).
+ * 2x, 3x and Android's 2.625 (420dpi) and on the 4dp grid, while the text and the marks keep their sizes.
  */
 const CARD = 136;
 const GAP = 12;
-/** A card's faces: two at most, then "+N", beside the day on the art's top edge (task 0071, decision 14). */
+/** A card's faces: two at most, then "+N", beside the day on the art's top edge. */
 const CARD_FACES = 2;
 
 /**

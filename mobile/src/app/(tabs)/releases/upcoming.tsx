@@ -1,8 +1,8 @@
 /**
- * Every Upcoming Release from New releases, the shelf's "View more" (DESIGN-UI section 3, task 0037): the weeks read
+ * Every Upcoming Release from New releases, the shelf's "View more" (DESIGN-UI section 3): the weeks read
  * forwards, nearest first, with no quiet gaps, and the rows are the released weeks' own, their day "13 Oct" and
- * the "1/4" on the art once a Track plays (task 0071, decisions 10 and 12). New releases' filter narrows it as it does the
- * shelf (decisions 7 and 9), and a filter that keeps nothing says so with "Clear filters". It hands the Filters sheet
+ * the "1/4" on the art once a Track plays. New releases' filter narrows it as it does the
+ * shelf, and a filter that keeps nothing says so with "Clear filters". It hands the Filters sheet
  * its view as New releases does, so the sheet counts even when a link opens this list alone.
  */
 import { useEffect, useMemo } from 'react';
@@ -50,7 +50,7 @@ export default function UpcomingReleases() {
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
-  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017, task 0070).
+  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017).
   const releaseDate = releaseDayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
   const { db } = useAppState();
@@ -71,8 +71,7 @@ export default function UpcomingReleases() {
       list.push({ key: week.key, kind: 'week', heading: week.heading, detail: week.detail });
       week.entries.forEach((r, n) => {
         const rule = n < week.entries.length - 1;
-        // Every row here is upcoming, so the eyebrow drops "out" as R5 names draws it, and the weekday (task 0071, decision
-        // 10, amended by the author 2026-10-12 and 2026-10-14); the label says both, as an Upcoming card's does.
+        // Every row here is upcoming, so the eyebrow drops "out" as R5 names draws it, and the weekday (amended by the author 2026-10-12 and 2026-10-14); the label says both, as an Upcoming card's does.
         const on = releaseDay(r.releaseDate);
         const day = onDayPhrase(on, at);
         const heardDay = outOnPhrase(on, at);

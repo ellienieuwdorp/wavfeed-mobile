@@ -1,5 +1,5 @@
 /**
- * The New releases filter's settings on this install (task 0071, decisions 5 to 9 as amended 2026-10-14): the people
+ * The New releases filter's settings on this install: the people
  * switch with its minimum, and the chosen tags, kept as one JSON value in the `kv` table so they outlive a launch; a
  * rebuild of the Projection leaves them standing, as it does the walk state. Nothing is applied by default and there is
  * no separate on or off: the filter is active when the people switch is on or a tag is chosen. No row reads as nothing
@@ -16,7 +16,7 @@ export const FILTER_KEY = 'releases_filter';
 
 export type FilterSettings = ReleaseFilter;
 
-/** The first open, "Clear" in the sheet and "Clear filters": the people switch off at 2, no tags (Open 10 keeps 2). */
+/** The first open, "Clear" in the sheet and "Clear filters": the people switch off at 2, no tags (whether Clear keeps 2 is still open). */
 export const NOTHING_CHOSEN: FilterSettings = { people: { on: false, min: 2 }, tags: [] };
 
 /** Whether the filter is active: the button tinted, the "Filtered by" pill under the title, the list filtered. */
@@ -37,7 +37,7 @@ export function withTag(settings: FilterSettings, tag: string, on: boolean): Fil
 }
 
 /**
- * Feed's "Bought by people you follow" link (Open 8): New releases with the people filter on at the link's minimum,
+ * Feed's "Bought by people you follow" link: New releases with the people filter on at the link's minimum,
  * 1+ from Feed, keeping the tags the Fan chose. A `people` value that is no number leaves the settings as they were.
  */
 export function withPeopleLink(saved: FilterSettings | null, people: string | string[] | undefined): FilterSettings | null {
@@ -49,7 +49,7 @@ export function withPeopleLink(saved: FilterSettings | null, people: string | st
 }
 
 /**
- * What the "Filtered by" pill and "Nothing matches" name (decisions 6 and 9): the minimum with the people switch on,
+ * What the "Filtered by" pill and "Nothing matches" name: the minimum with the people switch on,
  * and the chosen tags by the names the view shows, in the order they were chosen.
  */
 export function namedFilter(settings: FilterSettings, tags: readonly TagCount[]): { readonly min: number | null; readonly tags: readonly string[] } {

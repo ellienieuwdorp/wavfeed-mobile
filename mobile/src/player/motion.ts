@@ -1,5 +1,5 @@
 /**
- * The app's shared motion (DESIGN-UI sections 10 and 11, task 0036): the system's reduce motion setting as a live value,
+ * The app's shared motion (DESIGN-UI sections 10 and 11): the system's reduce motion setting as a live value,
  * for every moving mark, the press every playable surface answers with, and the Filters sheet's pressed tone, each a
  * progress from 0 at rest to 1 held that Reanimated runs on the UI thread, so the feedback costs the JS thread one
  * assignment and no re-render.
@@ -48,7 +48,7 @@ const TONE_OUT = { duration: 220, easing: Easing.out(Easing.quad) };
 export type PressTone = { tone: SharedValue<number>; onPressIn: () => void; release: () => void };
 
 /**
- * The Filters sheet's pressed grey or dim (task 0071, the author's request of 2026-10-15). Call `release` from
+ * The Filters sheet's pressed grey or dim (the author's request of 2026-10-15). Call `release` from
  * `onPress` as well as `onPressOut`: Pressable holds a short tap's press out for 130 ms on a timer, which waits behind
  * the render of the list the tap changes, while `onPress` runs as the finger lifts.
  */

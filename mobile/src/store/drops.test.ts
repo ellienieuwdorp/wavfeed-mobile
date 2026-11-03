@@ -1,10 +1,10 @@
 /// <reference types="node" />
 /**
- * Drops from Raw Documents (task 0041, decisions 6 and 7): each read that shows more Tracks of an Upcoming Release
+ * Drops from Raw Documents: each read that shows more Tracks of an Upcoming Release
  * playing than any before writes one, dated on the Release's first read by the page's publish date or the Story's, and
  * after it by the read unless a Track page of a Track it let out dates it inside the window between the reads; one per
  * GMT day; and a rebuild from scratch writes the same Drops on the same days (ADR-0004). A Track of the Release bought
- * alone is the Release on the shelf and in the weeks, and opens it when no other read has (task 0067).
+ * alone is the Release on the shelf and in the weeks, and opens it when no other read has.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -164,7 +164,7 @@ test('a first rise after reads that showed none playing sits in their window, no
   assert.deepEqual(await drops(store.db), [['2026-10-06', 1, 4, preorderTrackId(2)]]);
   store.close();
 
-  // Its Track page dates it inside the window, as any later Drop's does (decision 7).
+  // Its Track page dates it inside the window, as any later Drop's does.
   store = await gathered([
     ...quiet,
     albumRead('2026-10-06T08:00:00.000Z', [2]),

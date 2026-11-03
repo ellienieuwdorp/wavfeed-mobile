@@ -1,10 +1,10 @@
 /**
- * The player sheet's tracklist (DESIGN-UI sections 10 and 12, task 0036): a "Tracks" head and one fixed-height row per
+ * The player sheet's tracklist (DESIGN-UI sections 10 and 12): a "Tracks" head and one fixed-height row per
  * Track of the Release in the transport, the number in tabular figures, the title and the m:ss trailing. The playing
  * Track swaps its number for a live mark in the accent, three rounded bars on iOS and Material's square equaliser on
  * Android, still while paused or under reduce motion. A Track without a stream is faint, says "no preview" and takes no
  * press; a capped one adds "preview" after its time. A Track not out yet is as faint and says nothing in that slot,
- * only its spoken label naming it (task 0041, decision 5). Every playable row carries the heart for its own Track and
+ * only its spoken label naming it. Every playable row carries the heart for its own Track and
  * plays it on a press; nothing draws while the tracklist first loads.
  */
 import { useEffect, useState } from 'react';

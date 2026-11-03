@@ -1,5 +1,5 @@
 /**
- * Error Reports from the running app (task 0038 decision 10, ADR-0021, the plan's "Error capture on RN 0.86"): a
+ * Error Reports from the running app (ADR-0021, the plan's "Error capture on RN 0.86"): a
  * global handler chained in front of the one it finds, the Hermes rejection tracker turned on in release builds (RN
  * turns it on only in development), the boundary fallbacks and `reportCode` for handled failures. Each report is
  * written at once with `runSync` through `enqueueErrorSync`, whose statement checks the stored yes, so nothing is kept

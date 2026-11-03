@@ -1,6 +1,6 @@
 /**
  * What every request in the session shares: request-only endpoint names, paths, Accept headers, the answer shape
- * and the fetch-target guard. The names Raw Documents carry live in `domain/endpoints.ts` (task 0036, decision 3).
+ * and the fetch-target guard. The names Raw Documents carry live in `domain/endpoints.ts`.
  */
 import { asRecord } from '../domain/wire';
 

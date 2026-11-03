@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** The production wishlist exchange on real SQLite: confirmation lands while active and stops after retirement (task 0068). */
+/** The production wishlist exchange on real SQLite: confirmation lands while active and stops after retirement. */
 import assert from 'node:assert/strict';
 import { mock, test, type TestContext } from 'node:test';
 

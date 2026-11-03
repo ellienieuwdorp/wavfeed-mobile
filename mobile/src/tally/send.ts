@@ -1,5 +1,5 @@
 /**
- * The outbox sender (task 0038, the plan's "The outbox is migration 4"): `flush` posts batches for one Install until
+ * The outbox sender (the plan's "The outbox is migration 4"): `flush` posts batches for one Install until
  * the outbox is empty or the Worker asks for a wait, and a `Sender` holds one flush in flight at a time. A trigger
  * during a flush runs one more after it; a trigger during a back-off waits for its end. The back-off grows with each
  * failed try and takes the Worker's `Retry-After` as a floor (`backoffMs`). A flush re-reads the sharing row before

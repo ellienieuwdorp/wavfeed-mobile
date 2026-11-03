@@ -1,7 +1,7 @@
 /**
  * Synthetic Raw Document payloads for the parsers and the store, shaped like what Bandcamp answers (same keys, same
- * date forms, same numeric types) and made up throughout: no real feed data lives in the repo (task 0036). The sweep's
- * two documents follow what task 0001 measured on 2026-08-21 (ADR-0017).
+ * date forms, same numeric types) and made up throughout: no real feed data lives in the repo. The sweep's
+ * two documents follow what was measured on 2026-08-21 (ADR-0017).
  */
 import { wireDate } from './history';
 
@@ -224,7 +224,7 @@ export const PREORDER_URL = 'https://nightgraft.bandcamp.com/album/moth-season';
 
 /**
  * The `nr` entry of that pre-order as the feed writes it: dated when its page went public, `new_date` null, and
- * `num_streamable_tracks` the true count of Tracks that play (task 0041).
+ * `num_streamable_tracks` the true count of Tracks that play.
  */
 export function preorderNrEntry(overrides: Fields = {}): Fields {
   return nrEntry({
@@ -246,7 +246,7 @@ export function preorderNrEntry(overrides: Fields = {}): Fields {
   });
 }
 
-/** A Fan bought one Track of the pre-order alone, the way "hey" of "chrysalis" was bought (task 0067). */
+/** A Fan bought one Track of the pre-order alone, the way "hey" of "chrysalis" was bought. */
 export function preorderTrackPurchase(trackNum: number, overrides: Fields = {}): Fields {
   const [trackId, title, path] = PREORDER_TRACKS[trackNum - 1] ?? [0, '', ''];
   return fpEntry({
@@ -291,7 +291,7 @@ function preorderTrack(trackNum: number, out: boolean): Fields {
 }
 
 /**
- * A pre-order album's `data-tralbum` blob shaped after a real page read on 2026-09-29 (task 0041): out on 13 October,
+ * A pre-order album's `data-tralbum` blob shaped after a real page read on 2026-09-29: out on 13 October,
  * its second Track let out early, the other three named but not out. `out` names the Tracks that play instead.
  */
 export function preorderTralbumBlob(overrides: Fields = {}, out: readonly number[] = [2]): Fields {
@@ -320,7 +320,7 @@ export function preorderTralbumBlob(overrides: Fields = {}, out: readonly number
 
 /**
  * The same pre-order as the page a phone is served writes it (read 2026-09-29 with the app's phone User-Agent, which
- * release pages went out with until task 0041, decision 11): `current` has no `release_date` and no `mod_date`, and a
+ * release pages went out with until the app asked as a desktop browser): `current` has no `release_date` and no `mod_date`, and a
  * Track not out has no `id`, `track_id`, `title_link` or `file` key.
  */
 export function phonePreorderTralbumBlob(out: readonly number[] = [2]): Fields {
@@ -387,7 +387,7 @@ export function releasePagePayload(
   };
 }
 
-/** A record still ahead of today: an Upcoming Release (task 0001). */
+/** A record still ahead of today: an Upcoming Release. */
 const UPCOMING_DATE = '14 Sep 2026 00:00:00 GMT';
 export const UPCOMING_ITEM_ID = 4102938999;
 export const UPCOMING_URL = 'https://nightgraft.bandcamp.com/album/vortex-archives';

@@ -1,5 +1,5 @@
 /**
- * The row's wishlist swipe (task 0071, decisions 15 to 17, the R5 swipe canvas): a finger moving right slides the row
+ * The row's wishlist swipe (the R5 swipe canvas): a finger moving right slides the row
  * over an orange panel whose outline heart rides the panel's edge, and the row's hairline leaves while it is moved, as
  * CSS5 draws the swiped row. Past half the row's width the panel says Wishlist beside a filled heart, or Remove beside a
  * slashed one on a wishlisted row, and the heart's light haptic ticks once. The verb is latched as the pan starts, so

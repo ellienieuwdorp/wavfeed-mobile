@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The New releases filter (task 0071, decisions 8 and 21): tags as any of them, tags and the people minimum as both,
+ * The New releases filter: tags as any of them, tags and the people minimum as both,
  * one verdict per Release across the shelf and the weeks, no week left without rows, and the counts the sheet shows.
  * That the counts match the filtered list over a long history is src/store/queries.test.ts.
  */

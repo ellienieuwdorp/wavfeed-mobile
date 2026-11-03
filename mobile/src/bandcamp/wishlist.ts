@@ -1,8 +1,7 @@
 /**
  * The reading half of the wishlist exchange (ADR-0016): the request body and headers, the crumb map a signed-in page
  * carries in `<meta id="js-crumbs-data">` (amendment 2026-09-28), the crumb an `invalid_crumb` answer hands back, and
- * every answer classified from its body. A signed-out answer is `logged_out`, since the phone holds no cookie (task
- * 0036, decision 1). The headers are the ones that land on the real wire, plus the charset jQuery adds (docs/research/2026-08-21-wishlist-wire.md). A
+ * every answer classified from its body. A signed-out answer is `logged_out`, since the phone holds no cookie. The headers are the ones that land on the real wire, plus the charset jQuery adds (docs/research/2026-08-21-wishlist-wire.md). A
  * handler that throws answers with Bandcamp's trackpipe envelope (`error`, `exception`, `host`, `url`, `date`, `user`),
  * and its own client shows the person only what follows `ALERT: ` in `exception` (`showXHRError`, global_foot2), so
  * that is the reason a refusal carries, and the whole exception when there is no such marker.
@@ -260,7 +259,7 @@ function shapeOf(key: string, value: unknown): string {
 
 /**
  * The answer's top-level fields for the press log: every name, and a value only for a flag, a number or a reason
- * field; a field named like a secret gives its type alone (task 0036, decision 1).
+ * field; a field named like a secret gives its type alone.
  */
 export function answerShape(body: Record<string, unknown>): string {
   const entries = Object.entries(body);

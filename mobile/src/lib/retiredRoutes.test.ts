@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** A link to Bought's retired routes opens New releases however it arrives, and every other link passes untouched (task 0071, decision 1). */
+/** A link to Bought's retired routes opens New releases however it arrives, and every other link passes untouched. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 

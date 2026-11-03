@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** When only a new build can bring an install up to date, and which (task 0064, decision 1; task 0065, decision 6). */
+/** When only a new build can bring an install up to date, and which. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 

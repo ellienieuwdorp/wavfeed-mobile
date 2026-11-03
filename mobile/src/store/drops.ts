@@ -1,5 +1,5 @@
 /**
- * Drops, written by the Projection only (task 0041, decisions 6 and 7; ADR-0017 amended 2026-09-29). A read of an
+ * Drops, written by the Projection only (ADR-0017 amended 2026-09-29). A read of an
  * Upcoming Release, a `new_release` feed entry or a release page, that shows more Tracks playing than any read before
  * it writes a Drop, one per Release per GMT day; a Track page of a Track it let out may then date it. Each read is a Raw
  * Document folded in raw id order, which is the order the phone fetched them in, and every rule reads only what the
@@ -68,7 +68,7 @@ export function trackIds(value: string): number[] {
 }
 
 /**
- * Upcoming at that read: dated after the read's GMT day, or a pre-order no page has dated yet (task 0041, decision 1).
+ * Upcoming at that read: dated after the read's GMT day, or a pre-order no page has dated yet.
  * The Release's own row as the fold has it, this document's own writes included.
  */
 function upcomingAt(release: HeldRelease, readAt: string): boolean {
@@ -76,7 +76,7 @@ function upcomingAt(release: HeldRelease, readAt: string): boolean {
   return release.release_date >= aheadFrom(new Date(readAt)).toISOString();
 }
 
-/** Two Drops on one day are one: the higher count, the later read's total, both windows, every Track (decision 6). */
+/** Two Drops on one day are one: the higher count, the later read's total, both windows, every Track. */
 function merged(held: DropRecord, incoming: DropRecord): DropRecord {
   const newer = incoming.read_at >= held.read_at ? incoming : held;
   const ids = trackIds(held.track_ids);
@@ -120,7 +120,7 @@ async function writeDrop(db: SQLiteDatabase, release: ReleaseRef, drop: DropReco
   );
 }
 
-/** The newest count each source stated, which dates the next Drop's window and makes the page due (decision 8). */
+/** The newest count each source stated, which dates the next Drop's window and makes the page due. */
 async function recordRead(db: SQLiteDatabase, read: TrackRead): Promise<void> {
   const [out, at] = read.source === 'feed' ? ['feed_tracks_out', 'feed_tracks_read_at'] : ['page_tracks_out', 'page_tracks_read_at'];
   await db.runAsync(
@@ -130,9 +130,9 @@ async function recordRead(db: SQLiteDatabase, read: TrackRead): Promise<void> {
 }
 
 /**
- * A rise above the highest count seen writes a Drop (task 0041, decision 6): the first read of the Release, when a Track
+ * A rise above the highest count seen writes a Drop: the first read of the Release, when a Track
  * plays, is dated by `firstDay`; any later rise, the first included when earlier reads showed none playing, by the read
- * that showed more until a Track page dates it (decision 7). A page that
+ * that showed more until a Track page dates it. A page that
  * shows no rise names the Tracks of the newest Drop a feed entry wrote without them.
  */
 async function foldTrackRead(db: SQLiteDatabase, read: TrackRead): Promise<void> {
@@ -199,7 +199,7 @@ async function heldPublishedAt(db: SQLiteDatabase, release: ReleaseRef, beforeId
 }
 
 /**
- * A `new_release` entry's count, the true one (task 0041); a Drop on the first read sits on the held page's publish date,
+ * A `new_release` entry's count, the true one; a Drop on the first read sits on the held page's publish date,
  * else the Story's.
  */
 export async function foldFeedTrackRead(
@@ -250,8 +250,8 @@ export async function foldPageTrackRead(db: SQLiteDatabase, doc: RawDocument, pa
 
 /**
  * A Track page of a Track a later Drop let out dates that Drop by its `mod_date`, the newest of them, when the moment
- * lies after the read that showed fewer Tracks and no later than the read that showed more (task 0041, decision 7).
- * ceiling: that a `mod_date` inside the window is the day the Track came out is unproven (task 0041, open); the check
+ * lies after the read that showed fewer Tracks and no later than the read that showed more.
+ * ceiling: that a `mod_date` inside the window is the day the Track came out is unproven (open); the check
  * is the next Track of "chrysalis" against Bandcamp's email, and if it fails the read's own day is all that is left, or
  * a Track's own release moment should Bandcamp ever state one.
  */
@@ -280,7 +280,7 @@ export async function foldTrackPage(db: SQLiteDatabase, parsed: ParsedReleasePag
     ]);
     return;
   }
-  // Moved onto a day that holds a Drop already, the two are one (decision 6).
+  // Moved onto a day that holds a Drop already, the two are one.
   await db.runAsync('delete from drops where item_type = ? and item_id = ? and day = ?', [album.itemType, album.itemId, drop.day]);
   await writeDrop(db, album, { ...drop, day, track_at: moment, dated_by: 'track' });
 }

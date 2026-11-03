@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
- * The credit line's one extra name (task 0071, decision 11): the four ways a Page and a credit relate, a compilation,
- * a Release nothing credited (decision 18), and one act spelled two ways by its Page and its credit (the author's
+ * The credit line's one extra name: the four ways a Page and a credit relate, a compilation,
+ * a Release nothing credited, and one act spelled two ways by its Page and its credit (the author's
  * request of 2026-10-15, shapes read off a real store).
  */
 import assert from 'node:assert/strict';

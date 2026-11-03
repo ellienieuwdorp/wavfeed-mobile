@@ -1,11 +1,10 @@
 /// <reference types="node" />
 /**
  * The store's view reads narrow the wide Story join in SQL; each must answer what the server's feed rules answer on
- * the full join (task 0036, decision 3), and a rebuild from the Raw Documents must answer the same again (ADR-0004).
+ * the full join, and a rebuild from the Raw Documents must answer the same again (ADR-0004).
  * The wishlist crumb's stand-in, a Release the store holds on a bandcamp.com host, is picked here as well, and the
- * player's tracklist off a stored release page, every Track the page names (task 0041, decision 5). A Track bought
- * before its album came out counts as the album on New releases' released rows (task 0067, decision 3; task 0071,
- * decision 19). The filter's counts match the list it leaves over the long history (task 0071, decision 21).
+ * player's tracklist off a stored release page, every Track the page names. A Track bought
+ * before its album came out counts as the album on New releases' released rows. The filter's counts match the list it leaves over the long history.
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
@@ -65,8 +64,7 @@ async function newReleasesByRules(db: SQLiteDatabase, rows: readonly FeedStoryRo
 
 /**
  * Off the wide join alone, not through the domain: each Release's named buyers, and the Releases out by `now` that a
- * named Fan bought and no new-release Story or Upcoming row drew, which join the weeks as bought (task 0071, decisions
- * 19 and 20; Open 9 keeps the undated out).
+ * named Fan bought and no new-release Story or Upcoming row drew, which join the weeks as bought; undated ones stay out.
  */
 function signalByRules(rows: readonly FeedStoryRow[], now: Date) {
   const key = (row: FeedStoryRow) => `${row.itemType}:${row.itemId}`;
@@ -151,7 +149,7 @@ test('the tracklist names the Tracks not out that a phone\'s page gives no id', 
   close();
 });
 
-test('in New releases a Feed Item sits on its release day, not on the day its one Story came (task 0041, decision 3)', async () => {
+test('in New releases a Feed Item sits on its release day, not on the day its one Story came', async () => {
   const { db, close } = await openTestStore();
   // Out 14 August, its Story dated 18 August.
   const payload = feedPayload({ entries: [nrEntry()] });
@@ -315,7 +313,7 @@ test('selected Releases retain older buyers and reviews beyond 50,000 newer Stor
       upcomingReviews: upcoming.reviews.map(({ text }) => text),
     }, {
       trackDrawn: false,
-      // Curated keeps the Track's own Story (task 0067); the album's older purchase still belongs to its full read.
+      // Curated keeps the Track's own Story; the album's older purchase still belongs to its full read.
       curatedBuyers: [thirdFanId, OTHER_FAN_ID].map(String),
       upcomingBuyers: [thirdFanId, OTHER_FAN_ID, FAN_ID].map(String),
       upcomingReviews: ['The older Track review'],
@@ -361,7 +359,7 @@ test('the just-out handoff and Upcoming each retain 500 Releases in date and key
   assert.deepEqual(view.weeks.flatMap((week) => week.releases.map((entry) => [entry.release.itemType, Number(entry.release.itemId)])), justOut);
 });
 
-test('an Upcoming Release a followed Fan bought stays on the shelf past 500 nearer ones (task 0071)', async (t) => {
+test('an Upcoming Release a followed Fan bought stays on the shelf past 500 nearer ones', async (t) => {
   const { db, close } = await openTestStore();
   t.after(close);
   const now = new Date('2026-10-12T23:59:59.999Z');

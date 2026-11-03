@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The sender (task 0038) on the real migrations over `node:sqlite` against a fake ingest Worker: nothing posted
+ * The sender on the real migrations over `node:sqlite` against a fake ingest Worker: nothing posted
  * without a yes, the outbox drained in Worker-sized batches, a wait kept and backed off, an off mid-flight obeyed, and
  * one flush in flight however many reasons arrive.
  */

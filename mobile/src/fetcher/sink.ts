@@ -1,6 +1,5 @@
 /**
- * What a gather turn writes through, so the turn owns the order of requests and the store owns where they land
- * (task 0036, decisions 2 and 4). Every response enters through `putRaw` before anything reads it (ADR-0004), and
+ * What a gather turn writes through, so the turn owns the order of requests and the store owns where they land. Every response enters through `putRaw` before anything reads it (ADR-0004), and
  * everything the screen shows about gathering is a field of `GatherState`.
  */
 import type { BandcampDocument, Identity } from '../bandcamp/wire';
@@ -14,10 +13,9 @@ export type StorySample = { readonly newest: number; readonly oldest: number; re
 
 /**
  * A feed walk or poll in progress. Unix seconds: `olderThan` is the next cursor, `sinceTs` the stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
- * (task 0040) runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
- * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before task 0040 reads as not
- * probed, with no floor. `samples` and `recent` are what the fill estimates the Stories still to come from (task 0040,
- * decision 5): each probe answer with entries, and the walk's own last pages. A walk stored before that decision has
+ * runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
+ * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before the depth probe reads as not
+ * probed, with no floor. `samples` and `recent` are what the fill estimates the Stories still to come from: each probe answer with entries, and the walk's own last pages. A walk stored before that decision has
  * no `samples` until the turn reads them from the Raw Documents the probe landed.
  */
 export type WalkState = {
@@ -70,7 +68,7 @@ export type GatherState = {
   readonly phase: GatherPhase;
   readonly newestStoryDate: number | null;
   readonly followsFetchedAt: number | null;
-  /** Last follow-list attempt, separate from completed-read freshness (task 0070). */
+  /** Last follow-list attempt, separate from completed-read freshness. */
   readonly followsAskedAt: number | null;
   readonly wishlistFetchedAt: number | null;
   /** When the wishlist was last asked, whatever it answered; hearts take presses from the first ask on. */
@@ -102,7 +100,7 @@ export const EMPTY_GATHER_STATE: GatherState = {
 export type GatherSink = {
   putRaw(doc: BandcampDocument): Promise<{ deduped: boolean }>;
   readWalk(): Promise<WalkState | null>;
-  /** Feed answers with entries landed since `sinceMs` whose oldest Story is older than `below` (task 0040, decision 5). */
+  /** Feed answers with entries landed since `sinceMs` whose oldest Story is older than `below`. */
   readFeedSamples(sinceMs: number, below: number): Promise<readonly StorySample[]>;
   writeWalk(w: WalkState | null): Promise<void>;
   readGatherState(): Promise<GatherState>;
@@ -115,9 +113,9 @@ export type GatherSink = {
   afterDocuments(): Promise<void>;
   /** Undated Releases whose page is due a visit, newest Story first (ADR-0011). */
   readUndatedReleases(nowMs: number, limit: number): Promise<readonly UndatedRelease[]>;
-  /** Upcoming Releases whose page is due a read again, for a Drop (task 0041, decision 8). */
+  /** Upcoming Releases whose page is due a read again, for a Drop. */
   readUpcomingDue(nowMs: number, limit: number, only?: ReleaseKey): Promise<readonly DueRelease[]>;
-  /** Track pages a Drop still owes, which date it (task 0041, decisions 7 and 8). */
+  /** Track pages a Drop still owes, which date it. */
   readOwedTrackPages(nowMs: number, limit: number, albumId?: number): Promise<readonly OwedTrackPage[]>;
   markReleasePageAttempt(key: ReleaseKey, outcome: ReleasePageOutcome, nowMs: number): Promise<void>;
   readReleaseDateCounts(): Promise<ReleaseDateCounts>;

@@ -1,6 +1,6 @@
 /**
  * Weeks and the quiet runs between them (ADR-0011: Monday to Sunday, newest first, never an empty week section), and the
- * Upcoming band's weeks read forwards with no gaps (DESIGN-UI section 3, task 0036, decision 3).
+ * Upcoming band's weeks read forwards with no gaps (DESIGN-UI section 3).
  */
 import { gapLabel, upcomingWeekHeading, weekDetail, weekHeading } from '@/copy';
 
@@ -59,7 +59,7 @@ export function buildSectionsFromWeeks<T>(weeks: readonly GroupedWeek<T>[], now:
 }
 
 /**
- * Sections over every week held, narrowed to the entries a filter keeps (task 0071, decision 8): a week the filter
+ * Sections over every week held, narrowed to the entries a filter keeps: a week the filter
  * empties drops out and becomes no quiet run, so a gap still names only weeks that held nothing at all, and as before
  * a gap stands only between two weeks.
  */

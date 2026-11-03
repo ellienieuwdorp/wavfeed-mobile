@@ -1,5 +1,5 @@
 /**
- * New releases' filter button (task 0071, decision 5 as amended 2026-10-14, replacing decision 5's circle and the iOS
+ * New releases' filter button (replacing the earlier circle and the iOS
  * bar's trailing item): 56, at the bottom right of New releases and its Upcoming list only (see Dock). A tap always
  * opens the Filters sheet and changes nothing itself. On iOS a Liquid Glass circle with the system's filter symbol,
  * tinted with the accent glyph while a filter is active; without glass the same circle on the raised surface. On

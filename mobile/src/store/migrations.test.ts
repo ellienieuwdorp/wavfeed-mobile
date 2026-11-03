@@ -2,10 +2,10 @@
 /**
  * Migration 3 on a store that already holds feed pokes as HTML (ADR-0003, ADR-0004 amendment 2026-09-29): those rows
  * go, their crumbs with them down to the database file's bytes, and every other Raw Document stays. Migration 5 and the
- * replay after it on a store that filed a pre-order by its feed date: the Release is Upcoming again (task 0041, decision 2).
+ * replay after it on a store that filed a pre-order by its feed date: the Release is Upcoming again.
  * Migration 7 on a store whose release pages were asked for as a phone: each Upcoming page, and each Track page a Drop
- * still dated by its read came back with, is due once more, and never again for that reason (decision 11). Migration 11
- * and its replay credit the artists the held feed pages name (task 0071, decision 18). A store a newer bundle migrated
+ * still dated by its read came back with, is due once more, and never again for that reason. Migration 11
+ * and its replay credit the artists the held feed pages name. A store a newer bundle migrated
  * past the code opens as it is and is reported (review finding ARCH-13).
  */
 import assert from 'node:assert/strict';
@@ -68,7 +68,7 @@ async function heldAt(db: SQLiteDatabase, version: number): Promise<void> {
   await db.runAsync('delete from schema_migrations where version > ?', [version]);
 }
 
-/** The old bundle's insertion contract, used only to construct pre-observation migration fixtures (task 0068). */
+/** The old bundle's insertion contract, used only to construct pre-observation migration fixtures. */
 async function insertLegacyRaw(db: SQLiteDatabase, input: RawDocumentInput): Promise<void> {
   const payload = JSON.stringify(input.payload);
   await db.runAsync(
@@ -158,7 +158,7 @@ test('migration 5 and the replay it comes with put a pre-order the feed dated ba
   await migrate(db);
   assert.equal(await ensureProjectionVersion(db), true);
 
-  // The Releases' own rows; their Drops are rows of their own (task 0041, decision 10).
+  // The Releases' own rows; their Drops are rows of their own.
   const inWeeks = async () =>
     (await readNewReleases(db, { now })).weeks.flatMap((week) =>
       week.releases.flatMap((placed) => (placed.kind === 'release' ? [Number(placed.release.itemId)] : [])),

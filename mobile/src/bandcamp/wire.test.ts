@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The identity probe's reading of `collection_summary` (task 0036, decision 1): only JSON with a numeric `fan_id` is
+ * The identity probe's reading of `collection_summary`: only JSON with a numeric `fan_id` is
  * signed in, only a readable answer that is not one decides signed out, and a 5xx, 403 or 429 is Bandcamp refusing,
  * which says nothing about the session (ADR-0017).
  */

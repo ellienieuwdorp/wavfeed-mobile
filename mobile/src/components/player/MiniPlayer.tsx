@@ -1,6 +1,6 @@
 /**
- * The mini player (DESIGN-UI section 10, task 0036 decision 5, the v2 client canvas): artwork, "N. Track title" over
- * the artist, play or pause, and no heart (task 0071, decision 4; the player sheet keeps it). On iOS 26 it is the tab bar's bottom accessory in Apple
+ * The mini player (DESIGN-UI section 10, the v2 client canvas): artwork, "N. Track title" over
+ * the artist, play or pause, and no heart (the player sheet keeps it). On iOS 26 it is the tab bar's bottom accessory in Apple
  * Music's grammar, whose glass the system draws; without it, a GlassView capsule of its own; on Android a raised
  * floating toolbar at elevation 3, one tone up from the surface in dark (the canvas's toolbar), with the ripple on the
  * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
@@ -8,7 +8,7 @@
  * element, the art and titles are the open button beside play, while TalkBack reaches into the bar's own
  * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4). Before anything has
  * played the iOS 26 accessory still stands, so the bar is full width from launch, holding "Nothing playing" as Apple
- * Music does: a blank art square and a dimmed play glyph, one element that opens nothing (task 0071, Open 13).
+ * Music does: a blank art square and a dimmed play glyph, one element that opens nothing.
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { router } from 'expo-router';
@@ -82,7 +82,7 @@ function PlayPause({ box, glyph, primary = false }: { box: number; glyph: number
   );
 }
 
-/** On iOS every mini player sits on glass, so its words take the system's label colours (task 0040, decision 7). */
+/** On iOS every mini player sits on glass, so its words take the system's label colours. */
 function Titles({ release, note, single = false }: { release: PlayableRelease; note: string | null; single?: boolean }) {
   const { c } = useTokens();
   const player = usePlayer();

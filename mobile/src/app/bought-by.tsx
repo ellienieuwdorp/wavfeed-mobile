@@ -3,7 +3,7 @@
  * Release, each with their face and username, pressing through to their own Bandcamp page. It closes DESIGN-UI section
  * 11's debt of touch users never learning who bought it. The avatar stack hands the Fans over as JSON in the `fans`
  * param (see `openBoughtBy`); anything in it that is not a Fan is dropped. The Demo's Fans are made up, so their rows
- * open nothing (task 0043, decision 5).
+ * open nothing.
  */
 import { openURL } from 'expo-linking';
 import { useLocalSearchParams } from 'expo-router';
@@ -75,8 +75,7 @@ export default function BoughtBy() {
   // capped where Material's full-height sheet stops and the list scrolls inside it.
   const cap = ios ? undefined : height - insets.top - SHEET_TOP;
   // react-native-screens sizes the first ScrollView it finds in a form sheet to the whole sheet from its top edge
-  // (RNSScreen applyFrameCorrectionForDescendantScrollView), which drew the list over a title above it on iOS (task
-  // 0062). The ScrollView is the sheet's root, so that frame is its own, and the title is its pinned first child, in a
+  // (RNSScreen applyFrameCorrectionForDescendantScrollView), which drew the list over a title above it on iOS. The ScrollView is the sheet's root, so that frame is its own, and the title is its pinned first child, in a
   // View since a sticky header takes over its child's style.
   return (
     <ScrollView

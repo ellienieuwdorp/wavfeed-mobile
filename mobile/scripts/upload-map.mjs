@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Puts a composed Hermes source map in the EU R2 bucket `tallies-maps` (task 0038 decision 16, the plan's "Source maps
+ * Puts a composed Hermes source map in the EU R2 bucket `tallies-maps` (the plan's "Source maps
  * per platform") at `maps/wavfeed/<platform>/<id>/index.map`, the key the board's `/api/maps/<platform>/<id>` reads,
  * where `id` is the native build number for an embedded bundle and the EAS Update id for an update, as each Error
  * Report's `ctx` names them. With no arguments it is EAS Build's `eas-build-on-success` hook: the map is Android's

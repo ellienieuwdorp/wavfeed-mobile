@@ -1,10 +1,10 @@
 /**
  * Typed get and set over the `kv` table: the Fetcher's walk state and the identity line, which no Raw Document holds, so a rebuild
- * leaves them standing (task 0036). Values are JSON the app wrote itself.
+ * leaves them standing. Values are JSON the app wrote itself.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-/** The signed-in Fan as the probe answered, written by the Fetcher. Never carries a cookie (task 0036, decision 1). */
+/** The signed-in Fan as the probe answered, written by the Fetcher. Never carries a cookie. */
 export type StoredIdentity = {
   readonly fanId: number;
   readonly username: string;

@@ -1,6 +1,6 @@
 /**
  * The phone's SQLite store: Raw Documents, the derived Projection tables under the server's names minus `user_id` and triage, and the
- * Fetcher's own state (task 0036, ADR-0004). Migrations are numbered, applied once each, and recorded in `schema_migrations`.
+ * Fetcher's own state (ADR-0004). Migrations are numbered, applied once each, and recorded in `schema_migrations`.
  */
 import { deleteDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 

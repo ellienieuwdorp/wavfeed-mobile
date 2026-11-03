@@ -1,5 +1,5 @@
 /**
- * Immutable response bodies and their ordered observations (ADR-0004, task 0068): the feed stops at known bodies,
+ * Immutable response bodies and their ordered observations (ADR-0004): the feed stops at known bodies,
  * while a Page or Release returning to an earlier body is observed again. Physical raw ids retain provenance;
  * observation ids and read times drive projection and lookbacks.
  */
@@ -55,7 +55,7 @@ export async function insertRawDocument(
   );
   if (held === null) throw new Error('a deduped Raw Document is not held');
   // One statement compares and records under SQLite's write lock: concurrent confirmations cannot repeat the
-  // same newest body. A known feed page still dedupes against history; only catalog sources are reobserved (0068).
+  // same newest body. A known feed page still dedupes against history; only catalog sources are reobserved.
   const observed = await db.runAsync(
     `insert into raw_document_observations (raw_document_id, endpoint, source_key, fetched_at)
      select r.id, r.endpoint, original.source_key, ?
@@ -116,7 +116,7 @@ export async function latestReleasePageDocument(
 
 /**
  * Each feed answer with entries fetched at or after `since`, as its payload states it: the newest and oldest Story
- * dates, unix seconds, and the number of entries. What a walk probed before task 0040's decision 5 reads its samples from.
+ * dates, unix seconds, and the number of entries. What a walk probed before the walk kept samples reads them from.
  */
 export async function feedAnswerSpans(
   db: SQLiteDatabase,

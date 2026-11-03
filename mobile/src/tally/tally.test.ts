@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The pure Tally rules (task 0038): bucket edges, the screen list against the routes on disk, the sharing gate's truth
+ * The pure Tally rules: bucket edges, the screen list against the routes on disk, the sharing gate's truth
  * table, and a context the ingest Worker's patterns accept whatever the build reports.
  */
 import assert from 'node:assert/strict';
@@ -30,7 +30,7 @@ describe('buckets', () => {
   });
 });
 
-/** Screens whose routes have gone: their codes stay in the catalogue, never reused (task 0071, decision 22). */
+/** Screens whose routes have gone: their codes stay in the catalogue, never reused. */
 const RETIRED_SCREENS: readonly string[] = ['bought', 'bought_upcoming'];
 
 /** The pathname expo-router reports for each route file: groups, `index` and platform suffixes dropped. */
@@ -160,7 +160,7 @@ describe('the batch context', () => {
 describe('the ask', () => {
   const signedIn: AskState = { canSend: true, loaded: true, sharing: null, fanId: 1_234, pathname: '/' };
 
-  test('is due once a signed-in Fan is held, nothing is answered and Connect is closed (task 0044 decision 2)', () => {
+  test('is due once a signed-in Fan is held, nothing is answered and Connect is closed', () => {
     assert.equal(usageAskDue(signedIn), true);
     assert.equal(usageAskDue({ ...signedIn, pathname: '/settings' }), true, 'a sign-in from Settings');
   });

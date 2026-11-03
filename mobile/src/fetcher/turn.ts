@@ -1,20 +1,20 @@
 /**
- * One gather turn in the foreground (task 0036, decision 4): probe; while a walk is pending (the first walk, or a held
+ * One gather turn in the foreground: probe; while a walk is pending (the first walk, or a held
  * feed walk), the wishlist and the follow list when six hours old, then a small band details sweep of due followed
  * Pages (ADR-0017), so hearts and Upcoming hold truth while the history fills; before a first walk's first page, a
- * depth probe that binary searches the feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or
+ * depth probe that binary searches the feed's `older_than` cursor for the oldest Story; the feed walk or
  * poll down to its stop line (`sinceTs`); once caught up, the
- * lists when due come after the feed, so a pull reads the feed first (task 0046, decision 1); public pages rotating
- * undated Releases (ADR-0011), owed Drop Tracks and due Upcoming Releases (task 0072), a few while walking, with time
+ * lists when due come after the feed, so a pull reads the feed first; public pages rotating
+ * undated Releases (ADR-0011), owed Drop Tracks and due Upcoming Releases, a few while walking, with time
  * held back for all three queues. A Track page can add its due future parent to the Upcoming queue after its fold,
  * and a new Drop adds Track work to the owed queue; then the rest of the sweep. A list that fails is noted and the
  * turn goes on; a feed page or a depth
  * probe Bandcamp answers with an error fails the turn before any step after the feed, since a 403, 429 or 5xx asks for
  * fewer requests (ADR-0017); any other answer that is not a page asks the probe first and, signed in, the same request
- * once more (task 0066, decision 2). The cursor is written after every page, so a turn out of budget or killed with the
+ * once more. The cursor is written after every page, so a turn out of budget or killed with the
  * app resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of
  * the feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer
- * landed (task 0046, decision 2), and a pull to refresh lets its spinner go when it moves (state/refresh.ts).
+ * landed, and a pull to refresh lets its spinner go when it moves (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -42,7 +42,7 @@ export type GatherOptions = {
   readonly now: () => number;
   readonly reason: GatherReason;
   readonly budgetMs: number;
-  /** A new pull may retry incomplete lists; its chain continuations retain the attempt gate (task 0070). */
+  /** A new pull may retry incomplete lists; its chain continuations retain the attempt gate. */
   readonly bypassListAttemptGate?: boolean;
   /** The pause before the feed's one retry; a timer unless a test passes its own clock. */
   readonly wait?: (ms: number) => Promise<void>;
@@ -50,7 +50,7 @@ export type GatherOptions = {
 
 export type TurnOutcome = 'done' | 'out_of_budget' | 'paused' | 'failed';
 
-/** The request whose answer failed the turn (task 0066, decision 1). */
+/** The request whose answer failed the turn. */
 export type FailedStep = 'probe' | 'feed_poke' | 'feed_page' | 'depth_probe';
 
 export type TurnSummary = {
@@ -61,7 +61,7 @@ export type TurnSummary = {
   readonly status: number | null;
   /** A failed turn's request; null for any other turn, or one the store ended. */
   readonly failedStep: FailedStep | null;
-  /** Whether a feed request was asked again after the probe said signed in (task 0066, decision 2). */
+  /** Whether a feed request was asked again after the probe said signed in. */
   readonly feedRetried: boolean;
 };
 
@@ -71,7 +71,7 @@ export const DEDUP_STOP_RUN = 2;
 /**
  * ceiling: a first walk, or a poll that ran past its cap, ends after 500 feed pages and marks the walk done, so a feed
  * deeper than that never gathers its oldest Stories and nothing says so (review FLOW-17). The upgrade ends a walk only on
- * the feed's last page, with the chain's stall rule (task 0040) as the guard against a feed that never ends.
+ * the feed's last page, with the chain's stall rule as the guard against a feed that never ends.
  */
 export const WALK_MAX_PAGES = 500;
 export const POLL_MAX_PAGES = 10;
@@ -83,14 +83,14 @@ export const RELEASE_PAGES_WALKING = 5;
 export const RELEASE_PAGES_CAUGHT_UP = 25;
 /** Held back from the walk per queued release page: the pacing gap and a slow answer. */
 export const RELEASE_PAGE_RESERVE_MS = 2_000;
-/** The depth probe (task 0040): requests per first walk, the date it starts from and how close it gets. */
+/** The depth probe: requests per first walk, the date it starts from and how close it gets. */
 export const DEPTH_PROBE_MAX = 8;
 /** 2008-01-01 UTC, before Bandcamp's feed existed. */
 export const DEPTH_PROBE_LOWER = 1199145600;
 export const DEPTH_PROBE_RESOLUTION_S = 30 * 24 * 60 * 60;
-/** The walk's own last pages its rate at the cursor is read over (task 0040, decision 5). */
+/** The walk's own last pages its rate at the cursor is read over. */
 export const RATE_PAGES = 5;
-/** The pause before a feed request is asked again: time for the snapshot the poke asked for (unconfirmed, task 0066). */
+/** The pause before a feed request is asked again: time for the snapshot the poke asked for (unconfirmed). */
 export const FEED_RETRY_AFTER_MS = 5_000;
 
 type Ctx = {
@@ -102,7 +102,7 @@ type Ctx = {
   deadline: number;
   /**
    * When this turn's last feed answer landed, a `fan_dash_feed_updates` page or a depth probe answer; published as
-   * `lastSuccessAt` once the feed step ends `done` or `pending` (task 0046, decision 2).
+   * `lastSuccessAt` once the feed step ends `done` or `pending`.
    */
   feedReadAt: number | null;
   readonly wait: (ms: number) => Promise<void>;
@@ -207,7 +207,7 @@ async function settle(ctx: Ctx, what: string, answer: Refusal, step?: FailedStep
 
 /**
  * Not a page and not a refusal: a body that is not JSON, which the session reads as signed out, or a status other than
- * a 403, 429 or 5xx. A dead session answers the feed with a bare 400 (task 0066).
+ * a 403, 429 or 5xx. A dead session answers the feed with a bare 400.
  */
 function suspect(answer: BandcampAnswer<unknown>): answer is Refusal {
   return answer.kind === 'logged_out' || (answer.kind === 'error' && !refusedOrDown(answer.status));
@@ -219,7 +219,7 @@ function unexplained(answer: Refusal): Refusal {
 }
 
 /**
- * A feed request asked through the probe (task 0066, decision 2): a suspect answer asks the probe, so only the probe
+ * A feed request asked through the probe: a suspect answer asks the probe, so only the probe
  * pauses a turn as signed out; signed in, the request is asked once more after FEED_RETRY_AFTER_MS. Once per turn, so a
  * turn adds at most two requests; a refusal is never asked again (ADR-0017).
  */
@@ -239,7 +239,7 @@ async function askFeed<T>(ctx: Ctx, ask: () => Promise<BandcampAnswer<T>>): Prom
 
 async function store(ctx: Ctx, doc: BandcampDocument): Promise<boolean> {
   const { deduped } = await ctx.sink.putRaw(doc);
-  // The walk's pages and the depth probe's answers share the endpoint; the poke's page does not (task 0046, decision 2).
+  // The walk's pages and the depth probe's answers share the endpoint; the poke's page does not.
   if (doc.endpoint === FEED_UPDATES_ENDPOINT) ctx.feedReadAt = ctx.now();
   return deduped;
 }
@@ -251,7 +251,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
 
   const probe = await session.probeIdentity();
   if (probe.kind === 'logged_out') {
-    // The probe answered, so no failure stands; `gather_finished` reads `lastError` as this turn's (task 0038).
+    // The probe answered, so no failure stands; `gather_finished` reads `lastError` as this turn's.
     await sink.patchGatherState({
       pausedReason: before.identity === null ? 'not_connected' : 'logged_out',
       lastError: null,
@@ -294,7 +294,7 @@ async function gather(ctx: Ctx): Promise<TurnOutcome> {
   const held = await sink.readWalk();
   const walkPending = !state.initialWalkDone || held?.kind === 'feed_walk';
   // While a walk is pending the lists come first, as the sweep before the walk reads only followed Pages; a caught-up
-  // turn reads the feed first and the lists after it (task 0046, decision 1). An unreachable list is noted and left
+  // turn reads the feed first and the lists after it. An unreachable list is noted and left
   // for the next turn; the steps behind it still run.
   if (walkPending && (await runLists(ctx, identity)) === 'paused') return 'paused';
   const swept = walkPending && !outOfBudget(ctx) ? await runSweep(ctx, PRE_WALK_SWEEP) : 0;
@@ -329,7 +329,7 @@ function planWalk(state: GatherState, identity: Identity, nowMs: number): WalkSt
     startedAt: nowMs,
     sinceTs: walk ? null : state.newestStoryDate,
     newestSeen: null,
-    // A poll never probes (task 0040).
+    // A poll never probes.
     probed: !walk,
     floor: null,
     probeOldest: [],
@@ -348,7 +348,7 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
   const resumed = await sink.readWalk();
   let walk = resumed !== null && resumed.fanId === identity.fanId ? resumed : planWalk(state, identity, ctx.now());
   const catchingUp = !state.initialWalkDone;
-  // A first walk probed before task 0040's decision 5 reads its samples once from the answers the probe landed.
+  // A first walk probed before the walk kept samples reads them once from the answers the probe landed.
   if (walk.kind === 'feed_walk' && walk.samples === undefined) {
     walk = { ...walk, samples: await sink.readFeedSamples(walk.startedAt, walk.olderThan) };
   }
@@ -401,8 +401,7 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
 
     const { entryCount, oldestStoryDate: oldest, newestStoryDate } = page.value;
     const deduped = await store(ctx, page.value.document);
-    // A page the depth probe already landed is new to the walk: it counts, and neither extends nor breaks a dedup run
-    // (task 0040). Its bytes match the probe's when the probe's cursor fell in the gap above that page. Its date leaves
+    // A page the depth probe already landed is new to the walk: it counts, and neither extends nor breaks a dedup run. Its bytes match the probe's when the probe's cursor fell in the gap above that page. Its date leaves
     // `probeOldest` before the count is written, so a turn killed before the cursor moves does not count it again.
     const probedPage = deduped && oldest !== null && walk.probeOldest.includes(oldest);
     if (probedPage) {
@@ -450,11 +449,11 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
 }
 
 /**
- * The depth probe (task 0040): the feed's answers carry no total, but `older_than` takes any time, so a binary search
+ * The depth probe: the feed's answers carry no total, but `older_than` takes any time, so a binary search
  * from DEPTH_PROBE_LOWER to the walk's cursor finds the oldest Story to within DEPTH_PROBE_RESOLUTION_S. An empty
  * answer raises the lower bound, an answer with entries lowers the upper one to its oldest Story, and anything else
  * ends the search. Each answer lands as a Raw Document (ADR-0004) and the Projection folds its Stories, but the walk's
- * count and cursor are left to the walk; an answer with entries is kept as a sample for the fill (decision 5). The
+ * count and cursor are left to the walk; an answer with entries is kept as a sample for the fill. The
  * walk is marked probed whatever the search found, except when the budget, a signed-out answer or a Bandcamp error
  * cuts it short: the bounds, dates and samples found so far are kept, and the next turn searches on between them. A
  * Bandcamp error fails the turn as a feed page's does (ADR-0017).
@@ -520,7 +519,7 @@ function isDue(fetchedAt: number | null, nowMs: number): boolean {
   return fetchedAt === null || nowMs - fetchedAt >= LIST_INTERVAL_MS;
 }
 
-/** Incomplete reads stay due, with automatic attempts spaced by the gather cadence (task 0070, decision 4). */
+/** Incomplete reads stay due, with automatic attempts spaced by the gather cadence. */
 function listDue(ctx: Ctx, fetchedAt: number | null, askedAt: number | null): boolean {
   return isDue(fetchedAt, ctx.now()) &&
     (ctx.bypassListAttemptGate || askedAt === null || ctx.now() - askedAt >= GATHER_INTERVAL_MS);
@@ -540,7 +539,7 @@ async function runLists(ctx: Ctx, identity: Identity): Promise<Step> {
   if (listDue(ctx, state.wishlistFetchedAt, state.wishlistAskedAt) && !outOfBudget(ctx)) {
     const wishlist = await session.fetchWishlistItems(identity.fanId, onDocument);
     if (wishlist.kind === 'ok') {
-      // An admitted partial walk enables hearts, but only a complete read starts the six-hour gate (task 0070).
+      // An admitted partial walk enables hearts, but only a complete read starts the six-hour gate.
       await sink.patchGatherState({ wishlistAskedAt: ctx.now(), ...(wishlist.value.complete ? { wishlistFetchedAt: ctx.now() } : {}) });
     } else {
       const end = await settle(ctx, 'wishlist walk', wishlist);
@@ -615,7 +614,7 @@ function tracks(owed: readonly OwedTrackPage[]): DuePage[] {
   });
 }
 
-/** The same due queues govern the walk's reserved time and the bounded enrichment pass (task 0072). */
+/** The same due queues govern the walk's reserved time and the bounded enrichment pass. */
 async function releasePageQueues(ctx: Ctx, quota: number): Promise<ReleasePageQueues> {
   const undated = await ctx.sink.readUndatedReleases(ctx.now(), quota);
   const owed = await ctx.sink.readOwedTrackPages(ctx.now(), quota);
@@ -624,10 +623,10 @@ async function releasePageQueues(ctx: Ctx, quota: number): Promise<ReleasePageQu
 }
 
 /**
- * Up to `quota` public pages, rotating undated Releases, owed Drop Tracks and Upcoming Releases (task 0072). Each page
+ * Up to `quota` public pages, rotating undated Releases, owed Drop Tracks and Upcoming Releases. Each page
  * lands and folds before newly owed Tracks or its due parent album enter their queues, so dependent work shares the
  * allowance without crowding out planned pages. The store's attempt book gates every dependency too. A page left by
- * quota or budget stays due next pass; one refused request ends the pass (ADR-0001, task 0041, decisions 7 and 8).
+ * quota or budget stays due next pass; one refused request ends the pass (ADR-0001).
  */
 async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
   const { sink } = ctx;
@@ -645,7 +644,7 @@ async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
       const index = held.findIndex((pending) => keyOf(pending.key) === key);
       if (index < 0) continue;
       if (!first) return;
-      // Fresh Track evidence promotes the existing parent using its current canonical due page (task 0072).
+      // Fresh Track evidence promotes the existing parent using its current canonical due page.
       held.splice(index, 1);
     }
     if (first) queue.unshift(page);

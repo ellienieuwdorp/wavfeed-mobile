@@ -11,7 +11,7 @@ export const UPCOMING_HANDOFF_DAYS = 14;
 
 /**
  * ceiling: 500 Releases per half, and 500 more a named Fan bought; paging complete Releases is the upgrade if a
- * catalog outgrows it (tasks 0070 and 0071).
+ * catalog outgrows it.
  */
 export const UPCOMING_MAX_RELEASES = 500;
 

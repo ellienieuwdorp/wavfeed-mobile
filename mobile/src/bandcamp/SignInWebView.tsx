@@ -1,5 +1,5 @@
 /**
- * Bandcamp's own sign-in and sign-out pages in a WebView sharing the app's cookie jar (task 0036, decision 1): iOS
+ * Bandcamp's own sign-in and sign-out pages in a WebView sharing the app's cookie jar: iOS
  * copies the WebView's cookies into `NSHTTPCookieStorage` under `sharedCookiesEnabled`, and Android's `CookieManager`
  * is already React Native's jar. Nothing here reads a cookie; the caller probes to learn whether sign-in took, as
  * often as `probeGate` says (finding FLOW-5).

@@ -1,6 +1,6 @@
 /**
  * The read side: the web's view response shapes built on the phone from the Projection by the ported feed rules, plus the sweep
- * queue's reads and writes (task 0036). Every judgement is the domain's; this file only hands it flat rows, and each view
+ * queue's reads and writes. Every judgement is the domain's; this file only hands it flat rows, and each view
  * only the Releases its rules could pick, each with all its Stories, so it answers as over the whole store (perf.check.ts).
  */
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
@@ -33,7 +33,7 @@ import { trackIds } from './drops';
 import { IDENTITY_KEY, readKv, type StoredIdentity } from './kv';
 import { lastFetchedAt, latestReleasePageDocument } from './rawDocuments';
 
-/** The diagnostic raw Story listing's default bound; selected-Release view reads keep every Story (task 0070). */
+/** The diagnostic raw Story listing's default bound; selected-Release view reads keep every Story. */
 export const FEED_MAX_STORY_ROWS = 50_000;
 
 export const STREAM_URL_TTL_MS = DAY_MS;
@@ -90,7 +90,7 @@ type ReleasePart = Omit<FeedStoryRow, 'storyId' | 'storyType' | 'storyDate' | 'r
 /** Held before its release day: the Upcoming handoff's test (ADR-0017), and whether a page's date places a Feed Item. */
 export const HELD_BEFORE_OUT = 'r.first_seen_at < r.release_date';
 
-/** Whether New releases places a Feed Item on its release day (task 0041, decision 3; `FeedStoryRow.onReleaseDay`). */
+/** Whether New releases places a Feed Item on its release day (`FeedStoryRow.onReleaseDay`). */
 export const ON_RELEASE_DAY = `(r.release_date is not null and (r.release_date_source = 'feed' or ${HELD_BEFORE_OUT}))`;
 
 /** A Story reaches the views only with its Release and that Release's Page held, as the server's inner joins say. */
@@ -100,8 +100,7 @@ const STORY_JOIN = `stories s
 
 /**
  * Which Stories a view loads: a `where` over `stories s`, its values, and any `with` clause it reads. `onAlbums` reads a
- * Story of a Track dated before its held album's release day as the album's, so its Fan is a buyer of the album (task
- * 0067, decision 3); New releases asks for it, the feed does not, and the scope must load those Stories itself.
+ * Story of a Track dated before its held album's release day as the album's, so its Fan is a buyer of the album; New releases asks for it, the feed does not, and the scope must load those Stories itself.
  */
 type StoryScope = {
   readonly where: string;
@@ -144,7 +143,7 @@ function releaseKey(itemType: ItemType, itemId: number): number {
   return itemId * 2 + (itemType === 't' ? 1 : 0);
 }
 
-/** The stored feed tags as rows carry them: places left out, each norm name once (task 0071, decision 7). */
+/** The stored feed tags as rows carry them: places left out, each norm name once. */
 function rowTags(json: string): readonly ApiTag[] {
   let parsed: unknown;
   try {
@@ -193,7 +192,7 @@ function toReleasePart(row: ReleaseRecord): ReleasePart | null {
 /**
  * The Stories in `scope`, newest action first, as the flat rows the feed rules read. Stories cross narrow and each
  * Release and Fan crosses once, however many Stories share it: the wide join repeated every Release column per Story.
- * Only the diagnostic listing supplies a limit; a view needs every selected Release's Stories before folding (task 0070).
+ * Only the diagnostic listing supplies a limit; a view needs every selected Release's Stories before folding.
  */
 async function loadStoryRows(db: SQLiteDatabase, scope: StoryScope, limit?: number): Promise<readonly FeedStoryRow[]> {
   const read = await db.getAllAsync<StoryRecord>(
@@ -341,30 +340,30 @@ const NAMED_PURCHASES = `stories b join fans f on f.fan_id = b.fan_id where b.st
 
 /**
  * A named Fan bought the Release, or a Track of the album; an Upcoming album's Track is always bought before the album
- * is out (task 0067, decision 3).
+ * is out.
  */
 const BOUGHT_BY_NAMED_FAN = `exists (select 1 from ${NAMED_PURCHASES}
   and ((b.item_type = r.item_type and b.item_id = r.item_id)
     or (r.item_type = 'a' and b.item_type = 't' and b.item_id in (
       select t.item_id from releases t where t.item_type = 't' and t.album_id = r.item_id))))`;
 
-/** The shelf's reach: the Release's Page is followed, or a Story reaches the Release or one of its Tracks (ADR-0017, task 0067). */
+/** The shelf's reach: the Release's Page is followed, or a Story reaches the Release or one of its Tracks (ADR-0017). */
 export const REACHED_BY_FOLLOW_OR_STORY = `(exists (select 1 from follows f where f.band_id = r.band_id)
   or exists (select 1 from stories s where s.item_type = r.item_type and s.item_id = r.item_id)
   or (r.item_type = 'a' and exists (
     select 1 from releases t where t.item_type = 't' and t.album_id = r.item_id
       and exists (select 1 from stories s where s.item_type = 't' and s.item_id = t.item_id))))`;
 
-/** A Track whose album is held: never Upcoming on its own, since its album is drawn (task 0067, decision 2). */
+/** A Track whose album is held: never Upcoming on its own, since its album is drawn. */
 export const TRACK_OF_HELD_ALBUM = `(r.item_type = 't' and r.album_id is not null
   and exists (select 1 from releases al where al.item_type = 'a' and al.item_id = r.album_id))`;
 
 /**
  * Releases dated ahead of today's GMT day, or out within the handoff and held
  * before they came out, whose Page is followed or which a Story reaches (ADR-0017), less the Tracks of held albums.
- * Each half selects its own bounded Releases in one SQLite read, so handoff rows cannot spend Upcoming's capacity (task 0070).
+ * Each half selects its own bounded Releases in one SQLite read, so handoff rows cannot spend Upcoming's capacity.
  * The Upcoming Releases a named Fan bought are selected apart too, so nearer ones cannot push them out of the people
- * filter's reach (task 0071).
+ * filter's reach.
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
   const eligible = `select ${UPCOMING_COLUMNS}
@@ -411,9 +410,9 @@ type DropRecord = UpcomingRecord & {
 };
 
 /**
- * Every Drop whose Release has a release date, newest day first (task 0041, decision 6): an undated pre-order waits for
+ * Every Drop whose Release has a release date, newest day first: an undated pre-order waits for
  * its page, which dates it, and the row names that day. The total is the Drop's own, else the Release's. The fold
- * writes a Drop for any Upcoming Release it holds; only those the shelf's reach takes in are drawn (decision 10).
+ * writes a Drop for any Upcoming Release it holds; only those the shelf's reach takes in are drawn.
  */
 export async function listDrops(db: SQLiteDatabase): Promise<readonly DropRow[]> {
   const rows = await db.getAllAsync<DropRecord>(
@@ -481,8 +480,8 @@ export async function readOverview(db: SQLiteDatabase): Promise<OverviewView> {
 
 /**
  * Every Story of each Release New releases could draw: those a new-release Story names, the shelf's and the Drops'
- * (`listed`), those a named Fan bought that have a release day (task 0071, decision 20), and the albums early Track
- * Stories count on, with those Stories, which `onAlbums` moves onto them (task 0067, decision 3).
+ * (`listed`), those a named Fan bought that have a release day, and the albums early Track
+ * Stories count on, with those Stories, which `onAlbums` moves onto them.
  */
 function newReleasesScope(listed: readonly ItemPair[]): StoryScope {
   const items = storiesOfItems(listed);
@@ -501,7 +500,7 @@ function newReleasesScope(listed: readonly ItemPair[]): StoryScope {
 
 /**
  * The New releases view in one read: `/api/upcoming` split at today's GMT day, the new-release Feed Items (everything,
- * anchor sort) filed into weeks with their buyers, the Releases followed Fans bought, and the Drops (tasks 0041, 0071).
+ * anchor sort) filed into weeks with their buyers, the Releases followed Fans bought, and the Drops.
  */
 export async function readNewReleases(db: SQLiteDatabase, options: { readonly now: Date }): Promise<NewReleasesView> {
   const upcoming = await listUpcomingReleases(db, options.now);
@@ -706,7 +705,7 @@ export async function markSwept(db: SQLiteDatabase, input: SweepOutcome): Promis
 export type ChainCounts = { readonly feedPages: number; readonly releasePagesFailed: number };
 
 /**
- * What a gather chain's Tallies read back from the store (task 0038): the feed pages held, which after a first walk are
+ * What a gather chain's Tallies read back from the store: the feed pages held, which after a first walk are
  * the pages it took, and the release pages booked `failed` (a page's own 4xx) since the chain started.
  */
 export async function readChainCounts(db: SQLiteDatabase, since: Date): Promise<ChainCounts> {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Renders the Feed and New releases tab glyphs (task 0071, decision 2) to `assets/tabs/` at 24pt, one image per state
+ * Renders the Feed and New releases tab glyphs to `assets/tabs/` at 24pt, one image per state
  * at @1x, @2x and @3x, black on transparent: the tab bars draw them as templates, so only the alpha counts and the
  * tint is the bar's. The selected calendar's day dot is cut out of its fill, so the bar's ground shows through it.
  * Settings keeps the system gear. Chromium draws the SVG, from any project that has Playwright installed:

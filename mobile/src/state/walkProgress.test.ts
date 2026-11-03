@@ -1,5 +1,5 @@
 /// <reference types="node" />
-/** The first walk's fill as the catch-up reads it from the stored walk and the count so far (task 0040, decision 5). */
+/** The first walk's fill as the catch-up reads it from the stored walk and the count so far. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -9,7 +9,7 @@ import { forwardOnly, walkProgress } from './walkProgress';
 const DAY = 24 * 60 * 60;
 const utc = (y: number, m: number, d: number) => Date.UTC(y, m, d) / 1000;
 
-// The author's first walk as the simulator's store held it (task 0040, the amendment).
+// The author's first walk as the simulator's store held it (the amendment).
 const STARTED_AT = 1790701174376;
 const START = Math.floor(STARTED_AT / 1000);
 const FLOOR = 1281827215;

@@ -1,5 +1,5 @@
 /**
- * The pure half of the action Tallies (task 0038, the plan's catalogue): the door a push to Connect names, one
+ * The pure half of the action Tallies (the plan's catalogue): the door a push to Connect names, one
  * `sign_in_finished` per Connect visit, a Wishlist Action's codes, a play's start, and the listening one Release gets
  * from its first Track to its end or its replacement. Screens and the player hand the results to the sharing
  * provider's `track`. Times are arguments; nothing here reads a clock.

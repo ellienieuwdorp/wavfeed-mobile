@@ -1,12 +1,12 @@
 /**
  * The Projection on the phone: every Raw Document past its endpoint's cursor, folded in fetch order with the server's
- * upsert rules (task 0036, ADR-0004, ADR-0018 amendment). Documents fold in stretches, one transaction each, that end
+ * upsert rules (ADR-0004, ADR-0018 amendment). Documents fold in stretches, one transaction each, that end
  * after about `FOLD_STRETCH_MS` so the write lock never nears the busy timeout, each document behind a savepoint: one
  * whose fold throws is rolled back, recorded in `projection_failures`, reported, and passed (review findings PERF-2 and
  * ARCH-M1). `rebuild` empties the derived tables, marks the version it replays to in the same transaction, and replays
  * from raw id 0 in longer stretches on the main connection, so a replay cut short resumes from the cursors on the next
  * launch (ARCH-1, PERF-1). Feed entries and release pages that count the Tracks of an Upcoming Release also fold into
- * Drops (task 0041, drops.ts).
+ * Drops (drops.ts).
  */
 import type { SQLiteBindValue, SQLiteDatabase, SQLiteStatement } from 'expo-sqlite';
 import {
@@ -46,11 +46,9 @@ export const REPLAY_STRETCH_MS = 1000;
 
 /**
  * Bumped with every parser fix; the store replays every Raw Document when it does not match (ADR-0004). Version 3 is how
- * a phone holding a pre-order dated by its feed entry mends itself after migration 5 (task 0041, decision 2); version 4
- * writes the Drops its Raw Documents already hold after migration 6 (decision 6); version 5 counts the Tracks a
- * phone's page names without an id (decision 4); version 6 lets the Track pages held open their Upcoming albums (task
- * 0067, decision 6); version 7 validates whole membership snapshots before removals and replays catalog observations
- * (task 0068); version 8 fills the artist credit migration 11 adds (task 0071, decision 18).
+ * a phone holding a pre-order dated by its feed entry mends itself after migration 5; version 4
+ * writes the Drops its Raw Documents already hold after migration 6; version 5 counts the Tracks a
+ * phone's page names without an id; version 6 lets the Track pages held open their Upcoming albums; version 7 validates whole membership snapshots before removals and replays catalog observations; version 8 fills the artist credit migration 11 adds.
  */
 export const PROJECTION_VERSION = 8;
 export const PROJECTION_VERSION_KEY = 'projectionVersion';
@@ -66,7 +64,7 @@ async function readVersion(db: SQLiteDatabase, key: string): Promise<number | nu
 }
 
 /**
- * Launch drains pending observations on the main connection even when the version matches (task 0070). An older
+ * Launch drains pending observations on the main connection even when the version matches. An older
  * Projection rebuilds and an interrupted replay resumes; a newer one stays (ARCH-13). Answers whether it replayed.
  */
 export async function ensureProjectionVersion(db: SQLiteDatabase, onProgress?: ReplayProgress): Promise<boolean> {
@@ -187,7 +185,7 @@ async function upsertPage(run: Run, page: ParsedPage, seenAt: string, source: So
 }
 
 /**
- * Where a `release_date` came from (task 0041, decision 1): a feed entry, a release page, or the Sweep's discography.
+ * Where a `release_date` came from: a feed entry, a release page, or the Sweep's discography.
  * `preorder` is a feed entry naming a pre-order, which states no release day and holds `release_date` empty.
  */
 type ReleaseDateSource = 'feed' | 'preorder' | 'page' | 'sweep';
@@ -196,7 +194,7 @@ const RELEASE_DATE_COLUMNS = ['release_date', 'release_date_source', 'release_da
 
 /**
  * A page or the Sweep outranks the feed's pre-order, which outranks a feed date, so a Release the feed once named a
- * pre-order takes no date from a later entry rewritten as out (task 0041, decision 1). A row with no source ranks last.
+ * pre-order takes no date from a later entry rewritten as out. A row with no source ranks last.
  */
 function dateRank(row: string): string {
   return `(case ${row}.release_date_source when 'page' then 3 when 'sweep' then 3 when 'preorder' then 2 when 'feed' then 1 else 0 end)`;
@@ -209,7 +207,7 @@ function dateOrder(row: string): string {
 
 /**
  * The incoming row takes the date columns only when it is strictly greater in `dateOrder`, a total order, so the held
- * date is the same whatever order the Raw Documents fold in (task 0041, decision 1; ADR-0011 amended). `incoming` and
+ * date is the same whatever order the Raw Documents fold in (ADR-0011 amended). `incoming` and
  * `held` name the two rows; an incoming row with no source states nothing.
  */
 function releaseDateSet(incoming: string, held: string): string {
@@ -248,7 +246,7 @@ const RELEASE_SHARED_SET = `
 
 type ReleaseUpsert = Omit<ParsedRelease, 'isPreorder'> & { readonly isPreorder: boolean | null };
 
-/** Only the feed states a pre-order's missing release day; the Sweep's undated item states nothing (task 0041, decision 1). */
+/** Only the feed states a pre-order's missing release day; the Sweep's undated item states nothing. */
 function releaseUpsertDateSource(release: ReleaseUpsert, source: Source): ReleaseDateSource | null {
   if (release.releaseDate !== null) return source === 'catalog' ? 'sweep' : 'feed';
   return source === 'per-user' && release.isPreorder === true ? 'preorder' : null;
@@ -305,7 +303,7 @@ type Enrichment = {
  * (`openUpcomingAlbum`). Answers whether a held row took it. The
  * release page and the Sweep's item with no link both come through here, each naming itself as the date's source. A
  * page's artist credit fills only a row no feed entry credited, and a feed entry's replaces it, so the feed's wins in
- * any fold order (task 0071, decision 18 and Open 2).
+ * any fold order.
  *
  * ceiling: the row cannot tell a page's credit from a feed entry's, so the first page to credit an uncredited row
  * keeps it and a later page's corrected `tralbum.artist` never lands; a column naming each credit's source is the
@@ -406,7 +404,7 @@ async function projectFeedUpdates({ db, run }: Folding, doc: RawDocument): Promi
   );
 }
 
-/** Each `new_release` entry's count of the Tracks that play is a read of its Release for Drops (task 0041, decision 6). */
+/** Each `new_release` entry's count of the Tracks that play is a read of its Release for Drops. */
 async function foldNewReleaseCounts(db: SQLiteDatabase, doc: RawDocument, parsed: ReturnType<typeof parseFeedUpdates>): Promise<void> {
   const counts = new Map(parsed.releases.map((release) => [`${release.itemType}:${release.itemId}`, release.numStreamableTracks]));
   for (const story of parsed.stories) {
@@ -418,7 +416,7 @@ async function foldNewReleaseCounts(db: SQLiteDatabase, doc: RawDocument, parsed
 
 /**
  * A Track page whose album is still ahead of the read's GMT day opens the album's Release, or fills one held, its date by
- * the same ranking as any page's (task 0067, decision 1). The title is the `album_title` the feed gave the Track, and the
+ * the same ranking as any page's. The title is the `album_title` the feed gave the Track, and the
  * Page, art and featured Track are the Track's own, so a Track no feed entry named an album title for opens nothing.
  */
 async function openUpcomingAlbum({ db, run }: Folding, doc: RawDocument, parsed: ParsedReleasePage): Promise<boolean> {
@@ -547,7 +545,7 @@ async function projectBandDetails({ db, run }: Folding, doc: RawDocument): Promi
   );
 }
 
-/** A terminal page removes old follows only with the whole snapshot's page proof (task 0068). */
+/** A terminal page removes old follows only with the whole snapshot's page proof. */
 async function projectFollowingBands({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseFollowingBands>;
   try {
@@ -577,7 +575,7 @@ async function projectFollowingBands({ db, run }: Folding, doc: RawDocument): Pr
   return result('projected', { followsUpserted: parsed.bandIds.length, followsRemoved: removed }, parsed.skipped);
 }
 
-/** Items carry the walk's start; only a validated complete snapshot removes older membership (task 0068). */
+/** Items carry the walk's start; only a validated complete snapshot removes older membership. */
 async function projectWishlistItems({ db, run }: Folding, doc: RawDocument): Promise<ProjectDocumentResult> {
   let parsed: ReturnType<typeof parseWishlistItems>;
   try {

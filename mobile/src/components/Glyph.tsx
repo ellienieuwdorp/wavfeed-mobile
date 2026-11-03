@@ -1,5 +1,5 @@
 /**
- * Every interface glyph in each platform's own set (task 0036 decision 5, DESIGN-UI section 10 for the player's): an SF
+ * Every interface glyph in each platform's own set (DESIGN-UI section 10 for the player's): an SF
  * Symbol on iOS and the Material Symbol on Android, both through expo-symbols, in a fixed `size` square so play turning
  * into pause moves nothing around it. On Android expo-symbols draws the symbol as text in its font, which the font
  * scale grows past the square, so it is asked for at `size` over the scale (review VIS-1). That lands at `size` where
@@ -51,7 +51,7 @@ const GLYPHS: Readonly<Record<GlyphName, { sf: SFSymbol; md: AndroidSymbol; ion:
   external: { sf: 'arrow.up.right', md: 'open_in_new', ion: 'open-outline' },
   copy: { sf: 'doc.on.doc', md: 'content_copy', ion: 'copy-outline' },
   copied: { sf: 'checkmark', md: 'check', ion: 'checkmark' },
-  // New releases' filter (task 0071, decisions 5 to 7).
+  // New releases' filter.
   filter: { sf: 'line.3.horizontal.decrease', md: 'filter_list', ion: 'filter' },
   people: { sf: 'person.2.fill', md: 'group', ion: 'people' },
   search: { sf: 'magnifyingglass', md: 'search', ion: 'search' },

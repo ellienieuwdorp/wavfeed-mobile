@@ -1,6 +1,6 @@
 /**
  * The Tracks of a Release, read out of a stored release page's `data-tralbum` blob; stream URLs die 24 hours after the fetch (ADR-0015).
- * Every Track the page names is listed, those not out yet marked so (task 0041, decision 5).
+ * Every Track the page names is listed, those not out yet marked so.
  */
 import { asRecord } from './wire';
 
@@ -14,7 +14,7 @@ export type TralbumTrack = {
   readonly capped: boolean;
   /** False for a Track the label has not let out yet: it has no file, and so no stream. */
   readonly out: boolean;
-  /** `title_link`, the Track page's path on the Release's host; a Track not out has none (task 0041, decision 8). */
+  /** `title_link`, the Track page's path on the Release's host; a Track not out has none. */
   readonly path: string | null;
 };
 
@@ -46,7 +46,7 @@ function readStreamUrl(entry: Record<string, unknown>): string | null {
 /**
  * A Track not out says `unreleased_track` and has no file. The page a desktop browser is served gives it `id: null`
  * with its id in `track_id`; the page a phone is served gives it no id at all (read 2026-09-29). On a pre-order a Track
- * with no file is not out either (task 0041, decision 5). An album page states `is_preorder`, a track page
+ * with no file is not out either. An album page states `is_preorder`, a track page
  * `album_is_preorder`.
  */
 function isOut(entry: Record<string, unknown>, preorder: boolean, streamUrl: string | null): boolean {
@@ -87,7 +87,7 @@ export function readTralbumTracks(tralbum: unknown): readonly TralbumTrack[] {
 
 /**
  * The Tracks that play on the `after` blob and did not on `before`, in track order: the Tracks a Drop let out, whose
- * Track pages date it (task 0041, decisions 7 and 8). A Track plays when the page hands over its file (decision 4).
+ * Track pages date it. A Track plays when the page hands over its file.
  */
 export function newlyOutTracks(before: unknown, after: unknown): readonly PlayingTrack[] {
   const played = new Set(readTralbumTracks(before).flatMap((track) => (track.streamUrl === null ? [] : [track.trackId])));

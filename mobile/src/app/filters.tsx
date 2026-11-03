@@ -1,14 +1,11 @@
 /**
- * The Filters sheet (task 0071, decision 7, R5 count option C, the round-four flow and Number and icon boards): the
+ * The Filters sheet (R5 count option C, the round-four flow and Number and icon boards): the
  * bar, the people group, then the tags. On iOS the bar holds Clear, "Filters" over the live count, and Done, on the
- * grouped sheet's own greys; on Android "Filters" and the count, then Clear as a Material text button at the row's end
- * (Open 11, answered by the author 2026-10-14), a tap outside, a drag down or back closing it. The people group is the people glyph, "Bought by people you follow" and its switch, and under it
- * "At least [−] 2 [+] people" with the Releases that minimum alone keeps in the tag counts' column (Open 4, option C).
- * The tags follow, highest count first, counted after the people filter (Open 3), places left out; the first few
+ * grouped sheet's own greys; on Android "Filters" and the count, then Clear as a Material text button at the row's end, a tap outside, a drag down or back closing it. The people group is the people glyph, "Bought by people you follow" and its switch, and under it
+ * "At least [−] 2 [+] people" with the Releases that minimum alone keeps in the tag counts' column.
+ * The tags follow, highest count first, counted after the people filter, places left out; the first few
  * show, any chosen one among them, then "Show all 34"; the search narrows them by name. Every change is written at
- * once and counted here, and the list behind follows each tap (see state/releaseFilter.ts); no change is counted
- * (Open 5). It opens with nothing chosen the first time, and Clear goes back there on both platforms (decisions 5 and
- * 7 as amended 2026-10-14). Each tag leads with its checkbox (TagMark).
+ * once and counted here, and the list behind follows each tap (see state/releaseFilter.ts); no change is counted. It opens with nothing chosen the first time, and Clear goes back there on both platforms. Each tag leads with its checkbox (TagMark).
  */
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
@@ -28,7 +25,7 @@ import { useTokens } from '@/theme/tokens';
 const ios = Platform.OS === 'ios';
 /** Tags shown before "Show all": what the full-height boards draw. */
 const FIRST_TAGS = ios ? 9 : 8;
-/** The counts' column, so the minimum's count and the tags' share one right edge (Open 4, option C). */
+/** The counts' column, so the minimum's count and the tags' share one right edge. */
 const COUNT_WIDTH = 34;
 const NO_TAGS: readonly TagCount[] = [];
 
@@ -38,7 +35,7 @@ export default function Filters() {
   const { settings: saved, view, update: change } = useReleaseFilter();
   // The lists behind ease what a tap changes; their cells are armed for it while the sheet is open.
   useArmWhileOpen();
-  // Counted here from the settings just tapped, so the counts move in the same frame as the control (decision 21).
+  // Counted here from the settings just tapped, so the counts move in the same frame as the control.
   const filtered = useMemo(() => (view === null ? null : filterNewReleases(view, toReleaseFilter(saved))), [view, saved]);
   const [query, setQuery] = useState('');
   const [all, setAll] = useState(false);

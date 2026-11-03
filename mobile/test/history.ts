@@ -1,7 +1,7 @@
 /**
  * A seeded synthetic history (Stories over Releases, Fans and Pages, some Releases dated only by their public page, a
  * follow list) entered as Raw Documents, and the single wide join the store used to read, kept as the oracle every
- * narrower read must match (task 0036). Shared by the store's tests and its timing check.
+ * narrower read must match. Shared by the store's tests and its timing check.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -35,8 +35,7 @@ export function wireDate(ms: number): string {
 /**
  * Stories newest first; one Release in 33 is dated 40 days on, so Upcoming has rows. Every track shares its id with the
  * album four places before it: an album and a track can share an id (server migration 0002), and the store keys both.
- * That album is the track's own, so a Track bought before its album's release day counts on the album (task 0067,
- * decision 3).
+ * That album is the track's own, so a Track bought before its album's release day counts on the album.
  */
 export function makeHistory(size: HistorySize, now: Date): History {
   let seed = 20260925;
@@ -85,7 +84,7 @@ const TAGS: readonly (readonly [string, string])[] = [
   ['Ambient', 'ambient'], ['Dub', 'dub'], ['Techno', 'techno'], ['Electronic', 'electronic'], ['Drone', 'drone'], ['Jazz', 'jazz'],
 ];
 
-/** None to three tags by id, and a place on one Release in five, which rows leave out (task 0071, decision 7). */
+/** None to three tags by id, and a place on one Release in five, which rows leave out. */
 function tagsOf(r: Release): Record<string, unknown>[] {
   const tags = Array.from({ length: r.id % 4 }, (_, i) => {
     const [name, norm] = TAGS[(r.id + i) % TAGS.length] ?? ['Ambient', 'ambient'];
@@ -95,7 +94,7 @@ function tagsOf(r: Release): Record<string, unknown>[] {
 }
 
 /**
- * The feed's `band_name`, the artist credit (task 0071, decision 18): another artist on the Page, the Page itself, none,
+ * The feed's `band_name`, the artist credit: another artist on the Page, the Page itself, none,
  * or a compilation's, by id.
  */
 function creditOf(r: Release): string | undefined {
@@ -177,7 +176,7 @@ type WideRecord = Record<string, string | number | null>;
 
 /**
  * Every Story row through the one wide join, newest first. With `onAlbums`, a Track Story dated before its held album's
- * release day reads as the album's (task 0067, decision 3), found here by its own join and not by the store's reads.
+ * release day reads as the album's, found here by its own join and not by the store's reads.
  */
 export async function oracleRows(db: SQLiteDatabase, { onAlbums = false }: { readonly onAlbums?: boolean } = {}): Promise<FeedStoryRow[]> {
   const rows = await db.getAllAsync<WideRecord>(

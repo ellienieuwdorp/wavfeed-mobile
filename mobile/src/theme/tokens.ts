@@ -32,7 +32,7 @@ export const type = {
 } as const;
 
 /**
- * The three lines of a Release row and an Upcoming card (task 0071, decisions 10 and 14, the R5 canvas's CSS5): the day
+ * The three lines of a Release row and an Upcoming card (the R5 canvas's CSS5): the day
  * in small caps, the title and the credit line. Android takes Roboto's sizes and a lighter weight.
  */
 export const rowText = {
@@ -46,17 +46,15 @@ export const rowText = {
 /**
  * Marks drawn over a cover, which is any colour in either theme: white figures on black at 66 percent, about 6:1 over a
  * white cover, the figures carrying it alone over a black one. `text` is the type on art 80pt and up, `small` on a row's
- * art and in an Upcoming card's "+N" disc, both fixed in size so a mark stays inside the art at every text size (task
- * 0071, decisions 12 and 14).
+ * art and in an Upcoming card's "+N" disc, both fixed in size so a mark stays inside the art at every text size.
  */
 const ART_TEXT: TextStyle = { fontSize: 12, lineHeight: 16, fontWeight: '700', fontVariant: ['tabular-nums'], includeFontPadding: false };
-/** An Upcoming card's faces: 20pt discs on a backing 1pt past them (task 0071, decision 14). */
+/** An Upcoming card's faces: 20pt discs on a backing 1pt past them. */
 const ART_FACE = 20;
 const ART_EDGE = 1;
 /**
  * `mark` is the height of every mark on art 80pt and up: the faces' backing sets it, and the day and the "1/4" take it
- * with their figures centred, so the three marks on a card stand one height (task 0071, decision 14 as amended
- * 2026-10-15).
+ * with their figures centred, so the three marks on a card stand one height.
  */
 export const ON_ART = {
   ink: '#ffffff',
@@ -76,7 +74,7 @@ export function ripple(colour: string, radius?: number) {
 /** A pressed row's fill: the system grey flash on iOS; Android draws the ripple instead. */
 export const PRESS_FLASH: ColorValue | undefined = ios ? PlatformColor('systemGray4') : undefined;
 /**
- * Words on iOS glass (task 0040, decision 7): the system's label colours, which follow the theme and what the glass
+ * Words on iOS glass: the system's label colours, which follow the theme and what the glass
  * sits over. Null on Android.
  */
 export const ON_GLASS: { ink: ColorValue; sub: ColorValue } | null = ios ? { ink: PlatformColor('label'), sub: PlatformColor('secondaryLabel') } : null;
@@ -91,7 +89,7 @@ export function pressedOpacity(pressed: boolean, base = 1): number {
 /** How long a row in a scrolling list waits before it lights, so a drag that starts on it scrolls without a flash. */
 export const SCROLL_PRESS_DELAY_MS = 120;
 
-/** Material's level-3 elevation, a FAB's at rest: New releases' filter button on Android (task 0071, decision 5). */
+/** Material's level-3 elevation, a FAB's at rest: New releases' filter button on Android. */
 export const FAB_SHADOW = '0 1px 3px rgba(0,0,0,0.30), 0 4px 8px 3px rgba(0,0,0,0.15)';
 
 /** Where Material's full-height sheet stops below the status bar, so a sheet taller than the window is capped there. */

@@ -1,6 +1,6 @@
 /**
  * A cover in the page colour over iOS 26's first frames at launch, lifted once the bar's accessory has drawn its
- * contents (task 0071, decision 3 and Open 13). react-native-screens sizes the accessory's React content from the
+ * contents. react-native-screens sizes the accessory's React content from the
  * frame UIKit gives the capsule, a round trip after the bar first draws, and UIKit then fades that content in, so
  * without the cover the full-width bar shows an empty capsule for about 120 ms and "Nothing playing" or the restored
  * Release fading into it over about 260 ms more. The native splash cannot hold that long in Expo Go or a dev build,

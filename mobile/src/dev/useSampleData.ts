@@ -1,9 +1,9 @@
 /**
- * The simulator rig's gate (task 0036): under `SAMPLE_MODE` it fills an empty store with the sample before anything
+ * The simulator rig's gate: under `SAMPLE_MODE` it fills an empty store with the sample before anything
  * under it mounts, so Connect never presents itself, and the root layout hands the app state no gather runner. Any
  * other bundle passes straight through. `useSampleStart` puts the showcase Release in the player for `sim.sh play`,
  * and a `walk` parameter on any deep link stores the rig's first walk mid-way (`1`) or finishes it (`0`), for the
- * catch-up's checks (task 0040).
+ * catch-up's checks.
  */
 import { useGlobalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';

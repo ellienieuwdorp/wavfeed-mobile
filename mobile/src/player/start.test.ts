@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Starting audio (task 0047): a throw from the player's `play()` is a refused start, and a Track whose start was refused
+ * Starting audio: a throw from the player's `play()` is a refused start, and a Track whose start was refused
  * lands loaded and paused at its index with the load's result `refused`.
  */
 import assert from 'node:assert/strict';

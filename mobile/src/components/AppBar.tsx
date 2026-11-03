@@ -1,5 +1,5 @@
 /**
- * Android's medium flexible app bar (task 0036 decision 5, the v2 client canvas, section 7): the view's title at 28sp
+ * Android's medium flexible app bar (the v2 client canvas, section 7): the view's title at 28sp
  * with "Updated 12 min ago" under it scrolls with the list, and once it has gone under the status bar a 64dp bar on the
  * surface-container tone fades in with the title at 22sp and the subtitle at 12sp. Edge to edge, the status bar's strip
  * always carries the page tone or the bar's. With the font scale the expanded title grows as a head and its subtitle as
@@ -41,7 +41,7 @@ export function useAppBar(): { scroll: ScrollProps; refreshOffset: number | unde
   };
 }
 
-/** A screen pushed over the tab's view draws its own native header, so the collapsed bar stands down while it is up (task 0037). */
+/** A screen pushed over the tab's view draws its own native header, so the collapsed bar stands down while it is up. */
 export function useAppBarAtRest(): void {
   const setCollapsed = useContext(FrameContext)?.setCollapsed;
   useEffect(() => {
@@ -51,7 +51,7 @@ export function useAppBarAtRest(): void {
 
 /**
  * The expanded half, first in the list: the title and, when there is one, the subtitle line, with `below` under it
- * (the note to keep the app open and the catch-up's hairline, task 0040 decision 8) and `a11y` on the pair. With
+ * (the note to keep the app open and the catch-up's hairline) and `a11y` on the pair. With
  * `filterable`, New releases', the subtitle line and the "Filtered by" pill share one place held at the pill's height,
  * 16 under the title's glyphs, and under the catch-up the pill's place is held empty (see FilterLineSlot).
  */
@@ -66,7 +66,7 @@ export function AppBarTitle({
   subtitle: string | null;
   below?: ReactNode;
   a11y?: ViewProps;
-  /** New releases' "Filtered by" pill (task 0071, decision 6). */
+  /** New releases' "Filtered by" pill. */
   pill?: ReactNode;
   filterable?: boolean;
   /** The collapsed bar's subtitle, when it is not the expanded one's. */

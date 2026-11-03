@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The sink's fold hook behind `projection_skipped` (task 0038): each fold after a turn's documents hands its skipped
+ * The sink's fold hook behind `projection_skipped`: each fold after a turn's documents hands its skipped
  * counts to `onFold`, on the real store. The launch's replay makes the wishlist due again (review finding ARCH-3).
  */
 import assert from 'node:assert/strict';
@@ -125,7 +125,7 @@ test('a current-version launch projects the committed backlog before queries, pr
   await store.db.runAsync("insert into wishlist_items (item_type, item_id, last_seen_snapshot_at) values ('a', 1001, ?)", [new Date(AT * 1000).toISOString()]);
   await put(1002);
   await put(1003);
-  // The response commits, then the process disappears before afterDocuments (task 0070).
+  // The response commits, then the process disappears before afterDocuments.
   store.close();
   store = await openTestStore(file);
   assert.deepEqual(await countForProjection(store.db), { held: 3, waiting: 2 });

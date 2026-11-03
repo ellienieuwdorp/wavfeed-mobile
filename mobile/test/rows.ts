@@ -1,6 +1,6 @@
 /**
  * Flat Story rows as the store's wide join hands them to the feed rules, built by hand so the rules can be argued with
- * without a database (task 0036).
+ * without a database.
  */
 import type { FeedStoryRow } from '../src/domain/rows';
 

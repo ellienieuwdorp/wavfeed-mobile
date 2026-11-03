@@ -1,11 +1,11 @@
 /**
- * The sharing switch and its sender inside the app state (task 0038, ADR-0021). It reads the yes from `kv`, mints the
+ * The sharing switch and its sender inside the app state (ADR-0021). It reads the yes from `kv`, mints the
  * Install id with `expo-crypto` at each yes and drops it at each off, and while the gate is open runs one `Sender`:
  * a flush once `app_opened` is queued at launch, at each foreground and background, every minute while active and at
  * 20 queued rows. It folds AppState into `app_opened` and the foreground marker (`lifecycle.ts`). A build the gate can
  * never open (`sendEnv` null: a development bundle without the override, Expo Go, no URL or key) reads nothing and
  * writes nothing, and every write is also guarded in SQL by the stored yes. While the store holds the Demo the gate
- * reads as unable to send too, so nobody looking around is asked and nothing is queued or sent (task 0044 decision 1).
+ * reads as unable to send too, so nobody looking around is asked and nothing is queued or sent.
  * `removeStore` remounts it with the store. `track` is the one way a Tally is queued; the gather runner above it
  * reaches it through the app state's `bindTally`.
  */
@@ -68,7 +68,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   const sender = useRef<Sender | null>(null);
   const chain = useRef<Promise<void>>(Promise.resolve());
   const install = ENV !== null && sharing !== null ? sharing.install : null;
-  // The Demo cannot send (task 0044 decision 1): no sender runs, and the ask and the Usage group stay away, until a
+  // The Demo cannot send: no sender runs, and the ask and the Usage group stay away, until a
   // sign-in replaces it.
   const demo = isDemoFan(app.gather.identity?.fanId);
   // Set with the state it mirrors, not after the render, since child effects such as the screen Tally run first.

@@ -1,9 +1,9 @@
 /**
  * What floats on the bottom edge of a tab's safe area, top to bottom as DESIGN-UI section 11 stacks it: the notice line
- * (section 12), then the mini player where the iOS 26 tab bar's accessory is not carrying it (task 0036 decision 5).
- * The catch-up lives in the header (task 0040, decision 8). Lists pad past it with `useDockClearance()`. On New
+ * (section 12), then the mini player where the iOS 26 tab bar's accessory is not carrying it.
+ * The catch-up lives in the header. Lists pad past it with `useDockClearance()`. On New
  * releases (`filter`) the filter button stands on top, 16 from the right edge and 16 above whatever sits under it: the
- * notice, the mini player, the iOS 26 bar's accessory or the bar (task 0071, decision 5 as amended 2026-10-14); the
+ * notice, the mini player, the iOS 26 bar's accessory or the bar; the
  * clearance takes it in, so the last row clears it. The tab bar itself never changes.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';

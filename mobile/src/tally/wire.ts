@@ -1,5 +1,5 @@
 /**
- * The ingest request as the phone builds it (task 0038, ADR-0021): one Tally as `[t, name, flags, props]`, the
+ * The ingest request as the phone builds it (ADR-0021): one Tally as `[t, name, flags, props]`, the
  * per-batch `ctx`, and the `POST /v1/batch` body assembled from outbox rows. The ingest Worker imports these shapes by
  * relative path, so this file imports only its neighbours.
  */
@@ -24,7 +24,7 @@ export type TallyContext = {
   readonly platform: TallyPlatform;
   readonly os: number;
   /**
-   * The EAS channel the binary was built for (schema 2, task 0065 decision 7): `production` for TestFlight and Play,
+   * The EAS channel the binary was built for (schema 2): `production` for TestFlight and Play,
    * `apk` for the website APK, `preview` for preview builds, null in development. Schema 1 batches carry none.
    */
   readonly channel: string | null;

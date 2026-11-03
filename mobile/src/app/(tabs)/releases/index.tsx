@@ -1,13 +1,12 @@
 /**
  * New releases on the store: the Upcoming shelf, then the released weeks and the quiet gaps between them, newest
- * first (DESIGN-UI section 3, task 0037). A released row is its title and credit line with the faces of who bought it,
- * its week head dating it (task 0071, decisions 10 to 12 as amended by the author 2026-10-14). A Drop is the same row
+ * first (DESIGN-UI section 3). A released row is its title and credit line with the faces of who bought it,
+ * its week head dating it. A Drop is the same row
  * on its day, with no day line, its count "1/4" on its art saying it is not all out (the author's request of
- * 2026-10-15), and its art plays the Release from the newest Track it let out (task 0041, decision 10). The filter (task 0071,
- * decisions 6 to 9) narrows the shelf and the weeks; with nothing chosen the line under the title counts the view,
+ * 2026-10-15), and its art plays the Release from the newest Track it let out. The filter narrows the shelf and the weeks; with nothing chosen the line under the title counts the view,
  * while a filter is active the "Filtered by" pill stands there, and a filter that keeps nothing says so with "Clear
  * filters". The filter button floats over the list (see Dock). A link to
- * `/releases?people=1` turns the people filter on at 1+ and keeps the tags (Open 8).
+ * `/releases?people=1` turns the people filter on at 1+ and keeps the tags.
  */
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useEffectEvent, useMemo } from 'react';
@@ -75,7 +74,7 @@ export default function NewReleases() {
   const clearance = useDockClearance();
   const now = useNow();
   const day = dayKey(now);
-  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017, task 0070).
+  // Classification changes at GMT midnight independently of the local-day labels below (ADR-0017).
   const releaseDate = releaseDayKey(now);
   const view = useLiveQuery((db) => readNewReleases(db, { now: new Date() }), releaseDate);
   const { refreshing, onRefresh } = useRefresh('releases');
@@ -88,10 +87,10 @@ export default function NewReleases() {
   useEffect(() => {
     if (view !== null) publishView(db, view);
   }, [db, view]);
-  // The quiet runs are the whole view's, so a week the filter empties never reads as a quiet one (decision 8).
+  // The quiet runs are the whole view's, so a week the filter empties never reads as a quiet one.
   const sections = useMemo(() => (view === null ? null : buildSectionsFromWeeks(view.weeks.map((w) => ({ start: w.weekStart, entries: w.releases })), new Date(day))), [view, day]);
 
-  // A link that arrives as `?people=N` (Feed's, Open 8) is taken once the saved settings are read, then cleared from
+  // A link that arrives as `?people=N` (Feed's) is taken once the saved settings are read, then cleared from
   // this screen's own route, so a later visit by the tab bar finds no param to take again.
   const { people } = useLocalSearchParams<{ people?: string }>();
   const navigation = useNavigation<{ setParams: (params: { people?: string }) => void }>();
@@ -133,9 +132,9 @@ export default function NewReleases() {
       }
       list.push({ key: section.key, kind: 'week', heading: section.heading, detail: section.detail });
       section.entries.forEach((placed, n) => {
-        // The last row of a week draws no hairline above the next week's head (task 0071, decision 10).
+        // The last row of a week draws no hairline above the next week's head.
         const rule = n < section.entries.length - 1;
-        // A Drop's key names its day, so a Release's Drops and later its own row never share one (task 0041, decision 10).
+        // A Drop's key names its day, so a Release's Drops and later its own row never share one.
         if (placed.kind === 'drop') {
           const { tracksOut, numTracks } = placed;
           // A Drop draws no day line either; its label says the day it is out (the author's request of 2026-10-15).

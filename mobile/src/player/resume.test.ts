@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The last-played Release a launch restores (task 0071, Open 13): what is saved reads back at the same Track and
+ * The last-played Release a launch restores: what is saved reads back at the same Track and
  * position for the same Fan, and nothing reads back for another Fan, another version, a Release the store no longer
  * holds or whose page no longer reads; a position past a Track's end starts that Track over.
  */

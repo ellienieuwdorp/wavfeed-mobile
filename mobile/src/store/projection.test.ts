@@ -1,9 +1,9 @@
 /// <reference types="node" />
 /**
- * Where a Release's date comes from (task 0041, decision 1; ADR-0011 amended): a release page or the Sweep outranks the
+ * Where a Release's date comes from (ADR-0011 amended): a release page or the Sweep outranks the
  * feed, the newer of a page and a Sweep wins, a Release the feed once named a pre-order takes no date from the feed, and
  * the Raw Documents' fold order never changes which date is held. The artist credit follows the feed in any fold order,
- * and a release page fills one only where no feed entry gave one (task 0071, decision 18 and Open 2).
+ * and a release page fills one only where no feed entry gave one.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -160,7 +160,7 @@ const OLD_SNAPSHOT = '2026-10-01T12:00:00.000Z';
 const NEW_SNAPSHOT = '2026-10-02T12:00:00.000Z';
 type SnapshotEndpoint = typeof FOLLOWING_BANDS_ENDPOINT | typeof WISHLIST_ITEMS_ENDPOINT;
 
-/** Pages as the session records them, including the cursor it asked and the one Bandcamp handed back (task 0068). */
+/** Pages as the session records them, including the cursor it asked and the one Bandcamp handed back. */
 function snapshotPage(endpoint: SnapshotEndpoint, startedAt: string, ids: readonly unknown[], page = 1, more = false, inputToken?: string | null, nextToken: string | null = null): RawDocumentInput {
   const firstToken = endpoint === WISHLIST_ITEMS_ENDPOINT ? `${Date.parse(startedAt) / 1000}::a::` : null;
   const snapshotPage = { number: page, inputToken: inputToken === undefined ? firstToken : inputToken, nextToken };

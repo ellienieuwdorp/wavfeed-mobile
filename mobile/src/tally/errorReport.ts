@@ -1,5 +1,5 @@
 /**
- * Error Reports built from a thrown value (task 0038, ADR-0021): the scrubbed message, the name, and the Hermes stack
+ * Error Reports built from a thrown value (ADR-0021): the scrubbed message, the name, and the Hermes stack
  * parsed with RN 0.86's own line patterns (`Libraries/Core/Devtools/parseHermesStack.js`) into frames with file
  * basenames only. The ingest Worker imports this file by relative path to scrub again and to build the fingerprint's
  * source, so it imports only the catalogue.

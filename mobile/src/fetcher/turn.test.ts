@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Gather turns through the phone's own sink and store (task 0036, decision 4), against a Bandcamp that serves a list
+ * Gather turns through the phone's own sink and store, against a Bandcamp that serves a list
  * of purchase Stories newest first behind the feed's `older_than` cursor, and release and Track pages by key. Each
  * request costs the clock a second.
  */
@@ -358,7 +358,7 @@ describe('the feed walk', () => {
   });
 });
 
-describe('the order of a turn (task 0046, decision 1)', () => {
+describe('the order of a turn', () => {
   const firsts = () => [...new Set(asked)];
 
   test('while the first walk is pending the lists come before the feed, and once it is done the feed comes first', async () => {
@@ -402,7 +402,7 @@ describe('the order of a turn (task 0046, decision 1)', () => {
   });
 });
 
-describe('list freshness (task 0070)', () => {
+describe('list freshness', () => {
   test('partial lists retain their additions and are asked on the next pull; only complete walks acquire the six-hour gate', async () => {
     await followBands([1]);
     await db.runAsync("insert into wishlist_items (item_type, item_id, last_seen_snapshot_at) values ('a', 1001, '')");
@@ -455,7 +455,7 @@ describe('list freshness (task 0070)', () => {
   });
 });
 
-describe('the depth probe (task 0040)', () => {
+describe('the depth probe', () => {
   test('a first walk finds the oldest Story first, and every Story counts once, when the walk reaches it', async () => {
     feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
     const oldest = Math.min(...feed.map((story) => story.at));
@@ -474,7 +474,7 @@ describe('the depth probe (task 0040)', () => {
     assert.equal(await storyCount(), feed.length);
   });
 
-  test('a first walk keeps each probe answer and its own last pages as samples for the fill (decision 5)', async () => {
+  test('a first walk keeps each probe answer and its own last pages as samples for the fill', async () => {
     feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
     assert.equal((await turn(10_000)).outcome, 'out_of_budget');
     const held = await sink.readWalk();
@@ -488,7 +488,7 @@ describe('the depth probe (task 0040)', () => {
     assert.ok(held.recent.every((page) => page.count === PAGE_SIZE));
   });
 
-  test('a walk probed before decision 5 reads its samples once from the answers the probe landed', async () => {
+  test('a walk probed before the walk kept samples reads them once from the answers the probe landed', async () => {
     feed = [...stories(40, 1000), ...daily(12, 2000, 2014, 2, 10)];
     await turn(10_000);
     const held = await sink.readWalk();
@@ -599,7 +599,7 @@ describe('the depth probe (task 0040)', () => {
   test('a poll stored before the probe existed resumes, through a page already held', async () => {
     feed = stories(20, 1000);
     await turn();
-    // The shape a walk had before task 0040, at the cursor the first walk's first page was asked with.
+    // The shape a walk had before the depth probe, at the cursor the first walk's first page was asked with.
     const poll = { kind: 'feed_poll', fanId: FAN.fanId, username: FAN.username, olderThan: START_S, pagesDone: 0, dedupedRun: 0, maxPages: POLL_MAX_PAGES, poked: true, startedAt: START, sinceTs: gather.newestStoryDate, newestSeen: null };
     await writeKv(db, WALK_KEY, poll);
     cursors = [];
@@ -687,7 +687,7 @@ describe('a feed page Bandcamp fails', () => {
   });
 });
 
-describe('a feed answer that looks signed out (task 0066)', () => {
+describe('a feed answer that looks signed out', () => {
   /** A caught-up store whose next poll finds two new Stories. */
   async function caughtUp(): Promise<void> {
     feed = stories(3, 1000);
@@ -766,7 +766,7 @@ describe('release pages', () => {
   });
 });
 
-describe('Upcoming Releases (task 0041, decision 8)', () => {
+describe('Upcoming Releases', () => {
   const albumPage = (out: readonly number[]) =>
     releasePagePayload({ itemId: PREORDER_ITEM_ID, itemUrl: PREORDER_URL, tralbum: preorderTralbumBlob({}, out) });
   const trackPage = (itemId: number): BandcampAnswer<ReleasePage> => {
@@ -789,7 +789,7 @@ describe('Upcoming Releases (task 0041, decision 8)', () => {
     };
   }
 
-  test('owed Tracks and Upcoming reads progress under an undated backlog within the walking and caught-up quotas (task 0072)', async () => {
+  test('owed Tracks and Upcoming reads progress under an undated backlog within the walking and caught-up quotas', async () => {
     await holdPreorder();
     await insertRawDocument(db, { endpoint: 'release_page', payload: albumPage([2, 3]), fetchedAt: '2026-10-03T12:00:00.000Z' });
     await fold(db);
@@ -813,7 +813,7 @@ describe('Upcoming Releases (task 0041, decision 8)', () => {
     assert.equal(new Set(releasePages).size, releasePages.length, 'the pass does not ask a page twice');
   });
 
-  test('a walking turn reserves time for owed and Upcoming pages when no undated Release is held (task 0072)', async () => {
+  test('a walking turn reserves time for owed and Upcoming pages when no undated Release is held', async () => {
     await holdPreorder();
     await insertRawDocument(db, { endpoint: 'release_page', payload: albumPage([2, 3]), fetchedAt: '2026-10-03T12:00:00.000Z' });
     await fold(db);
@@ -827,7 +827,7 @@ describe('Upcoming Releases (task 0041, decision 8)', () => {
     assert.ok(releasePages.length <= 5);
   });
 
-  test('new Drop Track pages cannot consume the allowance before another planned Upcoming album (task 0072)', async () => {
+  test('new Drop Track pages cannot consume the allowance before another planned Upcoming album', async () => {
     await holdPreorder();
     const manyTracks = (playing: boolean) => Array.from({ length: 30 }, (_, i) => ({
       id: playing ? 9000 + i : null, track_id: 9000 + i, track_num: i + 1, title: `Track ${i + 1}`,
@@ -877,7 +877,7 @@ describe('Upcoming Releases (task 0041, decision 8)', () => {
   for (const { newest, heldParent } of [
     { newest: false, heldParent: false }, { newest: true, heldParent: false }, { newest: true, heldParent: true },
   ]) {
-    test(`an early Track ${heldParent ? 'with its parent already queued behind six albums' : newest ? 'at the head' : 'behind ordinary history'} completes its future album in the same bounded pass (task 0072)`, async () => {
+    test(`an early Track ${heldParent ? 'with its parent already queued behind six albums' : newest ? 'at the head' : 'behind ordinary history'} completes its future album in the same bounded pass`, async () => {
       clock = Date.UTC(2026, 9, 12, 12);
       const trackId = preorderTrackId(2);
       const trackUrl = 'https://label.example/track/early-track';
@@ -938,7 +938,7 @@ describe('Upcoming Releases (task 0041, decision 8)', () => {
     { name: 'failed album attempt waits a day', purchase: {}, page: {}, failures: 1 },
     { name: 'three failed album attempts wait a week', purchase: {}, page: {}, failures: 3 },
   ]) {
-    test(`early Track follow-up respects ${scenario.name} (task 0072)`, async () => {
+    test(`early Track follow-up respects ${scenario.name}`, async () => {
       clock = Date.UTC(2026, 9, 12, 12);
       const trackId = preorderTrackId(2);
       await insertRawDocument(db, { endpoint: 'fan_dash_feed_updates', payload: feedPayload({ entries: [preorderTrackPurchase(2, { is_preorder: false, ...scenario.purchase })] }), fetchedAt: at() });

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * The last-played Release across launches as the player provider keeps it (task 0071, Open 13): a pause or leaving
+ * The last-played Release across launches as the player provider keeps it: a pause or leaving
  * the foreground saves where the Release was, the next launch restores it there, and a change of Fan empties the
  * player and restores nothing of the other Fan's. Only React's hooks, AppState and the transport are stood in; the
  * saves and the restore read a real store through `resume.ts`.
