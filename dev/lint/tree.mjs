@@ -9,11 +9,14 @@ const CODE = /\.(tsx?|mjs|cjs|js)$/;
 const SKIPPED = /(^|\/)(\.dry|\.wrangler|dist|node_modules)\/|\.d\.ts$|\.config\.(js|ts|mjs)$/;
 export const TEST = /\.test\.|(^|\/)(test|__checks__)\//;
 
+/** Whether a repo-relative path is a code file the checkers read. */
+export const isCode = (file) => CODE.test(file) && !SKIPPED.test(file);
+
 /** The project's code files git does not ignore, as `{ file, src }`, paths relative to the repo root it runs in. */
 export function readSources(project) {
   return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', project], { encoding: 'utf8' })
     .split('\n')
-    .filter((file) => CODE.test(file) && !SKIPPED.test(file) && existsSync(file))
+    .filter((file) => isCode(file) && existsSync(file))
     .map((file) => ({ file, src: readFileSync(file, 'utf8') }));
 }
 
