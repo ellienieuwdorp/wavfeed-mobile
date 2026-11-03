@@ -6,23 +6,18 @@
  * where Material's full-height sheet stops, as the Bought by sheet is. `FirstRunAsk` presents it after a sign-in.
  */
 import { openURL } from 'expo-linking';
-import { router } from 'expo-router';
 import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glyph } from '@/components/Glyph';
 import { WideButton } from '@/components/WideButton';
 import { copy, PRIVACY_COUNTS_URL } from '@/copy';
+import { closeSheet } from '@/lib/sheet';
 import { useSharing } from '@/tally/Sharing';
 import { pressedOpacity, SHEET_TOP, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const a = copy.usageAsk;
-
-function close(): void {
-  if (router.canGoBack()) router.back();
-  else router.replace('/');
-}
 
 export default function Usage() {
   const { c, type } = useTokens();
@@ -30,7 +25,7 @@ export default function Usage() {
   const { height } = useWindowDimensions();
   const { turnOn } = useSharing();
   const yes = () => {
-    close();
+    closeSheet();
     void turnOn().catch(() => undefined);
   };
   const [lead, ...rest] = a.body;
@@ -62,7 +57,7 @@ export default function Usage() {
       </Pressable>
       <View style={{ gap: 10, paddingTop: 12 }}>
         <WideButton label={a.yes} kind="tonal" onPress={yes} />
-        <WideButton label={a.no} kind="tonal" onPress={close} />
+        <WideButton label={a.no} kind="tonal" onPress={closeSheet} />
       </View>
     </ScrollView>
   );

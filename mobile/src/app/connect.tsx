@@ -9,7 +9,7 @@
  * through (`connect_opened`) and ends in one `sign_in_finished`: signed in, else the last failure line the visit
  * showed, else closed (`src/tally/actions.ts`).
  */
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
@@ -17,6 +17,7 @@ import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
 import { isDemoFan } from '@/demo/fan';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
+import { closeSheet } from '@/lib/sheet';
 import { useAppState } from '@/state/appState';
 import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
 import { emptyStore } from '@/store/schema';
@@ -45,11 +46,6 @@ function Cancel({ onCancel }: { onCancel: () => void }) {
       <Glyph name="dismiss" size={24} colour={c.ink} />
     </Pressable>
   );
-}
-
-function close(): void {
-  if (router.canGoBack()) router.back();
-  else router.replace('/');
 }
 
 type Visit = { readonly fail: (failure: SignInFailure) => void; readonly signedIn: () => void };
@@ -150,7 +146,7 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       // The sheet goes before the Fan is written, so a first run's guard swaps the first screen for the tabs beneath it.
       signedIn = true;
       visit.signedIn();
-      if (mounted.current) close();
+      if (mounted.current) closeSheet();
       await writeIdentity(app.db, probe.value);
       await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null, lastStatus: null });
       app.invalidate();
@@ -206,8 +202,8 @@ export default function Connect() {
   const visit = useVisit();
   // The rig's sample Fan has no Bandcamp session to start, so the sheet closes at once (ADR-0001).
   useEffect(() => {
-    if (SAMPLE_MODE) close();
+    if (SAMPLE_MODE) closeSheet();
   }, []);
   if (SAMPLE_MODE) return null;
-  return <SignIn onCancel={close} visit={visit} />;
+  return <SignIn onCancel={closeSheet} visit={visit} />;
 }

@@ -17,6 +17,7 @@ import { AppState, LayoutAnimation, Platform, Pressable, View } from 'react-nati
 
 import { copy } from '@/copy';
 import { canInstall, downloadAndInstall } from '@/lib/apkInstall';
+import { listeners } from '@/lib/listeners';
 import { distributionOf, newerBuild, readStoreBuilds, STORE_URLS, type Installed, type NewerBuild } from '@/lib/storeBuild';
 import { useReduceMotion } from '@/player/motion';
 import { useAppState } from '@/state/appState';
@@ -48,12 +49,12 @@ let checkedAt = 0;
 let animate = true;
 /** The store the hook last handed over: "Remove everything gathered" opens a new one under the same banners. */
 let latestDb: SQLiteDatabase | null = null;
-const listeners = new Set<() => void>();
+const { subscribe, notify } = listeners();
 
 function set(next: Shown, animated: boolean): void {
   if (animated && animate) LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
   shown = next;
-  for (const listener of listeners) listener();
+  notify();
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -79,11 +80,6 @@ async function start(db: () => SQLiteDatabase): Promise<void> {
     if (Date.now() - checkedAt > RECHECK_MS) void check(db, false);
   });
   await check(db, answer === null);
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
 }
 
 const read = () => shown;

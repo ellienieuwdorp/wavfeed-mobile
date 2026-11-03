@@ -8,6 +8,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { NewReleasesView } from '@/domain/newReleases';
+import { listeners } from '@/lib/listeners';
 import { reportCode } from '@/tally/errors';
 
 import { useAppState } from './appState';
@@ -21,16 +22,11 @@ type Snapshot = {
 };
 
 let snapshot: Snapshot = { db: null, loaded: false, settings: null, view: null };
-const listeners = new Set<() => void>();
+const { subscribe, notify } = listeners();
 
 function publish(next: Snapshot): void {
   snapshot = next;
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  notify();
 }
 
 /** A store opened afresh, after "Remove everything gathered" or the Demo, starts from what its own `kv` holds. */

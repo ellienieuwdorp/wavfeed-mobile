@@ -23,6 +23,7 @@ import Animated, {
   type LayoutAnimationsValues,
 } from 'react-native-reanimated';
 
+import { listeners } from '@/lib/listeners';
 import { useReduceMotion } from '@/player/motion';
 import { NOTHING_CHOSEN, type FilterSettings } from '@/state/filterSettings';
 
@@ -57,12 +58,12 @@ const holders = new Set<object>();
 const drawing = new Set<object>();
 let armed = false;
 let disarm: ReturnType<typeof setTimeout> | undefined;
-const armedListeners = new Set<() => void>();
+const { subscribe: subscribeArmed, notify: notifyArmed } = listeners();
 
 function setArmed(on: boolean) {
   if (armed === on) return;
   armed = on;
-  for (const listener of armedListeners) listener();
+  notifyArmed();
 }
 
 function hold(holder: object, on: boolean) {
@@ -78,11 +79,6 @@ function draw(list: object, on: boolean) {
   else drawing.delete(list);
   landing.set(drawing.size > 0);
   hold(list, on);
-}
-
-function subscribeArmed(listener: () => void) {
-  armedListeners.add(listener);
-  return () => armedListeners.delete(listener);
 }
 
 const readArmed = () => armed;

@@ -12,6 +12,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Animated, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { listeners } from '@/lib/listeners';
 import { useAppState } from '@/state/appState';
 import { useTokens } from '@/theme/tokens';
 
@@ -26,11 +27,11 @@ export const LAUNCH_COVER_MAX_MS = 900;
 
 const opacity = new Animated.Value(1);
 let phase: 'covering' | 'lifting' | 'lifted' = 'covering';
-const listeners = new Set<() => void>();
+const { subscribe, notify } = listeners();
 
 function lifted(): void {
   phase = 'lifted';
-  for (const listener of listeners) listener();
+  notify();
 }
 
 /** Holds the cover for `ms`, then drops it in one frame; a later call replaces an earlier one. */
@@ -68,11 +69,6 @@ export function AccessoryLayout({ children }: { children: ReactNode }) {
       {children}
     </View>
   );
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
 }
 
 /** Drawn over the stack; the tabs draw at launch when the store holds a Fan. */

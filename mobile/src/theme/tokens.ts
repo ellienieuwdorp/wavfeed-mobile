@@ -12,6 +12,8 @@
 import { useSyncExternalStore } from 'react';
 import { Appearance, Platform, PlatformColor, type ColorValue, type TextStyle } from 'react-native';
 
+import { listeners } from '@/lib/listeners';
+
 import { dark, light, type Palette } from './palette';
 
 export { dark, light, type Palette };
@@ -100,14 +102,7 @@ export type Tokens = { dark: boolean; c: Palette; type: typeof type };
 export type AppearanceChoice = 'light' | 'dark' | 'system';
 
 let choice: AppearanceChoice = 'system';
-const choiceListeners = new Set<() => void>();
-
-function subscribeChoice(listener: () => void): () => void {
-  choiceListeners.add(listener);
-  return () => {
-    choiceListeners.delete(listener);
-  };
-}
+const { subscribe: subscribeChoice, notify: notifyChoice } = listeners();
 
 function subscribeScheme(listener: () => void): () => void {
   const system = Appearance.addChangeListener(listener);
@@ -132,7 +127,7 @@ export function setAppearance(next: AppearanceChoice): void {
   if (next === choice) return;
   choice = next;
   Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
-  for (const listener of choiceListeners) listener();
+  notifyChoice();
 }
 
 export function useAppearanceChoice(): AppearanceChoice {
