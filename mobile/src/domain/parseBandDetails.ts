@@ -1,6 +1,5 @@
 /**
  * The parser for a `band_details` Raw Document: a Page's discography in, catalog Pages and Releases out, never Stories (ADR-0017).
- * Ported from server/packages/projection/src/parseBandDetails.ts (task 0036).
  */
 import type { ParsedBandDetails, ParsedCatalogRelease, ParsedPage } from './types';
 import { noSkips } from './types';

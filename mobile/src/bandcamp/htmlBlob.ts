@@ -1,7 +1,6 @@
 /**
  * Bandcamp's own JSON read back out of the HTML attribute it was inlined into (`data-tralbum`, `data-band`,
  * `#pagedata`'s `data-blob`), untouched on its way to a Raw Document (ADR-0004).
- * Ported from server/packages/bandcamp/src/htmlBlob.ts (task 0036, decision 3).
  */
 
 const HTML_ENTITIES: Readonly<Record<string, string>> = {

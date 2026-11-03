@@ -1,7 +1,6 @@
 /**
  * The New releases view's two halves: the Upcoming band (not out yet) and the released weeks, which add a just-out Release no Story reached,
  * the Releases followed Fans bought (task 0071, decision 20), and the Drops of Upcoming Releases on their days (task 0041, decision 10).
- * Ported from server/apps/web/src/components/browse/NewReleaseWeeks.tsx and lib/dates.ts (task 0036).
  */
 import type { ApiFeedElement, ApiFeedItem, ApiUpcomingRelease } from './apiTypes';
 import { assembleFeed, buildFeedItem, buildSignal, groupByItem, hasFan, itemKey } from './assemble';

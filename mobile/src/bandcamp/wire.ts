@@ -1,7 +1,6 @@
 /**
  * What every request in the session shares: request-only endpoint names, paths, Accept headers, the answer shape
- * and the fetch-target guard. Ported from extension/lib/bandcamp.ts and server/packages/bandcamp/src; the names Raw
- * Documents carry live in `domain/endpoints.ts` (task 0036, decision 3).
+ * and the fetch-target guard. The names Raw Documents carry live in `domain/endpoints.ts` (task 0036, decision 3).
  */
 import { asRecord } from '../domain/wire';
 
@@ -111,7 +110,7 @@ export function originOf(url: string): string | null {
 }
 
 /**
- * The server's fetch-target guard less its DNS half (audit S1): the session's origin passes, anything else must be
+ * The fetch-target guard less a DNS half (audit S1): the session's origin passes, anything else must be
  * https on a public host name with no credentials, port or IP literal.
  * ceiling: no lookup, so a public name resolving to a private address passes; upgrade to a native resolver check.
  */

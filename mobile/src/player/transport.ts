@@ -1,6 +1,6 @@
 /**
  * The pure half of the player (DESIGN-UI section 10, ADR-0015, task 0036): what a press on a row hands over, where the
- * transport may go inside one Release (ported from the web's trackNav.ts), what play does and says in each state, and
+ * transport may go inside one Release, what play does and says in each state, and
  * the tracklist a play starts from. The tracklist comes off the newest stored release page while that page is young
  * enough, else a fresh page fetch that lands through `putRaw` before it is read back (ADR-0004). No cookie goes near it:
  * the page fetch is public.

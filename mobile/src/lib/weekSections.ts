@@ -1,7 +1,6 @@
 /**
  * Weeks and the quiet runs between them (ADR-0011: Monday to Sunday, newest first, never an empty week section), and the
- * Upcoming band's weeks read forwards with no gaps (DESIGN-UI section 3). Ported from
- * server/apps/web/src/components/weeks/weekSections.ts with its function names (task 0036, decision 3).
+ * Upcoming band's weeks read forwards with no gaps (DESIGN-UI section 3, task 0036, decision 3).
  */
 import { gapLabel, upcomingWeekHeading, weekDetail, weekHeading } from '@/copy';
 

@@ -1,6 +1,5 @@
 /**
  * The de-noise rules: flat Stories in, ordered Feed Items and Bursts out; type filter, then Bursts, then aggregation, then the sort (ADR-0005).
- * Ported from server/apps/api/src/feed/assemble.ts (task 0036).
  */
 import type {
   ApiBurst,

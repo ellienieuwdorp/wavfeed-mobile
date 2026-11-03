@@ -1,6 +1,5 @@
 /**
  * The Projection's vocabulary: normalized Fans, Pages, Releases and Stories as plain values (ADR-0004).
- * Ported from server/packages/projection/src/types.ts (task 0036).
  */
 
 export type StoryType = 'purchase' | 'new_release' | 'wishlist';

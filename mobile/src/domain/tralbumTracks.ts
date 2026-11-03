@@ -1,7 +1,6 @@
 /**
  * The Tracks of a Release, read out of a stored release page's `data-tralbum` blob; stream URLs die 24 hours after the fetch (ADR-0015).
  * Every Track the page names is listed, those not out yet marked so (task 0041, decision 5).
- * Ported from server/packages/bandcamp/src/tralbumTracks.ts (task 0036).
  */
 import { asRecord } from './wire';
 

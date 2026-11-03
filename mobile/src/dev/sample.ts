@@ -1,8 +1,8 @@
 /**
  * A full store of made-up data for the simulator rig (task 0036): about 1,500 Stories over the twelve weeks before a
  * fixed Thu 24 Sep 2026, 40 Fans, 60 Pages and 300 Releases from a seeded generator, shaped like the wire as
- * server/packages/projection/test/fixtures.ts records it and entering as Raw Documents through insertRawDocument before
- * the fold reads them (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
+ * `test/fixtures.ts` records it and entering as Raw Documents through insertRawDocument before the fold reads them
+ * (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
  * is set, so nothing drawn from the sample reaches Bandcamp. Payloads carry no real clock, so a second run dedupes.
  * The generated pre-orders have no Track out; two more Upcoming Releases let Tracks out early, read at fixed moments
  * so their Drops land on the same days every run (task 0041), and a Fan buys one so a shelf card shows a count and a

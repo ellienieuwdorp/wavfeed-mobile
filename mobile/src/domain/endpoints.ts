@@ -1,6 +1,5 @@
 /**
- * Endpoint names exactly as a Raw Document records them, and the envelope shapes the Fetcher writes for each.
- * Ported from server/packages/bandcamp/src/types.ts (task 0036).
+ * Endpoint names exactly as a Raw Document records them, and the envelope shapes the Fetcher writes for each (ADR-0004).
  */
 import type { ItemType } from './types';
 

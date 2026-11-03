@@ -1,8 +1,7 @@
 /// <reference types="node" />
 /**
  * The Curated Feed's three modules (DESIGN-UI section 5). They do not follow the Browse rules: nothing collapses into a
- * Burst, and the window is measured from the newest Story held, not from the clock. Ported from
- * server/apps/api/test/curate.test.ts (task 0036).
+ * Burst, and the window is measured from the newest Story held, not from the clock (task 0036).
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';

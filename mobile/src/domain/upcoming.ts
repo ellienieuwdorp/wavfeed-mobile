@@ -1,6 +1,5 @@
 /**
  * The Upcoming band's rules: Releases around now, nearest first, each carrying only the signal its Stories give; release days are GMT days (ADR-0017).
- * Ported from server/apps/api/src/feed/upcoming.ts (task 0036).
  */
 import { DAY_MS } from '../lib/time';
 import type { ApiUpcomingRelease } from './apiTypes';

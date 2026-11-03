@@ -1,7 +1,6 @@
 /**
  * The band details sweep's per-turn quota and the endpoint's breaker (ADR-0017); the store books each Page's tier and
- * next visit (store/queries.ts `markSwept`). Ported from server/apps/poller/src/circuitBreaker.ts and config.ts
- * (task 0036, decision 4).
+ * next visit (store/queries.ts `markSwept`) (task 0036, decision 4).
  */
 import { REFUSAL_STATUSES } from '../bandcamp/wire';
 import { HOUR_MS, MINUTE_MS } from '../lib/time';

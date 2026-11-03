@@ -1,6 +1,5 @@
 /**
- * Bandcamp image addresses, avatar initials and the colour a Release falls back to, ported from
- * server/apps/web/src/lib/format.ts (task 0036, decision 3). The words live in `copy.ts`. An image address carries
+ * Bandcamp image addresses, avatar initials and the colour a Release falls back to (task 0036, decision 3). The words live in `copy.ts`. An image address carries
  * Bandcamp's size id after the underscore; `sizedImageUrl` swaps it for the smallest size that covers what the screen
  * draws (findings VIS-7, VIS-M3).
  */

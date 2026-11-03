@@ -2,8 +2,7 @@
 /**
  * One page of a follow-list walk, in both of its shapes: the fan page embeds its first batch keyed by band id, and
  * every continuation answers with an `items` array. A parser that knew only one would hold half a follow list, and a
- * page called the end of a walk too early would let the fold sweep live follows (ADR-0017). Ported from the server's
- * suite (task 0036).
+ * page called the end of a walk too early would let the fold sweep live follows (ADR-0017).
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';

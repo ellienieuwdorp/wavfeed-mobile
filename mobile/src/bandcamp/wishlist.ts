@@ -1,9 +1,8 @@
 /**
  * The reading half of the wishlist exchange (ADR-0016): the request body and headers, the crumb map a signed-in page
  * carries in `<meta id="js-crumbs-data">` (amendment 2026-09-28), the crumb an `invalid_crumb` answer hands back, and
- * every answer classified from its body. Ported from server/packages/bandcamp/src/wishlist.ts,
- * with `cookie_dead` renamed `logged_out` because the phone holds no cookie (task 0036, decision 1). The headers are the
- * server's, which lands on the real wire, plus the charset jQuery adds (docs/research/2026-08-21-wishlist-wire.md). A
+ * every answer classified from its body. A signed-out answer is `logged_out`, since the phone holds no cookie (task
+ * 0036, decision 1). The headers are the ones that land on the real wire, plus the charset jQuery adds (docs/research/2026-08-21-wishlist-wire.md). A
  * handler that throws answers with Bandcamp's trackpipe envelope (`error`, `exception`, `host`, `url`, `date`, `user`),
  * and its own client shows the person only what follows `ALERT: ` in `exception` (`showXHRError`, global_foot2), so
  * that is the reason a refusal carries, and the whole exception when there is no such marker.
@@ -21,7 +20,7 @@ const SHAPE_MAX_KEYS = 8;
 const REASON_MAX_CHARS = 96;
 /** What jQuery sends for a plain-object `data` on the site's heart. */
 export const WISHLIST_CONTENT_TYPE = 'application/x-www-form-urlencoded; charset=UTF-8';
-/** The server transport's own (server/packages/bandcamp/src/http.ts); without it iOS sends the device's languages. */
+/** Without it iOS sends the device's languages. */
 export const WISHLIST_ACCEPT_LANGUAGE = 'en-US,en;q=0.9';
 /** Where Bandcamp's envelope starts the words its client shows the person as a note, not as a crash. */
 const ALERT_MARKER = 'ALERT: ';

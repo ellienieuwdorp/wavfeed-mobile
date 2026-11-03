@@ -1,6 +1,5 @@
 /**
  * Reading Bandcamp's wire values without trusting any of them; every reader answers undefined rather than guessing (ADR-0004).
- * Ported from server/packages/projection/src/wire.ts (task 0036).
  */
 import type { ItemType } from './types';
 

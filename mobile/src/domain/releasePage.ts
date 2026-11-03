@@ -1,6 +1,5 @@
 /**
- * Reading a stored release page for the tracklist and the heart's `band_id`, which outlive a Projection rebuild.
- * Ported from server/apps/api/src/releasePage.ts (task 0036).
+ * Reading a stored release page for the tracklist and the heart's `band_id`, which outlive a Projection rebuild (ADR-0004).
  */
 import { asRecord } from './wire';
 

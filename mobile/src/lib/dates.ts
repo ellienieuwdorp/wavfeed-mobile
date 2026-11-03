@@ -1,7 +1,7 @@
 /**
  * Calendar arithmetic and the short date forms ("Mon 17 Aug", "Wed 19", "20 Jul"), in local time so a Monday to Sunday week
- * is the reader's (ADR-0011). Ported from server/apps/web/src/lib/dates.ts with its function names (task 0036, decision 3);
- * `releaseDay` and `isOutYet` live in `domain/newReleases.ts` and are re-exported from there.
+ * is the reader's (ADR-0011, task 0036, decision 3). `releaseDay` and `isOutYet` live in `domain/newReleases.ts` and
+ * are re-exported from there.
  */
 import { DAY_MS } from './time';
 

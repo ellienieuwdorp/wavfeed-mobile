@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
  * One page of the Fan's own wishlist walk (ADR-0016): the record each heart is drawn for, and whether the page may
- * end the walk, since only a page Bandcamp said was the last may sweep. Ported from the server's suite (task 0036).
+ * end the walk, since only a page Bandcamp said was the last may sweep.
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';

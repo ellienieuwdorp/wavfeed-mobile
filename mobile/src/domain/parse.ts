@@ -1,6 +1,5 @@
 /**
  * The pure half of the Projection: `fan_dash_feed_updates` in, Fans, Pages, Releases and Stories out (ADR-0004).
- * Ported from server/packages/projection/src/parse.ts (task 0036).
  */
 import type {
   ItemType,

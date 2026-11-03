@@ -13,8 +13,7 @@ export type WalkKind = 'feed_walk' | 'feed_poll';
 export type StorySample = { readonly newest: number; readonly oldest: number; readonly count: number };
 
 /**
- * The Extension's walk (extension/lib/storage.ts) less its server fields. Unix seconds: `olderThan` is the next
- * cursor, `sinceTs` the server's stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
+ * A feed walk or poll in progress. Unix seconds: `olderThan` is the next cursor, `sinceTs` the stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
  * (task 0040) runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
  * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before task 0040 reads as not
  * probed, with no floor. `samples` and `recent` are what the fill estimates the Stories still to come from (task 0040,

@@ -1,8 +1,6 @@
 /**
  * Every user-visible string in the phone app. DESIGN-UI section 8 governs them: middots between facts, no em dashes,
- * "pages you follow", and no machine nouns; gather is the verb. The week, signal, curated and catch-up phrases are
- * ported from the web's weekCopy.ts, lib/format.ts, browseCopy.ts, curatedCopy.ts and syncCopy.ts
- * under their function names (task 0036, decision 3).
+ * "pages you follow", and no machine nouns; gather is the verb (task 0036, decision 3).
  */
 import { Platform } from 'react-native';
 

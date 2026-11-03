@@ -1,7 +1,6 @@
 /**
  * The flat rows the feed rules read: a Story with its Release, Page and Fan, an Upcoming Release with its Page, and a
  * Drop with its Release (task 0041); no seen or starred on the phone.
- * Ported from server/packages/db/src/types.ts, FeedStoryRow and UpcomingReleaseRow (task 0036).
  */
 import type { ApiTag } from './apiTypes';
 import type { ItemType, StoryType } from './types';

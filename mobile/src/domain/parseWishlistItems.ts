@@ -1,6 +1,5 @@
 /**
  * The parser for a `wishlist_items` Raw Document: one page of the Fan's own wishlist, stamped with the walk's start (ADR-0016).
- * Ported from server/packages/projection/src/parseWishlistItems.ts (task 0036).
  */
 import type { ItemType, ParsedWishlistItem, ParsedWishlistItems } from './types';
 import { noSkips } from './types';

@@ -3,7 +3,7 @@
  * feed walk), the wishlist and the follow list when six hours old, then a small band details sweep of due followed
  * Pages (ADR-0017), so hearts and Upcoming hold truth while the history fills; before a first walk's first page, a
  * depth probe that binary searches the feed's `older_than` cursor for the oldest Story (task 0040); the feed walk or
- * poll with the Extension's rules (extension/lib/poll.ts) plus the server's stop line (feed.ts); once caught up, the
+ * poll down to its stop line (`sinceTs`); once caught up, the
  * lists when due come after the feed, so a pull reads the feed first (task 0046, decision 1); public pages rotating
  * undated Releases (ADR-0011), owed Drop Tracks and due Upcoming Releases (task 0072), a few while walking, with time
  * held back for all three queues. A Track page can add its due future parent to the Upcoming queue after its fold,
@@ -65,7 +65,7 @@ export type TurnSummary = {
   readonly feedRetried: boolean;
 };
 
-/** The Extension's PAGES_PER_TURN: with no five-minute kill here, the batch between folds; the budget ends a turn. */
+/** The batch of feed pages between folds; the budget ends a turn. */
 export const PAGES_PER_BATCH = 5;
 export const DEDUP_STOP_RUN = 2;
 /**

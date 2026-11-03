@@ -3,7 +3,6 @@
  * many Tracks play of how many there are out (task 0041, decision 4); with the page's publish and edit moments and, on
  * a Track page, its album, which date a Drop (decision 7) and open an Upcoming album (task 0067, decision 1); and
  * `tralbum.artist`, the credit a Release no feed entry credited takes (task 0071, decision 18).
- * Ported from server/packages/projection/src/parseReleasePage.ts (task 0036).
  */
 import { readTralbumTracks } from './tralbumTracks';
 import type { ItemType, ParsedReleasePage, ParsedTrackAlbum } from './types';

@@ -3,7 +3,7 @@
  * `fan_dash_feed_updates` in, Fans, Pages, Releases and Stories out (ADR-0004): the wire codes `fp`, `fw` and `nr`, the
  * codes it ignores (task 0045), a merch purchase credited to the Release it presses (ADR-0005), release dates only where
  * a new-release Story states one (ADR-0011), and every entry it cannot read counted and dropped without costing its
- * siblings. Ported from the server's suite (task 0036).
+ * siblings (task 0036).
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';

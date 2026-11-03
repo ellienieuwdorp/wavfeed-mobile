@@ -1,6 +1,5 @@
 /**
- * Every request the phone makes to Bandcamp, ported from extension/lib/bandcamp.ts and server/packages/bandcamp/src
- * (task 0036, decisions 1 and 4). A credentialed call is a plain `fetch` with `credentials: 'include'` and no
+ * Every request the phone makes to Bandcamp (task 0036, decisions 1 and 4). A credentialed call is a plain `fetch` with `credentials: 'include'` and no
  * `Cookie` header, so the jar the sign-in WebView shares attaches the session and nothing here can read it
  * (ADR-0018); public calls pass `credentials: 'omit'`. One request at a time, 500 to 1000 ms apart (ADR-0001).
  * Nothing throws or logs: a failure leaves as an answer kind and a status (ADR-0003).

@@ -1,6 +1,5 @@
 /**
- * The view response shapes the phone's screens render.
- * Ported from server/packages/core/src/apiTypes.ts (task 0036).
+ * The view response shapes the phone's screens render (task 0036).
  */
 
 /** What happened, in CONTEXT.md vocabulary. Wire codes never reach clients. */

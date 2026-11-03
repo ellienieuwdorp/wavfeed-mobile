@@ -1,8 +1,7 @@
 /**
  * Synthetic Raw Document payloads for the parsers and the store, shaped like what Bandcamp answers (same keys, same
- * date forms, same numeric types) and made up throughout: no real feed data lives in the repo. Ported from
- * server/packages/projection/test/fixtures.ts (task 0036); the sweep's two documents follow what task 0001 measured
- * on 2026-08-21 (ADR-0017).
+ * date forms, same numeric types) and made up throughout: no real feed data lives in the repo (task 0036). The sweep's
+ * two documents follow what task 0001 measured on 2026-08-21 (ADR-0017).
  */
 import { wireDate } from './history';
 

@@ -1,6 +1,5 @@
 /**
  * The Curated Feed's three modules over the same Stories, with no Burst collapse; the window is measured from the newest Story held, not the clock.
- * Ported from server/apps/api/src/feed/curate.ts (task 0036).
  */
 import { DAY_MS } from '../lib/time';
 import type { ApiCuratedQuote, ApiCuratedResponse, ApiFanRef, ApiFeedItem } from './apiTypes';

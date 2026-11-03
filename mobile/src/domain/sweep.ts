@@ -1,6 +1,5 @@
 /**
  * The band details sweep's tiers: a Page's own discography dates decide how often it is read again (ADR-0017); no jitter, since one phone enqueues no herd.
- * Ported from server/apps/poller/src/sweep.ts and config.ts (task 0036).
  */
 import { DAY_MS, HOUR_MS } from '../lib/time';
 import { asRecord, parseWireDate } from './wire';

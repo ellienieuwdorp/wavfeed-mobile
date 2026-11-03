@@ -1,6 +1,5 @@
 /**
  * The parser for a `following_bands` Raw Document: one page of a follow-list walk in, band ids out (ADR-0017).
- * Ported from server/packages/projection/src/parseFollowingBands.ts (task 0036).
  */
 import type { MutableSkippedCounts, ParsedFollowingBands } from './types';
 import { noSkips } from './types';

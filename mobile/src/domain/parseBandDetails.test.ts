@@ -2,8 +2,7 @@
 /**
  * A Page's discography, where an Upcoming Release comes from: a record announced ahead lands with its real date and
  * nothing invented around it, since being Upcoming needs no Story (ADR-0017); fields Bandcamp writes in more than one
- * way are read in each; and anything unreadable is counted and dropped (ADR-0004). Ported from the server's suite
- * (task 0036).
+ * way are read in each; and anything unreadable is counted and dropped (ADR-0004).
  */
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
