@@ -29,7 +29,8 @@ import { copy } from '@/copy';
 import { turnedOnHaptic } from '@/lib/haptics';
 import { useReduceMotion } from '@/player/motion';
 import { useTokens } from '@/theme/tokens';
-import { useMembership, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
+import type { WishlistTarget } from '@/wishlist/exchange';
+import { useMembership, useWishlistPress } from '@/wishlist/state';
 import { swipeAt, swipeVerb, undoOf } from '@/wishlist/swipe';
 
 import { useNotice } from './noticeState';

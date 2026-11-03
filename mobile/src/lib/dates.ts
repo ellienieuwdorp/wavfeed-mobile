@@ -1,11 +1,8 @@
 /**
  * Calendar arithmetic and the short date forms ("Mon 17 Aug", "Wed 19", "20 Jul"), in local time so a Monday to Sunday week
- * is the reader's (ADR-0011). `releaseDay` and `isOutYet` live in `domain/newReleases.ts` and
- * are re-exported from there.
+ * is the reader's (ADR-0011). `releaseDay` and `isOutYet` live in `domain/newReleases.ts`.
  */
 import { DAY_MS } from './time';
-
-export { isOutYet, releaseDay } from '@/domain/newReleases';
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

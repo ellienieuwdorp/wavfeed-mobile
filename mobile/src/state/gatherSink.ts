@@ -15,22 +15,9 @@ import { asRecord } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, ForeignFanError, type GatherSink, type GatherState, type WalkState } from '@/fetcher/sink';
 import { devLog } from '@/lib/devLog';
 import { fanAvatarUrl } from '@/lib/format';
-import {
-  deleteKv,
-  ensureProjectionVersion,
-  feedAnswerSpans,
-  fold,
-  type FoldSummary,
-  IDENTITY_KEY,
-  insertRawDocument,
-  markSwept,
-  readFollowedBands,
-  readKv,
-  readSweepDue,
-  type ReplayProgress,
-  type StoredIdentity,
-  writeKv,
-} from '@/store';
+import { deleteKv, IDENTITY_KEY, readKv, type StoredIdentity, writeKv } from '@/store/kv';
+import { feedAnswerSpans, insertRawDocument } from '@/store/rawDocuments';
+import { markSwept, readFollowedBands, readSweepDue } from '@/store/queries';
 import {
   markReleasePageAttempt,
   readOwedTrackPages,
@@ -38,13 +25,11 @@ import {
   readUndatedReleases,
   readUpcomingDue,
 } from '@/store/enrichment';
-import { PROJECTION_REBUILDING_KEY, PROJECTION_VERSION } from '@/store/projection';
+import { PROJECTION_REBUILDING_KEY, PROJECTION_VERSION, ensureProjectionVersion, fold, type FoldSummary, type ReplayProgress } from '@/store/projection';
 import { reportCode } from '@/tally/errors';
 
 export const WALK_KEY = 'walk';
 export const GATHER_KEY = 'gather';
-/** Epoch milliseconds of the first identity this store held, the device row's "added" date. */
-export const DEVICE_ADDED_KEY = 'deviceAddedAt';
 
 export type SinkDeps = {
   readonly db: SQLiteDatabase;
@@ -64,7 +49,7 @@ function serial<T>(work: () => Promise<T>): Promise<T> {
 }
 
 async function readStoredGather(db: SQLiteDatabase): Promise<GatherState> {
-  return { ...EMPTY_GATHER_STATE, ...((await readKv<Partial<GatherState>>(db, GATHER_KEY)) ?? {}) };
+  return { ...EMPTY_GATHER_STATE, ...(await readKv<Partial<GatherState>>(db, GATHER_KEY)) };
 }
 
 /** The stored gather state at launch, `phase` reset: a turn killed with the app is not running. */
@@ -109,7 +94,7 @@ export function readStoredIdentity(db: SQLiteDatabase): Promise<StoredIdentity |
 }
 
 /** The probe's answer with the name and face the Projection holds for that Fan, if any; a missing handle keeps the last one. */
-export async function writeIdentity(db: SQLiteDatabase, identity: Identity, nowMs: number): Promise<void> {
+export async function writeIdentity(db: SQLiteDatabase, identity: Identity): Promise<void> {
   const held = await readStoredIdentity(db);
   const same = held !== null && held.fanId === identity.fanId;
   const fan = await db.getFirstAsync<{ name: string | null; image_id: number | null }>(
@@ -123,7 +108,6 @@ export async function writeIdentity(db: SQLiteDatabase, identity: Identity, nowM
     avatarUrl: fan?.image_id != null ? fanAvatarUrl(fan.image_id) : same ? held.avatarUrl : null,
   };
   await writeKv(db, IDENTITY_KEY, stored);
-  if ((await readKv<number>(db, DEVICE_ADDED_KEY)) === null) await writeKv(db, DEVICE_ADDED_KEY, nowMs);
 }
 
 /** The stored walk; one stored before the depth probe lacks its fields and reads as not probed, with no floor. */
@@ -163,7 +147,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
           await patchGather(deps, { pausedReason: 'logged_out' });
           throw new ForeignFanError();
         }
-        await writeIdentity(db, patch.identity, Date.now());
+        await writeIdentity(db, patch.identity);
         invalidate();
       }
       await patchGather(deps, patch);
@@ -193,7 +177,7 @@ export function createGatherSink(deps: SinkDeps): GatherSink {
       let summary: FoldSummary;
       try {
         summary = await fold(db);
-        if (__DEV__) devLog('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted ?? 0, 'stories, skipped', JSON.stringify(summary.skipped));
+        if (__DEV__) devLog('fold:', summary.documentsProcessed, 'documents,', summary.storiesUpserted, 'stories, skipped', JSON.stringify(summary.skipped));
       } catch (error) {
         console.warn('fold failed:', error instanceof Error ? error.message : String(error));
         reportCode('fold_failed', error);

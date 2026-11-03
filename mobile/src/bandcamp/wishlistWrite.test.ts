@@ -112,7 +112,7 @@ function bandcamp(t: TestContext, script: readonly Answer[] | Responder) {
   const queue = typeof script === 'function' ? [] : [...script];
   let clock = Date.UTC(2026, 8, 28, 14, 0, 0);
   t.mock.method(Date, 'now', () => (clock += 1000));
-  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+  t.mock.method(globalThis, 'fetch', async (input: string | URL, init: RequestInit = {}) => {
     const body = typeof init.body === 'string' ? init.body : null;
     const call: Call = {
       url: String(input),
@@ -148,9 +148,9 @@ describe('the crumb', () => {
     const [read, write] = wire.calls;
     assert.equal(read?.credentials, 'include');
     assert.equal(write?.credentials, 'include');
-    assert.equal(write?.headers.Origin, 'https://bandcamp.com');
-    assert.equal(write?.headers.Referer, 'https://bandcamp.com/');
-    assert.deepEqual(Object.fromEntries(write?.form ?? []), {
+    assert.equal(write.headers.Origin, 'https://bandcamp.com');
+    assert.equal(write.headers.Referer, 'https://bandcamp.com/');
+    assert.deepEqual(Object.fromEntries(write.form ?? []), {
       fan_id: '4417093',
       item_id: '2839471023',
       item_type: 'a',
@@ -370,7 +370,7 @@ describe('what a press returns', () => {
     const [stored] = (await new BandcampSession().collectItem(ITEM)).documents;
 
     assert.equal(stored?.endpoint, 'crumbs_page');
-    assert.deepEqual(stored?.payload, { url: RELEASE_URL, status: 200, paths: ['follow_band_cb', 'uncollect_item_cb'] });
+    assert.deepEqual(stored.payload, { url: RELEASE_URL, status: 200, paths: ['follow_band_cb', 'uncollect_item_cb'] });
   });
 
   test('an invalid_crumb answer is stored naming its crumb field, without the value', async (t) => {

@@ -13,7 +13,7 @@ import { usePlayerActions } from '@/components/player/playerState';
 import { devLog } from '@/lib/devLog';
 import { useAppState } from '@/state/appState';
 import { loadGatherState } from '@/state/gatherSink';
-import { countRawDocuments } from '@/store';
+import { countRawDocuments } from '@/store/rawDocuments';
 
 import { loadSampleData, sampleShowcase, setSampleWalk } from './sample';
 import { SAMPLE_MODE } from './sampleMode';

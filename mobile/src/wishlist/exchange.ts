@@ -5,7 +5,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { WishlistFailure, WishlistWire, WishlistWriteKind } from '@/bandcamp/wishlist';
-import { isDemoFan } from '@/demo/demo';
+import { isDemoFan } from '@/demo/fan';
 import type { ApiReleaseTracksResponse } from '@/domain/apiTypes';
 import type { ItemType } from '@/domain/types';
 import type { AppState } from '@/state/appState';

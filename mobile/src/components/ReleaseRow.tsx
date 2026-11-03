@@ -218,7 +218,7 @@ export const ReleaseRow = memo(function ReleaseRow({ release, day, heardDay, tra
   );
   const row: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: MIN_HEIGHT, paddingLeft: type.gutter, paddingRight: TRAILING, gap: GAP };
   return (
-    <RowMenu release={release} width={width} boughtBy={buyers}>
+    <RowMenu release={release} boughtBy={buyers}>
       {(openMenu, actions) => {
         const art = (
           <PlayArt

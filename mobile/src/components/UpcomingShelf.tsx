@@ -72,7 +72,7 @@ const Card = memo(function Card({ card }: { card: ShelfCard }) {
   const heard = heardParts({ title: card.release.title, credit, day: card.out, count: tracksOutPhrase(card.tracksOut, card.numTracks), buyers: card.buyers }, membership);
   return (
     <View style={{ width: CARD }}>
-      <RowMenu release={card.release} width={CARD} boughtBy={card.buyers}>
+      <RowMenu release={card.release} boughtBy={card.buyers}>
         {(openMenu) => (
           <PlayArt
             release={card.release}

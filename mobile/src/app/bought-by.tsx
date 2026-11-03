@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FanFace } from '@/components/AvatarStack';
 import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
-import { isDemoFan } from '@/demo/demo';
+import { isDemoFan } from '@/demo/fan';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { fanPageUrl } from '@/lib/format';
 import { useAppState } from '@/state/appState';
@@ -48,7 +48,7 @@ function FanRow({ fan, linked }: { fan: ApiFanRef; linked: boolean }) {
   const name = fan.name?.trim() ?? '';
   return (
     <Pressable
-      onPress={linked ? () => openURL(fanPageUrl(fan)).catch(() => undefined) : undefined}
+      onPress={linked ? () => void openURL(fanPageUrl(fan)).catch(() => undefined) : undefined}
       accessibilityRole={linked ? 'link' : 'text'}
       accessibilityLabel={linked ? copy.boughtBy.fanPage(fan.username) : undefined}
       android_ripple={linked ? ripple(c.track) : undefined}

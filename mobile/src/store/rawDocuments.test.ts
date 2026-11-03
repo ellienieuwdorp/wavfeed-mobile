@@ -80,7 +80,7 @@ test('concurrent confirmations on two connections record one catalog reversion',
   const confirmations = await Promise.all([first.db, second.db].map((db) =>
     insertRawDocument(db, { endpoint: BAND_DETAILS_ENDPOINT, payload: a, fetchedAt: RESTORED }),
   ));
-  assert.deepEqual(confirmations.map((read) => read.deduped).sort(), [false, true]);
+  assert.deepEqual(confirmations.map((read) => read.deduped).sort((a, b) => Number(a) - Number(b)), [false, true]);
   assert.equal(await countRawDocuments(first.db), 2);
   assert.deepEqual(await countForProjection(first.db), { waiting: 3, held: 3 });
   await fold(first.db);

@@ -18,13 +18,13 @@ import { WeekHead } from '@/components/WeekHead';
 import { copy, onDayPhrase, outOnPhrase } from '@/copy';
 import type { ApiUpcomingRelease } from '@/domain/apiTypes';
 import { filterNewReleases } from '@/domain/releaseFilter';
-import { releaseDay } from '@/lib/dates';
+import { releaseDay } from '@/domain/newReleases';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildUpcomingWeekSections } from '@/lib/weekSections';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { isActive, namedFilter, toReleaseFilter } from '@/state/filterSettings';
 import { publishView, useReleaseFilter } from '@/state/releaseFilter';
-import { readNewReleases } from '@/store';
+import { readNewReleases } from '@/store/queries';
 
 type Item =
   | { key: string; kind: 'empty' }

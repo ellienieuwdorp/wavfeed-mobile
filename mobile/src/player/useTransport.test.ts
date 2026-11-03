@@ -138,7 +138,7 @@ async function rig(t: TestContext, stored: BandcampDocument | null = page()) {
   let fetchPage: BandcampSession['fetchReleasePage'] = async () => { throw new Error('unexpected page fetch'); };
   const session = {
     fetchReleasePage: (...args: Parameters<BandcampSession['fetchReleasePage']>) => { reads += 1; return fetchPage(...args); },
-  } as unknown as BandcampSession;
+  } as BandcampSession;
   const mounted = mount({ db, session, putRaw: (doc) => insertRawDocument(db, doc), track: (tally) => tallies.push(tally), screen: () => 'releases' });
   t.after(mounted.unmount);
   return { ...mounted, db, tallies, reads: () => reads, fetchWith: (fn: BandcampSession['fetchReleasePage']) => { fetchPage = fn; } };
@@ -221,7 +221,7 @@ test('a target missing from a pending load gets one fresh read before selection 
       const started = at.tallies.filter((tally) => tally.name === 'playback_started');
       assert.equal(started.length, 1);
       assert.equal(started[0]?.props.retried, false);
-      assert.equal(started[0]?.props.result, scenario.refuses ? 'refused' : 'playing');
+      assert.equal(started[0].props.result, scenario.refuses ? 'refused' : 'playing');
       if (scenario.refuses) {
         at.refuse(false);
         at.controls.play(RELEASE, '102');
@@ -281,7 +281,7 @@ test('a failed fresh read settles the pending target with one error Tally', asyn
   const started = at.tallies.filter((tally) => tally.name === 'playback_started');
   assert.equal(started.length, 1);
   assert.equal(started[0]?.props.result, 'error');
-  assert.equal(started[0]?.props.retried, false);
+  assert.equal(started[0].props.retried, false);
 });
 
 test('a Drop missing its stream reloads the page and starts the newly available Track', async (t) => {
@@ -338,7 +338,7 @@ test('an explicit Drop after URL expiry reloads its target and reports a refused
   const started = at.tallies.filter((tally) => tally.name === 'playback_started');
   assert.equal(started.length, 2);
   assert.equal(started[1]?.props.retried, true);
-  assert.equal(started[1]?.props.result, 'refused');
+  assert.equal(started[1].props.result, 'refused');
   at.refuse(false);
   at.controls.play(RELEASE, '102');
   assert.equal(at.calls.at(-1), 'play');

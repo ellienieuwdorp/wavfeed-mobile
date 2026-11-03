@@ -48,9 +48,9 @@ test('a saved Release reads back for its Fan at the same Track and position, wit
   await savePlayback(db, savedPlayback(FAN_ID, RELEASE, SECOND, 123.456));
   const resume = await loadResume(db, FAN_ID);
   assert.deepEqual(resume?.release, RELEASE);
-  assert.equal(resume?.index, 1);
-  assert.equal(resume?.tracklist.tracks[1]?.trackId, SECOND);
-  assert.equal(resume?.position, 123.5);
+  assert.equal(resume.index, 1);
+  assert.equal(resume.tracklist.tracks[1]?.trackId, SECOND);
+  assert.equal(resume.position, 123.5);
 });
 
 test('a Release saved at rest after its last Track reads back at rest', async (t) => {
@@ -58,7 +58,7 @@ test('a Release saved at rest after its last Track reads back at rest', async (t
   await savePlayback(db, savedPlayback(FAN_ID, RELEASE, null, 300));
   const resume = await loadResume(db, FAN_ID);
   assert.equal(resume?.index, null);
-  assert.equal(resume?.position, 0);
+  assert.equal(resume.position, 0);
 });
 
 test("nothing reads back for no Fan, another Fan's save, another version or a shape this build does not know", async (t) => {

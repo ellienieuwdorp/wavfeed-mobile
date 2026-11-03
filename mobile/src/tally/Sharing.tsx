@@ -197,7 +197,12 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     held.current = null;
     sender.current?.dispose();
     return later(async () => {
-      const dropped = await turnSharingOff(db).finally(settleSharing);
+      let dropped;
+      try {
+        dropped = await turnSharingOff(db);
+      } finally {
+        await settleSharing();
+      }
       return dropped === null ? null : sharingCode(dropped.install);
     });
   }, [db, later, settleSharing]);

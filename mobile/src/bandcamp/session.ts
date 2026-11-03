@@ -181,7 +181,7 @@ function countEntries(value: unknown): number {
 }
 
 function looksSignedOut(body: Record<string, unknown> | undefined, text: string): boolean {
-  const message = body === undefined ? '' : String(body.error_message ?? '');
+  const message = typeof body?.error_message === 'string' ? body.error_message : '';
   if (message.toLowerCase().includes('must be logged in')) return true;
   return body === undefined && /<html|<!doctype/i.test(text.slice(0, 500));
 }
@@ -633,7 +633,7 @@ export class BandcampSession {
     }
     for (let attempt = 0; attempt <= MAX_CRUMB_REPLAYS; attempt += 1) {
       const fetchedAt = nowIso();
-      if (crumb !== null) seenCrumbs.add(crumb);
+      seenCrumbs.add(crumb);
       const wire = await this.send(url, {
         method: 'POST',
         headers,

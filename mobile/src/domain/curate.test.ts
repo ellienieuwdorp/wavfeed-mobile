@@ -66,7 +66,7 @@ describe('bought by people you follow', () => {
 
     // "2 people you follow bought this in the past two weeks": two avatars, and the newer of their purchases.
     assert.deepEqual(item?.buyers.map((fan) => fan.username), ['b', 'a']);
-    assert.equal(item?.latestStoryDate, BASE_DATE.toISOString());
+    assert.equal(item.latestStoryDate, BASE_DATE.toISOString());
   });
 
   test('counts a spree buyer like anyone else: this module does not collapse', () => {

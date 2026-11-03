@@ -6,7 +6,7 @@
  * too, until it finishes or Bandcamp pauses it; only a turn in flight moves the indeterminate sweep. The Demo says it is a sample in the header line instead.
  */
 import { backTo, soFar, updatedAgo, copy } from '@/copy';
-import { isDemoFan } from '@/demo/demo';
+import { isDemoFan } from '@/demo/fan';
 import { useNow } from '@/lib/useNow';
 
 import { useAppState, useLiveQuery } from './appState';

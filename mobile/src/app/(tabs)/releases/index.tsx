@@ -26,14 +26,14 @@ import { WeekHead } from '@/components/WeekHead';
 import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { filterNewReleases } from '@/domain/releaseFilter';
-import { releaseDay } from '@/lib/dates';
+import { releaseDay } from '@/domain/newReleases';
 import { dayKey, releaseDayKey, useNow } from '@/lib/useNow';
 import { buildSectionsFromWeeks, narrowSections } from '@/lib/weekSections';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { isActive, namedFilter, toReleaseFilter, withPeopleLink } from '@/state/filterSettings';
 import { publishView, useReleaseFilter } from '@/state/releaseFilter';
 import { useRefresh } from '@/state/refresh';
-import { readNewReleases } from '@/store';
+import { readNewReleases } from '@/store/queries';
 import { useTokens } from '@/theme/tokens';
 
 type Row = RowRelease & { readonly buyers: readonly ApiFanRef[] };

@@ -129,8 +129,11 @@ export async function countQueued(db: SQLiteDatabase): Promise<number> {
 /** Error Reports written so far in this launch, held by the caller for the life of the process. */
 export type Launch = { errorsWritten: number };
 
+/** The one call an Error Report's synchronous write makes on the store. */
+export type ErrorSink = Pick<SQLiteDatabase, 'runSync'>;
+
 /** Synchronous, for a handler the process may not outlive; never throws. Refused past either cap, and counted. */
-export function enqueueErrorSync(db: SQLiteDatabase, launch: Launch, report: ErrorReport): boolean {
+export function enqueueErrorSync(db: ErrorSink, launch: Launch, report: ErrorReport): boolean {
   try {
     const room = launch.errorsWritten < MAX_ERRORS_PER_LAUNCH;
     const { changes } = room

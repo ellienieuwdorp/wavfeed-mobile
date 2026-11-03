@@ -118,7 +118,6 @@ describe('the gather diff', () => {
     const [only, ...rest] = await chain(600_000);
     assert.deepEqual(rest, []);
     assert.equal(only?.name, 'gather_finished');
-    if (only?.name !== 'gather_finished') return;
     assert.deepEqual(
       [only.props.outcome, only.props.failure, only.props.paused, only.props.status_class, only.props.failed_step],
       ['failed', 'bandcamp_unreachable', 'none', 'none', 'probe'],

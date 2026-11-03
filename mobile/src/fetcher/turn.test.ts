@@ -295,7 +295,7 @@ describe('the feed walk', () => {
       [before, polledFrom + cursors.length * REQUEST_MS],
       'one new value, the moment the last feed page landed',
     );
-    assert.equal(gather.lastSuccessAt, seen[moved]?.lastSuccessAt, 'the release pages after the feed do not move it');
+    assert.equal(gather.lastSuccessAt, seen[moved].lastSuccessAt, 'the release pages after the feed do not move it');
   });
 
   test('a turn whose feed request fails leaves the last success where it was, whatever landed before it', async () => {
@@ -414,20 +414,20 @@ describe('list freshness', () => {
     const calls = () => ['wishlist', 'follows'].map((list) => asked.filter((request) => request === list).length);
     const memberships = async () => [
       (await db.getAllAsync<{ item_id: number }>('select item_id from wishlist_items order by item_id')).map((row) => row.item_id),
-      (await sink.readFollowedBands()).map((page) => page.bandId).sort(),
+      (await sink.readFollowedBands()).map((page) => page.bandId).sort((a, b) => a - b),
     ];
 
     assert.equal((await turn(REQUEST_MS)).outcome, 'out_of_budget');
     assert.deepEqual(await memberships(), [[1000, 1001], [1, 2]], 'admitted partial pages stay additive');
-    assert.notEqual(gather.wishlistAskedAt, null, 'the first attempt makes hearts available');
     const firstAsk = gather.wishlistAskedAt;
+    assert.ok(firstAsk !== null, 'the first attempt makes hearts available');
     assert.equal(gather.initialWalkDone, false);
 
     clock += 60_000;
     assert.equal((await turn(600_000, 'refresh')).outcome, 'done');
     assert.deepEqual(calls(), [2, 2], 'a pull asks both incomplete lists again');
     assert.deepEqual([gather.wishlistFetchedAt, gather.followsFetchedAt], [null, null]);
-    assert.ok(gather.wishlistAskedAt !== null && gather.wishlistAskedAt > firstAsk!);
+    assert.ok(gather.wishlistAskedAt !== null && gather.wishlistAskedAt > firstAsk);
     assert.equal(gather.initialWalkDone, true, 'the held first walk resumes');
     assert.equal(await storyCount(), 3);
 

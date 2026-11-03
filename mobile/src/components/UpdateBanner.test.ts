@@ -87,12 +87,15 @@ const cases = [
   { name: 'an iPhone opens TestFlight', platform: 'ios', channel: 'production', launcher: true, permission: true, install: false, store: 'itms-beta://beta.itunes.apple.com/v1/app/6817516210' },
 ] as const;
 
+const updates = native.get('expo-updates');
+assert.ok(updates !== undefined);
+
 for (const [index, scenario] of cases.entries()) {
   test(scenario.name, async () => {
     rig.__bannerFixture = { ...scenario, opened: [], downloaded: [], intents: [] };
     // The channel and platform are binary facts read at module load, so each scenario loads a fresh banner and updates module.
     const hook = registerHooks({ resolve(specifier, context, next) {
-      if (specifier === 'expo-updates') return { url: `${stub(native.get(specifier)!)}#${index}`, shortCircuit: true };
+      if (specifier === 'expo-updates') return { url: `${stub(updates)}#${index}`, shortCircuit: true };
       if (specifier === '@/copy') {
         const resolved = next(specifier, context);
         return { ...resolved, url: `${resolved.url}?binary=${index}` };
@@ -102,7 +105,8 @@ for (const [index, scenario] of cases.entries()) {
     try {
       const { UpdateBanner } = await import(`./UpdateBanner.tsx?binary=${index}`);
       const tree = elements(UpdateBanner({ hideable: false }));
-      const press = tree.find((element) => element.type === 'Pressable')!;
+      const press = tree.find((element) => element.type === 'Pressable');
+      assert.ok(press);
       const text = tree.filter((element) => element.type === 'Type').map((element) => element.props.children);
       (press.props.onPress as () => void)();
       await setImmediate();

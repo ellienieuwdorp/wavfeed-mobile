@@ -20,6 +20,7 @@ const NOW = Date.UTC(2026, 8, 29, 12, 0, 0);
 const INSTALL = '3b9f0c52-8a0e-4c2f-9a41-6f1d2b7e9c10';
 
 let db: SQLiteDatabase;
+let sync: DatabaseSync;
 let reports: ErrorReports;
 
 async function written(): Promise<ErrorReport[]> {
@@ -29,8 +30,7 @@ async function written(): Promise<ErrorReport[]> {
 
 /** Read synchronously, as a handler that ends the process would leave it. */
 function writtenNow(): number {
-  const { d } = db as unknown as { d: DatabaseSync };
-  return (d.prepare("select count(*) as n from tally_outbox where kind = 'error'").get() as { n: number }).n;
+  return (sync.prepare("select count(*) as n from tally_outbox where kind = 'error'").get() as { n: number }).n;
 }
 
 /** RN's `ErrorUtils`: one slot, and the handler expo-router put there, which records what reached it. */
@@ -41,7 +41,7 @@ function errorUtils(): ErrorUtilsLike & { reached: [unknown, boolean | undefined
 }
 
 beforeEach(async () => {
-  ({ db } = await openTestStore());
+  ({ db, sync } = await openTestStore());
   await turnSharingOn(db, INSTALL, NOW);
   reports = createErrorReports(() => NOW);
   reports.setSink(db);
@@ -78,7 +78,7 @@ describe('the global handler', () => {
   test('hands the error on when the store cannot take the report', () => {
     const utils = errorUtils();
     const broken = createErrorReports(() => NOW);
-    broken.setSink({ runSync: () => { throw new Error('database is locked'); } } as unknown as SQLiteDatabase);
+    broken.setSink({ runSync: () => { throw new Error('database is locked'); } });
     installErrorCapture(broken, { errorUtils: utils, hermes: undefined, dev: false });
     utils.getGlobalHandler()(new Error('boom'), true);
     assert.equal(utils.reached.length, 1);
@@ -105,8 +105,8 @@ describe('the rejection tracker', () => {
     assert.equal(installErrorCapture(reports, { errorUtils: undefined, hermes: tracker, dev: false }).rejections, true);
     const [options] = tracker.options as { allRejections: boolean; onUnhandled: (id: number, r: unknown) => void }[];
     assert.equal(options?.allRejections, true);
-    options?.onUnhandled(4, new RangeError('offset 123456 out of range'));
-    options?.onUnhandled(5, 'a bare string');
+    options.onUnhandled(4, new RangeError('offset 123456 out of range'));
+    options.onUnhandled(5, 'a bare string');
     assert.deepEqual(
       (await written()).map((r) => [r.source, r.fatal, r.name, r.message]),
       [

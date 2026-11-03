@@ -250,7 +250,7 @@ describe('fetchPost', () => {
     const send = (async (url: string, init: RequestInit) => {
       calls.push({ url, init });
       return new Response('{"ok":true}', { status: 200, headers: { 'retry-after': '60' } });
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
     return { calls, post: fetchPost(send) };
   }
 
@@ -260,8 +260,8 @@ describe('fetchPost', () => {
     assert.equal(calls.length, 1);
     const init = calls[0]?.init;
     assert.equal(init?.method, 'POST');
-    assert.equal(init?.credentials, 'omit');
-    assert.deepEqual(init?.headers, { 'content-type': 'application/json', 'accept-language': '*', 'user-agent': 'wavfeed' });
+    assert.equal(init.credentials, 'omit');
+    assert.deepEqual(init.headers, { 'content-type': 'application/json', 'accept-language': '*', 'user-agent': 'wavfeed' });
   });
 
   test('a signal that fired before the call sends nothing', async () => {

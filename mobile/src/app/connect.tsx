@@ -15,11 +15,11 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { SignInWebView } from '@/bandcamp/SignInWebView';
 import { copy } from '@/copy';
-import { isDemoFan } from '@/demo/demo';
+import { isDemoFan } from '@/demo/fan';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState } from '@/state/appState';
 import { patchGather, readStoredIdentity, writeIdentity } from '@/state/gatherSink';
-import { emptyStore } from '@/store';
+import { emptyStore } from '@/store/schema';
 import { Glyph } from '@/components/Glyph';
 import { connectFrom, failSignIn, finishSignIn, openSignIn, type SignInFailure, type SignInVisit } from '@/tally/actions';
 import { useSharing } from '@/tally/Sharing';
@@ -151,12 +151,13 @@ function SignIn({ onCancel, visit }: { onCancel: () => void; visit: Visit }) {
       signedIn = true;
       visit.signedIn();
       if (mounted.current) close();
-      await writeIdentity(app.db, probe.value, Date.now());
+      await writeIdentity(app.db, probe.value);
       await patchGather(app, { identity: probe.value, pausedReason: null, lastError: null, lastStatus: null });
       app.invalidate();
       void app.runGather('open');
     } finally {
       probing.current = false;
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- a second call sets again.current while this one awaits
       if (again.current && !signedIn && mounted.current) void onMaybeSignedIn();
     }
   };

@@ -60,7 +60,7 @@ export type ReplayProgress = (done: number, total: number) => void;
 
 async function readVersion(db: SQLiteDatabase, key: string): Promise<number | null> {
   const row = await db.getFirstAsync<{ value: string }>('select value from kv where key = ?', [key]);
-  return row === null || row === undefined ? null : Number(JSON.parse(row.value));
+  return row === null ? null : Number(JSON.parse(row.value));
 }
 
 /**
@@ -752,6 +752,7 @@ async function foldStretches(db: SQLiteDatabase, { stretchMs, connection, onProg
       },
       connection,
     );
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- withFoldLock's callback sets more, which narrowing cannot see
     if (more && counted !== null) onProgress?.(counted.held - counted.waiting + folded, counted.held);
   }
   return { ...tally, skipped: { ...tally.skipped } };

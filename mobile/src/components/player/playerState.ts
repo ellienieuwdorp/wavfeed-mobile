@@ -16,8 +16,6 @@ import type { Screen } from '@/tally/catalogue';
 import { useSharing } from '@/tally/Sharing';
 import { screenFor } from '@/tally/tally';
 
-export type { PlayableRelease, PlayerStatus } from '@/player/transport';
-export type { PlayerClock } from '@/player/useTransport';
 export type PlayerActions = Pick<Transport, 'play' | 'toggle' | 'next' | 'previous' | 'seek' | 'playAt' | 'isPlaying'>;
 /** The player as the chrome reads it; restoring and forgetting belong to the provider. */
 export type Player = Omit<Transport, 'restore' | 'forget'>;

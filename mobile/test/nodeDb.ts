@@ -68,10 +68,11 @@ class NodeDb {
 }
 
 /** A migrated store; in memory unless `file` names one. */
-export async function openTestStore(file = ':memory:'): Promise<{ db: SQLiteDatabase; close: () => void }> {
+export async function openTestStore(file = ':memory:'): Promise<{ db: SQLiteDatabase; sync: DatabaseSync; close: () => void }> {
   const node = new NodeDb(file);
   if (file !== ':memory:') node.d.exec('pragma journal_mode = wal; pragma synchronous = normal');
+  // oxlint-disable-next-line wavfeed/no-double-cast -- NodeDb answers only the expo-sqlite calls the store makes
   const db = node as unknown as SQLiteDatabase;
   await migrate(db);
-  return { db, close: () => node.d.close() };
+  return { db, sync: node.d, close: () => node.d.close() };
 }

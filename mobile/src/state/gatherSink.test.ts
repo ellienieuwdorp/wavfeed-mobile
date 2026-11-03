@@ -38,7 +38,9 @@ async function foldOnce(entries: readonly unknown[]): Promise<SkippedCounts[]> {
 test('a fold that skips an entry it cannot read and one of an unknown kind hands both counts over once', async () => {
   const heard = await foldOnce([purchaseAt(1001, AT), 'not an entry', fpEntry({ story_type: 'zz' })]);
   assert.deepEqual(heard, [{ unparsable: 1, unknownStoryType: 1, missingFanInfo: 0 }]);
-  assert.deepEqual(projectionSkipped(heard[0]!), {
+  const [summary] = heard;
+  assert.ok(summary);
+  assert.deepEqual(projectionSkipped(summary), {
     name: 'projection_skipped',
     props: { unparsable: '1', unknown_story_type: '1', missing_fan_info: '0' },
   });
@@ -46,8 +48,10 @@ test('a fold that skips an entry it cannot read and one of an unknown kind hands
 
 test('a fold that skips nothing makes no Tally', async () => {
   const heard = await foldOnce([purchaseAt(1001, AT)]);
-  assert.equal(heard.length, 1);
-  assert.equal(projectionSkipped(heard[0]!), null);
+  const [summary, ...more] = heard;
+  assert.ok(summary);
+  assert.deepEqual(more, []);
+  assert.equal(projectionSkipped(summary), null);
 });
 
 test('a rebuilt wishlist is confirmed by the next automatic turn despite a recent attempt; a normal drain retains its gates', async (t) => {

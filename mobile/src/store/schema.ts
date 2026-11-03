@@ -7,8 +7,6 @@ import { deleteDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'exp
 import { BUSY_TIMEOUT_MS } from './foldLock';
 import { migrate } from './migrations';
 
-export { BUSY_TIMEOUT_MS } from './foldLock';
-
 export type Store = { readonly db: SQLiteDatabase };
 
 export const STORE_FILE = 'wavfeed.db';

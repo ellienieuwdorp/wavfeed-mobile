@@ -114,7 +114,7 @@ function launch(t: TestContext, db: SQLiteDatabase, fanId: number | null) {
   const render = (player: Player, clock: PlayerClock, fan: number | null = fanId) => {
     cursor = 0;
     effectCursor = 0;
-    ready = module.exports.useResume({ ...player, restore, forget } as unknown as Transport, clock, db, fan);
+    ready = module.exports.useResume({ ...player, restore, forget } as Transport, clock, db, fan);
     mounted = true;
     for (const { at, effect, deps } of pending.splice(0)) {
       effects[at]?.cleanup?.();
@@ -123,7 +123,7 @@ function launch(t: TestContext, db: SQLiteDatabase, fanId: number | null) {
     return ready;
   };
   const unmount = () => {
-    for (const effect of effects) effect?.cleanup?.();
+    for (const effect of effects) effect.cleanup?.();
     effects.length = 0;
   };
   t.after(unmount);

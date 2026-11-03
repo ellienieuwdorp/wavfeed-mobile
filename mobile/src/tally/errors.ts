@@ -8,13 +8,12 @@
  * the root fallback reports after it is gone. Reports from before the store opens, or from while a fold holds the write
  * lock (src/store/foldLock.ts), wait in memory, as many as a launch may write. `console.error` is not captured.
  */
-import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { foldHoldsLock, onFoldLockFree } from '@/store/foldLock';
 
 import type { ErrorCode, ErrorSource, Screen } from './catalogue';
 import { buildErrorReport, type ErrorReport, type ReportAt } from './errorReport';
-import { enqueueErrorSync, MAX_ERRORS_PER_LAUNCH, type Launch } from './outbox';
+import { enqueueErrorSync, MAX_ERRORS_PER_LAUNCH, type ErrorSink, type Launch } from './outbox';
 
 export type ErrorReports = {
   /** Never throws, since every caller is on its way to something that must still run. */
@@ -25,13 +24,13 @@ export type ErrorReports = {
    */
   readonly reportCaught: (thrown: unknown, screen?: Screen) => void;
   /** The open store, or null while it is being removed; the reports waiting for it are written or dropped with it. */
-  readonly setSink: (db: SQLiteDatabase | null) => void;
+  readonly setSink: (db: ErrorSink | null) => void;
   readonly setScreen: (screen: Screen) => void;
 };
 
 export function createErrorReports(now: () => number): ErrorReports {
   // undefined until the store first opens.
-  let sink: SQLiteDatabase | null | undefined;
+  let sink: ErrorSink | null | undefined;
   let waiting: ErrorReport[] = [];
   let screen: Screen = 'other';
   const launch: Launch = { errorsWritten: 0 };

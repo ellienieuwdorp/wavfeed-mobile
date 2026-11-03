@@ -13,14 +13,15 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';
 import { AppState as NativeAppState } from 'react-native';
 
-import { isDemoFan } from '@/demo/demo';
+import { isDemoFan } from '@/demo/fan';
 import { dueFrom, type Due } from '@/fetcher/cadence';
 import { useGatherSchedule } from '@/fetcher/schedule';
 import type { GatherSink, GatherState, WalkState } from '@/fetcher/sink';
 import { bandDetailsBreaker } from '@/fetcher/sweep';
 import { runGatherTurn, type GatherReason, type TurnSummary } from '@/fetcher/turn';
 import { devLog } from '@/lib/devLog';
-import { readChainCounts, readKv } from '@/store';
+import { readChainCounts } from '@/store/queries';
+import { readKv } from '@/store/kv';
 import { gatherTallies, projectionSkipped, type ChainFacts } from '@/tally/tally';
 
 import { useAppState, type AppState, type RunnerDeps } from './appState';

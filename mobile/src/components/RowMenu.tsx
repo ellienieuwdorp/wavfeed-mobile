@@ -1,29 +1,26 @@
 /**
- * The long press on anything that draws a Release (Later, and the v2 client canvas, sections 6 and 7): Play,
- * Add to or Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is the action sheet while
- * IOS_CONTEXT_MENU is off, else SwiftUI's context menu through @expo/ui, lifting the row it wraps, so the row is laid
- * out at the `width` it is given; on Android a Material dropdown menu anchored to the row, mounted only while open. The
- * wishlist item runs the heart's own press (ADR-0016), is named for the press the heart's drawn state would take, a
- * travelling press included, and is greyed while membership is not asked yet. Only an https address from the wire is
- * opened or shared, and an open is counted as a hand-off. The same items,
- * with Bought by where the row draws who bought it, are the screen reader's actions on the row and on its art
- * (rowActions.ts, VIS-9 and FLOW-13): the render prop's second argument, and `useSpokenActions` under it.
+ * The long press on anything that draws a Release (Later, and the v2 client canvas, sections 6 and 7): Play, Add to or
+ * Remove from your Bandcamp wishlist, Open on Bandcamp and Share. On iOS it is the action sheet; on Android a Material
+ * dropdown menu anchored to the row, mounted only while open. The wishlist item runs the heart's own press (ADR-0016),
+ * is named for the press the heart's drawn state would take, a travelling press included, and is greyed while
+ * membership is not asked yet. Only an https address from the wire is opened or shared, and an open is counted as a
+ * hand-off. The same items, with Bought by where the row draws who bought it, are the screen reader's actions on the
+ * row and on its art (rowActions.ts, VIS-9 and FLOW-13): the render prop's second argument, and `useSpokenActions`
+ * under it.
  */
 import { Box, DropdownMenu, DropdownMenuItem, Host as ComposeHost, Text as ComposeText } from '@expo/ui/jetpack-compose';
 import { fillMaxSize } from '@expo/ui/jetpack-compose/modifiers';
-import { Button, ContextMenu, Host, RNHostView } from '@expo/ui/swift-ui';
-import { disabled } from '@expo/ui/swift-ui/modifiers';
 import { openURL } from 'expo-linking';
 import { createContext, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import { ActionSheetIOS, Platform, Pressable, Share, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { copy } from '@/copy';
 import type { ApiFanRef } from '@/domain/apiTypes';
 import { webUrl } from '@/lib/format';
 import { useSharing } from '@/tally/Sharing';
 import { useTokens } from '@/theme/tokens';
-import { useMembership, useWishlistPress, type WishlistTarget } from '@/wishlist/state';
+import type { WishlistTarget } from '@/wishlist/exchange';
+import { useMembership, useWishlistPress } from '@/wishlist/state';
 
 import { openBoughtBy } from './AvatarStack';
 import { usePlay, type RowRelease } from './playable';
@@ -31,20 +28,10 @@ import { usePlayerActions } from './player/playerState';
 import { PLAY_ACTION, spokenActions, type RowAction, type SpokenActions } from './rowActions';
 
 const ios = Platform.OS === 'ios';
-// ceiling: the device check of SwiftUI's menu around a hosted row failed in Expo Go 57.0.9. Its native
-// RNHostView predates @expo/ui 57.0.14 (expo/expo#48969), so every touch on a hosted row reaches JS twice, in host and in
-// page coordinates, and a hosted Pressable drops its press on any finger movement. False falls back to ActionSheetIOS;
-// true again once the app runs on a native side carrying that fix, a dev build or a later Expo Go.
-const IOS_CONTEXT_MENU = false;
-
-type Action = RowAction & { icon: SFSymbol };
-
-/** The row takes this for its `onLongPress`: it opens the menu, except under SwiftUI's, where it only keeps a held press from playing. */
+/** The row takes this for its `onLongPress`: it opens the menu. */
 export type OpenMenu = () => void;
 
-const keepHeld: OpenMenu = () => undefined;
-
-function useRowActions(release: RowRelease): readonly Action[] {
+function useRowActions(release: RowRelease): readonly RowAction[] {
   const play = usePlay();
   const { isPlaying } = usePlayerActions();
   const { track } = useSharing();
@@ -55,18 +42,17 @@ function useRowActions(release: RowRelease): readonly Action[] {
   const key = { itemType: release.itemType, itemId: release.itemId };
   const target: WishlistTarget = { ...key, release: key };
   return [
-    { key: PLAY_ACTION, label: copy.rowMenu.play, icon: 'play', enabled: true, run: () => play(release) },
+    { key: PLAY_ACTION, label: copy.rowMenu.play, enabled: true, run: () => play(release) },
     {
       key: 'wishlist',
       label: on ? copy.rowMenu.remove : copy.rowMenu.add,
-      icon: on ? 'heart.slash' : 'heart',
       enabled: membership.known,
       run: () => void press(target, on ? 'remove' : 'add'),
     },
     {
       key: 'open',
       label: copy.rowMenu.open,
-      icon: 'safari',
+     
       enabled: url !== null,
       run: () => {
         if (url === null) return;
@@ -77,7 +63,7 @@ function useRowActions(release: RowRelease): readonly Action[] {
     {
       key: 'share',
       label: copy.rowMenu.share,
-      icon: 'square.and.arrow.up',
+     
       enabled: url !== null,
       run: () => {
         if (url !== null) Share.share(ios ? { url } : { message: url, title: release.title }).catch(() => undefined);
@@ -86,7 +72,7 @@ function useRowActions(release: RowRelease): readonly Action[] {
   ];
 }
 
-function showSheet(title: string, actions: readonly Action[]) {
+function showSheet(title: string, actions: readonly RowAction[]) {
   const live = actions.filter((a) => a.enabled);
   ActionSheetIOS.showActionSheetWithOptions(
     { title, options: [...live.map((a) => a.label), copy.rowMenu.cancel], cancelButtonIndex: live.length },
@@ -94,27 +80,7 @@ function showSheet(title: string, actions: readonly Action[]) {
   );
 }
 
-function SystemMenu({ actions, width, child }: { actions: readonly Action[]; width: number; child: ReactElement }) {
-  const { dark } = useTokens();
-  return (
-    <Host matchContents colorScheme={dark ? 'dark' : 'light'}>
-      <ContextMenu>
-        <ContextMenu.Items>
-          {actions.map((a) => (
-            <Button key={a.key} label={a.label} systemImage={a.icon} onPress={a.run} modifiers={a.enabled ? [] : [disabled(true)]} />
-          ))}
-        </ContextMenu.Items>
-        <ContextMenu.Trigger>
-          <RNHostView matchContents>
-            <View style={{ width }}>{child}</View>
-          </RNHostView>
-        </ContextMenu.Trigger>
-      </ContextMenu>
-    </Host>
-  );
-}
-
-function AnchoredMenu({ actions, children }: { actions: readonly Action[]; children: (open: OpenMenu) => ReactElement }) {
+function AnchoredMenu({ actions, children }: { actions: readonly RowAction[]; children: (open: OpenMenu) => ReactElement }) {
   const { c, dark } = useTokens();
   const [open, setOpen] = useState(false);
   return (
@@ -152,12 +118,9 @@ function AnchoredMenu({ actions, children }: { actions: readonly Action[]; child
 
 /**
  * The surface of a row that holds buttons of its own (a card, a quote), taking the long press between them and leaving
- * the screen reader its buttons. Where SwiftUI's menu owns the long press it is a plain View, since a Pressable above the
- * pressed one would take the responder on the second touch start of the doubled stream IOS_CONTEXT_MENU names and end
- * that press without its onPress. Its buttons pass `open` to their own `onLongPress`.
+ * the screen reader its buttons. Its buttons pass `open` to their own `onLongPress`.
  */
 export function RowSurface({ open, style, children }: { open: OpenMenu; style: StyleProp<ViewStyle>; children: ReactNode }) {
-  if (open === keepHeld) return <View style={style}>{children}</View>;
   return (
     <Pressable onLongPress={open} accessible={false} style={style}>
       {children}
@@ -174,19 +137,17 @@ export function useSpokenActions(): SpokenActions | undefined {
 
 type RowMenuProps = {
   release: RowRelease;
-  width: number;
   /** The Fans the row's faces name, which a screen reader reaches as the Bought by action. */
   boughtBy?: readonly ApiFanRef[];
   /** Draws the row, handing `open` to its own Pressable's `onLongPress` and `spoken` to its screen reader element. */
   children: (open: OpenMenu, spoken: SpokenActions) => ReactElement;
 };
 
-export function RowMenu({ release, width, boughtBy, children }: RowMenuProps) {
+export function RowMenu({ release, boughtBy, children }: RowMenuProps) {
   const actions = useRowActions(release);
   const spoken = spokenActions(actions, boughtBy ?? [], openBoughtBy);
-  let menu: ReactElement;
-  if (!ios) menu = <AnchoredMenu actions={actions}>{(open) => children(open, spoken)}</AnchoredMenu>;
-  else if (!IOS_CONTEXT_MENU) menu = children(() => showSheet(release.title, actions), spoken);
-  else menu = <SystemMenu actions={actions} width={width} child={children(keepHeld, spoken)} />;
+  const menu = ios
+    ? children(() => showSheet(release.title, actions), spoken)
+    : <AnchoredMenu actions={actions}>{(open) => children(open, spoken)}</AnchoredMenu>;
   return <SpokenContext.Provider value={spoken}>{menu}</SpokenContext.Provider>;
 }

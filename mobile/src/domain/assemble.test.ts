@@ -75,7 +75,7 @@ describe('aggregation', () => {
     const [item] = items(assemble(rows).elements);
 
     assert.deepEqual(item?.buyers.map((fan) => fan.username), ['dj_okonkwo']);
-    assert.deepEqual(item?.wishlisters.map((fan) => fan.username), ['dj_okonkwo']);
+    assert.deepEqual(item.wishlisters.map((fan) => fan.username), ['dj_okonkwo']);
   });
 
   test('collects review text newest first, with the Fan who wrote it', () => {
@@ -136,7 +136,7 @@ describe('anchor dates (ADR-0011)', () => {
       const [item] = items(assemble(rows()).elements);
 
       assert.equal(item?.anchorDate, anchor.toISOString());
-      assert.equal(item?.latestStoryDate, latest.toISOString());
+      assert.equal(item.latestStoryDate, latest.toISOString());
     });
   }
 });
@@ -177,9 +177,9 @@ describe('Bursts', () => {
     const [burst] = bursts(assemble(chain({ count: BURST_MIN_STORIES, gapMinutes: 10 })).elements);
 
     assert.equal(burst?.storyCount, BURST_MIN_STORIES);
-    assert.equal(burst?.fan.username, 'dj_okonkwo');
-    assert.equal(burst?.storyType, 'purchase');
-    assert.equal(burst?.items.length, BURST_MIN_STORIES);
+    assert.equal(burst.fan.username, 'dj_okonkwo');
+    assert.equal(burst.storyType, 'purchase');
+    assert.equal(burst.items.length, BURST_MIN_STORIES);
   });
 
   test('keeps the long half of a run that pauses in the middle', () => {
@@ -212,7 +212,9 @@ describe('Bursts', () => {
 
   test('calls a run of purchases and wishlists mixed', () => {
     const rows = chain({ count: BURST_MIN_STORIES, gapMinutes: 10 });
-    rows[0] = { ...rows[0]!, storyType: 'wishlist' };
+    const [head] = rows;
+    assert.ok(head);
+    rows[0] = { ...head, storyType: 'wishlist' };
 
     assert.equal(bursts(assemble(rows).elements)[0]?.storyType, 'mixed');
   });
@@ -233,7 +235,7 @@ describe('Bursts', () => {
     const [burst] = bursts(assemble(rows).elements);
 
     assert.equal(burst?.storyCount, BURST_MIN_STORIES + 1);
-    assert.equal(burst?.items.length, BURST_MIN_STORIES);
+    assert.equal(burst.items.length, BURST_MIN_STORIES);
   });
 
   test('still shows a Release the spree touched when another Fan acted on it too', () => {
@@ -260,7 +262,7 @@ describe('Bursts', () => {
     const [burst] = bursts(assemble(chain({ count: BURST_MIN_STORIES, gapMinutes: 10 })).elements);
 
     assert.equal(burst?.latestStoryDate, last);
-    assert.equal(burst?.anchorDate, last);
+    assert.equal(burst.anchorDate, last);
   });
 });
 
@@ -274,12 +276,14 @@ describe('the type filter', () => {
     const [item] = items(assemble(rows, { types: ['purchase'] }).elements);
 
     assert.equal(item?.wishlisters.length, 0);
-    assert.equal(item?.buyers.length, 1);
+    assert.equal(item.buyers.length, 1);
   });
 
   test('can dissolve a Burst, because four purchases are not a spree', () => {
     const rows = chain({ count: BURST_MIN_STORIES, gapMinutes: 5 });
-    rows[0] = { ...rows[0]!, storyType: 'wishlist' };
+    const [head] = rows;
+    assert.ok(head);
+    rows[0] = { ...head, storyType: 'wishlist' };
 
     const { elements } = assemble(rows, { types: ['purchase'] });
 

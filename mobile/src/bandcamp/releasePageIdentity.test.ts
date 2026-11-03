@@ -32,7 +32,7 @@ function bandcamp(t: TestContext): Call[] {
   const calls: Call[] = [];
   let clock = Date.UTC(2026, 8, 29, 18, 0, 0);
   t.mock.method(Date, 'now', () => (clock += 1000));
-  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+  t.mock.method(globalThis, 'fetch', async (input: string | URL, init: RequestInit = {}) => {
     calls.push({ url: String(input), headers: { ...(init.headers as Record<string, string>) }, credentials: init.credentials });
     return init.method === 'POST'
       ? new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } })
@@ -48,8 +48,8 @@ test('a release page is asked for as desktop Safari, with no cookie', async (t) 
   assert.equal(answer.kind === 'ok' && answer.value.kind, 'page');
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.headers['User-Agent'], DESKTOP_SAFARI);
-  assert.equal(calls[0]?.credentials, 'omit');
-  assert.equal(calls[0]?.headers.Cookie, undefined);
+  assert.equal(calls[0].credentials, 'omit');
+  assert.equal(calls[0].headers.Cookie, undefined);
 });
 
 test("the heart's signed-in read of the same page and its write go as the phone", async (t) => {

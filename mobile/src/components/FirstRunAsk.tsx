@@ -10,7 +10,7 @@ import { router, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { useAppState } from '@/state/appState';
-import { readKv, writeKv } from '@/store';
+import { readKv, writeKv } from '@/store/kv';
 import { useSharing } from '@/tally/Sharing';
 import { usageAskDue } from '@/tally/tally';
 

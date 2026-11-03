@@ -14,7 +14,7 @@ import { copy } from '@/copy';
 import { useNow } from '@/lib/useNow';
 import { useLiveQuery } from '@/state/appState';
 import { useRefresh } from '@/state/refresh';
-import { readCurated } from '@/store';
+import { readCurated } from '@/store/queries';
 import { useTokens } from '@/theme/tokens';
 
 export default function Feed() {

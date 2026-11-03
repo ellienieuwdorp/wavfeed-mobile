@@ -9,9 +9,10 @@ import { test } from 'node:test';
 import { openTestStore } from '../../test/nodeDb';
 import type { GatherState } from '../fetcher/sink';
 import { GATHER_KEY } from '../state/gatherSink';
-import { IDENTITY_KEY, readKv, type StoredIdentity } from '../store';
+import { IDENTITY_KEY, readKv, type StoredIdentity } from '../store/kv';
 import { listStoryRows, listUpcomingReleases, readOverview } from '../store/queries';
-import { DEMO_FAN_ID, isDemoFan, loadDemo } from './demo';
+import { loadDemo } from './demo';
+import { DEMO_FAN_ID, isDemoFan } from './fan';
 import { demoReleases } from './releases';
 
 const NOW = Date.parse('2026-09-30T12:00:00Z');
@@ -36,10 +37,10 @@ test('the Demo fills a store with real Releases, made-up Fans and a finished fir
 
     const identity = await readKv<StoredIdentity>(db, IDENTITY_KEY);
     assert.equal(identity?.fanId, DEMO_FAN_ID);
-    assert.ok(isDemoFan(identity?.fanId));
+    assert.ok(isDemoFan(identity.fanId));
     const gather = await readKv<GatherState>(db, GATHER_KEY);
     assert.equal(gather?.initialWalkDone, true);
-    assert.notEqual(gather?.wishlistAskedAt ?? null, null, 'every heart takes a press');
+    assert.notEqual(gather.wishlistAskedAt ?? null, null, 'every heart takes a press');
   } finally {
     close();
   }

@@ -2,7 +2,8 @@
  * The hand-off from a row to the player and the heart: a Release as the player lane's `PlayableRelease`, with the large
  * art and the hue its colour block falls back to.
  */
-import { usePlayerActions, type PlayableRelease } from '@/components/player/playerState';
+import { usePlayerActions } from '@/components/player/playerState';
+import type { PlayableRelease } from '@/player/transport';
 import type { ApiItemType } from '@/domain/apiTypes';
 import { creditLine, type CreditLine } from '@/domain/credit';
 import { hueFor, releaseArtUrl } from '@/lib/format';

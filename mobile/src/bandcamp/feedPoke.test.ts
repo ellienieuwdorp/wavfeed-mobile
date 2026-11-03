@@ -34,7 +34,6 @@ test('the feed poke stores the page as its url, status and byte length, and no c
   const poke = await new BandcampSession().pokeFeedPage('ellie');
 
   assert.equal(poke.kind, 'ok');
-  if (poke.kind !== 'ok') return;
   const stored = JSON.stringify(poke.value);
   for (const crumb of [GLOBAL_CRUMB, COLLECT_CRUMB, FOLLOW_CRUMB]) assert.ok(!stored.includes(crumb), crumb);
   assert.equal(poke.value.endpoint, 'fan_feed_page');

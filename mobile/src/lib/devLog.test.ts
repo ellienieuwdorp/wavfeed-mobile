@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 import { devLog } from './devLog';
 
-const metro = globalThis as unknown as { __DEV__: boolean };
+const metro = globalThis as typeof globalThis & { __DEV__: boolean };
 
 test('logs in a development bundle and stays silent in a release one', (t) => {
   const log = t.mock.method(console, 'log', () => undefined);

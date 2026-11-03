@@ -14,14 +14,14 @@ import type { ItemType } from '@/domain/types';
 import { asRecord, asTralbumType, readDate, readId, readText } from '@/domain/wire';
 import { EMPTY_GATHER_STATE, type GatherState } from '@/fetcher/sink';
 import { DAY_MS as DAY, HOUR_MS as HOUR } from '@/lib/time';
-import { DEVICE_ADDED_KEY, GATHER_KEY } from '@/state/gatherSink';
-import { fold, IDENTITY_KEY, insertRawDocument, type StoredIdentity, writeKv } from '@/store';
+import { GATHER_KEY } from '@/state/gatherSink';
+import { fold } from '@/store/projection';
+import { IDENTITY_KEY, type StoredIdentity, writeKv } from '@/store/kv';
+import { insertRawDocument } from '@/store/rawDocuments';
 
 import { DEMO_FAN_ID } from './fan';
 import { demoReleases } from './releases';
 import { type Rng, seeded, wireDate } from './wireShape';
-
-export { DEMO_FAN_ID, isDemoFan } from './fan';
 
 const WINDOW = 56 * DAY;
 const NEW_RELEASE_WINDOW = 84 * DAY;
@@ -255,7 +255,6 @@ export async function loadDemo(db: SQLiteDatabase, now: number = Date.now()): Pr
 
   const identity: StoredIdentity = { fanId: DEMO_FAN_ID, username: '', name: null, avatarUrl: null };
   await writeKv(db, IDENTITY_KEY, identity);
-  await writeKv(db, DEVICE_ADDED_KEY, gatheredAt);
   const gather: GatherState = {
     ...EMPTY_GATHER_STATE,
     identity: { fanId: DEMO_FAN_ID, username: '' },

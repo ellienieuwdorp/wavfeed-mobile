@@ -20,7 +20,7 @@ import { loadDemo } from '../demo/demo';
 import type { GatherState, WalkState } from '../fetcher/sink';
 import { GATHER_INTERVAL_MS } from '../fetcher/cadence';
 import type { GatherReason, GatherSession } from '../fetcher/turn';
-import { readKv } from '../store';
+import { readKv } from '../store/kv';
 import type { Tally } from '../tally/catalogue';
 import type { RunnerDeps } from './appState';
 import { GATHER_KEY, patchGather, WALK_KEY } from './gatherSink';
@@ -33,7 +33,7 @@ registerHooks({
   },
 });
 const { FAILED_RETRIES, runner, STALL_TURNS } = await import('./gather');
-const { AppState: foreground } = (await import('react-native')) as unknown as { AppState: { currentState: string } };
+const { AppState: foreground } = (await import('react-native')) as { AppState: { currentState: string } };
 
 const START = Date.UTC(2026, 8, 25, 12, 0, 0);
 const PAGE_SIZE = 5;
@@ -85,7 +85,7 @@ const session: GatherSession = {
 // The runner reaches only these; the session is the turn's slice of BandcampSession.
 const app = (): RunnerDeps => ({
   db,
-  session: session as unknown as RunnerDeps['session'],
+  session: session as RunnerDeps['session'],
   setGather: () => undefined,
   invalidate: () => undefined,
   track: (tally) => tallies.push(tally),
@@ -96,6 +96,7 @@ async function gather(reason: GatherReason = 'open'): Promise<void> {
   const run = runner(reason, app()).finally(() => {
     ended = true;
   });
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- the finally callback sets ended, which narrowing cannot see
   while (!ended) {
     await new Promise((resolve) => setImmediate(resolve));
     mock.timers.runAll();

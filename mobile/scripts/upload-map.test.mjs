@@ -95,10 +95,12 @@ describe('as the EAS Build hook', () => {
   const quiet = () => undefined;
 
   test('iOS uploads SOURCEMAP_FILE under the build number EAS wrote, from the plist or the setting it names', async () => {
-    for (const [files, want] of [
+    /** @type {[Record<string, string>, string][]} */
+    const cases = [
       [{ 'ios/wavfeed/Info.plist': plist('38') }, '38'],
       [{ 'ios/wavfeed/Info.plist': plist('$(CURRENT_PROJECT_VERSION)'), 'ios/wavfeed.xcodeproj/project.pbxproj': 'CURRENT_PROJECT_VERSION = 39;' }, '39'],
-    ]) {
+    ];
+    for (const [files, want] of cases) {
       const root = project({ 'ios/wavfeed.xcodeproj/project.pbxproj': '', ...files, 'index.ios.map': MAP });
       const { puts, send } = bucket();
       const env = { ...KEYS, EAS_BUILD_PLATFORM: 'ios', SOURCEMAP_FILE: 'index.ios.map' };

@@ -35,8 +35,6 @@ import { exchange, type PressFailure, type Sent, type WishlistTarget } from './e
 import { keyOf, loadMembership, shownOf, subscribe, wishlistLifetime } from './membership';
 import { pressItem, type Tell } from './press';
 
-export type { WishlistTarget } from './exchange';
-
 /** What a heart draws: `on` is the Fan's last press while its exchange travels, else what Bandcamp confirmed. */
 export type Membership = { readonly known: false } | { readonly known: true; readonly on: boolean };
 
@@ -93,7 +91,9 @@ function noticeFor(failure: PressFailure | 'other', reason: string | null = null
       return { code: 'wishlist_failed', text: wishlistCopy.notice.unreachable };
     case 'bandcamp_rejected':
       return { code: 'wishlist_failed', text: reason === null ? wishlistCopy.notice.rejected : wishlistCopy.notice.rejectedSaying(reason), ...open };
-    default:
+    case 'not_on_release':
+    case 'unknown_item':
+    case 'other':
       return { code: 'wishlist_failed', text: wishlistCopy.notice.other };
   }
 }

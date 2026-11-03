@@ -499,11 +499,6 @@ export const copy = {
     custody: `Your Bandcamp sign-in stays on ${thisDevice} and goes when you sign out.`,
     /** In place of the custody foot after a sign-out Bandcamp never answered (review REL-3); proposed, DESIGN-UI section 8. */
     signOutUnreachable: `Bandcamp could not be reached, so your sign-in is still on ${thisDevice}. Try again when you are online.`,
-    devicesHead: 'Connected devices',
-    thisDevice,
-    deviceName: ThisDevice,
-    added: (at: Date, now: Date) => `added ${formatDatePart(at, { year: at.getFullYear() !== now.getFullYear() })}`,
-    disconnect: 'Disconnect',
     appearanceHead: 'Appearance',
     appearance: { light: 'Light', dark: 'Dark', system: 'System' },
     removeAll: `Remove everything gathered on ${thisDevice}`,

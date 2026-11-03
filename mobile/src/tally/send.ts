@@ -42,13 +42,14 @@ export type FlushResult =
 export async function flush(deps: FlushDeps, signal: AbortSignal): Promise<FlushResult> {
   const { db } = deps;
   let batches = 0;
+  const stopped = async (): Promise<boolean> => signal.aborted || (await readSharing(db))?.install !== deps.install;
   for (;;) {
-    if (signal.aborted || (await readSharing(db))?.install !== deps.install) return { kind: 'stopped' };
+    if (await stopped()) return { kind: 'stopped' };
     if ((await countQueued(db)) === 0) break;
     const taken = await takeBatch(db, deps.newId, deps.now());
     if (taken === null) break;
     // An off or a removed store during the take lands here: the rows read before it never leave.
-    if (signal.aborted || (await readSharing(db))?.install !== deps.install) return { kind: 'stopped' };
+    if (await stopped()) return { kind: 'stopped' };
     const body = batchBody({ key: deps.key, install: deps.install, batch: taken.batch, sentAt: deps.now(), ctx: deps.ctx }, taken.rows);
     const answer = await deps.post(deps.url, JSON.stringify(body), signal);
     if (signal.aborted) return { kind: 'stopped' };

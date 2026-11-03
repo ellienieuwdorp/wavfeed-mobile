@@ -14,8 +14,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import * as copy from '@/copy';
 import * as dates from '@/lib/dates';
 import * as weekSections from '@/lib/weekSections';
-import * as store from '@/store';
-import { fold, insertRawDocument, readNewReleases } from '@/store';
+import * as newReleases from '@/domain/newReleases';
+import * as projection from '@/store/projection';
+import { fold } from '@/store/projection';
+import * as schema from '@/store/schema';
+import { readNewReleases } from '@/store/queries';
 import * as endpoints from '@/domain/endpoints';
 import * as releaseFilter from '@/domain/releaseFilter';
 import { CRUMBS_PAGE_ENDPOINT, type BandcampDocument } from '@/bandcamp/wire';
@@ -23,7 +26,8 @@ import { EMPTY_GATHER_STATE } from '@/fetcher/sink';
 
 import { BAND_ID, bandDetailsPayload, discographyItem, feedPayload, followingBandsFirstPage, PREORDER_ITEM_ID, PREORDER_URL, preorderNrEntry, preorderTralbumBlob, releasePagePayload } from '../../test/fixtures';
 import { openTestStore } from '../../test/nodeDb';
-import { countForProjection } from '../store/rawDocuments';
+import * as rawDocuments from '../store/rawDocuments';
+import { countForProjection, insertRawDocument } from '../store/rawDocuments';
 import type { AppState } from './appState';
 import * as filterSettings from './filterSettings';
 import type { FilterSettings } from './filterSettings';
@@ -106,7 +110,8 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
   const state = load('./appState.tsx', {
     react: hooks, 'react/jsx-runtime': jsx, 'expo-router': { useIsFocused: () => focused },
     '@/bandcamp/session': { BandcampSession: class {} }, '@/bandcamp/wire': { CRUMBS_PAGE_ENDPOINT }, '@/components/Failed': {}, '@/components/Replaying': {},
-    '@/domain/endpoints': endpoints, '@/fetcher/sink': { EMPTY_GATHER_STATE }, '@/store': { ...store, openStore: async () => ({ db }) },
+    '@/domain/endpoints': endpoints, '@/fetcher/sink': { EMPTY_GATHER_STATE }, '@/store/schema': { ...schema, openStore: async () => ({ db }) },
+    '@/store/projection': projection, '@/store/rawDocuments': rawDocuments,
     '@/tally/errors': { reportCode: () => assert.fail('query failed'), errorReports: { setSink: () => {} } },
     '@/wishlist/membership': {}, './gatherSink': gatherSink,
   });
@@ -129,7 +134,7 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
     '@/components/ReleaseRow': { ROW_LIST: {} }, '@/components/ScreenHeader': {}, '@/components/UpcomingShelf': {}, '@/components/WeekHead': {},
     '@/copy': copy, '@/lib/dates': dates, '@/lib/useNow': clock, '@/lib/weekSections': weekSections, '@/state/appState': state,
     '@/state/refresh': { useRefresh: () => ({ refreshing: false, onRefresh: () => {} }) },
-    '@/store': { readNewReleases }, '@/theme/tokens': { useTokens: () => ({ c: {} }) },
+    '@/domain/newReleases': newReleases, '@/store/queries': { readNewReleases }, '@/theme/tokens': { useTokens: () => ({ c: {} }) },
   });
   const render = () => {
     let renders = 0;

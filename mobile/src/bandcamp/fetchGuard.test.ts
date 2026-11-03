@@ -62,7 +62,7 @@ describe('onBandcampHost', () => {
 /** The global `fetch` answering every request with `url` as where it landed. */
 function landingAt(t: TestContext, url: string): string[] {
   const calls: string[] = [];
-  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+  t.mock.method(globalThis, 'fetch', async (input: string | URL) => {
     calls.push(String(input));
     const response = new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } });
     Object.defineProperty(response, 'url', { value: url });

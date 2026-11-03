@@ -19,10 +19,10 @@ import { Artwork } from '@/components/Artwork';
 import { Glyph } from '@/components/Glyph';
 import { copy } from '@/copy';
 import { playerCopy } from '@/player/copy';
-import { playerNote, playPress } from '@/player/transport';
+import { playerNote, playPress, type PlayableRelease } from '@/player/transport';
 import { ON_GLASS, pressedOpacity, ripple, useTokens } from '@/theme/tokens';
 
-import { usePlayer, usePlayerRelease, type Player, type PlayableRelease } from './playerState';
+import { usePlayer, usePlayerRelease, type Player } from './playerState';
 
 const ios = Platform.OS === 'ios';
 

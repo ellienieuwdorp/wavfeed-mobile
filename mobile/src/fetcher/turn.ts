@@ -654,10 +654,11 @@ async function runReleasePages(ctx: Ctx, quota: number): Promise<void> {
   while (asked < quota && !outOfBudget(ctx)) {
     let page: DuePage | undefined;
     for (let checked = 0; checked < queues.length && page === undefined; checked += 1) {
-      const queue = queues[next]!;
+      const queue = queues[next] ?? [];
       next = (next + 1) % queues.length;
-      while (queue.length > 0 && page === undefined) {
-        const candidate = queue.shift()!;
+      while (page === undefined) {
+        const candidate = queue.shift();
+        if (candidate === undefined) break;
         if (!requested.has(keyOf(candidate.key))) page = candidate;
       }
     }

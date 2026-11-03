@@ -1,19 +1,17 @@
 /**
  * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), the usage switch with its sharing code (hidden in a build that can never send and in the
- * Demo), connected devices (held back until a server knows the others), appearance, removing everything gathered here
- * (which sends `store_removed` first while sharing is on; Gather now and Sign out are counted too), and a feedback
- * mail naming the build beside the privacy page, which every build shows (guideline 5.1.1(i));
- * the canvas's one notification switch waits for notifications to exist. Every foot is two sentences at most; while
- * sharing is on the code's sentence follows the Usage foot as a paragraph of its own, and just after an off the
- * turned-off line takes the foot's place, each with the code in bold and a copy button beside it (CodeFoot.tsx).
- * Android draws the status as one list item and its actions as Material buttons under the custody line, as the
- * canvas's Settings board does. A development build adds the store's facts under the custody line. The catch-up of a
- * first walk sits under the large title as on every tab. The wavfeed account rows (email,
- * password, log out, delete) wait for the account this slice does not have. The Demo shows as a sample
- * with Sign in and no account card or Sign out.
+ * sign out), the usage switch with its sharing code (hidden in a build that can never send and in the Demo),
+ * appearance, removing everything gathered here (which sends `store_removed` first while sharing is on; Gather now and
+ * Sign out are counted too), and a feedback mail naming the build beside the privacy page, which every build shows
+ * (guideline 5.1.1(i)); the canvas's one notification switch waits for notifications to exist. Every foot is two
+ * sentences at most; while sharing is on the code's sentence follows the Usage foot as a paragraph of its own, and just
+ * after an off the turned-off line takes the foot's place, each with the code in bold and a copy button beside it
+ * (CodeFoot.tsx). Android draws the status as one list item and its actions as Material buttons under the custody line,
+ * as the canvas's Settings board does. A development build adds the store's facts under the custody line. The catch-up
+ * of a first walk sits under the large title as on every tab. The wavfeed account rows (email, password, log out,
+ * delete) wait for the account this slice does not have. The Demo shows as a sample with Sign in and no account card or
+ * Sign out.
  */
-import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import { openURL } from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
@@ -30,15 +28,16 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Segmented } from '@/components/Segmented';
 import { ButtonRow, Cell, Group, GroupFoot, GroupHead, ListButton } from '@/components/SettingsList';
 import { Type } from '@/components/Type';
-import { copy, FEEDBACK_ADDRESS, PRIVACY_URL, sep } from '@/copy';
+import { copy, FEEDBACK_ADDRESS, PRIVACY_URL } from '@/copy';
 import { fanInitials, sizedImageUrl } from '@/lib/format';
 import { useNow } from '@/lib/useNow';
 import { SAMPLE_MODE } from '@/dev/sampleMode';
 import { useAppState, useLiveQuery } from '@/state/appState';
 import { turnRunning } from '@/state/gather';
-import { DEVICE_ADDED_KEY, patchGather, readStoredIdentity } from '@/state/gatherSink';
+import { patchGather, readStoredIdentity } from '@/state/gatherSink';
 import { standingOf } from '@/state/standing';
-import { countRawDocuments, readKv, readOverview } from '@/store';
+import { countRawDocuments } from '@/store/rawDocuments';
+import { readOverview } from '@/store/queries';
 import { connectHref } from '@/tally/actions';
 import { feedbackFacts } from '@/tally/appFacts';
 import { useSharing } from '@/tally/Sharing';
@@ -46,11 +45,9 @@ import { setAppearance, useAppearanceChoice, useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
 const s = copy.settings;
-/** ceiling: one device is all this phone knows; show the block once the v2 server lists a Fan's devices. */
-const SHOW_DEVICES = false;
 // ceiling: nothing here schedules or receives a notification (no expo-notifications), so the canvas's Notifications
 // group with its one switch is left out. The upgrade is a local notification from a gather on the phone, which needs no
-// server (review STRAT-13); no task holds it yet. The group then sits between the devices and appearance.
+// server (review STRAT-13); no task holds it yet. The group then sits above appearance.
 
 /** On Android the dot sits in a 24dp icon slot, so its row's text starts at 56dp with the device row's. */
 function Dot({ colour }: { colour: string }) {
@@ -99,11 +96,7 @@ export default function Settings() {
   const scheme = useAppearanceChoice();
   const [signingOut, setSigningOut] = useState(false);
   const [gathering, setGathering] = useState(false);
-  const held = useLiveQuery(async (db) => ({
-    identity: await readStoredIdentity(db),
-    addedAt: await readKv<number>(db, DEVICE_ADDED_KEY),
-  }));
-  const identity = held?.identity ?? null;
+  const identity = useLiveQuery(readStoredIdentity) ?? null;
   const connect = () => router.push(connectHref('settings'));
   const usage = useSharing();
   // The code an off just dropped stays in the foot until Settings is left, so the tester can still ask for erasure; an
@@ -298,24 +291,6 @@ export default function Settings() {
             />
           </Group>
           {usageFoot}
-        </>
-      ) : null}
-
-      {SHOW_DEVICES ? (
-        <>
-          <GroupHead label={s.devicesHead} />
-          <Group>
-            <Cell
-              leading={<Glyph name="phone" size={ios ? 20 : 24} weight="regular" colour={c.sub} />}
-              title={
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Type numberOfLines={1} style={{ flexShrink: 1, fontSize: ios ? 17 : 16, color: c.ink }}>{Device.deviceName ?? s.deviceName}</Type>
-                  <Type style={{ fontSize: 11, fontWeight: '600', color: c.accentText, backgroundColor: c.tint, paddingHorizontal: 6, borderRadius: 999, overflow: 'hidden' }}>{s.thisDevice}</Type>
-                </View>
-              }
-              sub={[held?.addedAt != null ? s.added(new Date(held.addedAt), now) : null, gather.lastSuccessAt === null ? null : gatheredAgo].filter(Boolean).join(sep) || undefined}
-            />
-          </Group>
         </>
       ) : null}
 

@@ -55,7 +55,7 @@ export function CoverTile({ item, now }: { item: ApiFeedItem; now: Date }) {
   const { fontScale } = useWindowDimensions();
   const title = captionTitle(fontScale);
   return (
-    <RowMenu release={item} width={COVER}>
+    <RowMenu release={item}>
       {(openMenu) => (
         <PlayArt release={item} size={COVER} radius={ios ? 6 : 12} onLongPress={openMenu} {...partial(item, now)} style={{ width: COVER }}>
           <View style={{ gap: 2, marginTop: 8 }}>
@@ -78,10 +78,9 @@ function heartFor(release: ApiFeedItem) {
 const HEART_REACH = ios ? -12 : -13;
 
 export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
-  const { c, type } = useTokens();
-  const { width } = useWindowDimensions();
+  const { c } = useTokens();
   return (
-    <RowMenu release={item} width={width - type.gutter * 2}>
+    <RowMenu release={item}>
       {(openMenu) => (
         <RowSurface open={openMenu} style={{ backgroundColor: c.surface, borderRadius: ios ? 14 : 16, padding: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -109,9 +108,8 @@ export function OverlapPanel({ item, now }: { item: ApiFeedItem; now: Date }) {
 
 export function QuoteLine({ quote, now }: { quote: ApiCuratedQuote; now: Date }) {
   const { c, type } = useTokens();
-  const { width } = useWindowDimensions();
   return (
-    <RowMenu release={quote.item} width={width}>
+    <RowMenu release={quote.item}>
       {(openMenu) => (
         <RowSurface open={openMenu} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: type.gutter, paddingVertical: 12 }}>
           <PlayArt release={quote.item} size={56} radius={ios ? 4 : 8} onLongPress={openMenu} />

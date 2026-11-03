@@ -15,11 +15,11 @@ import { sep } from '@/copy';
 import type { ApiReleaseTrack } from '@/domain/apiTypes';
 import { playerCopy } from '@/player/copy';
 import { useReduceMotion } from '@/player/motion';
-import { isStreamable } from '@/player/transport';
+import { isStreamable, type PlayableRelease } from '@/player/transport';
 import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/tokens';
 import { trackHeart } from '@/wishlist/target';
 
-import { clock, usePlayer, usePlayerActions, type PlayableRelease } from './playerState';
+import { clock, usePlayer, usePlayerActions } from './playerState';
 
 const ios = Platform.OS === 'ios';
 
