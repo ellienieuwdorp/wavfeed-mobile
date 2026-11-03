@@ -1,7 +1,7 @@
 /**
  * A seeded synthetic history (Stories over Releases, Fans and Pages, some Releases dated only by their public page, a
- * follow list) entered as Raw Documents, and the single wide join the store used to read, kept as the oracle every
- * narrower read must match. Shared by the store's tests and its timing check.
+ * follow list) entered as Raw Documents, and one wide join over it as the oracle every narrower read must match.
+ * Shared by the store's tests and its timing check.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 

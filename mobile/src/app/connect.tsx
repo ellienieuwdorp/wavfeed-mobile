@@ -1,13 +1,10 @@
 /**
- * Connect Bandcamp, a sheet holding Bandcamp's own login page under a bar with Cancel. The first screen opens it, and so do Settings' Sign in and the sign-in notices, each naming its door.
- * After each page that settles off /login the probe asks who is signed in (`probeGate`, finding FLOW-5): a Fan this
- * phone's feed does not belong to gets the refusal line and the page stays; a sign-in from the Demo empties the store
- * once the probe names a Fan; otherwise the sheet closes, then the identity is written and a
- * turn starts, so on a first run the root guard trades the first screen for the tabs with no sheet over them. A probe
- * Bandcamp did not answer and a page that failed to load each raise a line with "Try again" (finding FLOW-18). The
- * rig's sample bundle never opens the login page (ADR-0001). Each visit counts the door it came
- * through (`connect_opened`) and ends in one `sign_in_finished`: signed in, else the last failure line the visit
- * showed, else closed (`src/tally/actions.ts`).
+ * Connect Bandcamp: a sheet holding Bandcamp's own login page under a bar with Cancel, opened from each door that
+ * names itself. After each page that settles off /login the probe asks who is signed in (`probeGate`, FLOW-5): another
+ * phone's Fan gets the refusal line and the page stays, a sign-in from the Demo empties the store, and otherwise the
+ * sheet closes, the identity is written and a turn starts. An unanswered probe or a failed page raises a line with
+ * "Try again" (FLOW-18). The sample bundle never opens the login page (ADR-0001). Each visit counts its door
+ * (`connect_opened`) and ends in one `sign_in_finished` (`src/tally/actions.ts`).
  */
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';

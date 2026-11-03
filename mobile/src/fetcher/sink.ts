@@ -12,11 +12,10 @@ export type WalkKind = 'feed_walk' | 'feed_poll';
 export type StorySample = { readonly newest: number; readonly oldest: number; readonly count: number };
 
 /**
- * A feed walk or poll in progress. Unix seconds: `olderThan` is the next cursor, `sinceTs` the stop line, `newestSeen` the next stop line once this walk finishes. The depth probe
- * runs once per first walk: `floor` is the oldest Story it proved, where the walk should end, and
- * `probeOldest` the oldest Story of each answer it got with entries. A walk stored before the depth probe reads as not
- * probed, with no floor. `samples` and `recent` are what the fill estimates the Stories still to come from: each probe answer with entries, and the walk's own last pages. A walk stored before that decision has
- * no `samples` until the turn reads them from the Raw Documents the probe landed.
+ * A feed walk or poll in progress, in Unix seconds: `olderThan` is the next cursor, `sinceTs` the stop line and
+ * `newestSeen` the next one. The depth probe runs once per first walk: `floor` is the oldest Story it proved and
+ * `probeOldest` each answer's oldest. `samples` and `recent` feed the fill estimate. A walk stored before the probe
+ * reads as not probed; one stored without samples gets them from the probe's Raw Documents.
  */
 export type WalkState = {
   readonly kind: WalkKind;

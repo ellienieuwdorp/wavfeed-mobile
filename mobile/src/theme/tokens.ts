@@ -1,13 +1,8 @@
 /**
- * Colour and type tokens for the phone app (DESIGN-UI sections 6 and 7). The
- * palettes live in palette.ts, free of React Native so their contrast is tested
- * (review VIS-3), and how far text grows with the system text size lives in
- * textSize.ts. Type sizes follow the v2 client canvas: SF on iOS, the system
- * Roboto on Android at Material's body-large and body-medium, no web font. A
- * pressed row takes the platform's own highlight.
- * The scheme is one store: Settings > Appearance's choice for the session over the
- * system's, read by every `useTokens` so a switch lands in one React commit, with the
- * tab host's native scheme set in that same commit (see the tabs layouts).
+ * Colour and type tokens for the phone app (DESIGN-UI sections 6 and 7). The palettes live in palette.ts, free of
+ * React Native so their contrast is tested (VIS-3), and text growth lives in textSize.ts. The scheme is one store:
+ * Settings > Appearance's choice over the system's, read by every `useTokens`, so a switch lands in one React commit
+ * with the tab host's native scheme.
  */
 import { useSyncExternalStore } from 'react';
 import { Appearance, Platform, PlatformColor, type ColorValue, type TextStyle } from 'react-native';

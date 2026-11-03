@@ -1,13 +1,10 @@
 /**
- * The gather runner the app state calls: one chain of turns at a time over the store's sink, a
- * minute's budget when the app opens or the timer fires and two when the person pulls to refresh, and the schedule's
- * answer to whether a turn is due: always while the first walk is pending or a cursor is held, else once the last turn
- * is fifteen minutes old. While the first walk is pending, turns chain back to back with no count cap for as long as
- * the app is in the foreground, and stop once `STALL_TURNS` in a row leave the stored walk where it was.
- * A phone signed out from Settings holds `not_connected` and runs no turn until Connect clears it, so its probe cannot
- * turn the person's own sign-out into Bandcamp's. Each chain that ran a turn ends in its gather Tallies, and each fold
- * that skipped something in `projection_skipped`. A store holding the Demo runs no
- * turn either.
+ * The gather runner the app state calls: one chain of turns at a time over the store's sink, with a minute's budget
+ * on open or timer and two on a pull, and the schedule's answer to whether a turn is due: always while the first walk
+ * is pending or a cursor is held, else at fifteen minutes. A pending first walk chains turns while in the foreground
+ * until `STALL_TURNS` in a row leave the stored walk where it was. A phone signed out from Settings holds
+ * `not_connected` and runs no turn until Connect clears it, so a probe cannot turn the person's own sign-out into
+ * Bandcamp's; the Demo runs none either. Each chain ends in its gather Tallies.
  */
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect } from 'react';

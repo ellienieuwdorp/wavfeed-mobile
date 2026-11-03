@@ -1,20 +1,11 @@
 /**
- * One gather turn in the foreground: probe; while a walk is pending (the first walk, or a held
- * feed walk), the wishlist and the follow list when six hours old, then a small band details sweep of due followed
- * Pages (ADR-0017), so hearts and Upcoming hold truth while the history fills; before a first walk's first page, a
- * depth probe that binary searches the feed's `older_than` cursor for the oldest Story; the feed walk or
- * poll down to its stop line (`sinceTs`); once caught up, the
- * lists when due come after the feed, so a pull reads the feed first; public pages rotating
- * undated Releases (ADR-0011), owed Drop Tracks and due Upcoming Releases, a few while walking, with time
- * held back for all three queues. A Track page can add its due future parent to the Upcoming queue after its fold,
- * and a new Drop adds Track work to the owed queue; then the rest of the sweep. A list that fails is noted and the
- * turn goes on; a feed page or a depth
- * probe Bandcamp answers with an error fails the turn before any step after the feed, since a 403, 429 or 5xx asks for
- * fewer requests (ADR-0017); any other answer that is not a page asks the probe first and, signed in, the same request
- * once more. The cursor is written after every page, so a turn out of budget or killed with the
- * app resumes for free, and the store folds after every batch while the walk runs. `lastSuccessAt` names the last read of
- * the feed: it moves once per turn, when the feed step ends `done` or `pending`, to the moment its last feed answer
- * landed, and a pull to refresh lets its spinner go when it moves (state/refresh.ts).
+ * One gather turn in the foreground: the probe; while a walk is pending, the due lists and a small band details sweep
+ * (ADR-0017), so hearts and Upcoming hold truth while history fills; a depth probe before a first walk's first page;
+ * the feed walk or poll to `sinceTs`; once caught up, the due lists; then public pages for undated Releases
+ * (ADR-0011), owed Drop Tracks and due Upcoming Releases, with time held back for all three. A failed list is noted
+ * and the turn goes on; a feed or depth answer of 403, 429 or 5xx fails the turn (ADR-0017), and any other non-page
+ * asks the probe and, signed in, retries once. The cursor is written after every page and the store folds after every
+ * batch, so a killed turn resumes. `lastSuccessAt` moves once per turn to the last feed answer (state/refresh.ts).
  */
 import type { BandcampSession } from '../bandcamp/session';
 import { parseReleasePage } from '../domain/parseReleasePage';
@@ -449,14 +440,10 @@ async function runFeed(ctx: Ctx, identity: Identity, reserveMs: number): Promise
 }
 
 /**
- * The depth probe: the feed's answers carry no total, but `older_than` takes any time, so a binary search
- * from DEPTH_PROBE_LOWER to the walk's cursor finds the oldest Story to within DEPTH_PROBE_RESOLUTION_S. An empty
- * answer raises the lower bound, an answer with entries lowers the upper one to its oldest Story, and anything else
- * ends the search. Each answer lands as a Raw Document (ADR-0004) and the Projection folds its Stories, but the walk's
- * count and cursor are left to the walk; an answer with entries is kept as a sample for the fill. The
- * walk is marked probed whatever the search found, except when the budget, a signed-out answer or a Bandcamp error
- * cuts it short: the bounds, dates and samples found so far are kept, and the next turn searches on between them. A
- * Bandcamp error fails the turn as a feed page's does (ADR-0017).
+ * The depth probe: the feed carries no total, but `older_than` takes any time, so a binary search from
+ * DEPTH_PROBE_LOWER to the cursor finds the oldest Story within DEPTH_PROBE_RESOLUTION_S; answers land raw (ADR-0004)
+ * and are kept as fill samples, leaving count and cursor to the walk. The budget, a signed-out answer or a Bandcamp
+ * error (which fails the turn, ADR-0017) cut it short with the bounds kept, so the next turn searches on.
  */
 async function probeDepth(ctx: Ctx, walk: WalkState, reserveMs: number): Promise<WalkState | FeedEnd> {
   let lo = walk.probeLower ?? DEPTH_PROBE_LOWER;

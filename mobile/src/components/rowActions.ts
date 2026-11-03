@@ -4,7 +4,7 @@
  * control's own activation, and Bought by where the row names who bought it. RowMenu.tsx builds the items and hands
  * these to the row and its art. The iOS row is one element and the Android row's body another, so their label says the
  * whole row (heardRow), and an Upcoming card says the same (heardParts): the faces as who bought it and the wishlist
- * state rows and cards no longer draw.
+ * state, which rows and cards do not draw.
  */
 import { boughtByPhrase, copy, spokenFacts } from '@/copy';
 import type { FanRef } from '@/domain/views';

@@ -356,11 +356,9 @@ export const TRACK_OF_HELD_ALBUM = `(r.item_type = 't' and r.album_id is not nul
   and exists (select 1 from releases al where al.item_type = 'a' and al.item_id = r.album_id))`;
 
 /**
- * Releases dated ahead of today's GMT day, or out within the handoff and held
- * before they came out, whose Page is followed or which a Story reaches (ADR-0017), less the Tracks of held albums.
- * Each half selects its own bounded Releases in one SQLite read, so handoff rows cannot spend Upcoming's capacity.
- * The Upcoming Releases a named Fan bought are selected apart too, so nearer ones cannot push them out of the people
- * filter's reach.
+ * Releases dated ahead of today's GMT day, or out within the handoff and held before they came out, whose Page is
+ * followed or which a Story reaches (ADR-0017), less the Tracks of held albums. Each half, and the ones a named Fan
+ * bought, selects its own bounded Releases in one SQLite read, so neither can spend the others' capacity.
  */
 export async function listUpcomingReleases(db: SQLiteDatabase, now: Date): Promise<readonly UpcomingReleaseRow[]> {
   const eligible = `select ${UPCOMING_COLUMNS}

@@ -1,18 +1,11 @@
 /**
- * Root layout: the navigation theme built from our tokens (DESIGN-UI section 6), light and dark following the system
- * or Settings > Appearance (see `setAppearance`), the status bar styled from the same tokens because expo-status-bar's
- * `auto` reads React Native's scheme, which learns of a pick a native round trip later, the app state with its gather
- * runner and schedule, the player and notice state, and a stack holding the tabs, the player
- * sheet, the Bought by sheet and the Connect Bandcamp modal. While the store holds no Fan the
- * stack guards everything but the first screen and Connect, so the first screen is the whole app until a sign-in or
- * the Demo writes one, and the usage ask follows a sign-in once; the sharing provider under the app
- * state counts each screen from here, by its closed code, because native tab screens mount eagerly. A sample bundle
- * fills the store and gathers nothing (src/dev/useSampleData.ts). On
- * Android the window behind the edge-to-edge views takes the page tone too, so a sheet or the back gesture never shows
- * a white edge in dark. Everything sits under react-native-gesture-handler's root view, which the row's wishlist swipe
- * needs. On iOS 26 a cover in the page colour hides a launch until the tab bar's
- * accessory has drawn (`launchCover.tsx`). Error capture is installed as this module loads, and
- * its `ErrorBoundary` catches what a tab's screen boundary does not.
+ * Root layout: the navigation theme and status bar from our tokens (DESIGN-UI section 6), following the system or
+ * Settings > Appearance (`setAppearance`; expo-status-bar's `auto` would learn of a pick a round trip late), the app,
+ * player, notice and sharing state, and a stack of the tabs, the player and Bought by sheets and Connect Bandcamp.
+ * While the store holds no Fan the stack guards everything but the first screen and Connect. Sharing counts each
+ * screen from here because native tab screens mount eagerly. Android's window takes the page tone so no sheet shows
+ * a white edge in dark; gesture-handler's root view wraps everything for the row swipe; on iOS 26 a cover hides launch
+ * until the tab accessory draws (`launchCover.tsx`). Error capture installs on load, and `ErrorBoundary` is its last net.
  */
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type Theme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

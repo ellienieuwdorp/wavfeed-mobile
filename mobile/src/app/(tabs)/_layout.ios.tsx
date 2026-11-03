@@ -1,16 +1,10 @@
 /**
- * The three tabs on iOS as native tabs: UITabBarController, so iOS 26
- * draws the floating Liquid Glass bar with labels and shrinks it while scrolling down. Feed's crests and New releases'
- * calendar are template images with a selected state of their own, the gear the SF Symbol, tinted with
- * the accent. The bar's bottom accessory is mounted from launch, so iOS 26 runs the bar full width from the first
- * frame: it carries the restored or playing Release, else "Nothing playing", and a cover hides the launch until it
- * has drawn them (`launchCover.tsx`). The catch-up lives in the header. The bar minimises on scroll down except on New releases, where the filter button
- * floats above it (see Dock): the bar expands again only once a list is back at its top, so a button kept in step with
- * it would be gone for most of the list. The tab host takes the token
- * scheme as its own
- * `overrideUserInterfaceStyle`, set during the same Fabric mount as the token colours, so the glass, the headers'
- * scroll edge, the accessory, the SwiftUI controls and every PlatformColor inside the tabs flip in the frame the
- * literal colours do; left to the window's trait, they flipped a JS round trip early (see `setAppearance`).
+ * The three tabs on iOS as native tabs, so iOS 26 draws the floating Liquid Glass bar and shrinks it while scrolling,
+ * except on New releases, whose filter button floats above it (see Dock). The bottom accessory is mounted from launch,
+ * so the bar runs full width from the first frame, carrying the restored or playing Release or "Nothing playing"
+ * under a cover until it has drawn (`launchCover.tsx`). The tab host takes the token scheme as its
+ * `overrideUserInterfaceStyle` in the same Fabric mount as the token colours, so the glass, the accessory and every
+ * PlatformColor inside flip in the frame the literal colours do (see `setAppearance`).
  */
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useState } from 'react';

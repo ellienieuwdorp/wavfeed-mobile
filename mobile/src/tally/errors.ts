@@ -101,10 +101,9 @@ function globalEnv(): CaptureEnv {
 }
 
 /**
- * Chains the global handler, the one expo-router wraps to hide the splash screen, and in a release build turns on
- * Hermes' rejection tracker, which RN 0.86's `polyfillPromise.js` enables only under `__DEV__`, where LogBox owns it.
- * The report is written before the previous handler runs, since a fatal there ends the process. Only a process's
- * first fatal is written; the ones after it are its echoes. A second install, as Fast Refresh runs, changes nothing.
+ * Chains the global handler (expo-router's, which hides the splash) and in a release build turns on Hermes' rejection
+ * tracker, which RN 0.86 enables only under `__DEV__`. The report is written before the previous handler runs, since a
+ * fatal there ends the process; only a process's first fatal is written, and a second install changes nothing.
  * Returns what it hooked, for the verification build's log.
  */
 export function installErrorCapture(reports: ErrorReports = errorReports, env: CaptureEnv = globalEnv()): { handler: boolean; rejections: boolean } {

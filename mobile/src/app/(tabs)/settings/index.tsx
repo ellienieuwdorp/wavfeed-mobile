@@ -1,16 +1,10 @@
 /**
- * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone (status, Gather now,
- * sign out), the usage switch with its sharing code (hidden in a build that can never send and in the Demo),
- * appearance, removing everything gathered here (which sends `store_removed` first while sharing is on; Gather now and
- * Sign out are counted too), and a feedback mail naming the build beside the privacy page, which every build shows
- * (guideline 5.1.1(i)); the canvas's one notification switch waits for notifications to exist. Every foot is two
- * sentences at most; while sharing is on the code's sentence follows the Usage foot as a paragraph of its own, and just
- * after an off the turned-off line takes the foot's place, each with the code in bold and a copy button beside it
- * (CodeFoot.tsx). Android draws the status as one list item and its actions as Material buttons under the custody line,
- * as the canvas's Settings board does. A development build adds the store's facts under the custody line. The catch-up
- * of a first walk sits under the large title as on every tab. The wavfeed account rows (email, password, log out,
- * delete) wait for the account this slice does not have. The Demo shows as a sample with Sign in and no account card or
- * Sign out.
+ * Settings in the canvas order, live on the store: the Bandcamp account, Bandcamp on this phone, the usage switch with
+ * its sharing code (hidden in a build that can never send and in the Demo), appearance, removing everything gathered
+ * here (which sends `store_removed` first while sharing is on), and a feedback mail beside the privacy page (guideline
+ * 5.1.1(i)). Every foot is two sentences at most, with the code in bold and a copy button (CodeFoot.tsx). Android
+ * draws the status as one list item and its actions as Material buttons; a development build adds the store's facts
+ * under the custody line. The Demo shows as a sample with Sign in and no account card or Sign out.
  */
 import { Image } from 'expo-image';
 import { openURL } from 'expo-linking';

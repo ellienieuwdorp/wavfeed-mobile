@@ -1,14 +1,9 @@
 /**
- * A full store of made-up data for the simulator rig: about 1,500 Stories over the twelve weeks before a
- * fixed Thu 24 Sep 2026, 40 Fans, 60 Pages and 300 Releases from a seeded generator, shaped like the wire as
- * `test/fixtures.ts` records it and entering as Raw Documents through insertRawDocument before the fold reads them
- * (ADR-0004). Every host ends in `.local`, which isFetchableTarget refuses, and no art or avatar id
- * is set, so nothing drawn from the sample reaches Bandcamp. Payloads carry no real clock, so a second run dedupes.
- * The generated pre-orders have no Track out; two more Upcoming Releases let Tracks out early, read at fixed moments
- * so their Drops land on the same days every run, and a Fan buys one so a shelf card shows a count and a
- * face. The rig loads the sample into an empty store only: a simulator that holds an older sample keeps it until
- * Expo Go is uninstalled from it (`xcrun simctl uninstall <udid> host.exp.Exponent`), which the next `dev/sim.sh serve`
- * reinstalls.
+ * A full store of made-up data for the simulator rig: about 1,500 Stories over twelve weeks before Thu 24 Sep 2026,
+ * from a seeded generator shaped like the wire in `test/fixtures.ts`, entering as Raw Documents (ADR-0004). Every host
+ * ends in `.local`, which isFetchableTarget refuses, and no art id is set, so nothing reaches Bandcamp; payloads carry
+ * no real clock, so a second run dedupes. Two Upcoming Releases let Tracks out at fixed moments so their Drops land on
+ * the same days. It loads into an empty store only: `xcrun simctl uninstall <udid> host.exp.Exponent` clears an old one.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 

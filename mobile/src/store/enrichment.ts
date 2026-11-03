@@ -78,11 +78,9 @@ export async function readUndatedReleases(
 }
 
 /**
- * Upcoming Releases whose page is due: none read while it was Upcoming or the newest a day old,
- * once the attempt book allows; or the feed read since the last attempt names more Tracks playing than the newest page
- * did, which skips the day's wait after a read that went well and never a failure's wait. Those the feed is ahead on
- * first, then the longest unread. A page last read as a phone, and not asked since, is due once more whatever its age,
- * unless a failure's wait is running: migration 7 marked its booking and the next one clears the mark.
+ * Upcoming Releases whose page is due once the attempt book allows: never read while Upcoming, the newest read a day
+ * old, or the feed naming more Tracks playing than that read did (which skips a success's wait, never a failure's), the
+ * feed's leads first. A page last read as a phone is due once more unless a failure's wait runs (migration 7's mark).
  * A Track whose album is held is never due; the album's page is.
  */
 export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Date = new Date(), only?: ReleaseKey): Promise<readonly DueRelease[]> {
@@ -121,11 +119,9 @@ export async function readUpcomingDue(db: SQLiteDatabase, limit: number, now: Da
 export type OwedTrackPage = ReleaseKey & { readonly releaseUrl: string; readonly path: string };
 
 /**
- * The Track pages a later Drop of a reached Upcoming Release still owes: a Track it let
- * out whose page no read since the Drop's has asked, or whose failure's wait is over. A pass that ran out of quota or
- * was refused before them leaves them here for the next. The path is the newest album page's `title_link`. A Drop
- * still dated by its read owes once more a Track page that came back when pages were asked for as a phone, which has
- * no `mod_date`.
+ * The Track pages a later Drop of a reached Upcoming Release still owes: a Track it let out that no read since the Drop
+ * has asked, or whose failure's wait is over, at the newest album page's `title_link`. A Drop still dated by its read
+ * owes once more a Track page that came back without a `mod_date` (read as a phone).
  */
 export async function readOwedTrackPages(
   db: SQLiteDatabase,

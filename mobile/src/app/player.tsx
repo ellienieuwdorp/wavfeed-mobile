@@ -1,13 +1,10 @@
 /**
- * The player sheet (DESIGN-UI section 10, ADR-0015, the v2 client canvas's player sheets), one
- * scroll in Apple Music's shape: artwork with the Release's heart on its bottom-right corner, "N. Track title" linking
- * out over the Page and Release, the label and release day ending in "Bandcamp ↗", the seek line with its m:ss times,
- * the transport, then the Release's tracklist, a heart on each Track. The facts line's link names where the title also goes, and the art gives up width only so the tracklist's first row shows when the sheet opens (artSide). On iOS it is a page sheet with its
- * grabber and close chevron over a plain face, so the pull-down dismisses from the art and from the top of the scroll;
- * on Android a bottom sheet with 28dp corners at full height, Compose's Material 3 slider and the ripple on every
- * control. Every block above the tracklist keeps one height for a given text size, its text one line and its height at
- * least the default's, so nothing moves when a Track changes; the seek block holds one height at every size, its m:ss
- * times not growing and the note standing in for it fitting two lines (review VIS-1).
+ * The player sheet (DESIGN-UI section 10, ADR-0015), one scroll: artwork with the Release's heart, the Track title
+ * linking out, the label and release day, the seek line, the transport, then the tracklist with a heart per Track.
+ * The art gives up width only so the tracklist's first row shows (artSide). On iOS a page sheet whose pull-down
+ * dismisses from the art and the top of the scroll; on Android a full-height bottom sheet with Compose's slider.
+ * Every block above the tracklist keeps one height for a given text size so nothing moves when a Track changes, and
+ * the seek block one height at every size (VIS-1).
  */
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Host as ComposeHost, Slider as ComposeSlider } from '@expo/ui/jetpack-compose';
@@ -59,11 +56,9 @@ const ART_RADIUS = ios ? 14 : 24;
 /** How far below the status bar iOS hangs a page sheet's top edge on an iPhone in portrait. */
 const PAGE_SHEET_DROP = 10;
 /**
- * The sheet from its top edge to the foot of the first Track row, less the art (artSide). The head, the scroll's top
- * padding, four gaps, the facts gap, the seek line, the transport, the "Tracks" head's padding and one row hold their
- * height: 52 + 4 + 4 x 14 + 4 + 62 + 72 + 16 + 52 = 318pt on iOS, 48 + 8 + 4 x 14 + 4 + 62 + 80 + 20 + 56 = 334dp on
- * Android. The title, subtitle and facts lines (25 + 21 + 18pt, 28 + 21 + 18dp) are Type's and the "Tracks" line (25pt,
- * 24dp) a plain Text's, so 407pt and 425dp in all at the default text size.
+ * The sheet from its top edge to the foot of the first Track row, less the art (artSide): the fixed blocks sum to
+ * 318pt on iOS and 334dp on Android, and with Type's title, subtitle and facts lines and the "Tracks" line, 407pt and
+ * 425dp at the default text size.
  */
 const ABOVE_FIRST_ROW: AboveFirstRow = {
   fixed: HEAD + TOP + 4 * GAP + FACTS_GAP + SEEK + MAIN + TRACKS_HEAD_PAD + ROW,

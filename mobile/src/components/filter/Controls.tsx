@@ -1,13 +1,8 @@
 /**
- * The Filters sheet's own controls (CSS4's `.stp`, `.isearch` and `.mfield`): neither platform's
- * kit has a stepper that holds its value between minus and plus, so this one is drawn, 32 high on the system's
- * tertiary fill with its value in the middle, minus refused at the low end and plus at the high; the tag search is
- * iOS's rounded search field or Material's outlined one; a tag's mark is a checkbox leading its row, empty or ticked
- * (the author, 2026-10-14): SF Symbols' square and checkmark.square.fill on iOS, crossfaded and scaled as a symbol's
- * replace transition does, and Material's checkbox through @expo/ui's Compose Checkbox on Android, which animates its
- * own tick and is hidden from TalkBack because the row it sits in is the checkbox. Every press here answers on the UI
- * thread, released as the finger lifts and never held for the list behind (`SheetPress`, the author's request of
- * 2026-10-15).
+ * The Filters sheet's own controls: a drawn stepper (neither kit has one that holds its value between minus and plus),
+ * the platform's search field for tags, and a tag's checkbox, SF Symbols with a replace transition on iOS and @expo/ui's
+ * Compose Checkbox on Android, hidden from TalkBack because its row is the checkbox. Every press answers on the UI
+ * thread as the finger lifts, never held for the list behind (`SheetPress`).
  */
 import { Host, Checkbox } from '@expo/ui/jetpack-compose';
 import { useEffect, type ReactNode } from 'react';

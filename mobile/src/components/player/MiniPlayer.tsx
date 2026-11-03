@@ -1,14 +1,9 @@
 /**
- * The mini player (DESIGN-UI section 10, the v2 client canvas): artwork, "N. Track title" over
- * the artist, play or pause, and no heart (the player sheet keeps it). On iOS 26 it is the tab bar's bottom accessory in Apple
- * Music's grammar, whose glass the system draws; without it, a GlassView capsule of its own; on Android a raised
- * floating toolbar at elevation 3, one tone up from the surface in dark (the canvas's toolbar), with the ripple on the
- * whole bar and play as its one filled control. Every slot keeps its size from the first frame, so a play landing only
- * swaps glyphs and text. The whole bar opens the player to a touch; to VoiceOver, which reaches nothing inside an
- * element, the art and titles are the open button beside play, while TalkBack reaches into the bar's own
- * button (VIS-M1). The inline accessory's one line is the note when nothing can play (VIS-M4). Before anything has
- * played the iOS 26 accessory still stands, so the bar is full width from launch, holding "Nothing playing" as Apple
- * Music does: a blank art square and a dimmed play glyph, one element that opens nothing.
+ * The mini player (DESIGN-UI section 10): artwork, "N. Track title" over the artist, and play or pause. On iOS 26 it
+ * is the tab bar's bottom accessory, before that a GlassView capsule, and on Android a floating toolbar at elevation 3.
+ * Every slot keeps its size from the first frame, so a play only swaps glyphs and text. VoiceOver reaches nothing
+ * inside an element, so the art and titles are an open button beside play; TalkBack reaches into the bar (VIS-M1).
+ * Before anything plays the accessory stands as "Nothing playing", one element that opens nothing (VIS-M4).
  */
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { router } from 'expo-router';

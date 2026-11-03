@@ -1,17 +1,10 @@
 /**
- * The in-scroll half of a view's header (DESIGN-UI section 9, the v2 client canvas): under the native large title on
- * iOS, "Updated 12 min ago" as one quiet line; on Android the medium app bar's title with that line as its subtitle (see
- * AppBar). While the first walk runs the line is the catch-up, the count and the month, then the note to keep the app
- * open, then the hairline at the text column's width, heard as the bar's value, a paused
- * walk's catch-up too, without the note. No line before the first gather. Settings passes `quiet`: its status
- * row says when it gathered, so its title takes the catch-up alone and no line otherwise. Its lines grow as row facts,
- * capped below the large title, so the title stays the header's largest text (review VIS-1). The catch-up is no live
- * region: a screen reader hears it on focus, and only the walk's end and pause unprompted (NoticeProvider, VIS-2).
- * The store build banner follows the lines on every tab, hideable everywhere but Settings. New releases
- * passes its count, which leads the line ("310 releases · updated 12 min ago"), and while its filter is active the
- * "Filtered by" pill in place of that line, 14 under the title on iOS and 16 on Android; during the first walk the
- * catch-up keeps its place and the pill follows it. New releases (`filterable`) holds the pill's
- * height for that line, under the catch-up too, so the pill coming or going moves nothing below (`FilterLineSlot`).
+ * The in-scroll half of a view's header (DESIGN-UI section 9): "Updated 12 min ago" under the native large title on
+ * iOS, the medium app bar's subtitle on Android (AppBar). During a first walk the line is the catch-up, heard as the
+ * bar's value and no live region (NoticeProvider, VIS-2). Settings passes `quiet`, since its status row says when it
+ * gathered. Its lines are capped below the large title (VIS-1). New releases passes its count to lead the line and,
+ * filtered, the "Filtered by" pill in its place; as `filterable` it holds the pill's height so the pill coming or
+ * going moves nothing below (`FilterLineSlot`). The store build banner follows on every tab.
  */
 import { Platform, View } from 'react-native';
 

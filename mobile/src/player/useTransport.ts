@@ -1,14 +1,11 @@
 /**
- * The transport (DESIGN-UI section 10, ADR-0015), following the web's PlayerContext.tsx: one expo-audio
- * player for the app's life, a play fetching the tracklist and starting the first streamable Track, the same Release
- * pressed again toggling pause unless a Drop names another Track, previous and next inside the Release,
- * a Track ending advancing and the last one stopping at rest. The lock screen and Control Centre get the Track
- * through `setActiveForLockScreen`; expo-audio 57 gives them play, pause and scrubbing but no next or previous track command. Position ticks live in their own value
- * so the tab bar does not re-render four times a second. A play's start, a stream that dies mid-Track and the listening
- * a Release got go to `track` as Tallies (`src/tally/actions.ts`). A launch can `restore` the last-played
- * Release paused: its Track sits at its index with no stream on the audio player, no audio session
- * taken and nothing on the lock screen, until a press starts that Track at the saved position, reading the page afresh
- * first when its stream URLs have expired (`resume.ts`).
+ * The transport (DESIGN-UI section 10, ADR-0015): one expo-audio player for the app's life. A play fetches the
+ * tracklist and starts the first streamable Track; the same Release pressed again toggles pause unless a Drop names
+ * another Track; the last Track stops at rest. The lock screen gets the Track through `setActiveForLockScreen`, without
+ * next or previous in expo-audio 57. Position ticks live in their own value so the tab bar does not re-render four
+ * times a second. Starts, mid-Track deaths and listening go to `track` (`src/tally/actions.ts`). `restore` sets the
+ * last Release paused with no stream, audio session or lock screen until a press, which rereads an expired page
+ * (`resume.ts`).
  */
 import { setAudioModeAsync, useAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

@@ -1,21 +1,11 @@
 /**
- * The row's wishlist swipe (the R5 swipe canvas): a finger moving right slides the row
- * over an orange panel whose outline heart rides the panel's edge, and the row's hairline leaves while it is moved, as
- * CSS5 draws the swiped row. Past half the row's width the panel says Wishlist beside a filled heart, or Remove beside a
- * slashed one on a wishlisted row, and the heart's light haptic ticks once. The verb is latched as the pan starts, so
- * the panel keeps saying it while the row springs back after the press has flipped the heart. Lifting there is one
- * press through the heart's own `useWishlistPress` on the `swipe` surface (ADR-0016 amendment 2026-10-12), so the last
- * tap wins and a signed-out phone refuses it as it refuses the heart; lifting short of it, or a gesture the system
- * cancels, presses nothing. Either way the row springs back. Android then raises the snackbar whose Undo is one more
- * press; iOS shows nothing, the swipe again is the undo. The pan starts only past the screen's edge strips, which keep
- * iOS's edge pop and Android's back gesture, and only on a sideways drag: an up or down move fails it, so the list
- * scrolls, and a still finger keeps the long press and the art's tap. A swipe left is taken and moves nothing, with no
- * rubber band. On iOS the pan taking the touch does not cancel the row's Pressables (iOS 26.5 simulator, 2026-10-14), so
- * a swipe whose finger lifts over the row ended as the row's press and played it; the row's and the art's presses ask
- * useTakenBySwipe first and play nothing for a touch the swipe took. While membership is not asked yet, the Demo's
- * case, the swipe is off, as the heart takes no press then. The panel is drawn from a row's first touch on, so a list
- * mounting rows after a filter change does not build one for each (the author's request of 2026-10-14); the touch only
- * sets a shared value that the panel's own slot reads, so the row and its pan are not rendered again mid-touch.
+ * The row's wishlist swipe: a finger moving right slides the row over an orange panel; past half the row's width the
+ * panel says Wishlist or Remove, latched as the pan starts, and a light haptic ticks once. Lifting there is one press
+ * through the heart's `useWishlistPress` on the `swipe` surface (ADR-0016 amendment 2026-10-12); lifting short or a
+ * cancel presses nothing, and the row springs back. Android then offers Undo; on iOS the swipe again is the undo. The
+ * pan starts only past the edge strips and on a sideways drag, so the back gestures, scrolling and the long press keep
+ * working. On iOS the pan does not cancel the row's Pressables, so they ask useTakenBySwipe first. The swipe is off
+ * while membership is not asked yet. The panel mounts on a row's first touch through a shared value, so no re-render.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';

@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /**
- * Puts a composed Hermes source map in the EU R2 bucket `tallies-maps` (the plan's "Source maps
- * per platform") at `maps/wavfeed/<platform>/<id>/index.map`, the key the board's `/api/maps/<platform>/<id>` reads,
- * where `id` is the native build number for an embedded bundle and the EAS Update id for an update, as each Error
- * Report's `ctx` names them. With no arguments it is EAS Build's `eas-build-on-success` hook: the map is Android's
- * gradle output or iOS's `SOURCEMAP_FILE` (set in `eas.json`), and the build number is read from the native project
- * EAS just built. `dev/update.sh` passes `--platform`, `--id` and `--file` for each update. The request is signed with
- * `aws4fetch` and the bucket-scoped token in the sensitive EAS variables `TALLY_MAPS_KEY_ID`, `TALLY_MAPS_SECRET` and
- * `TALLY_MAPS_ENDPOINT`; a build with none of them uploads nothing and says so, so a self-build of the public repo
- * still passes, and anything short of all three otherwise fails.
+ * Puts a composed Hermes source map in the EU R2 bucket `tallies-maps` at `maps/wavfeed/<platform>/<id>/index.map`,
+ * the key the board's `/api/maps/<platform>/<id>` reads; `id` is the native build number or the EAS Update id, as an
+ * Error Report's `ctx` names them. With no arguments it is EAS Build's `eas-build-on-success` hook and reads the map
+ * and build number EAS just built; `dev/update.sh` passes `--platform`, `--id` and `--file`. It signs with `aws4fetch`
+ * and the sensitive EAS variables `TALLY_MAPS_KEY_ID`, `TALLY_MAPS_SECRET` and `TALLY_MAPS_ENDPOINT`: with none of
+ * them it uploads nothing and says so, so a self-build of the public repo passes, and with only some it fails.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

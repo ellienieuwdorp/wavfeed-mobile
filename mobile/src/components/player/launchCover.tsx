@@ -1,13 +1,9 @@
 /**
- * A cover in the page colour over iOS 26's first frames at launch, lifted once the bar's accessory has drawn its
- * contents. react-native-screens sizes the accessory's React content from the
- * frame UIKit gives the capsule, a round trip after the bar first draws, and UIKit then fades that content in, so
- * without the cover the full-width bar shows an empty capsule for about 120 ms and "Nothing playing" or the restored
- * Release fading into it over about 260 ms more. The native splash cannot hold that long in Expo Go or a dev build,
- * whose own loading screens have gone by then, so the app draws the cover. It shows only when the tabs draw at launch.
- * Its opacity runs on the native driver, holding at 1 and dropping to 0 in its last frame, so a JS thread busy with the
- * launch cannot hold it longer: the drop is timed from the accessory content's first layout at its drawn width, or from
- * the cover's mount at a ceiling, whichever comes first. Once lifted it stays lifted for the app run.
+ * A cover in the page colour over iOS 26's first frames, lifted once the tab accessory has drawn. react-native-screens
+ * sizes the accessory's content a round trip after the bar draws and UIKit fades it in, so without the cover an empty
+ * capsule shows for about 380 ms; the native splash is gone by then in Expo Go and dev builds. Its opacity runs on the
+ * native driver and drops to 0 in its last frame, timed from the content's first layout at full width or a ceiling
+ * from mount, so a busy JS thread cannot hold it. Once lifted it stays lifted for the app run.
  */
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Animated, StyleSheet, useWindowDimensions, View } from 'react-native';

@@ -1,14 +1,10 @@
 /**
- * The wishlist heart, one control everywhere (DESIGN-UI section 12, ADR-0016): a 44pt target drawing each
- * state the section names. Not asked yet is the off outline taking no press; off is the faint outline; on is filled in
- * Bandcamp's orange under a rim in the edge colour, which clears 3:1 on a light page where the orange does not (review
- * VIS-3, VIS-M5). A press flips it at once and the exchange travels behind it (ADR-0016 amendment 2026-10-02); the
- * pressed heart alone pops, started from its own press so the item's other hearts only change, springing up on an add
- * and dipping on a remove on the UI thread, and not at all under reduce motion. A failure the Fan is told about puts
- * the heart back on the truth and raises one notice line. `item` is what it acts on and the name its label says
- * (`releaseHeart`, `trackHeart`): the Release, or one Track of it as the player sheet's tracklist rows. `onArt` draws it over a cover,
- * the player sheet's: a dark disc under a white outline or the filled orange, legible on any art in either scheme, the
- * box and the press unchanged. On Android it is a 48dp icon button whose ripple is the 40dp state layer.
+ * The wishlist heart, one control everywhere (DESIGN-UI section 12, ADR-0016): a 44pt target. Not asked yet takes no
+ * press, off is the faint outline, on is Bandcamp's orange under an edge-colour rim that clears 3:1 on a light page
+ * (VIS-3, VIS-M5). A press flips it at once and the exchange travels behind it (ADR-0016 amendment 2026-10-02); only
+ * the pressed heart pops, on the UI thread and never under reduce motion, and a failure puts it back and raises one
+ * notice. `item` is the Release or one Track (`releaseHeart`, `trackHeart`). `onArt` draws it legibly over a cover in
+ * either scheme. On Android it is a 48dp icon button with a 40dp ripple.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';

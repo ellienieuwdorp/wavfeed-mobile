@@ -67,11 +67,10 @@ export type WishlistEnd =
 export type WishlistCrumbSource = 'cached' | 'fetched' | 'none';
 
 /**
- * What the exchange looked like on the wire: the last write's status, the writes answered, the last body's kind and its
- * shape from `answerShape`, cut to `SAID_MAX_CHARS`. `redirected` is an answer from another URL than the one asked,
- * which `fetch` reaches on a 301 or 302 by resending the POST as a GET without its body. `crumb` names the first
- * write's crumb source and never its value; `pages` counts the crumb page reads and `pageStatus` is the last one's
- * status, so `cached` with a page read is a refused crumb read again.
+ * The exchange on the wire: the last write's status, the writes answered, the last body's kind and `answerShape`, cut
+ * to `SAID_MAX_CHARS`. `redirected` means `fetch` followed a 301 or 302 and resent the POST as a bodiless GET. `crumb`
+ * names the first write's crumb source, never its value; `pages` and `pageStatus` count and end the crumb page reads,
+ * so `cached` with a page read is a refused crumb read again.
  */
 export type WishlistWire = {
   readonly status: number | null;

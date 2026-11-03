@@ -1,18 +1,11 @@
 /**
- * The heart's truth and its press (DESIGN-UI section 12, ADR-0016). Membership is `wishlist_items` as the
- * Projection last folded it, read once per store version into one set every heart shares (`membership.ts`). A press is
- * one Wishlist Action run on the device: the crumb read off the Release's page, or off the newest Story's Release on bandcamp.com
- * when it sits on a custom domain, and the write through the session (ADR-0016 amendment 2026-09-28), every response
- * through `putRaw` before the outcome is acted on (ADR-0004), then the item written into or out of `wishlist_items`
- * here, because the Projection folds only the wishlist walk and never a collect answer. A rebuild therefore forgets a press until the next walk brings it back.
- * A press flips the heart before Bandcamp answers (ADR-0016 amendment 2026-10-02): its intent belongs to the item,
- * never the control, so every heart for the item flips together and the bar's heart does not carry a press across a
- * track change, and `press.ts` coalesces taps on an item while its exchange travels, last tap wins.
- * Membership is not asked yet until a wishlist walk has been asked once (`GatherState.wishlistAskedAt`), whatever it
- * answered, so a wishlist that keeps erroring still leaves every heart pressable, as off. Each press logs one line of
- * codes, counts, where the crumb came from, the answer's field names and flags and Bandcamp's reason scrubbed by
- * `toDetail`, never a header, a crumb or a field named like a secret; a refusal's notice carries
- * that reason when Bandcamp gave one.
+ * The heart's truth and its press (DESIGN-UI section 12, ADR-0016). Membership is `wishlist_items` as last folded,
+ * one set per store version that every heart shares (`membership.ts`). A press is one Wishlist Action: the crumb from
+ * the Release's page, or from bandcamp.com for a custom domain (ADR-0016 amendment 2026-09-28), each response through
+ * `putRaw` first (ADR-0004), then the item written here, since the Projection folds only the wishlist walk. A press
+ * flips every heart for the item at once (amendment 2026-10-02); `press.ts` coalesces taps, last tap wins. Until a
+ * walk has been asked (`wishlistAskedAt`) membership is not asked yet. Each press logs codes and Bandcamp's reason
+ * scrubbed by `toDetail`, never a header, crumb or secret-named field.
  */
 import { openURL } from 'expo-linking';
 import { router } from 'expo-router';
@@ -99,14 +92,10 @@ function noticeFor(failure: PressFailure | 'other', reason: string | null = null
 }
 
 /**
- * The press every heart and the row menu run. Where the phone stands is read off the app state, which holds it in
- * memory (`standing.ts`): with no Fan, the Demo's, a sign-out from Settings or a sign-in
- * Bandcamp no longer accepts, nothing is flipped and the press ends in its notice.
- * Otherwise the heart flips at once and the exchange travels behind it (`press.ts`, ADR-0016 amendment 2026-10-02),
- * with a light impact when the press turns the heart on, unless the caller says it `ticked` already (a swipe ticks as
- * it passes its commit point). Each exchange ends in one `wishlist_action_finished` naming the `surface` pressed
- * and one log line; a failure the Fan is told about raises its notice and the error haptic. Answers
- * whether the press was taken, so the heart pops only then.
+ * The press every heart and the row menu run. With no Fan, the Demo's, a sign-out or a refused sign-in (`standing.ts`),
+ * nothing flips and the press ends in its notice; otherwise the heart flips at once, the exchange travels behind it
+ * (`press.ts`, ADR-0016 amendment 2026-10-02) and ends in one `wishlist_action_finished`. A light impact marks an add
+ * unless the caller `ticked` already. Answers whether the press was taken, so the heart pops only then.
  */
 export function useWishlistPress(surface: PressSurface): (target: WishlistTarget, action: WishlistWriteKind, ticked?: boolean) => boolean {
   const app = useAppState();

@@ -1,17 +1,10 @@
 /**
- * One Release as a list cell: 56pt
- * art, the title and the credit line ("artist · Page or label", creditText); only the full Upcoming list draws the day
- * in small caps over them, and a Drop in the released weeks reads like a released row, the "1/4" on its art's corner
- * (PlayArt) saying it is not all out. The faces of who bought it, 24pt and three at most, stand at the right edge
- * centred on the title and the credit line, which both truncate against them. No heart: a swipe right wishlists (WishlistSwipe), and the long
- * press menu and the screen reader's actions keep the item. The art is the row's play control (PlayArt, DESIGN-UI
- * section 11); a press on the body plays too, lighting the whole row in the track tone on the UI thread on iOS and
- * drawing the ripple on Android. The row in the transport stays lit. On iOS VoiceOver meets the whole row as one
- * element and on Android the body is one TalkBack button beside the art; both say the whole row (heardRow), its day
- * with the weekday whether the row draws a day or not, and carry the row menu's items as their actions (VIS-9). The art
- * and the body sit side by side, neither inside the other's Pressable. The iOS hairline runs from the text column to
- * the screen's edge, left out where `rule` is false (above a week head) and around the row in the transport. A long
- * press on the art or the body opens the row menu (see RowMenu). A Drop's row starts at the Track `from` names.
+ * One Release as a list cell: 56pt art, the title and the credit line (creditText), the day in small caps on the full
+ * Upcoming list only, and up to three faces of who bought it at the right edge. A swipe right wishlists
+ * (WishlistSwipe). The art is the play control (PlayArt, DESIGN-UI section 11) and a press on the body plays too,
+ * side by side, neither inside the other's Pressable. VoiceOver meets the row as one element and TalkBack the body as
+ * one button; both say the whole row (heardRow) and carry the row menu's items as actions (VIS-9). The iOS hairline is
+ * left out where `rule` is false and around the row in the transport. A Drop's row starts at the Track `from` names.
  */
 import { memo, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
@@ -44,15 +37,12 @@ const FACES_CAP = 3;
 const RULE_LEFT = 20 + ART + GAP;
 
 /**
- * Spread on a FlatList of these rows or of Upcoming's cards: `strictMode` memoises FlatList's row renderer (react-native
- * Lists/FlatList.js), so with a stable `renderItem` a mounted row re-renders only when its item does, not whenever the
- * screen does. The types in use do not declare the prop yet, hence the cast. `removeClippedSubviews`, on by default on Android, detaches and reattaches cells
- * as they scroll, which leaves a Compose host inside one (the row menu) with no window position:
- * every Compose menu opens empty at the window's corner until a configuration change. `windowSize` keeps two screens
- * of rows mounted either side of the visible one instead of ten: a filter change mounts every row new to that window
- * in one commit, and the default's 130 or so held New releases for most of a second (the author's request of
- * 2026-10-14). ceiling: a fast fling can outrun the batches that mount rows ahead; cheaper rows are the upgrade.
+ * Spread on a FlatList of rows or Upcoming cards. `strictMode` memoises the row renderer so a row re-renders only with
+ * its item (the types lack the prop, hence the cast); `removeClippedSubviews` stays off, since a detached cell leaves
+ * the row menu's Compose host with no window position; `windowSize` 5 keeps two screens either side, not ten, so a
+ * filter change does not hold New releases for most of a second.
  */
+// ceiling: a fast fling can outrun the batches that mount rows ahead; cheaper rows are the upgrade.
 export const ROW_LIST = { strictMode: true, removeClippedSubviews: false, windowSize: 5 } as object;
 
 type RowProps = {

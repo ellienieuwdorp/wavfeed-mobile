@@ -188,11 +188,11 @@ function looksSignedOut(body: Record<string, unknown> | undefined, text: string)
 
 /**
  * The page the crumb is read from: the Release's own on a bandcamp.com host, else the store's stand-in on one, since a
- * crumb is per path and the session already writes one Release with a crumb read on another (ADR-0016 amendment
- * 2026-09-28). With no stand-in held, the Release's own page, whose map then reads empty.
- * ceiling: a crumb read off another Release's page is assumed valid for this one, as a held crumb already is; if
- * Bandcamp ever ties a crumb to its page, a custom-domain Release needs its crumb read inside the sign-in WebView.
+ * crumb is per path (ADR-0016 amendment 2026-09-28). With no stand-in held, the Release's own page, whose map reads
+ * empty.
  */
+// ceiling: a crumb read off another Release's page is assumed valid for this one, as a held crumb already is; if
+// Bandcamp ever ties a crumb to its page, a custom-domain Release needs its crumb read inside the sign-in WebView.
 function crumbPageOf(item: WishlistItem): string {
   if (onBandcampHost(item.releaseUrl)) return item.releaseUrl;
   return item.standInUrl !== null && onBandcampHost(item.standInUrl) ? item.standInUrl : item.releaseUrl;
@@ -549,11 +549,10 @@ export class BandcampSession {
   }
 
   /**
-   * The site's own heart (ADR-0016, amended 2026-09-28): the path's crumb from memory, else from `crumbPageOf`'s page,
-   * then the write carrying it. `invalid_crumb` with a fresh crumb is replayed with that crumb; a crumb refused without one,
-   * the crash envelope naming the crumb or a bare `invalid_crumb`, reads the page when this press has not yet, and
-   * replays. One page read and `MAX_CRUMB_REPLAYS` replays at most. A page with no crumb for the path goes to the probe,
-   * so a signed-out page reads as signed out. Every crumb the press sees is cut out of what it returns.
+   * The site's own heart (ADR-0016, amended 2026-09-28): the path's crumb from memory or `crumbPageOf`'s page, then the
+   * write. A refused crumb is replayed with the fresh one the answer carries, else after one page read, at most
+   * `MAX_CRUMB_REPLAYS` times; a page with no crumb goes to the probe, so signed out reads as signed out. Every crumb
+   * the press sees is cut out of what it returns.
    */
   private async writeWishlist(action: WishlistWriteKind, item: WishlistItem): Promise<WishlistWriteOutcome> {
     // The rig answers the two writes itself, with no request (dev/sampleWishlist.ts); the literal `__DEV__` folds the

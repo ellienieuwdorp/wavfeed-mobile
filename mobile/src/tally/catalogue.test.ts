@@ -39,8 +39,8 @@ test('codes are unique and never move: a retired code stays retired, a new row t
 });
 
 test('the Worker still takes every value an older bundle sends', () => {
-  // Rows and the mini player no longer carry a heart and Bought's tab is gone, yet phones on
-  // older bundles still send `row`, `mini_player`, the `bought` screens and a refresh from `bought`.
+  // Older bundles still send `row`, `mini_player`, the `bought` screens and a refresh from `bought`, none of which
+  // this bundle draws.
   const sent: readonly (readonly [readonly string[], readonly string[]])[] = [
     [CATALOGUE.wishlist_action_finished.props.surface, ['row', 'row_menu', 'mini_player', 'sheet', 'tracklist']],
     [CATALOGUE.screen_viewed.props.screen, ['bought', 'bought_upcoming']],

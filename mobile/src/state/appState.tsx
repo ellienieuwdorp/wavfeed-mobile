@@ -1,14 +1,10 @@
 /**
- * The one context every screen reads: the open store, the Bandcamp session, the
- * gather state and a version that moves whenever the Projection folds, at most every two seconds, so a
- * screen re-reads its query. `putRaw` is the only way a response
- * enters the phone: verbatim into raw_documents, then folded (ADR-0004); preview page facts refresh mounted views.
- * `removeStore` deletes the store file and opens a fresh one, which remounts everything under the provider. The gather
- * runner's Tallies go to whatever `track` the sharing provider below binds with `bindTally`. A store that
- * will not open shows the failure screen, whose "Try again" opens it once more and "Start over" deletes it first (review
- * REL-4); the open store is where Error Reports are written, and a failed replay is a coded one. A replay after a parser change that outlasts its first stretch shows its progress in place of the app
- * (review finding ARCH-1). A screen's query that throws is reported and thrown again while the screen draws, for the
- * tab's boundary to offer Try again (ARCH-2).
+ * The one context every screen reads: the open store, the Bandcamp session, the gather state and a version that moves
+ * at most every two seconds when the Projection folds, so a screen re-reads its query. `putRaw` is the only way a
+ * response enters the phone: verbatim into raw_documents, then folded (ADR-0004). `removeStore` deletes the store
+ * file and opens a fresh one, remounting everything below. A store that will not open shows the failure screen with
+ * "Try again" and "Start over" (REL-4); a long replay shows its progress in place of the app (ARCH-1). A screen's
+ * query that throws is reported and rethrown while drawing, for the tab's boundary (ARCH-2).
  */
 import { useIsFocused } from 'expo-router';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -199,11 +195,10 @@ type Live<T> =
   | { readonly status: 'error'; readonly error: unknown };
 
 /**
- * Re-runs `read` whenever the Projection folds, and at once when `key` changes; `null` until the first answer. A
- * rejection from a store "Remove everything gathered" closed is dropped. Any other is a `query_failed` report, and
- * thrown while the screen draws, unless a newer read has replaced it, so the tab's boundary offers Try again (ARCH-2).
- * A thrown value that is not an object is wrapped first, so the boundary knows it as the one already reported.
- * `key` is one value, so the effect's dependencies are static and the React Compiler keeps this hook (TECH-12).
+ * Re-runs `read` whenever the Projection folds and at once when `key` changes; `null` until the first answer. A
+ * rejection from a removed store is dropped; any other is reported as `query_failed`, wrapped if not an object, and
+ * thrown while drawing unless a newer read replaced it, for the tab's boundary (ARCH-2). `key` is one value so the
+ * effect's dependencies stay static for the React Compiler (TECH-12).
  */
 export function useLiveQuery<T>(read: (db: SQLiteDatabase) => Promise<T>, key: string | number | null = null): T | null {
   const { db, version: live } = useAppState();

@@ -1,13 +1,9 @@
 /**
- * The sharing switch and its sender inside the app state (ADR-0021). It reads the yes from `kv`, mints the
- * Install id with `expo-crypto` at each yes and drops it at each off, and while the gate is open runs one `Sender`:
- * a flush once `app_opened` is queued at launch, at each foreground and background, every minute while active and at
- * 20 queued rows. It folds AppState into `app_opened` and the foreground marker (`lifecycle.ts`). A build the gate can
- * never open (`sendEnv` null: a development bundle without the override, Expo Go, no URL or key) reads nothing and
- * writes nothing, and every write is also guarded in SQL by the stored yes. While the store holds the Demo the gate
- * reads as unable to send too, so nobody looking around is asked and nothing is queued or sent.
- * `removeStore` remounts it with the store. `track` is the one way a Tally is queued; the gather runner above it
- * reaches it through the app state's `bindTally`.
+ * The sharing switch and its sender inside the app state (ADR-0021). It reads the yes from `kv`, mints the Install id
+ * at each yes and drops it at each off, and while the gate is open runs one `Sender`, flushing at launch, at each
+ * foreground and background, every minute while active and at 20 queued rows. A build the gate can never open
+ * (`sendEnv` null) and the Demo read and write nothing, and SQL guards every write by the stored yes too. `track` is
+ * the one way a Tally is queued; the gather runner reaches it through the app state's `bindTally`.
  */
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { randomUUID } from 'expo-crypto';
