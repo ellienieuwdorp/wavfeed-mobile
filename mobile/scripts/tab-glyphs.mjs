@@ -29,7 +29,7 @@ const GLYPHS = {
     + `<g mask="url(#knock)"><rect ${RECT} ${stroke(2, '#000')}/><path d="${TABS}" ${stroke()}/></g>`,
 };
 
-const from = process.argv[2];
+const from = process.argv.at(2);
 if (from === undefined) {
   console.error('usage: node scripts/tab-glyphs.mjs <path inside a project with playwright installed>');
   process.exit(1);

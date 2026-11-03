@@ -1,0 +1,72 @@
+// The one lint config for mobile, tallies and join, run type-aware by dev/check.sh from dev/lint/'s pinned install.
+{
+  "$schema": "./dev/lint/node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react"],
+  "jsPlugins": ["./dev/lint/wavfeed-plugin.js"],
+  // correctness brings the React Compiler rules (react/purity, refs, set-state-in-effect, static-components and the
+  // rest) and react-hooks/exhaustive-deps, which mobile's eslint-config-expo ran.
+  "categories": { "correctness": "error" },
+  "options": { "typeAware": true },
+  "ignorePatterns": ["**/dist/**", "**/.dry/**", "**/.wrangler/**", "**/coverage/**", "site/**"],
+  // ceiling: rules left off, with their hits on 2026-11-03. The upgrade is turning each on once its backlog is cleared.
+  // - typescript/consistent-type-assertions never (the broad `as` ban): 234, 139 in source; no-unsafe-type-assertion: 197.
+  // - wavfeed/no-swallowed-catch: 53, nearly all parse and network boundaries returning null.
+  // - size caps: complexity 20: 26, max-depth 4: 5, max-lines 400 code lines: 12, max-lines-per-function 100: 18
+  //   (8 in source), max-params 5: 20 (18 the tallies board readers).
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-explicit-any": "error",
+    // node:test's test() and describe() return promises the runner awaits itself.
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          {
+            "from": "package",
+            "package": "node:test",
+            "name": ["test", "describe", "it", "suite", "before", "after", "beforeEach", "afterEach"]
+          }
+        ]
+      }
+    ],
+    "typescript/no-misused-promises": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/only-throw-error": "error",
+    "wavfeed/no-double-cast": "error",
+    "wavfeed/no-re-export": "error",
+    "oxc/no-barrel-file": ["error", { "threshold": 0 }],
+    "import/no-cycle": "error",
+    // A release build logs warnings only; a development line goes through mobile/src/lib/devLog.ts (review PRIV-2).
+    "no-console": ["error", { "allow": ["warn", "error"] }],
+    "no-empty": "error",
+    "no-useless-catch": "error",
+    "preserve-caught-error": "error"
+  },
+  "overrides": [
+    {
+      // Metro inlines only process.env.EXPO_PUBLIC_NAME, eslint-plugin-expo's two rules.
+      "files": ["mobile/**"],
+      "rules": {
+        "wavfeed/no-env-var-destructuring": "error",
+        "wavfeed/no-dynamic-env-var": "error"
+      }
+    },
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.test.mjs",
+        "**/test/**",
+        "**/__checks__/**",
+        "**/scripts/**",
+        "mobile/dev/**",
+        "tallies/dev/**",
+        "join/runner/**",
+        "*.config.*"
+      ],
+      "rules": { "no-console": "off" }
+    }
+  ]
+}

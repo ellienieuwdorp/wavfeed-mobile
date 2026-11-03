@@ -23,7 +23,7 @@ pattern() {
   esac
 }
 # A change to how the checks run runs every project.
-EVERY='^(\.github/workflows/ci\.yml|dev/check\.sh|dev/migrations\.mjs)$'
+EVERY='^(\.github/workflows/ci\.yml|dev/check\.sh|dev/migrations\.mjs|\.oxlintrc\.json|dev/lint/.*)$'
 
 # Prints the projects the paths on stdin touch; the single path ALL touches every one.
 touched() {
@@ -88,10 +88,17 @@ install() {
   esac
 }
 
+# oxlint reads the root .oxlintrc.json type-aware and knip the project's knip.jsonc, both from dev/lint/'s pinned
+# install, which runs once per invocation.
+linters=0
 lint() {
-  case "$1" in
-    mobile) run mobile npm run lint ;;
-  esac
+  if [ "$linters" = 0 ] && { [ "$ci" = 1 ] || [ ! -d dev/lint/node_modules ]; }; then
+    run dev/lint npm ci --no-audit --no-fund
+  fi
+  linters=1
+  export OXLINT_TSGOLINT_PATH="$root/dev/lint/node_modules/.bin/tsgolint"
+  run . dev/lint/node_modules/.bin/oxlint "$1"
+  run "$1" ../dev/lint/node_modules/.bin/knip
 }
 
 # Migrations are numbered in order of reaching main, so a number origin/main gave another is refused.

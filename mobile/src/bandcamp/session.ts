@@ -559,7 +559,6 @@ export class BandcampSession {
     // The rig answers the two writes itself, with no request (dev/sampleWishlist.ts); the literal `__DEV__` folds the
     // branch and its require out of a release bundle (review ARCH-5).
     if (__DEV__ && SAMPLE_MODE) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- a static import would keep the rig in every bundle
       const rig: typeof import('../dev/sampleWishlist') = require('../dev/sampleWishlist');
       const answer = await rig.sampleWishlistWrite();
       if (answer !== null) return answer;

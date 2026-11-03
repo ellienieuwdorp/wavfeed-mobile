@@ -5,6 +5,6 @@
  * bundle, so the minifier drops the call with its strings and their work.
  */
 export function devLog(...parts: unknown[]): void {
-  // eslint-disable-next-line no-console -- the one home of the development log
+  // oxlint-disable-next-line no-console -- the one home of the development log
   if (__DEV__) console.log(...parts);
 }
