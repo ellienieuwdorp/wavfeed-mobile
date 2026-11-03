@@ -12,13 +12,14 @@ PROJECTS="mobile tallies join docs"
 project=""
 step=""
 
-# The Workers import the phone's Tally catalogue by relative path. Markdown is the docs project's alone.
+# The Workers import the phone's Tally catalogue by relative path. Markdown touches only docs, and docs reads every
+# file's citations, so every change touches it.
 pattern() {
   case "$1" in
     mobile) echo '^mobile/' ;;
     tallies) echo '^(tallies|mobile/src/tally)/' ;;
     join) echo '^join/' ;;
-    docs) echo '\.md$' ;;
+    docs) echo '.' ;;
   esac
 }
 # A change to how the checks run runs every project.
@@ -139,8 +140,15 @@ check_worker() {
   if [ "$ci" = 1 ]; then run "$1" pnpm dry-run; fi
 }
 
+# The structure and prose rules of the house style, then the strike list's warnings on the Markdown lines this
+# change adds against origin/main.
 check_docs() {
-  echo "== docs: no checks yet"
+  local base files
+  run . node --test dev/check-docs.test.mjs
+  run . node dev/check-docs.mjs
+  base="$(git merge-base origin/main HEAD 2> /dev/null)" || return 0
+  files="$({ git diff --name-only --diff-filter=AM "$base" -- '*.md'; git ls-files --others --exclude-standard -- '*.md'; } | sort -u)"
+  [ -z "$files" ] || run . node dev/check-docs.mjs --base "$base" --files $files
 }
 
 usage() {
