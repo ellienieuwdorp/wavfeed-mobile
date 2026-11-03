@@ -34,6 +34,9 @@
     "typescript/no-misused-promises": "error",
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/only-throw-error": "error",
+    // A `@ts-expect-error` gives its reason and `@ts-ignore` is refused; dev/lint/comments.mjs asks the same of an
+    // `oxlint-disable`.
+    "typescript/ban-ts-comment": "error",
     "wavfeed/no-double-cast": "error",
     "wavfeed/no-re-export": "error",
     "oxc/no-barrel-file": ["error", { "threshold": 0 }],

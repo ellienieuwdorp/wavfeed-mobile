@@ -88,17 +88,21 @@ install() {
   esac
 }
 
-# oxlint reads the root .oxlintrc.json type-aware and knip the project's knip.jsonc, both from dev/lint/'s pinned
-# install, which runs once per invocation.
+# oxlint reads the root .oxlintrc.json type-aware and knip the project's knip.jsonc, then comments.mjs and budgets.mjs
+# hold V2-PLAN section 7's comment and size rules, all from dev/lint/'s pinned install. The install and the checkers'
+# own tests run once per invocation.
 linters=0
 lint() {
-  if [ "$linters" = 0 ] && { [ "$ci" = 1 ] || [ ! -d dev/lint/node_modules ]; }; then
-    run dev/lint npm ci --no-audit --no-fund
+  if [ "$linters" = 0 ]; then
+    if [ "$ci" = 1 ] || [ ! -d dev/lint/node_modules ]; then run dev/lint npm ci --no-audit --no-fund; fi
+    run . node --test 'dev/lint/*.test.mjs'
   fi
   linters=1
   export OXLINT_TSGOLINT_PATH="$root/dev/lint/node_modules/.bin/tsgolint"
   run . dev/lint/node_modules/.bin/oxlint "$1"
   run "$1" ../dev/lint/node_modules/.bin/knip
+  run . node dev/lint/comments.mjs "$1"
+  run . node dev/lint/budgets.mjs "$1"
 }
 
 # Migrations are numbered in order of reaching main, so a number origin/main gave another is refused.
