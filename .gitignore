@@ -11,9 +11,7 @@ dist/
 *.tsbuildinfo
 coverage/
 
-# Test-runner artifacts (also in server/apps/web/.gitignore, kept here so any
-# future workspace that grows Playwright or vitest output is covered from day
-# one)
+# Test-runner artifacts
 test-results/
 playwright-report/
 
@@ -24,10 +22,6 @@ playwright-report/
 
 # Logs
 *.log
-
-# What dev/e2e.sh leaves while it runs: pids, service logs, and a cookie jar
-# holding a live session token. Nothing here is ever worth committing (ADR-0003).
-server/dev/.e2e/
 
 # The cf CLI's per-directory account cache
 .cloudflare/
