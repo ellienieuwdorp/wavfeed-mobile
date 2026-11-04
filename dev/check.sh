@@ -25,13 +25,23 @@ pattern() {
 # A change to how the checks run runs every project.
 EVERY='^(\.github/workflows/ci\.yml|dev/check\.sh|dev/migrations\.mjs|\.oxlintrc\.json|dev/lint/.*)$'
 
-# Prints the projects the paths on stdin touch; the single path ALL touches every one.
+# Whether the checkout holds a project: its folder, or for docs its checker. A checkout may hold only some of them.
+present() {
+  case "$1" in
+    docs) [ -f dev/check-docs.mjs ] ;;
+    *) [ -d "$1" ] ;;
+  esac
+}
+
+# Prints the projects present that the paths on stdin touch; the single path ALL touches every one.
 touched() {
   local files code p
   files="$(cat)"
   code="$(grep -vE '\.md$' <<< "$files" || true)"
   for p in $PROJECTS; do
-    if [ "$files" = ALL ] || grep -qE "$EVERY" <<< "$files"; then
+    if ! present "$p"; then
+      continue
+    elif [ "$files" = ALL ] || grep -qE "$EVERY" <<< "$files"; then
       echo "$p"
     elif [ "$p" = docs ] && grep -qE "$(pattern docs)" <<< "$files"; then
       echo "$p"
@@ -89,8 +99,8 @@ install() {
 }
 
 # oxlint reads the root .oxlintrc.json type-aware and knip the project's knip.jsonc, then comments.mjs and budgets.mjs
-# hold V2-PLAN section 7's comment and size rules, all from dev/lint/'s pinned install. The install and the checkers'
-# own tests run once per invocation.
+# hold the comment and size rules, all from dev/lint/'s pinned install. The install, the checkers' own tests
+# run once per invocation.
 linters=0
 lint() {
   if [ "$linters" = 0 ]; then
@@ -206,6 +216,10 @@ fi
 
 passed=""
 for project in $selected; do
+  if ! present "$project"; then
+    echo "dev/check.sh: this checkout has no $project; skipping it."
+    continue
+  fi
   case "$project" in
     mobile) check_mobile ;;
     tallies | join) check_worker "$project" ;;

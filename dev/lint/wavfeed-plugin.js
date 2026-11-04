@@ -1,6 +1,6 @@
-// The house rules no built-in oxlint rule covers (docs/V2-PLAN.md section 7): a catch that drops its error without a
-// word, a double cast through unknown, a named re-export, and the two Expo rules that keep EXPO_PUBLIC_ values
-// inlinable, written here after eslint-plugin-expo's so the repo needs no ESLint.
+// The house rules no built-in oxlint rule covers: a catch that drops its error without a word, a double cast through
+// unknown, a named re-export, and the two Expo rules that keep EXPO_PUBLIC_ values inlinable, written here after
+// eslint-plugin-expo's so the repo needs no ESLint.
 const containsThrow = (node) => {
   if (Array.isArray(node)) return node.some(containsThrow);
   if (typeof node !== 'object' || node === null) return false;

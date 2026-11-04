@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+// A checkout without one of them reads it as empty; dev/check.sh skips a missing project.
 export const PROJECTS = ['mobile', 'tallies', 'join'];
 const CODE = /\.(tsx?|mjs|cjs|js)$/;
 const SKIPPED = /(^|\/)(\.dry|\.wrangler|dist|node_modules)\/|\.d\.ts$|\.config\.(js|ts|mjs)$/;

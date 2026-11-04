@@ -1,6 +1,6 @@
-// Size and naming budgets over one project (docs/V2-PLAN.md section 7): no test file past a line cap, test lines
-// within a ratio of source lines, no grab-bag module name, and no function body declared identically in two modules.
-// Lines are non-blank lines. `node dev/lint/budgets.mjs <project>` prints each breach with its fix.
+// Size and naming budgets over one project: no test file past a line cap, test lines within a ratio of source lines,
+// no grab-bag module name, and no function body declared identically in two modules. Lines are non-blank lines.
+// `node dev/lint/budgets.mjs <project>` prints each breach with its fix.
 import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseSync } from 'oxc-parser';
@@ -8,8 +8,8 @@ import { parseSync } from 'oxc-parser';
 import { projectArg, readSources, TEST } from './tree.mjs';
 
 // Each ceiling sits just above the largest value on 2026-11-03, after mobile's turn and queries tests were
-// split: tallies/test/ingest.test.ts at 466 lines, join at 0.598 test lines per source line, no grab-bag name, no
-// shared body. Lower a ceiling when the code allows; raise one only in a commit that says why.
+// split: tallies/test/ingest.test.ts at 466 lines, the highest project at 0.598 test lines per source line, no grab-bag
+// name, no shared body. Lower a ceiling when the code allows; raise one only in a commit that says why.
 export const BUDGETS = { testFileLines: 480, testToSource: 0.6, minBodyChars: 60 };
 const GRAB_BAG = /^(utils?|helpers?|common|misc|shared)(\.|$)/;
 

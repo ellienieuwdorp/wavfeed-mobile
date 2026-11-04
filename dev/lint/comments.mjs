@@ -1,7 +1,7 @@
-// The comment rules of docs/V2-PLAN.md section 7 over one project, parsed with oxc-parser: the project's source stays
-// under 15 percent comment lines, a module header is one short paragraph, a JSDoc stays short, and no comment carries
-// history, a banner, commented-out code, an em dash or a lint suppression without its reason. Directives count
-// toward nothing. Task citations are dev/check-docs.mjs's rule, and `@ts-` comments are oxlint's
+// The house comment rules over one project, parsed with oxc-parser: the project's source stays under 15 percent
+// comment lines, a module header is one short paragraph, a JSDoc stays short, and no comment carries history, a banner,
+// commented-out code, an em dash or a lint suppression without its reason. Directives count toward nothing. Task
+// citations are the docs checker's rule where a checkout has one, and `@ts-` comments are oxlint's
 // typescript/ban-ts-comment. `node dev/lint/comments.mjs <project>` prints each problem with its fix.
 import { pathToFileURL } from 'node:url';
 import { parseSync } from 'oxc-parser';
@@ -22,7 +22,7 @@ const CODE_SHAPE = /[;{}]\s*$|^\s*(const|let|var|return|import|export|await|if|f
 const EM_DASH = '\u2014';
 
 export const FIXES = {
-  share: `comment lines are at or over ${LIMITS.share * 100} percent of the project's source (V2-PLAN section 7). Delete comments that restate the code or argue a decision, and cite the ADR instead.`,
+  share: `comment lines are at or over ${LIMITS.share * 100} percent of the project's source. Delete comments that restate the code or argue a decision, and cite the ADR instead.`,
   headerParagraphs: 'the module header runs to a second paragraph. Keep one paragraph of mechanism; move the argument to its ADR and cite it by number.',
   headerLong: `the module header runs past ${LIMITS.headerLines} lines of text. Say what the module does and cite the ADR; the code and the ADR carry the rest.`,
   docLong: `this JSDoc runs past ${LIMITS.docLines} lines of text. State the contract the code cannot show; cut what restates the body.`,

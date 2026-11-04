@@ -1,4 +1,5 @@
-// The one lint config for mobile, tallies and join, run type-aware by dev/check.sh from dev/lint/'s pinned install.
+// The one lint config for every project dev/check.sh lints, run type-aware from dev/lint/'s pinned install. A pattern
+// naming a folder this checkout lacks matches nothing.
 {
   "$schema": "./dev/lint/node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "unicorn", "oxc", "import", "react"],
