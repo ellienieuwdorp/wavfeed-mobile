@@ -1,8 +1,8 @@
 /// <reference types="node" />
 /**
  * The copy rules DESIGN-UI section 8 and the sharing copy's rules make testable: no em dash anywhere
- * in the phone's copy, the sharing strings never use the machine words (the author chose "analytics" for the Settings
- * line) and name no Bandcamp identity, and every line under a Settings group or on the first
+ * in the phone's copy, the sharing strings never use the machine words (the author chose "usage statistics" and "crash
+ * reports" for the Settings line) and name no Bandcamp identity, and every line under a Settings group or on the first
  * screen is two sentences at most.
  */
 import assert from 'node:assert/strict';
@@ -51,7 +51,7 @@ test('the ask and the Usage group never say telemetry, event or tracking, and th
   assert.match(copy.usageAsk.body.join(' '), /counts/i);
   assert.match(copy.usageAsk.body.join(' '), /Until then it sends nothing/);
   assert.match(copy.usageAsk.body.join(' '), /Settings/);
-  assert.match(s.usageFoot, /never sends your Bandcamp sign-in/);
+  assert.match(s.usageFoot, /Does not send your Bandcamp login/);
   assert.doesNotMatch(s.usageFoot, /3b9f0c/);
   assert.match(yourCode, /^Your code is 3b9f0c, /);
   assert.match(turnedOff, /Your code was 3b9f0c; .*delete/);

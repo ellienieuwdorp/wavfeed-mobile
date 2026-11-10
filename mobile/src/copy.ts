@@ -459,8 +459,7 @@ export const copy = {
     usageHead: 'Usage',
     share: 'Help improve wavfeed',
     /** Two sentences at most under the switch; where it goes and for how long is on the privacy page. */
-    usageFoot:
-      'Sends me basic analytics of what you use in the app and a short report when something breaks. It never sends your Bandcamp sign-in, name or what you listen to.',
+    usageFoot: 'Sends usage statistics and crash reports. Does not send your Bandcamp login, name, or listening history.',
     /** After the foot while sharing is on, split around the code, which draws bold beside its copy button. */
     yourCode: ['Your code is ', ', please add it if you write to me.'] as const,
     /** In place of `yourCode` just after an off, until Settings is left, so the tester can ask for erasure. */
