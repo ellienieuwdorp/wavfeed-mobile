@@ -1,9 +1,9 @@
 /// <reference types="node" />
 /**
  * The copy rules DESIGN-UI section 8 and the sharing copy's rules make testable: no em dash anywhere
- * in the phone's copy, the sharing strings never use the machine words (the author chose "usage statistics" and "crash
- * reports" for the Settings line) and name no Bandcamp identity, and every line under a Settings group or on the first
- * screen is two sentences at most.
+ * in the phone's copy, the sharing strings never use the machine words (the author chose "usage statistics", "crash
+ * reports" and "login" for the Settings line) and name no Bandcamp identity, and every line under a Settings group or on
+ * the first screen is two sentences at most.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
