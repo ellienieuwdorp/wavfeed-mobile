@@ -51,7 +51,7 @@ test('the ask and the Usage group never say telemetry, event or tracking, and th
   assert.match(copy.usageAsk.body.join(' '), /counts/i);
   assert.match(copy.usageAsk.body.join(' '), /Until then it sends nothing/);
   assert.match(copy.usageAsk.body.join(' '), /Settings/);
-  assert.match(s.usageFoot, /never sends your Bandcamp sign-in/);
+  assert.match(s.usageFoot, /Does not send your Bandcamp login/);
   assert.doesNotMatch(s.usageFoot, /3b9f0c/);
   assert.match(yourCode, /^Your code is 3b9f0c, /);
   assert.match(turnedOff, /Your code was 3b9f0c; .*delete/);
