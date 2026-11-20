@@ -319,8 +319,8 @@ function nothingNamed(min: number | null, tags: readonly string[]): string {
   return `${['Nothing', tagged, who].filter(Boolean).join(' ')}.`;
 }
 
-/** One address for feedback and erasure requests, the privacy page's; `hello@wavfeed.com` replaces it once that exists. */
-export const FEEDBACK_ADDRESS = 'ellie@nieuwdorp.me';
+/** One address for feedback and erasure requests, the privacy page's. */
+export const FEEDBACK_ADDRESS = 'hi@wavfeed.com';
 export const PRIVACY_URL = 'https://wavfeed.com/privacy.html';
 /** The privacy page's section on counts, where the ask's link lands: what is sent and what is never sent. */
 export const PRIVACY_COUNTS_URL = `${PRIVACY_URL}#counts`;
@@ -520,7 +520,7 @@ export const copy = {
     signInAgain: 'Sign in again',
     dismiss: 'Dismiss',
   },
-  /** The store build banner (docs/design/2026-10-08-update-banner): build numbers, never "version". */
+  /** The store build banner: build numbers, never "version". */
   update: {
     title: `A newer wavfeed is on ${store}`,
     line: (mine: number, newest: number) => `${ThisDevice} has build ${mine}. Build ${newest} only arrives through ${store}.`,

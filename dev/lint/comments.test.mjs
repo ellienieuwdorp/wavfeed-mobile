@@ -10,7 +10,7 @@ const header = '/** The x module: what it does, in one line (ADR-0004). */\n';
 const lines = (n, text = 'line') => Array.from({ length: n }, () => ` * ${text}`).join('\n');
 
 test('history goes; the present tense, and "no longer" about runtime state, stays', () => {
-  assert.deepEqual(rules(`${header}// Ported from server/packages/core.\n${code(3)}`), ['history']);
+  assert.deepEqual(rules(`${header}// Ported from packages/core.\n${code(3)}`), ['history']);
   assert.deepEqual(rules(`${header}// The store used to read one wide join.\n${code(3)}`), ['history']);
   assert.deepEqual(rules(`${header}// The cursor was renamed when the walk split.\n${code(3)}`), ['history']);
   assert.deepEqual(rules(`${header}// Previously the turn folded once.\n${code(3)}`), ['history']);

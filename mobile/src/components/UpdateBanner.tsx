@@ -1,5 +1,5 @@
 /**
- * The store build banner (docs/design/2026-10-08-update-banner): a card under each view's header when only
+ * The store build banner: a card under each view's header when only
  * TestFlight or Google Play can bring this install up to date. It draws from the last `store-builds.json` answer kept
  * in `kv`, recomputed with `verdictOf` at mount, so it arrives with the rows; a fresh answer that differs waits for the
  * next launch or return to the app, except an install's first, which animates in at once. One read per launch and per

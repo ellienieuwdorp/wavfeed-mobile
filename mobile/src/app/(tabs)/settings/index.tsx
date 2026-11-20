@@ -162,7 +162,7 @@ export default function Settings() {
   // to its budget) and the store closed straight after it, so the chain's next store call fails and ends it (gather.ts
   // `runner`) before another turn starts. That order means an app killed during the wait has counted a removal that did
   // not happen. The row shows a spinner and takes no press while it runs. Bandcamp's art and Fan faces that expo-image
-  // keeps on disk go too, so nothing gathered outlives the press (finding PRIV-3, site/privacy.html).
+  // keeps on disk go too, so nothing gathered outlives the press (finding PRIV-3, the privacy page).
   const [removing, setRemoving] = useState(false);
   const removeAll = () =>
     Alert.alert(s.removeAllTitle, s.removeAllBody(status === 'connected'), [

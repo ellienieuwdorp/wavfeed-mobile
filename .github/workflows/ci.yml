@@ -1,0 +1,57 @@
+# CI for the public repo: every job runs on ubuntu-latest, GitHub's hosted runner, and no secret is read. Each
+# project's job runs `dev/check.sh --ci <project>`, and only when `dev/check.sh --affected` says the change touches
+# the project; a skipped job counts as passed. Each job id is its project's name. Nothing here talks to bandcamp.com.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+# A new push to a pull request cancels its run in progress; runs on main each finish.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mobile: ${{ steps.diff.outputs.mobile }}
+    steps:
+      # The full history holds the release tags the fingerprint check reads and the main the migration check reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          # A pull request checks out its merge commit, whose first parent is the base.
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: dev/check.sh --affected "$BASE" >> "$GITHUB_OUTPUT" && cat "$GITHUB_OUTPUT"
+
+  mobile:
+    name: mobile
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # oxlint, tsgolint and knip from dev/lint's lockfile; check.sh reads them from there.
+      - name: Install dev/lint
+        run: npm ci --no-audit --no-fund
+        working-directory: dev/lint
+      - run: dev/check.sh --ci mobile

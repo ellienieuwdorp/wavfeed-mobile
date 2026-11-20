@@ -17,4 +17,3 @@ else
   done
 fi
 echo "Open in Expo Go: exp://$IP:8081"
-echo "Landing page:    https://my-mac.tailnet-name.ts.net:8443/"

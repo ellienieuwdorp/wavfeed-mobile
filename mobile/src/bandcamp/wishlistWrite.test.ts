@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
- * The heart's write against a scripted Bandcamp standing in for the global `fetch` (ADR-0016 amendment 2026-09-28,
- * docs/research/2026-08-21-wishlist-wire.md section 2026-09-28): the path's crumb comes off the Release's own page
+ * The heart's write against a scripted Bandcamp standing in for the global `fetch` (ADR-0016 amendment
+ * 2026-09-28): the path's crumb comes off the Release's own page
  * when none is held, rides the write as a form field beside Origin and Referer naming bandcamp.com, stays held until
  * sign-out or a refusal, and a press is at most one page read and three writes. A page with no crumb for the path
  * ends in the identity probe. A Release on a custom domain reads its crumb off a stand-in Release's page on a

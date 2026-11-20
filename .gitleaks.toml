@@ -1,0 +1,10 @@
+# gitleaks: its default rules, less strings that are not secrets.
+[extend]
+useDefault = true
+
+# The Demo's Bandcamp preview-stream URLs, signed with an expiry long past.
+[[allowlists]]
+condition = "AND"
+paths = ['''^mobile/src/demo/releases\.ts$''']
+regexes = ['''^\d{10}_[0-9a-f]{40}$''']
+

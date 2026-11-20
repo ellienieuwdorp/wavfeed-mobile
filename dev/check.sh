@@ -8,29 +8,21 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-PROJECTS="mobile tallies join docs"
+PROJECTS="mobile"
 project=""
 step=""
 
-# The Workers import the phone's Tally catalogue by relative path. Markdown touches only docs, and docs reads every
-# file's citations, so every change touches it.
 pattern() {
   case "$1" in
     mobile) echo '^mobile/' ;;
-    tallies) echo '^(tallies|mobile/src/tally)/' ;;
-    join) echo '^join/' ;;
-    docs) echo '.' ;;
   esac
 }
 # A change to how the checks run runs every project.
 EVERY='^(\.github/workflows/ci\.yml|dev/check\.sh|dev/migrations\.mjs|\.oxlintrc\.json|dev/lint/.*)$'
 
-# Whether the checkout holds a project: its folder, or for docs its checker. A checkout may hold only some of them.
+# Whether the checkout holds a project's folder.
 present() {
-  case "$1" in
-    docs) [ -f dev/check-docs.mjs ] ;;
-    *) [ -d "$1" ] ;;
-  esac
+  [ -d "$1" ]
 }
 
 # Prints the projects present that the paths on stdin touch; the single path ALL touches every one.
@@ -43,9 +35,7 @@ touched() {
       continue
     elif [ "$files" = ALL ] || grep -qE "$EVERY" <<< "$files"; then
       echo "$p"
-    elif [ "$p" = docs ] && grep -qE "$(pattern docs)" <<< "$files"; then
-      echo "$p"
-    elif [ "$p" != docs ] && grep -qE "$(pattern "$p")" <<< "$code"; then
+    elif grep -qE "$(pattern "$p")" <<< "$code"; then
       echo "$p"
     fi
   done
@@ -92,10 +82,7 @@ retry() {
 }
 
 install() {
-  case "$1" in
-    mobile) run mobile npm ci --no-audit --no-fund ;;
-    *) run "$1" pnpm install --frozen-lockfile ;;
-  esac
+  run "$1" npm ci --no-audit --no-fund
 }
 
 # oxlint reads the root .oxlintrc.json type-aware and knip the project's knip.jsonc, then comments.mjs and budgets.mjs
@@ -151,27 +138,6 @@ check_mobile() {
   fi
 }
 
-check_worker() {
-  if [ "$ci" = 1 ] && [ "$1" = tallies ]; then migrations tallies; fi
-  if [ "$ci" = 1 ] || [ ! -d "$1/node_modules" ]; then install "$1"; fi
-  run "$1" pnpm typecheck
-  lint "$1"
-  run "$1" pnpm test
-  # tallies builds the board's page first; both bundle as the deploy would.
-  if [ "$ci" = 1 ]; then run "$1" pnpm dry-run; fi
-}
-
-# The structure and prose rules of the house style, then the strike list's warnings on the Markdown lines this
-# change adds against origin/main.
-check_docs() {
-  local base files
-  run . node --test dev/check-docs.test.mjs
-  run . node dev/check-docs.mjs
-  base="$(git merge-base origin/main HEAD 2> /dev/null)" || return 0
-  files="$({ git diff --name-only --diff-filter=AM "$base" -- '*.md'; git ls-files --others --exclude-standard -- '*.md'; } | sort -u)"
-  [ -z "$files" ] || run . node dev/check-docs.mjs --base "$base" --files $files
-}
-
 usage() {
   echo "usage: dev/check.sh [--ci] (--changed | <project>...) | --affected <base>; projects: $PROJECTS" >&2
   exit 64
@@ -198,7 +164,7 @@ while [ $# -gt 0 ]; do
       done
       exit 0
       ;;
-    mobile | tallies | join | docs) selected="$selected $1" ;;
+    mobile) selected="$selected $1" ;;
     *) usage ;;
   esac
   shift
@@ -222,8 +188,6 @@ for project in $selected; do
   fi
   case "$project" in
     mobile) check_mobile ;;
-    tallies | join) check_worker "$project" ;;
-    docs) check_docs ;;
   esac
   passed="$passed $project"
 done

@@ -1,7 +1,7 @@
 /**
  * The reading half of the wishlist exchange (ADR-0016): the request body and headers, the crumb map a signed-in page
  * carries in `<meta id="js-crumbs-data">` (amendment 2026-09-28), the crumb an `invalid_crumb` answer hands back, and
- * every answer classified from its body. A signed-out answer is `logged_out`, since the phone holds no cookie. The headers are the ones that land on the real wire, plus the charset jQuery adds (docs/research/2026-08-21-wishlist-wire.md). A
+ * every answer classified from its body. A signed-out answer is `logged_out`, since the phone holds no cookie. The headers are the ones that land on the real wire, plus the charset jQuery adds. A
  * handler that throws answers with Bandcamp's trackpipe envelope (`error`, `exception`, `host`, `url`, `date`, `user`),
  * and its own client shows the person only what follows `ALERT: ` in `exception` (`showXHRError`, global_foot2), so
  * that is the reason a refusal carries, and the whole exception when there is no such marker.

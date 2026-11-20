@@ -20,7 +20,7 @@ import { connectHref } from '@/tally/actions';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
-/** The bare W in white on nothing (docs/design/2026-09-29-waveform-icon), tinted with the accent of the theme in force. */
+/** The bare W in white on nothing, tinted with the accent of the theme in force. */
 const MARK = require('../../assets/images/splash-icon.png');
 const MARK_WIDTH = 88;
 const MARK_HEIGHT = Math.round((MARK_WIDTH * 138) / 300);
