@@ -1,19 +1,18 @@
 // The comment rules of docs/V2-PLAN.md section 7 over one project, parsed with oxc-parser: the project's source stays
 // under 15 percent comment lines, a module header is one short paragraph, a JSDoc stays short, and no comment carries
-// history, a banner, commented-out code, an em dash or a lint suppression without its reason. `ceiling:` comments
-// and directives count toward nothing. Task citations are dev/check-docs.mjs's rule, and `@ts-` comments are oxlint's
+// history, a banner, commented-out code, an em dash or a lint suppression without its reason. Directives count
+// toward nothing. Task citations are dev/check-docs.mjs's rule, and `@ts-` comments are oxlint's
 // typescript/ban-ts-comment. `node dev/lint/comments.mjs <project>` prints each problem with its fix.
 import { pathToFileURL } from 'node:url';
 import { parseSync } from 'oxc-parser';
 
 import { projectArg, readSources, TEST } from './tree.mjs';
 
-// ceiling: 8 header lines held 89 percent of headers before the 2026-11-03 cleanup and is the longest after it, 14
+// 8 header lines held 89 percent of headers before the 2026-11-03 cleanup and is the longest after it, 14
 // headers at the cap; JSDoc 4 lines, 40 at the cap. Lower a cap in the commit that shortens what sits at it.
 export const LIMITS = { share: 0.15, headerLines: 8, docLines: 4 };
 
 const DIRECTIVE = /^[\s*]*(eslint-|oxlint-|@ts-|\/ <reference|[#@]__PURE__|prettier-ignore|c8 ignore|v8 ignore|istanbul ignore)/;
-const CEILING = /^[\s*]*ceiling:/;
 const UNEXPLAINED_SUPPRESSION = /^[\s*]*(eslint|oxlint)-disable(?![^\n]*\s--\s+\S)/;
 const HISTORY =
   /\b(ported|copied|lifted|carried over|migrated) from\b|\b(it|this|that|which|we|they) used to\b|\bused to (be|have|read|call|live|hold)\b|\b(previously|formerly|originally)\b|\banymore\b|\b(was|were|has been|have been) (changed|renamed|moved|replaced|removed|dropped|deleted|split|merged|rewritten)\b/i;
@@ -51,14 +50,14 @@ const lineIndex = (src) => {
 
 const textLines = (c) => (c.type === 'Line' ? [c.value] : c.value.split('\n').map((l) => l.replace(/^\s*\*+\/?/, '')));
 
-/** Comment blocks: one block comment, or a run of `//` lines on consecutive lines; a ceiling starts its own. */
+/** Comment blocks: one block comment, or a run of `//` lines on consecutive lines. */
 function blocks(comments, lineOf) {
   const out = [];
   for (const c of comments) {
     const first = lineOf(c.start);
     const last = lineOf(c.end);
     const prev = out.at(-1);
-    if (c.type === 'Line' && prev?.type === 'Line' && prev.last === first - 1 && !CEILING.test(c.value)) {
+    if (c.type === 'Line' && prev?.type === 'Line' && prev.last === first - 1) {
       prev.last = last;
       prev.lines.push(c.value);
       prev.raw.push(c.value);
@@ -91,9 +90,8 @@ export function checkFile(file, src) {
     own.filter((c) => !DIRECTIVE.test(c.value)),
     lineOf,
   );
-  const prose = all.filter((b) => !CEILING.test(b.lines[0]));
   const counted = new Set();
-  for (const b of prose) {
+  for (const b of all) {
     for (let l = b.first; l <= b.last; l++) counted.add(l);
     b.lines.forEach((text, i) => {
       const line = b.first + i;
@@ -104,13 +102,13 @@ export function checkFile(file, src) {
     });
   }
   const firstStatement = program.body[0]?.start ?? src.length;
-  const header = prose[0] && prose[0] === all[0] && prose[0].start < firstStatement ? prose[0] : null;
+  const header = all[0] && all[0].start < firstStatement ? all[0] : null;
   if (header) {
     const text = inner(header);
     if (text.includes('')) at(header.first, 'headerParagraphs');
     if (text.length > LIMITS.headerLines) at(header.first, 'headerLong');
   }
-  for (const b of prose) if (b !== header && b.doc && inner(b).length > LIMITS.docLines) at(b.first, 'docLong');
+  for (const b of all) if (b !== header && b.doc && inner(b).length > LIMITS.docLines) at(b.first, 'docLong');
   return { problems, comment: counted.size, lines: src.split('\n').filter((l) => l.trim()).length };
 }
 

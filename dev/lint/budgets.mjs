@@ -7,7 +7,7 @@ import { parseSync } from 'oxc-parser';
 
 import { projectArg, readSources, TEST } from './tree.mjs';
 
-// ceiling: each ceiling sits just above the largest value on 2026-11-03, after mobile's turn and queries tests were
+// Each ceiling sits just above the largest value on 2026-11-03, after mobile's turn and queries tests were
 // split: tallies/test/ingest.test.ts at 466 lines, join at 0.598 test lines per source line, no grab-bag name, no
 // shared body. Lower a ceiling when the code allows; raise one only in a commit that says why.
 export const BUDGETS = { testFileLines: 480, testToSource: 0.6, minBodyChars: 60 };

@@ -8,7 +8,7 @@
   "categories": { "correctness": "error" },
   "options": { "typeAware": true },
   "ignorePatterns": ["**/dist/**", "**/.dry/**", "**/.wrangler/**", "**/coverage/**", "site/**"],
-  // ceiling: rules left off, with their hits on 2026-11-03. The upgrade is turning each on once its backlog is cleared.
+  // Rules left off, with their hits on 2026-11-03.
   // - typescript/consistent-type-assertions never (the broad `as` ban): 234, 139 in source; no-unsafe-type-assertion: 197.
   // - wavfeed/no-swallowed-catch: 53, nearly all parse and network boundaries returning null.
   // - size caps: complexity 20: 26, max-depth 4: 5, max-lines 400 code lines: 12, max-lines-per-function 100: 18

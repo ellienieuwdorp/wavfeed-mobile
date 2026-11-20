@@ -51,17 +51,15 @@ test(`a module header is one paragraph of at most ${LIMITS.headerLines} lines`, 
   assert.deepEqual(rules(`#!/usr/bin/env node\n${header}${code(3)}`, 'mobile/scripts/x.mjs'), []);
 });
 
-test(`a JSDoc past ${LIMITS.docLines} lines is long; a ceiling and a directive are exempt`, () => {
+test(`a JSDoc past ${LIMITS.docLines} lines is long`, () => {
   assert.deepEqual(rules(`${header}/**\n${lines(LIMITS.docLines + 1)}\n */\nexport function f() {}\n`), ['docLong']);
   assert.deepEqual(rules(`${header}/**\n${lines(LIMITS.docLines)}\n */\nexport function f() {}\n`), []);
-  assert.deepEqual(rules(`${header}// ceiling: 50 a run; the next run takes the rest.\n// Batches above it wait.\n${code(3)}`), []);
 });
 
-test('ceilings and directives count toward no share; the share counts source, not tests', () => {
+test('directives count toward no share; the share counts source, not tests', () => {
   const noted = (comment) => Array.from({ length: 10 }, (_, i) => `// ${comment} ${i}\nexport const v${i} = ${i};`).join('\n');
   const share = (file, src) => checkSources('mobile', [{ file, src }]);
   assert.deepEqual(share('mobile/src/x.ts', `${header}${noted('note')}`).problems.map((p) => p.rule), ['share']);
-  assert.deepEqual(share('mobile/src/x.ts', `${header}${noted('ceiling: ceiling')}`).problems, []);
   assert.deepEqual(share('mobile/src/x.ts', `${header}${noted('oxlint-disable-next-line no-console -- why')}`).problems, []);
   assert.deepEqual(share('mobile/src/x.test.ts', `${header}${noted('note')}`).problems, []);
 });
