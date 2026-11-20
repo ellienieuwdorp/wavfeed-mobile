@@ -11,7 +11,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { backoffMs, countQueued, enqueueDropped, readDropped, readSharing, retryAfterMs, settleBatch, takeBatch, verdict } from './outbox';
 import { batchBody, type TallyAt, type TallyContext } from './wire';
 
-/** ceiling: 20 queued rows or every 60 s while active, the PostHog and Segment defaults; tune from the board's batch sizes. */
+/** 20 queued rows or every 60 s while active, the PostHog and Segment defaults. */
 export const FLUSH_AT_ROWS = 20;
 export const FLUSH_EVERY_MS = 60_000;
 export const REQUEST_TIMEOUT_MS = 10_000;

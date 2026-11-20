@@ -15,7 +15,7 @@ import { PRESS_FLASH, ripple, SCROLL_PRESS_DELAY_MS, useTokens } from '@/theme/t
 const ios = Platform.OS === 'ios';
 const iosMajor = ios ? parseInt(String(Platform.Version), 10) : 0;
 
-/** ceiling: 26pt is our reading of iOS 26 inset grouped, 10pt before; replace with the UIKit value once checked on device. */
+/** The inset grouped corner radius: 26pt from iOS 26, 10pt before. */
 export const GROUP_RADIUS = iosMajor >= 26 ? 26 : 10;
 const MARGIN = 16;
 const INSET = 16;

@@ -2,7 +2,7 @@
 /**
  * The fetch-target guard (audit S1): a Release URL comes out of a stored document, so the session fetches the page
  * only from its own origin or an https public host name, before the request and again where a redirect landed. The
- * guard has no DNS half on the phone (the `ceiling:` in `wire.ts`).
+ * guard has no DNS half on the phone.
  */
 import assert from 'node:assert/strict';
 import { describe, test, type TestContext } from 'node:test';

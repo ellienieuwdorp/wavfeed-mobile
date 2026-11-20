@@ -9,10 +9,7 @@ import type { FeedStoryRow, UpcomingReleaseRow } from './rows';
 /** A fortnight back, so a Release only the sweep knows is still drawn on the morning it comes out. */
 export const UPCOMING_HANDOFF_DAYS = 14;
 
-/**
- * ceiling: 500 Releases per half, and 500 more a named Fan bought; paging complete Releases is the upgrade if a
- * catalog outgrows it.
- */
+/** 500 Releases per half, and 500 more a named Fan bought. */
 export const UPCOMING_MAX_RELEASES = 500;
 
 export function startOfReleaseDay(now: Date): Date {

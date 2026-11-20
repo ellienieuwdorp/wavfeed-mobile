@@ -22,13 +22,13 @@ export const DROPPED_KEY = 'tally_dropped';
 /** Set while the app is in the foreground with sharing on (src/tally/lifecycle.ts); part of the sharing state. */
 export const FOREGROUND_KEY = 'tally_foreground';
 
-/** ceiling: 2,000 Tallies and 30 days queued offline, oldest dropped first; raise with the Worker's 31-day clock window. */
+/** 2,000 Tallies and 30 days queued offline, oldest dropped first, inside the Worker's 31-day clock window. */
 export const MAX_TALLY_ROWS = 2_000;
 export const MAX_AGE_MS = 30 * DAY_MS;
-/** ceiling: the first 50 Error Reports held and 10 written a launch, whatever the fault; a per-fingerprint cap is next. */
+/** The first 50 Error Reports are held and 10 written a launch, whatever the fault. */
 export const MAX_ERROR_ROWS = 50;
 export const MAX_ERRORS_PER_LAUNCH = 10;
-/** ceiling: 60,000 bytes of rows a batch, under the Worker's 64 KB with room for the envelope; gzip once Hermes can. */
+/** 60,000 bytes of rows a batch, under the Worker's 64 KB with room for the envelope. */
 export const BATCH_BYTES = 60_000;
 
 /**

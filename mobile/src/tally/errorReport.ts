@@ -35,7 +35,7 @@ const SCRUBS: readonly (readonly [RegExp, string])[] = [
   [/\d{5,}/g, '<n>'],
 ];
 
-/** ceiling: several patterns are quadratic on a long run such as `a-a-a-...`, so only this much of a message is scrubbed. */
+/** Several patterns are quadratic on a long run such as `a-a-a-...`, so only this much of a message is scrubbed. */
 const SCRUB_INPUT_MAX = 5 * WIRE.maxMessage;
 
 /**

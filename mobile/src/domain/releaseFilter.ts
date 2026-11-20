@@ -121,7 +121,6 @@ function tagCounts(index: ViewIndex, people: (release: Judged) => boolean, key: 
 }
 
 export function filterNewReleases(view: NewReleasesView, filter: ReleaseFilter): FilteredNewReleases {
-  // ceiling: counts every Release in JS over the whole view, once per view and filter; a derived release_tags table indexed on norm_name is the upgrade.
   const index = indexOf(view);
   const min = clampMinimum(filter.people.min);
   const chosen = new Set(filter.tags);

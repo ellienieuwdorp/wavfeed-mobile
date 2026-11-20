@@ -304,9 +304,7 @@ type Enrichment = {
  * themselves as the date's source. A page's artist credit fills only an uncredited row and a feed entry's replaces it,
  * so the feed's wins in any fold order.
  */
-// ceiling: the row cannot tell a page's credit from a feed entry's, so the first page to credit an uncredited row
-// keeps it and a later page's corrected `tralbum.artist` never lands; a column naming each credit's source is the
-// upgrade.
+// The row cannot tell a page's credit from a feed entry's, so the first page to credit an uncredited row keeps it.
 async function enrichReleaseFromPage(
   run: Run,
   input: Enrichment,

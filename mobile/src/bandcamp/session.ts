@@ -191,8 +191,6 @@ function looksSignedOut(body: Record<string, unknown> | undefined, text: string)
  * crumb is per path (ADR-0016 amendment 2026-09-28). With no stand-in held, the Release's own page, whose map reads
  * empty.
  */
-// ceiling: a crumb read off another Release's page is assumed valid for this one, as a held crumb already is; if
-// Bandcamp ever ties a crumb to its page, a custom-domain Release needs its crumb read inside the sign-in WebView.
 function crumbPageOf(item: WishlistItem): string {
   if (onBandcampHost(item.releaseUrl)) return item.releaseUrl;
   return item.standInUrl !== null && onBandcampHost(item.standInUrl) ? item.standInUrl : item.releaseUrl;

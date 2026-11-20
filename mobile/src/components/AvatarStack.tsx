@@ -58,8 +58,7 @@ export function FanFace({ fan, size }: { fan: FanRef; size: number }) {
   );
 }
 
-// ceiling: the Fans ride in the route param as JSON, growing with the count and fixed at the press, because the store
-// has no Fans-by-Release read; a readBoughtBy(db, itemType, itemId) query in store/queries.ts is the upgrade.
+// The Fans ride in the route param as JSON, fixed at the press, since the store has no Fans-by-Release read.
 export function openBoughtBy(fans: readonly FanRef[]) {
   router.push({ pathname: '/bought-by', params: { fans: JSON.stringify(fans) } });
 }

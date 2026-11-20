@@ -14,10 +14,7 @@ import { useTokens } from '@/theme/tokens';
 
 import { playerInAccessory } from './MiniPlayer';
 
-/**
- * ceiling: fixed timings measured on the iOS 26.5 simulator, the content's fade at 260 ms in a debug build, and a
- * ceiling on the whole cover; a native accessory that drew its content in the bar's first frame would drop both.
- */
+/** Measured on the iOS 26.5 simulator: the content fades in 260 ms in a debug build, and the whole cover has a cap. */
 export const ACCESSORY_FADE_MS = 280;
 export const LAUNCH_COVER_MAX_MS = 900;
 

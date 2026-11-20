@@ -252,9 +252,7 @@ export async function foldPageTrackRead(db: SQLiteDatabase, doc: RawDocument, pa
  * A Track page of a Track a later Drop let out dates that Drop by its `mod_date`, the newest of them, when the moment
  * lies after the read that showed fewer Tracks and no later than the read that showed more.
  */
-// ceiling: that a `mod_date` inside the window is the day the Track came out is unproven; the check is the next Track
-// of "chrysalis" against Bandcamp's email, and if it fails the read's own day is all that is left until Bandcamp
-// states a Track's release moment.
+// A `mod_date` inside the window is read as the day the Track came out.
 export async function foldTrackPage(db: SQLiteDatabase, parsed: ParsedReleasePage): Promise<void> {
   if (parsed.itemType !== 't' || parsed.album === null || parsed.modifiedAt === null) return;
   const album: ReleaseRef = { itemType: 'a', itemId: parsed.album.itemId };

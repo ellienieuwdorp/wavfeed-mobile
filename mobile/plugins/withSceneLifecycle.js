@@ -4,8 +4,6 @@
  * scene delegate, `EXExpoAppSceneDelegate`, but its template still starts React Native from the app delegate, so this
  * names the delegate in Info.plist and moves the start to it: the app delegate keeps creating the factory and offers
  * it through `ExpoReactNativeFactoryProvider`, and the scene delegate makes the window and starts React Native in it.
- * ponytail: a string edit of the template's AppDelegate.swift that fails the prebuild when the template changes; when
- * Expo's template adopts scenes itself, this plugin is deleted.
  */
 const { withAppDelegate, withInfoPlist } = require('expo/config-plugins');
 

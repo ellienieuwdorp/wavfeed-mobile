@@ -494,7 +494,6 @@ export async function readNewReleases(db: SQLiteDatabase, options: { readonly no
   const upcoming = await listUpcomingReleases(db, options.now);
   const drops = await listDrops(db);
   const listed = [...upcoming, ...drops.map((drop) => drop.release)].map((release): ItemPair => [release.itemType, release.itemId]);
-  // ceiling: this loads most Stories, once per store version; a per-Release row the fold keeps is the upgrade (V2-PLAN section 2, point 4).
   const stories = await loadStoryRows(db, newReleasesScope(listed));
   return newReleasesOf({ stories, upcoming, drops, now: options.now });
 }

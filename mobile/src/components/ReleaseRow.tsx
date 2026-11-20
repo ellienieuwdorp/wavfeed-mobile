@@ -42,7 +42,6 @@ const RULE_LEFT = 20 + ART + GAP;
  * the row menu's Compose host with no window position; `windowSize` 5 keeps two screens either side, not ten, so a
  * filter change does not hold New releases for most of a second.
  */
-// ceiling: a fast fling can outrun the batches that mount rows ahead; cheaper rows are the upgrade.
 export const ROW_LIST = { strictMode: true, removeClippedSubviews: false, windowSize: 5 } as object;
 
 type RowProps = {

@@ -12,8 +12,7 @@ export type LiveSetting = { readonly subscribe: (listener: () => void) => () => 
 
 /**
  * A setting read once and kept current by `listen`, null until either answers; a change heard before the read resolves
- * wins over it. ceiling: the native listener is never removed, one per setting for the app's life; a setting read only
- * on a screen that unmounts would want a reference count.
+ * wins over it. The native listener is never removed: one per setting, for the app's life.
  */
 export function liveSetting(read: () => Promise<boolean>, listen: (set: (on: boolean) => void) => void): LiveSetting {
   let value: boolean | null = null;
@@ -60,11 +59,7 @@ export function useScreenReader(): boolean {
   return useLiveSetting(SCREEN_READER, false);
 }
 
-/**
- * ceiling: on Android this is React Native's TYPE_ANNOUNCEMENT event, which API 36 deprecates; TalkBack 16 on the
- * API 36 emulator still speaks it. When TalkBack drops it, the player's note and the walk's
- * milestones move to a polite live region on the Android mini player and catch-up line.
- */
+/** On Android this is React Native's TYPE_ANNOUNCEMENT event, which API 36 deprecates and TalkBack 16 still speaks. */
 export function announce(text: string): void {
   AccessibilityInfo.announceForAccessibilityWithOptions(text, { queue: true });
 }

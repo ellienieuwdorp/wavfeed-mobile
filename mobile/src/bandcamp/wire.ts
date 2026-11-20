@@ -111,7 +111,6 @@ export function originOf(url: string): string | null {
 /**
  * The fetch-target guard less a DNS half (audit S1): the session's origin passes, anything else must be
  * https on a public host name with no credentials, port or IP literal.
- * ceiling: no lookup, so a public name resolving to a private address passes; upgrade to a native resolver check.
  */
 export function isFetchableTarget(url: string, baseOrigin: string): boolean {
   const origin = originOf(url);

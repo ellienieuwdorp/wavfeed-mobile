@@ -14,7 +14,7 @@ import { useSharing } from '@/tally/Sharing';
 
 import { useAppState } from './appState';
 
-// ceiling: the ceiling is a timer for a feed step that never lands; a runner that reports its steps could replace it.
+// A timer lets the spinner go when a feed step never lands.
 const SPINNER_CEILING_MS = 20_000;
 const CATCHING_UP_SPINNER_MS = 1_500;
 

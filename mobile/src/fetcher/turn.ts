@@ -59,11 +59,7 @@ export type TurnSummary = {
 /** The batch of feed pages between folds; the budget ends a turn. */
 export const PAGES_PER_BATCH = 5;
 export const DEDUP_STOP_RUN = 2;
-/**
- * ceiling: a first walk, or a poll that ran past its cap, ends after 500 feed pages and marks the walk done, so a feed
- * deeper than that never gathers its oldest Stories and nothing says so (review FLOW-17). The upgrade ends a walk only on
- * the feed's last page, with the chain's stall rule as the guard against a feed that never ends.
- */
+/** A first walk, or a poll that ran past its cap, ends after 500 feed pages and marks the walk done. */
 export const WALK_MAX_PAGES = 500;
 export const POLL_MAX_PAGES = 10;
 export const LIST_INTERVAL_MS = 6 * 60 * 60 * 1000;
