@@ -1,4 +1,24 @@
-# wavfeed
+<h1 align="center">wavfeed</h1>
+
+<p align="center"><a href="https://wavfeed.com"><strong>wavfeed.com</strong></a></p>
+
+<p align="center">
+  <a href="https://testflight.apple.com/join/saJFWAqV">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset=".github/testflight-dark.png">
+      <img src=".github/testflight-light.png" height="52" alt="iPhone beta on TestFlight">
+    </picture>
+  </a>
+</p>
+
+<p align="center">On Android, sign up on <a href="https://wavfeed.com">wavfeed.com</a> and you're added to the Google Play beta automatically.</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots-dark.png">
+    <img src=".github/screenshots-light.png" width="720" alt="wavfeed on iPhone: the Feed, New releases filed by week, and the player">
+  </picture>
+</p>
 
 A de-noised, filterable view of your Bandcamp activity feed, for DJs and diggers
 who follow hundreds of labels and artists and lose the releases they want in the
