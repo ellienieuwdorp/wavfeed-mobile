@@ -46,7 +46,7 @@ export function WeekHead({ week, range }: { week: string; range?: string }) {
 type StickyProps = { scrollAnimatedValue: Animated.Value; [prop: string]: unknown };
 
 /** React Native's header only interpolates the scroll value, so an offset shifted by a constant drives it as well. */
-const Sticky: ComponentType<{ scrollAnimatedValue: Animated.AnimatedAddition<number>; [prop: string]: unknown }> = ScrollViewStickyHeader;
+const Sticky: ComponentType<{ scrollAnimatedValue: Animated.AnimatedAddition; [prop: string]: unknown }> = ScrollViewStickyHeader;
 
 function Stuck({ pushed, scrollAnimatedValue, ...props }: StickyProps & { pushed: boolean }) {
   const cover = useBarCover(pushed);
