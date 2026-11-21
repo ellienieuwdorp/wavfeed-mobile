@@ -1,12 +1,13 @@
 /**
  * The week head (DESIGN-UI section 3): a full-bleed band, "LAST WEEK · Mon 9 – Sun 15 Nov", the week in 11pt bold
- * capitals and its range in sub colour with tabular figures, that sticks under the bar while its week scrolls by. The
- * capitals are a text transform, so a screen reader hears the words as written. React Native's sticky header stops at
- * the top of the list's frame, which runs under the iOS 26 glass bar and Android's drawn app bar, so `stickyWeekHeads`
- * hands the list a sticky header that reads the scroll offset shifted by the bar's cover (TabStack's useBarCover).
+ * capitals, a middot and its range in 12pt sub colour, laid out as a row 6 apart that wraps at larger text, all with
+ * tabular figures. The band is one header element that speaks the week and range as written, since the capitals are a
+ * text transform. React Native's sticky header stops at the top of the list's frame, which runs under the iOS 26 glass
+ * bar and Android's drawn app bar, so `stickyWeekHeads` hands the list a sticky header that reads the scroll offset
+ * shifted by the bar's cover (TabStack's useBarCover).
  */
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
-import { Animated, Platform, Text, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 // @ts-expect-error: React Native ships ScrollView's own sticky header with no types at its path.
 import ScrollViewStickyHeader from 'react-native/Libraries/Components/ScrollView/ScrollViewStickyHeader';
 
@@ -16,18 +17,27 @@ import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
 
-/** The band's height at the default text size; larger text grows it. */
-const BAND = 30;
+/** 1 + 7 + 14 + 7 + 1: the band is 30 high at the default text size, its rules included; larger text grows it. */
+const BAND_PAD = 7;
+const LINE = 14;
 
 export function WeekHead({ week, range }: { week: string; range?: string }) {
   const { c, type } = useTokens();
   const heard = range ? week + sep + range : week;
   return (
-    <View style={{ minHeight: BAND, justifyContent: 'center', paddingHorizontal: type.gutter, paddingVertical: 6, backgroundColor: c.weekBand, borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.weekBandEdge }}>
-      <Type accessibilityRole="header" accessibilityLabel={heard} style={{ fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 1, color: c.ink }}>
-        <Text style={{ textTransform: 'uppercase' }}>{week}</Text>
-        {range ? <Text style={{ fontSize: 12, fontWeight: '400', letterSpacing: 0, color: c.sub, fontVariant: ['tabular-nums'] }}>{sep + range}</Text> : null}
-      </Type>
+    <View
+      accessible
+      accessibilityRole="header"
+      accessibilityLabel={heard}
+      style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, paddingHorizontal: type.gutter, paddingVertical: BAND_PAD, backgroundColor: c.weekBand, borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.weekBandEdge }}
+    >
+      <Type style={{ fontSize: 11, lineHeight: LINE, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: c.ink, fontVariant: ['tabular-nums'] }}>{week}</Type>
+      {range ? (
+        <>
+          <Type style={{ fontSize: 12, lineHeight: LINE, color: c.sub }}>{sep.trim()}</Type>
+          <Type style={{ fontSize: 12, lineHeight: LINE, color: c.sub, fontVariant: ['tabular-nums'] }}>{range}</Type>
+        </>
+      ) : null}
     </View>
   );
 }

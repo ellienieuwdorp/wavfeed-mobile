@@ -53,7 +53,7 @@ function HeaderLines({ quiet, count, filteredBy, filterable }: Required<Lines>) 
     const quietLine = note === null ? null : <Type style={{ fontSize: type.sub, color: c.sub }}>{note}</Type>;
     if (filterable) {
       return (
-        <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: 12 }}>
+        <View style={{ marginTop: PILL_TOP, paddingHorizontal: type.gutter, paddingBottom: UNDER_SLOT }}>
           <FilterLineSlot strut={quietLine}>{pill ?? (quietLine === null ? null : <FilterEaseLine key="note">{quietLine}</FilterEaseLine>)}</FilterLineSlot>
         </View>
       );
@@ -78,7 +78,7 @@ function HeaderLines({ quiet, count, filteredBy, filterable }: Required<Lines>) 
         {below}
       </View>
       {filterable ? (
-        <View style={{ paddingHorizontal: type.gutter, paddingBottom: 12 }}>
+        <View style={{ paddingHorizontal: type.gutter, paddingBottom: UNDER_SLOT }}>
           <FilterLineSlot strut={null}>{pill}</FilterLineSlot>
         </View>
       ) : null}
@@ -88,3 +88,8 @@ function HeaderLines({ quiet, count, filteredBy, filterable }: Required<Lines>) 
 
 /** The list starts 16 under the native large title's glyphs; this pulls the pill up to 14 below them. */
 const PILL_TOP = -2;
+/**
+ * Under the pill's place, the first thing in the list, a week's band or the Upcoming shelf, starts 8 below the pill and
+ * so about 17 below the count line centred in that place (DESIGN-UI section 3).
+ */
+const UNDER_SLOT = 8;
