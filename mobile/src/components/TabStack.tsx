@@ -9,8 +9,9 @@
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
 import { Platform, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppBarFrame } from '@/components/AppBar';
+import { AppBarFrame, BAR } from '@/components/AppBar';
 import { WithDock } from '@/components/player/Dock';
 import { largeTitleSize, scaledSize } from '@/theme/textSize';
 import { useTokens } from '@/theme/tokens';
@@ -19,6 +20,19 @@ const ios = Platform.OS === 'ios';
 const glassBar = ios && isLiquidGlassAvailable();
 /** The iOS inline navigation title's size at the default text size; Android's pushed headers keep Material's. */
 const BAR_TITLE = 17;
+/** UINavigationBar's inline height, which the large title collapses to. */
+const INLINE_BAR = 44;
+
+/**
+ * How far the bar covers the top of a tab's list, where a sticky week head stops: the collapsed glass bar on iOS 26,
+ * nothing under an opaque bar, which react-native-screens lays the screen out below, the collapsed app bar over the
+ * tab's own view on Android (AppBar), and nothing under a pushed screen's native header there.
+ */
+export function useBarCover(pushed: boolean): number {
+  const { top } = useSafeAreaInsets();
+  if (ios) return glassBar ? top + INLINE_BAR : 0;
+  return pushed ? 0 : top + BAR;
+}
 
 /** A screen the tab's view pushes, under a plain native header on both platforms. */
 export type Pushed = { readonly name: string; readonly title: string };

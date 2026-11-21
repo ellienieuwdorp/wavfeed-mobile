@@ -30,6 +30,10 @@ export type Palette = {
   avatarInk: string;
   online: string;
   track: string;
+  /** A week head's band (DESIGN-UI section 3), a step off the page under ink and sub words. */
+  weekBand: string;
+  /** The band's top and bottom rule. */
+  weekBandEdge: string;
 };
 
 export const light: Palette = {
@@ -53,6 +57,8 @@ export const light: Palette = {
   avatarInk: '#2f4f86',
   online: '#43b966',
   track: '#2a2d3314',
+  weekBand: '#eef0f2',
+  weekBandEdge: '#e4e6e9',
 };
 
 export const dark: Palette = {
@@ -76,4 +82,6 @@ export const dark: Palette = {
   avatarInk: '#e3ecfa',
   online: '#43b966',
   track: '#e6e7ea14',
+  weekBand: '#2b2e32',
+  weekBandEdge: '#383b41',
 };

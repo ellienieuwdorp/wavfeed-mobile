@@ -14,7 +14,7 @@ import { FilterEaseCell, useListFilter } from '@/components/filter/FilterEase';
 import { NothingMatches } from '@/components/filter/NothingMatches';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
-import { WeekHead } from '@/components/WeekHead';
+import { stickyWeekHeads, WeekHead } from '@/components/WeekHead';
 import { copy, onDayPhrase, outOnPhrase } from '@/copy';
 import type { UpcomingRelease } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
@@ -94,6 +94,7 @@ export default function UpcomingReleases() {
       renderItem={render}
       CellRendererComponent={FilterEaseCell}
       {...ROW_LIST}
+      {...stickyWeekHeads(items, true)}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />

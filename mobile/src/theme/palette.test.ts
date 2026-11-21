@@ -37,6 +37,8 @@ const PAIRS: readonly (readonly [string, Key, readonly Key[], number, (readonly 
   ['danger text', 'danger', PAGES, TEXT],
   ["the Android mini player's lines on its dark-mode face", 'ink', ['borderLight'], TEXT],
   ["the Android mini player's artist line", 'sub', ['borderLight'], TEXT],
+  ["a week head's words on its band", 'ink', ['weekBand'], TEXT],
+  ["a week head's date range on its band", 'sub', ['weekBand'], TEXT],
   ['words on a filled button', 'onAccent', ['accentText'], TEXT],
   ['words on a tonal button', 'ink', ['tint'], TEXT],
   ['the "Filtered by" pill\'s words', 'accentText', ['tint'], TEXT, ['dark']],
@@ -53,6 +55,7 @@ const PAIRS: readonly (readonly [string, Key, readonly Key[], number, (readonly 
 /** Tokens no pair covers, and why none needs to. */
 const UNPAIRED: Partial<Record<Key, string>> = {
   border: 'hairlines and outlines beside a label, which carries the meaning',
+  weekBandEdge: "the week band's rules, which mark its edge against the rows it passes over",
   track: 'press highlights and ripples at 8 percent ink',
   wishlist: "the heart's fill inside its rim and the Settings dot beside its words; the swipe panel's words on it are WishlistSwipe's own white",
   online: 'the Settings dot beside the words that say signed in',

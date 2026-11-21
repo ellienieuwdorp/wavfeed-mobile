@@ -131,7 +131,7 @@ function mount(file: string, db: SQLiteDatabase, provider = false, filter: Filte
     },
     '@/components/AppBar': { useAppBar: () => ({ scroll: {} }), useAppBarAtRest: () => {} },
     '@/components/EmptyState': {}, '@/components/GapRow': {}, '@/components/player/Dock': { useDockClearance: () => 0 },
-    '@/components/ReleaseRow': { ROW_LIST: {} }, '@/components/ScreenHeader': {}, '@/components/UpcomingShelf': {}, '@/components/WeekHead': {},
+    '@/components/ReleaseRow': { ROW_LIST: {} }, '@/components/ScreenHeader': {}, '@/components/UpcomingShelf': {}, '@/components/WeekHead': { stickyWeekHeads: () => ({}) },
     '@/copy': copy, '@/lib/dates': dates, '@/lib/useNow': clock, '@/lib/weekSections': weekSections, '@/state/appState': state,
     '@/state/refresh': { useRefresh: () => ({ refreshing: false, onRefresh: () => {} }) },
     '@/domain/newReleases': newReleases, '@/store/queries': { readNewReleases }, '@/theme/tokens': { useTokens: () => ({ c: {} }) },

@@ -16,7 +16,7 @@ import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
 
-const BAR = 64;
+export const BAR = 64;
 const TITLE_TOP = 8;
 const TITLE_LINE = 36;
 /** The list offset past which the expanded title counts as gone and the collapsed bar shows. */
