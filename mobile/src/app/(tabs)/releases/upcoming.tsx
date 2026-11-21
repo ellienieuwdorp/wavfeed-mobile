@@ -14,7 +14,7 @@ import { FilterEaseCell, useListFilter } from '@/components/filter/FilterEase';
 import { NothingMatches } from '@/components/filter/NothingMatches';
 import { useDockClearance } from '@/components/player/Dock';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
-import { stickyWeekHeads, WeekHead } from '@/components/WeekHead';
+import { useWeekBands, WeekHead } from '@/components/WeekHead';
 import { copy, onDayPhrase, outOnPhrase } from '@/copy';
 import type { UpcomingRelease } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
@@ -87,6 +87,8 @@ export default function UpcomingReleases() {
     return list;
   }, [view, applied, day]);
 
+  const bands = useWeekBands(items, true);
+
   return (
     <FlatList
       data={items}
@@ -94,7 +96,7 @@ export default function UpcomingReleases() {
       renderItem={render}
       CellRendererComponent={FilterEaseCell}
       {...ROW_LIST}
-      {...stickyWeekHeads(items, true)}
+      {...bands}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}
     />
