@@ -18,7 +18,6 @@ const ios = Platform.OS === 'ios';
 export const type = {
   rowTitle: ios ? 15 : 16,
   fact: ios ? 13 : 14,
-  sectionHead: ios ? 15 : 14,
   moduleHead: ios ? 20 : 18,
   viewTitle: ios ? 32 : 28,
   sub: ios ? 13 : 14,
