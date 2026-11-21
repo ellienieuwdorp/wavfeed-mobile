@@ -22,7 +22,7 @@ import type { RowRelease } from '@/components/playable';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
-import { stickyWeekHeads, WeekHead } from '@/components/WeekHead';
+import { useWeekBands, WeekHead } from '@/components/WeekHead';
 import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
 import type { FanRef } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
@@ -153,6 +153,8 @@ export default function NewReleases() {
     return list;
   }, [view, sections, filtered, applied, day]);
 
+  const bands = useWeekBands(items);
+
   return (
     <FlatList
       data={items}
@@ -160,7 +162,7 @@ export default function NewReleases() {
       renderItem={render}
       CellRendererComponent={FilterEaseCell}
       {...ROW_LIST}
-      {...stickyWeekHeads(items)}
+      {...bands}
       {...appBar.scroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: 32 + clearance }}

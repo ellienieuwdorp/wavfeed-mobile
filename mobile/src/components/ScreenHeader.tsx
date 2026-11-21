@@ -89,7 +89,7 @@ function HeaderLines({ quiet, count, filteredBy, filterable }: Required<Lines>) 
 /** The list starts 16 under the native large title's glyphs; this pulls the pill up to 14 below them. */
 const PILL_TOP = -2;
 /**
- * Under the pill's place, the first thing in the list, a week's band or the Upcoming shelf, starts 8 below the pill and
- * so about 17 below the count line centred in that place (DESIGN-UI section 3).
+ * Under the pill's place, the first thing in the list, a week's band or the Upcoming shelf, starts 14 below the pill and
+ * so about 23 below the count line centred in that place (DESIGN-UI section 3).
  */
-const UNDER_SLOT = 8;
+const UNDER_SLOT = 14;

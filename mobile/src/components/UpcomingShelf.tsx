@@ -35,6 +35,8 @@ const ios = Platform.OS === 'ios';
  */
 const CARD = 136;
 const GAP = 12;
+/** Under the captions, so the first week's band starts about 24 below them, as far as the shelf sits below the header line. */
+const UNDER_SHELF = 20;
 /** A card's faces: two at most, then "+N", beside the day on the art's top edge. */
 const CARD_FACES = 2;
 
@@ -108,7 +110,7 @@ const Gap = () => <View style={{ width: GAP }} />;
 export function UpcomingShelf({ cards, more }: { cards: readonly ShelfCard[]; more: Href }) {
   const { type } = useTokens();
   return (
-    <View style={{ paddingTop: ios ? 6 : 8, paddingBottom: 4 }}>
+    <View style={{ paddingTop: ios ? 0 : 8, paddingBottom: UNDER_SHELF }}>
       <ModuleHead title={copy.upcoming.title} more={more} />
       <FlatList
         horizontal
