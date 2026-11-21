@@ -21,8 +21,8 @@ import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
 
-/** 1 + 12 + 14 + 12 + 1: the band is 40 high at the default text size, its rules included; larger text grows it. */
-const BAND_PAD = 12;
+/** 1 + 10 + 14 + 10 + 1: the band is 36 high at the default text size, its rules included; larger text grows it. */
+const BAND_PAD = 10;
 const LINE = 14;
 /** A stuck band stops this far under the bar's edge, so its top rule sits under the filled bar and leaves no seam. */
 const TUCK = 1;
@@ -60,6 +60,15 @@ export function WeekHead({ week, range }: { week: string; range?: string }) {
       ) : null}
     </View>
   );
+}
+
+/** The room a week's first and last rows add beside its band, so the 4 a row leaves round its art grows to 12. */
+const WEEK_AIR = 8;
+
+/** A row of a week, padded by WEEK_AIR under its band when `first` and above the next band when `last`. */
+export function WeekRow({ first, last, children }: { first: boolean; last: boolean; children: ReactNode }) {
+  if (!first && !last) return children;
+  return <View style={{ paddingTop: first ? WEEK_AIR : 0, paddingBottom: last ? WEEK_AIR : 0 }}>{children}</View>;
 }
 
 /** What ScrollView hands its sticky header (ScrollView.js): the scroll offset, the header's layout and the next one's. */

@@ -22,7 +22,7 @@ import type { RowRelease } from '@/components/playable';
 import { ReleaseRow, ROW_LIST } from '@/components/ReleaseRow';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { UpcomingShelf, type ShelfCard } from '@/components/UpcomingShelf';
-import { useWeekBands, WeekHead } from '@/components/WeekHead';
+import { useWeekBands, WeekHead, WeekRow } from '@/components/WeekHead';
 import { copy, dayLabel, onDayPhrase, outOnPhrase } from '@/copy';
 import type { FanRef } from '@/domain/views';
 import { filterNewReleases } from '@/domain/releaseFilter';
@@ -44,8 +44,8 @@ type Item =
   | { key: string; kind: 'nomatch'; named: string }
   | { key: string; kind: 'shelf'; cards: readonly ShelfCard[] }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: Row; heardDay: string; rule: boolean }
-  | { key: string; kind: 'drop'; release: Row; heardDay: string; tracksOut: number; numTracks: number | null; from: string | null; rule: boolean }
+  | { key: string; kind: 'release'; release: Row; heardDay: string; rule: boolean; first: boolean; last: boolean }
+  | { key: string; kind: 'drop'; release: Row; heardDay: string; tracksOut: number; numTracks: number | null; from: string | null; rule: boolean; first: boolean; last: boolean }
   | { key: string; kind: 'gap'; text: string };
 
 function render({ item }: { item: Item }) {
@@ -63,9 +63,9 @@ function render({ item }: { item: Item }) {
     case 'gap':
       return <GapRow text={item.text} />;
     case 'release':
-      return <ReleaseRow release={item.release} day={null} heardDay={item.heardDay} buyers={item.release.buyers} rule={item.rule} />;
+      return <WeekRow first={item.first} last={item.last}><ReleaseRow release={item.release} day={null} heardDay={item.heardDay} buyers={item.release.buyers} rule={item.rule} /></WeekRow>;
     case 'drop':
-      return <ReleaseRow release={item.release} day={null} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} from={item.from} rule={item.rule} />;
+      return <WeekRow first={item.first} last={item.last}><ReleaseRow release={item.release} day={null} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} from={item.from} rule={item.rule} /></WeekRow>;
   }
 }
 
@@ -139,10 +139,10 @@ export default function NewReleases() {
           const { tracksOut, numTracks } = placed;
           // A Drop draws no day line either; its label says the day it is out (the author's request of 2026-10-15).
           const heardDay = outOnPhrase(placed.releaseDay, at);
-          list.push({ key: placed.key, kind: 'drop', release: placed.release, heardDay, tracksOut, numTracks, from: placed.newestTrackId, rule });
+          list.push({ key: placed.key, kind: 'drop', release: placed.release, heardDay, tracksOut, numTracks, from: placed.newestTrackId, rule, first: n === 0, last: !rule });
         } else {
           // A released row draws no day, its week head dates it; the label still says it (amended by the author 2026-10-14).
-          list.push({ key: placed.key, kind: 'release', release: placed.release, heardDay: dayLabel(placed.date, at), rule });
+          list.push({ key: placed.key, kind: 'release', release: placed.release, heardDay: dayLabel(placed.date, at), rule, first: n === 0, last: !rule });
         }
       });
     }
