@@ -4,10 +4,11 @@
  * tabular figures. The band is one header element that speaks the week and range as written, since the capitals are a
  * text transform. React Native's sticky header stops at the top of the list's frame, which runs under the iOS 26 glass
  * bar and Android's drawn app bar, so `useWeekBands` hands the list a sticky header that reads the scroll offset
- * shifted by the bar's cover (TabStack's useBarCover). While a band is stuck under the glass bar, the bar fills with the
- * band's colour and drops its scroll edge effect, so bar and band read as one block.
+ * shifted by the bar's cover (TabStack's useBarCover). As the first band sticks under the glass bar, the bar fills with
+ * the band's colour over the next FILL_RUN of scroll, its opacity a function of the offset with no clock, and once solid
+ * drops its scroll edge effect, so bar and band read as one block.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from 'react';
 import { Animated, Platform, View, type LayoutChangeEvent } from 'react-native';
 // @ts-expect-error: React Native ships ScrollView's own sticky header with no types at its path.
 import ScrollViewStickyHeader from 'react-native/Libraries/Components/ScrollView/ScrollViewStickyHeader';
@@ -16,7 +17,6 @@ import type { NativeStackNavigationOptions } from 'expo-router/native-stack';
 
 import { isGlassBar, useBarCover } from '@/components/TabStack';
 import { sep } from '@/copy';
-import { useReduceMotion } from '@/player/motion';
 import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
@@ -26,8 +26,18 @@ const BAND_PAD = 10;
 const LINE = 14;
 /** A stuck band stops this far under the bar's edge, so its top rule sits under the filled bar and leaves no seam. */
 const TUCK = 1;
-/** The bar's fill crossfades in and out over this long as the first band sticks and lets go. */
-const FILL_MS = 150;
+/**
+ * The bar's fill runs from clear to whole over this much scroll past the first band's stick point, the band's own height
+ * at the default text size, so it is whole before any row clears the band into the bar. The fill follows the offset, so
+ * it moves only as the list does, reverses with it and stops with it; with no clock of its own it needs no reduce motion
+ * path. Its curve is a quadratic ease out: half the fill lands in the first 30% of the run, then it settles.
+ */
+const FILL_RUN = 2 * (1 + BAND_PAD) + LINE;
+const FILL_STEPS = [0, 0.25, 0.5, 0.75, 1];
+const FILL_AT = FILL_STEPS.map((at) => at * FILL_RUN);
+const FILL_TO = FILL_STEPS.map((at) => 1 - (1 - at) ** 2);
+/** The first band's y while no band is laid out, past any offset, so the fill stays clear. */
+const NO_BAND = 1e6;
 /** Taller than any bar; the fill is this high and slid up so its bottom edge meets the bar's. */
 const FILL_SPAN = 400;
 
@@ -58,53 +68,87 @@ type StickyProps = { scrollAnimatedValue: Animated.Value; onLayout: (event: Layo
 /** React Native's header only interpolates the scroll value, so an offset shifted by the cover drives it as well. */
 const Sticky: ComponentType<{ scrollAnimatedValue: Animated.AnimatedAddition; [prop: string]: unknown }> = ScrollViewStickyHeader;
 
-/** One list's bands: which of them are stuck, and the bar's fill, which shows while any is. */
-type Bands = { readonly fill: Animated.Value; readonly stuck: Set<object>; flip: (on: boolean) => void };
+type Cover = ReturnType<typeof useBarCover>;
 
-function hold(bands: Bands, band: object, on: boolean) {
-  const was = bands.stuck.size > 0;
-  if (on) bands.stuck.add(band);
-  else bands.stuck.delete(band);
-  const now = bands.stuck.size > 0;
-  if (now !== was) bands.flip(now);
+/** A list's scroll offset shifted by the bar's cover, and the bar's fill as a function of it. */
+type Line = { readonly scroll: Animated.Value; readonly cover: Cover; readonly shifted: Animated.AnimatedAddition; readonly fill: Animated.AnimatedInterpolation<number> };
+
+/**
+ * One list's bands: the gate that lets the cover in, each mounted band's y and the least of them as an animated value,
+ * the list's line once a band has seen its scroll value, the bar fills that follow it, and whether the bar is solid.
+ */
+type Bands = {
+  readonly gate: Animated.Value;
+  readonly ys: Map<object, number>;
+  readonly first: Animated.Value;
+  line: Line | null;
+  readonly watch: (show: () => void) => () => void;
+  readonly show: () => void;
+  solid: boolean;
+  readonly flip: (on: boolean) => void;
+};
+
+function lineOf(bands: Bands, scroll: Animated.Value, cover: Cover): Line {
+  if (bands.line?.scroll === scroll && bands.line.cover === cover) return bands.line;
+  // Past its own y less the cover, a header moves with the offset and holds `cover - TUCK` below the frame's top.
+  const shifted = Animated.add(scroll, Animated.multiply(bands.gate, Animated.add(cover, -TUCK)));
+  const fill = Animated.subtract(shifted, bands.first).interpolate({ inputRange: FILL_AT, outputRange: FILL_TO, extrapolate: 'clamp' });
+  bands.line = { scroll, cover, shifted, fill };
+  return bands.line;
+}
+
+function firstOf(bands: Bands): number {
+  return bands.ys.size > 0 ? Math.min(...bands.ys.values()) : NO_BAND;
+}
+
+/** The bar turns solid, and drops its scroll edge effect, once the fill is whole: FILL_RUN past the first band's y. */
+function see(bands: Bands, solid: boolean) {
+  if (solid === bands.solid) return;
+  bands.solid = solid;
+  bands.flip(solid);
 }
 
 function Stuck({ pushed, bands, scrollAnimatedValue, onLayout, ...props }: StickyProps & { pushed: boolean; bands: Bands }) {
   const cover = useBarCover(pushed);
+  const { shifted } = useMemo(() => lineOf(bands, scrollAnimatedValue, cover), [bands, scrollAnimatedValue, cover]);
+  useEffect(() => bands.show(), [bands, shifted]);
   // iOS's automatic inset puts a list at rest at a negative offset (minus the inset), but the scroll value reads 0 until
   // the list's first scroll event, which would stick the first band at once; the cover joins once that offset arrives.
-  const [gate] = useState(() => new Animated.Value(Platform.OS === 'ios' ? 0 : 1));
+  // The gate is the list's, so a band mounted deep in the list after that event stops under the bar as well.
   useEffect(() => {
     if (Platform.OS !== 'ios') return undefined;
     const id = scrollAnimatedValue.addListener(({ value }) => {
-      if (value < 0) gate.setValue(1);
+      if (value < 0) bands.gate.setValue(1);
     });
     return () => scrollAnimatedValue.removeListener(id);
-  }, [scrollAnimatedValue, gate]);
-  // Past its own y less the cover, the header moves with the offset and holds `cover - TUCK` below the frame's top.
-  const shifted = useMemo(() => Animated.add(scrollAnimatedValue, Animated.multiply(gate, Animated.add(cover, -TUCK))), [scrollAnimatedValue, gate, cover]);
-  // The band is stuck once the shifted offset passes its own y, where React Native's header starts to move.
-  const y = useRef<number | null>(null);
-  const [band] = useState(() => ({}));
+  }, [scrollAnimatedValue, bands]);
   useEffect(() => {
-    const id = shifted.addListener(({ value }) => hold(bands, band, y.current !== null && value > y.current));
-    return () => {
-      shifted.removeListener(id);
-      hold(bands, band, false);
-    };
-  }, [shifted, bands, band]);
+    const id = shifted.addListener(({ value }) => see(bands, value >= firstOf(bands) + FILL_RUN));
+    return () => shifted.removeListener(id);
+  }, [shifted, bands]);
+  const [band] = useState(() => ({}));
+  useEffect(
+    () => () => {
+      bands.ys.delete(band);
+      bands.first.setValue(firstOf(bands));
+      if (bands.ys.size === 0) see(bands, false);
+    },
+    [bands, band],
+  );
   const laidOut = (event: LayoutChangeEvent) => {
-    y.current = event.nativeEvent.layout.y;
+    bands.ys.set(band, event.nativeEvent.layout.y);
+    bands.first.setValue(firstOf(bands));
     onLayout(event);
   };
   return <Sticky {...props} onLayout={laidOut} scrollAnimatedValue={shifted} />;
 }
 
-/** The glass bar's fill (`headerBackground`): the band's colour, its bottom edge on the bar's, faded in by `fill`. */
-function BarFill({ fill }: { fill: Animated.Value }) {
+/** The glass bar's fill (`headerBackground`): the band's colour, its bottom edge on the bar's, its opacity the list's fill. */
+function BarFill({ bands }: { bands: Bands }) {
   const { c } = useTokens();
   const cover = useBarCover(false);
   const lift = useMemo(() => Animated.add(cover, -FILL_SPAN), [cover]);
+  const fill = useSyncExternalStore(bands.watch, () => bands.line?.fill ?? 0);
   return <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: FILL_SPAN, backgroundColor: c.weekBand, opacity: fill, transform: [{ translateY: lift }] }} />;
 }
 
@@ -119,34 +163,38 @@ type Options = { setOptions: (options: Partial<NativeStackNavigationOptions>) =>
 
 /**
  * A FlatList's props that stick its week heads, the items of kind `week`; `pushed` is a screen the tab's view pushed.
- * Under the glass bar the screen's header takes the fill as its background, and while a band is stuck the bar's fill
- * fades in over FILL_MS, at once under reduce motion, and the list's top scroll edge effect is hidden.
+ * Under the glass bar the screen's header takes the fill as its background, and once the bar is solid the list's top
+ * scroll edge effect is hidden.
  */
 export function useWeekBands(items: readonly { kind: string }[], pushed = false) {
   const navigation = useNavigation<Options>();
-  const reduce = useReduceMotion();
-  const latest = useRef({ navigation, reduce });
+  const latest = useRef(navigation);
   useEffect(() => {
-    latest.current = { navigation, reduce };
-  }, [navigation, reduce]);
+    latest.current = navigation;
+  }, [navigation]);
   const [bands] = useState<Bands>(() => {
-    const fill = new Animated.Value(0);
+    const fills = new Set<() => void>();
     return {
-      fill,
-      stuck: new Set(),
+      gate: new Animated.Value(Platform.OS === 'ios' ? 0 : 1),
+      ys: new Map(),
+      first: new Animated.Value(NO_BAND),
+      line: null,
+      watch: (show) => {
+        fills.add(show);
+        return () => fills.delete(show);
+      },
+      show: () => {
+        for (const show of fills) show();
+      },
+      solid: false,
       flip: (on) => {
-        if (!isGlassBar) return;
-        const { navigation: nav, reduce: still } = latest.current;
-        nav.setOptions({ scrollEdgeEffects: { top: on ? 'hidden' : 'automatic' } });
-        fill.stopAnimation();
-        if (still) fill.setValue(on ? 1 : 0);
-        else Animated.timing(fill, { toValue: on ? 1 : 0, duration: FILL_MS, useNativeDriver: true }).start();
+        if (isGlassBar) latest.current.setOptions({ scrollEdgeEffects: { top: on ? 'hidden' : 'automatic' } });
       },
     };
   });
   const [StickyHeaderComponent] = useState(() => stuckIn(bands, pushed));
   useLayoutEffect(() => {
-    if (isGlassBar) navigation.setOptions({ headerBackground: () => <BarFill fill={bands.fill} /> });
+    if (isGlassBar) navigation.setOptions({ headerBackground: () => <BarFill bands={bands} /> });
   }, [navigation, bands]);
   const stickyHeaderIndices = useMemo(() => items.flatMap((item, at) => (item.kind === 'week' ? [at] : [])), [items]);
   return { stickyHeaderIndices, StickyHeaderComponent };
