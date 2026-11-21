@@ -21,8 +21,8 @@ import { useTokens } from '@/theme/tokens';
 
 import { Type } from './Type';
 
-/** 1 + 10 + 14 + 10 + 1: the band is 36 high at the default text size, its rules included; larger text grows it. */
-const BAND_PAD = 10;
+/** 1 + 12 + 14 + 12 + 1: the band is 40 high at the default text size, its rules included; larger text grows it. */
+const BAND_PAD = 12;
 const LINE = 14;
 /** A stuck band stops this far under the bar's edge, so its top rule sits under the filled bar and leaves no seam. */
 const TUCK = 1;
