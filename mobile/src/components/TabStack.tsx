@@ -19,7 +19,8 @@ import { largeTitleSize, scaledSize } from '@/theme/textSize';
 import { useTokens } from '@/theme/tokens';
 
 const ios = Platform.OS === 'ios';
-const glassBar = ios && isLiquidGlassAvailable();
+/** Whether the iOS 26 glass bar is up, transparent over the list, which WeekHead's useWeekBands fills. */
+export const glassBar = ios && isLiquidGlassAvailable();
 /** The iOS inline navigation title's size at the default text size; Android's pushed headers keep Material's. */
 const BAR_TITLE = 17;
 
@@ -35,9 +36,6 @@ export function useBarCover(pushed: boolean): Animated.AnimatedInterpolation<num
   const fixed = useMemo(() => new Animated.Value(still), [still]);
   return glassBar ? header : fixed;
 }
-
-/** Whether the iOS 26 glass bar is up, which a list may fill while its week head is stuck (WeekHead's useWeekBands). */
-export const isGlassBar = glassBar;
 
 /** A screen the tab's view pushes, under a plain native header on both platforms. */
 export type Pushed = { readonly name: string; readonly title: string };

@@ -1,6 +1,6 @@
 /**
- * The quiet run between weeks with nothing from your pages (DESIGN-UI section 3): one line of faint 13pt text with
- * tabular figures under a solid hairline in the border colour, 10 above and below it and the gutter either side.
+ * The quiet run between weeks with nothing from your pages (DESIGN-UI section 3): a line of faint 13pt text under a
+ * hairline in the border colour.
  */
 import { View } from 'react-native';
 
