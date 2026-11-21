@@ -30,7 +30,7 @@ type Item =
   | { key: string; kind: 'empty' }
   | { key: string; kind: 'nomatch'; named: string }
   | { key: string; kind: 'week'; heading: string; detail: string }
-  | { key: string; kind: 'release'; release: UpcomingRelease; day: string; heardDay: string; tracksOut: number | null; numTracks: number | null; rule: boolean; first: boolean; last: boolean };
+  | { key: string; kind: 'release'; release: UpcomingRelease; day: string; heardDay: string; tracksOut: number | null; numTracks: number | null; rule: boolean; first: boolean };
 
 function render({ item }: { item: Item }) {
   switch (item.kind) {
@@ -41,7 +41,7 @@ function render({ item }: { item: Item }) {
     case 'week':
       return <WeekHead week={item.heading} range={item.detail} />;
     case 'release':
-      return <WeekRow first={item.first} last={item.last}><ReleaseRow release={item.release} day={item.day} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} rule={item.rule} /></WeekRow>;
+      return <WeekRow first={item.first} last={!item.rule}><ReleaseRow release={item.release} day={item.day} heardDay={item.heardDay} tracksOut={item.tracksOut} numTracks={item.numTracks} buyers={item.release.buyers} rule={item.rule} /></WeekRow>;
   }
 }
 
@@ -75,7 +75,7 @@ export default function UpcomingReleases() {
         const on = releaseDay(r.releaseDate);
         const day = onDayPhrase(on, at);
         const heardDay = outOnPhrase(on, at);
-        list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day, heardDay, tracksOut: r.numStreamableTracks, numTracks: r.numTracks, rule, first: n === 0, last: !rule });
+        list.push({ key: `${r.itemType}:${r.itemId}`, kind: 'release', release: r, day, heardDay, tracksOut: r.numStreamableTracks, numTracks: r.numTracks, rule, first: n === 0 });
       });
     }
     if (list.length === 0) {
