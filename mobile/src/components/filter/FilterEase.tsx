@@ -8,8 +8,8 @@
  * to come and lowered a little after that render lands; any other relayout, and a cell off screen, moves at once. With
  * reduce motion on neither is raised.
  */
-import { useDeferredValue, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import type { CellRendererProps } from 'react-native';
+import { useDeferredValue, useEffect, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
+import type { VirtualizedListProps } from 'react-native';
 import Animated, {
   Easing,
   makeMutable,
@@ -226,11 +226,15 @@ function moveAcross(v: LayoutAnimationsValues): LayoutAnimation {
   return slide(v, moving(v, true));
 }
 
+// The props a list hands its `CellRendererComponent`, read off the list's own props: React Native's public types do not
+// export `CellRendererProps`.
+type CellRendererProps = ComponentProps<NonNullable<VirtualizedListProps['CellRendererComponent']>>;
+
 /**
  * A FlatList's `CellRendererComponent` for a vertical list the filter narrows. It passes on `onFocusCapture`, which
  * moves the list's render window to a cell keyboard focus enters; ViewProps does not type it, so it goes by spread.
  */
-export function FilterEaseCell({ children, style, onLayout, onFocusCapture }: CellRendererProps<unknown>) {
+export function FilterEaseCell({ children, style, onLayout, onFocusCapture }: CellRendererProps) {
   const on = useArmed();
   return (
     <Animated.View style={style} onLayout={onLayout} {...{ onFocusCapture }} entering={on ? arriveDown : undefined} exiting={on ? leaveDown : undefined} layout={on ? moveDown : undefined}>
@@ -240,7 +244,7 @@ export function FilterEaseCell({ children, style, onLayout, onFocusCapture }: Ce
 }
 
 /** The same for a horizontal list, the Upcoming shelf. */
-export function FilterEaseCardCell({ children, style, onLayout, onFocusCapture }: CellRendererProps<unknown>) {
+export function FilterEaseCardCell({ children, style, onLayout, onFocusCapture }: CellRendererProps) {
   const on = useArmed();
   return (
     <Animated.View style={style} onLayout={onLayout} {...{ onFocusCapture }} entering={on ? arriveAcross : undefined} exiting={on ? leaveAcross : undefined} layout={on ? moveAcross : undefined}>

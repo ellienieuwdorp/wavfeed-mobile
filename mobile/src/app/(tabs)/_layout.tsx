@@ -14,7 +14,7 @@ import { copy } from '@/copy';
 import { useTokens } from '@/theme/tokens';
 
 /** A screen that throws while drawing shows its fallback under the tab bar. */
-export const unstable_settings = { initialRouteName: '(feed)', screenErrorBoundary: ScreenFailed };
+export const unstable_settings = { anchor: '(feed)', screenErrorBoundary: ScreenFailed };
 
 export default function TabsLayout() {
   const { c, dark } = useTokens();

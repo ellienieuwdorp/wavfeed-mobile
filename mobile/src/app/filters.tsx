@@ -155,7 +155,7 @@ export default function Filters() {
                 <Text style={ios ? { fontSize: 15, color: c.accent } : { fontSize: 14, fontWeight: '500', color: c.accentText }}>{copy.filter.showAll(tags.length)}</Text>
               </SheetPress>
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </>

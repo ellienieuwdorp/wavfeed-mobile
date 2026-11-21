@@ -1,6 +1,6 @@
 # wavfeed mobile
 
-The phone app for iOS and Android: Expo SDK 57 with expo-router and
+The phone app for iOS and Android: Expo SDK 58 with expo-router and
 TypeScript. It signs into Bandcamp on the phone, gathers into SQLite there and
 plays from it, with no server (ADR-0020). `CONTEXT.md`, at the repo root,
 names everything in it.

@@ -47,8 +47,8 @@ function LiveMark({ playing, colour }: { playing: boolean; colour: string }) {
       const ms = BAR_MS[i] ?? 450;
       return Animated.loop(
         Animated.sequence([
-          Animated.timing(bar, { toValue: 0.25, duration: ms, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(bar, { toValue: 1, duration: ms, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(bar, { toValue: 0.25, duration: ms, easing: Easing.inOut(Easing.poly(2)), useNativeDriver: true }),
+          Animated.timing(bar, { toValue: 1, duration: ms, easing: Easing.inOut(Easing.poly(2)), useNativeDriver: true }),
         ]),
       );
     });

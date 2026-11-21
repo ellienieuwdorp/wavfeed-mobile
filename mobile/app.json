@@ -62,8 +62,7 @@
           "recordAudioAndroid": false,
           "microphonePermission": "wavfeed plays music and never records."
         }
-      ],
-      "./plugins/withSceneLifecycle"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
