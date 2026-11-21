@@ -85,6 +85,6 @@ export const dark: Palette = {
   avatarInk: '#e3ecfa',
   online: '#43b966',
   track: '#e6e7ea14',
-  weekBand: '#25282c',
-  weekBandEdge: '#2c2f34',
+  weekBand: '#2d3035',
+  weekBandEdge: '#3a3d43',
 };
