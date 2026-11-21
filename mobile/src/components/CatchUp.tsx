@@ -41,10 +41,11 @@ function Sweep({ moving, fraction }: { moving: boolean; fraction: number | null 
   useEffect(() => {
     at.setValue(0);
     if (!sweeping) return;
-    const step = (toValue: number) => Animated.timing(at, { toValue, duration: PULSE_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
+    // React Native's types declare `Easing.sin` a method, so it passes wrapped; `poly(2)` is `quad` as a factory.
+    const step = (toValue: number) => Animated.timing(at, { toValue, duration: PULSE_MS, easing: Easing.inOut((t) => Easing.sin(t)), useNativeDriver: true });
     const loop = reduce
       ? Animated.loop(Animated.sequence([step(1), step(0)]))
-      : Animated.loop(Animated.timing(at, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
+      : Animated.loop(Animated.timing(at, { toValue: 1, duration: SWEEP_MS, easing: Easing.inOut(Easing.poly(2)), useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
   }, [at, sweeping, reduce]);
@@ -54,7 +55,7 @@ function Sweep({ moving, fraction }: { moving: boolean; fraction: number | null 
       fill.setValue(fraction);
       return;
     }
-    const ease = Animated.timing(fill, { toValue: fraction, duration: FILL_MS, easing: Easing.out(Easing.quad), useNativeDriver: true });
+    const ease = Animated.timing(fill, { toValue: fraction, duration: FILL_MS, easing: Easing.out(Easing.poly(2)), useNativeDriver: true });
     ease.start();
     return () => ease.stop();
   }, [fill, fraction, reduce]);

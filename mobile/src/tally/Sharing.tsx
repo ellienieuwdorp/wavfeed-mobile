@@ -169,7 +169,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
         () => undefined,
       );
     };
-    apply(AppState.currentState);
+    apply(AppState.currentState ?? 'unknown');
     const subscription = AppState.addEventListener('change', apply);
     const tick = setInterval(() => {
       if (AppState.currentState === 'active') sender.current?.request();
