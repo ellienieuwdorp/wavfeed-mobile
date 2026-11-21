@@ -30,9 +30,12 @@ export type Palette = {
   avatarInk: string;
   online: string;
   track: string;
-  /** A week head's band (DESIGN-UI section 3), a step off the page under ink and sub words. */
+  /**
+   * A week head's band (DESIGN-UI section 3) under ink and sub words: a step off `bg`, darker in light and lighter in
+   * dark by the same lightness, about 1.1:1.
+   */
   weekBand: string;
-  /** The band's top and bottom rule. */
+  /** The band's top and bottom rule, a step further off `bg` the same way, about 1.2:1. */
   weekBandEdge: string;
 };
 
@@ -82,6 +85,6 @@ export const dark: Palette = {
   avatarInk: '#e3ecfa',
   online: '#43b966',
   track: '#e6e7ea14',
-  weekBand: '#2b2e32',
-  weekBandEdge: '#383b41',
+  weekBand: '#25282c',
+  weekBandEdge: '#2c2f34',
 };
